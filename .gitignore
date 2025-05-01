@@ -1,5 +1,2 @@
-dist
-www
-node_modules
-.nsite
-
+.deprecated
+.devdocs

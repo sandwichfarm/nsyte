@@ -1,178 +1,203 @@
 # nsite-cli
 
-This command line tool allows you to publish a static website on NOSTR in a anonymous and censorship resistant way.
+A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
 
-- The website file listings are published as events (`Kind 34128`) on NOSTR relays.
-- The binary files are uploaded to a blossom server ( https://github.com/hzrd149/blossom )
-- All data is signed with your private key, so it can not be altered by anyone else.
+- Website file listings are published as events (Kind 34128) on NOSTR relays
+- Binary files are uploaded to blossom servers
+- All data is signed with your private key, making it tamper-proof
 
-## Usage
+## Features
 
-There are two ways to use this tool.
+- **Interactive Setup**: Guided setup to configure your project
+- **Key Management**: Multiple options for managing your NOSTR keys
+  - Generate a new key
+  - Use an existing key
+  - Use a NIP-46 bunker for secure remote signing
+- **Fast Uploads**: Parallel uploads for better performance
+- **Smart File Detection**: Automatically detects files that already exist online
+- **Colorful Terminal UI**: Progress bars and colorized output
+- **Cross-Platform**: Works on macOS, Linux, and Windows
 
-1. When you run `npx nsite-cli` without any subcommand, it will start an interactive dialog to set up a new project. Here you can also create a new private key (nsec) for signing, add custom relays and blossom servers. All settings will be saved in a `.nsite/project.json` file in the current working directory.
+## Installation
 
-2. You can specify all settings on the command line or environment variables and use the `upload` command to upload a website.
-   ```
-   npx nsite-cli upload \
-   --relays 'wss://nos.lol,wss://relay.primal.net,wss://relay.nostr.band,wss://relay.damus.io' \
-   --servers 'https://cdn.satellite.earth,https://nostr.download' \
-   --privatekey <some secret nsec> \
-   www
-   ```
+### Using Deno
 
-## Commands
-
-### Upload
-
-Upload a folder to NOSTR and the configured blossom servers:
-
-```
-npx nsite-cli upload <folder>
+```bash
+# Install directly from GitHub
+deno install --allow-read --allow-write --allow-net --allow-env -n nsite-cli https://raw.githubusercontent.com/username/nsite-cli/main/src/cli.ts
 ```
 
-### Download
+### Using Pre-built Binaries
 
-Download a folder from NOSTR and the configured blossom servers:
+Download the appropriate binary for your system from the [Releases](https://github.com/username/nsite-cli/releases) page.
 
-```
-npx nsite-cli download ./targetfolder npub1kjd4h3scfgzqmxn509a2fzuemps379rxnk7lkfh39jme3jdnfg
-```
+## Quick Start
 
-Download currently only works with a given public key (npub) and not with the private key or project configuratiom.
+### Interactive Mode (Recommended)
 
-### List
+Running nsite-cli without any subcommand starts the interactive setup:
 
-List all uploaded files of a specific public user (npub):
-
-```
-npx nsite-cli ls npub1kjd4h3scfgzqmxn509a2fzuemps379rxnk7lkfh39jme3jdnfg
+```bash
+nsite-cli
 ```
 
-or list all uploaded files for the current private key (from the .nsite/project.json file):
+This guides you through:
+- Setting up your key management
+- Configuring relays and blossom servers
+- Setting profile information
 
-```
-npx nsite-cli ls ./targetfolder
-```
+### Uploading a Website
 
-## Environment variables
+```bash
+# Upload a website interactively
+nsite-cli upload ./www
 
-Setup your NOSTR relays through the `NOSTR_RELAYS` environment variable:
+# Upload with specific options
+nsite-cli upload ./www --concurrency 8 --verbose
 
-```
-export NOSTR_RELAYS=wss://nos.lol,wss://relay.primal.net,wss://relay.nostr.band,wss://relay.damus.io
-```
-
-The `BLOSSOM_SERVERS` can be used to specify the blossom servers:
-
-```
-export BLOSSOM_SERVERS=https://media-server.slidestr.net/,https://nostr.download/
+# Force upload even if files are already online
+nsite-cli upload ./www --force
 ```
 
-Set a `NOSTR_PRIVATE_KEY` that will be used to publish events (nsec or hex string) can be set as follows:
+### Listing Files
 
+```bash
+# List your own files
+nsite-cli ls
+
+# List files from another user
+nsite-cli ls npub1abc123...
 ```
-export NOSTR_PRIVATE_KEY=<nsec or hex nostr private key>
+
+### Downloading Files
+
+```bash
+# Download files from another user
+nsite-cli download ./target-folder npub1abc123...
 ```
 
+## Key Management
 
-## Dynamic web app with browser based routing (e.g. React Browser Router)
+### Using Private Keys
 
-For deep linking into web apps that use browser based routing there needs to be a way to redirect 
-requests to the root `/index.html` to start the web apps. **nsite** solves this by using a `/404.html`. You can either 
-upload a custom `/404.html` file or use the `--fallback=/index.html` option to "redirect" to a specific html file. 
-This instructs `nsite-cli` to upload a copy of the specified fallback file as  `/404.html`.
+Your private key is used to sign events but is never sent to any server. You can:
+
+```bash
+# Use from config file (created during interactive setup)
+nsite-cli upload ./www
+
+# Specify directly (not recommended)
+nsite-cli upload ./www --privatekey nsec1abc123...
 ```
-npx nsite-cli upload dist --fallback=/index.html
 
+### Using NSEC Bunkers (NIP-46)
+
+For enhanced security, you can use a NIP-46 remote signer:
+
+```bash
+# Configure a bunker during interactive setup
+nsite-cli
+
+# Specify a bunker URL directly
+nsite-cli upload ./www --bunker bunker://pubkey?relay=wss://relay.example.com&secret=abc123
 ```
-Another way is to use the fallback option in the project config.
+
+## Configuration Options
+
+nsite-cli stores its configuration in a `.nsite/config.json` file in your project directory:
+
 ```json
 {
-  "privateKey": "xxxxxxxxxx",
-  "relays": [
-    ...
-  ],
-  "servers": [
-    ...
-  ],
-  "fallback": "/index.html"
-}
-
-```
-
-
-## Connecting to Tor and I2P relays
-
-nsite-cli supports `ALL_PROXY` and other proxy env variables [here](https://www.npmjs.com/package/proxy-from-env#environment-variables)
-
-Install Tor ([Documentation](https://community.torproject.org/onion-services/setup/install/)) and I2Pd ([Documentation](https://i2pd.readthedocs.io/en/latest/user-guide/install/))
-
-Create a proxy.pac file
-
-```txt
-// SPDX-License-Identifier: CC0-1.0
-
-function FindProxyForURL(url, host)
-{
-  if (shExpMatch(host, "*.i2p"))
-  {
-    return "PROXY 127.0.0.1:4444; SOCKS5 127.0.0.1:4447";
-  }
-  if (shExpMatch(host, "*.onion"))
-  {
-    return "SOCKS5 127.0.0.1:9050";
-  }
-  return "DIRECT";
+  "privateKey": "your-private-key",  // Only one of privateKey or bunkerUrl will be set
+  "bunkerUrl": "bunker://...",       // NIP-46 bunker URL
+  "relays": ["wss://relay1", "wss://relay2"],
+  "servers": ["https://server1", "https://server2"],
+  "profile": {
+    "name": "My Website",
+    "about": "Description of my website"
+  },
+  "publishServerList": true,
+  "publishRelayList": true,
+  "publishProfile": true
 }
 ```
 
-Start the command with `PAC_PROXY` variable
+## Advanced Usage
 
-```sh
-PAC_PROXY=file://$(pwd)/proxy.pac npx nsite-cli .
+### Deep Linking in Single Page Applications
+
+For deep linking with browser-based routing (e.g., React Router), use the `--fallback` option:
+
+```bash
+nsite-cli upload ./dist --fallback=/index.html
 ```
 
-## Troubleshooting
+This creates a copy of the specified file as `/404.html`.
 
-To enable debug logging, set the `DEBUG` environment variable to `nsite*` or even `*` to also see `ndk:*` logs
+### Environment Variables
 
-```
-export DEBUG=nsite*
+You can use environment variables for configuration:
 
-OR
-
-export DEBUG=*
+```bash
+export NSITE_LOG_LEVEL=debug  # For debug-level logging
 ```
 
-## Build
+### Non-Interactive Mode
 
-```
-npm i
-npm run build
+For automated scripts, you can use non-interactive mode:
 
-bun i
-bun run build
+```bash
+nsite-cli upload ./www --non-interactive --privatekey nsec1abc123...
 ```
 
-## Install or Run
+### Recent Improvements
 
-By running
+- **Smart Existing File Detection**: The tool now correctly identifies files that are already uploaded and avoids unnecessary re-uploads
+- **Improved Progress Tracking**: Progress now correctly tracks files, not server operations
+- **Better Success Reporting**: Separate tracking for file uploads vs. NOSTR event publication
+- **Enhanced Error Handling**: More informative error messages and better recovery from common issues
 
+## Development
+
+### Prerequisites
+
+- [Deno](https://deno.land/) 1.40.5 or higher
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/username/nsite-cli.git
+cd nsite-cli
+
+# Run the development version
+deno task dev
+
+# Run tests
+deno task test
+
+# Build binaries
+deno task compile      # For current platform
+deno task compile:all  # For all platforms
 ```
-npm link
+
+### Known Issues and Workarounds
+
+**Deno version compatibility**: The current version works best with Deno v1.40.5. If you encounter errors related to import assertions, you can:
+
+```bash
+# Downgrade Deno version
+deno upgrade --version 1.40.5
+
+# Remove the lockfile and recompile
+rm -f deno.lock
+deno task compile
 ```
 
-the `nsite-cli` command can be installed to be run from command line from anywhere you like.
+## Contributing
 
-Otherwise it can also be run from source using `bun`
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-```
-bun run src/cli.ts upload ./www
-```
+## License
 
-Or from the built javascript files using node
-
-```
-node dist/cli.ts upload ./www
-```
+MIT License 
