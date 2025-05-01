@@ -622,6 +622,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
     let successCount = 0;
     const totalRelays = relays.length;
     const eventJson = JSON.stringify(["EVENT", event]);
+    const relayErrors = new Map<string, string>();
     
     await Promise.all(relays.map(async (relay) => {
       try {
@@ -635,9 +636,29 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
             socket.onmessage = (msg) => {
               try {
                 const data = JSON.parse(msg.data);
+                
+                // Handle successful publish
                 if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
                   log.debug(`Event published to relay: ${relay}`);
                   resolve(true);
+                  socket.close();
+                  return;
+                }
+                
+                // Handle error responses like ["OK", <event_id>, false, <error_message>]
+                if (Array.isArray(data) && data.length >= 4 && data[0] === "OK" && data[2] === false) {
+                  const errorMessage = data[3] || "Unknown relay error";
+                  
+                  // Record the error but don't crash on rate limiting
+                  if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
+                    log.warn(`Relay ${relay} rate-limited this publish: ${errorMessage}`);
+                    relayErrors.set(relay, `Rate limited: ${errorMessage}`);
+                  } else {
+                    log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
+                    relayErrors.set(relay, errorMessage);
+                  }
+                  
+                  resolve(false);
                   socket.close();
                 }
               } catch (e) {
@@ -646,6 +667,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
             };
             
             setTimeout(() => {
+              relayErrors.set(relay, "Timeout waiting for response");
               resolve(false);
               socket.close();
             }, 5000);
@@ -653,6 +675,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
           
           socket.onerror = (e) => {
             log.debug(`WebSocket error with relay ${relay}: ${e}`);
+            relayErrors.set(relay, `WebSocket error: ${e}`);
             resolve(false);
           };
           
@@ -667,15 +690,29 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
         }
       } catch (e) {
         log.debug(`Failed to connect to relay ${relay}: ${e}`);
+        relayErrors.set(relay, `Connection failed: ${e}`);
       }
     }));
     
     const success = successCount > 0;
+    
     if (success) {
       log.debug(`Published event to ${successCount}/${totalRelays} relays`);
+      
+      if (successCount < totalRelays) {
+        log.debug("Some relays failed to accept the event:");
+        for (const [relay, error] of relayErrors.entries()) {
+          log.debug(`  - ${relay}: ${error}`);
+        }
+      }
     } else {
       log.warn("Failed to publish event to any relay");
+      log.debug("Relay errors:");
+      for (const [relay, error] of relayErrors.entries()) {
+        log.debug(`  - ${relay}: ${error}`);
+      }
     }
+    
     return success;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);

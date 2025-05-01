@@ -201,29 +201,75 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_B
   log.debug(`Publishing event ${event.id} to ${relays.length} relays`);
   
   try {
-    const pub = pool.publish(relays, event as unknown as Event);
+    // Try to publish to all relays at once, but catch any errors that might occur
+    let succeeded = false;
     
-    const success = await new Promise<boolean>((resolve) => {
-      let succeeded = false;
+    try {
+      const pub = pool.publish(relays, event as unknown as Event);
       
-      pub.on('ok', () => {
-        succeeded = true;
-        resolve(true);
+      succeeded = await new Promise<boolean>((resolve) => {
+        let anySuccess = false;
+        
+        // Event handler for successful publish to any relay
+        pub.on('ok', () => {
+          anySuccess = true;
+          resolve(true);
+        });
+        
+        // Set a timeout to resolve after waiting for responses
+        setTimeout(() => {
+          resolve(anySuccess);
+        }, 5000);
       });
+    } catch (error) {
+      // If we get a rate-limiting error or any other error from SimplePool,
+      // log it and try publishing to relays individually
+      if (error instanceof Error && error.message.includes("rate-limit")) {
+        log.warn(`Rate limiting error from relay: ${error.message}`);
+      } else {
+        log.warn(`Error from SimplePool: ${error}`);
+      }
       
-      setTimeout(() => {
-        resolve(succeeded);
-      }, 5000);
-    });
+      // Try publishing to each relay individually
+      log.info("Trying to publish to relays individually...");
+      
+      // Track successful publishes
+      const individualSuccesses = await Promise.all(
+        relays.map(async (relay) => {
+          try {
+            // Try publishing to a single relay
+            const singlePub = pool.publish([relay], event as unknown as Event);
+            
+            return await new Promise<boolean>((resolve) => {
+              singlePub.on('ok', () => {
+                log.debug(`Successfully published to relay: ${relay}`);
+                resolve(true);
+              });
+              
+              setTimeout(() => {
+                resolve(false);
+              }, 3000);
+            });
+          } catch (relayError) {
+            log.debug(`Failed to publish to relay ${relay}: ${relayError}`);
+            return false;
+          }
+        })
+      );
+      
+      // If any individual publish succeeded, consider it a success
+      succeeded = individualSuccesses.some(success => success);
+    }
     
-    if (success) {
-      log.info(`Successfully published event to relays`);
+    if (succeeded) {
+      log.info(`Successfully published event to at least one relay`);
     } else {
       log.warn(`Failed to publish event to any relay`);
     }
     
-    return success;
+    return succeeded;
   } catch (error) {
+    // This is our final fallback for any uncaught errors
     log.error(`Error publishing event: ${error}`);
     return false;
   }

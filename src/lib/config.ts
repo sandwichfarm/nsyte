@@ -56,6 +56,36 @@ export const popularBlossomServers = [
 ];
 
 /**
+ * Sanitize a bunker URL for storage by removing the secret parameter
+ */
+function sanitizeBunkerUrl(url: string): string {
+  try {
+    // Skip if not a bunker URL
+    if (!url || !url.startsWith("bunker://")) {
+      return url;
+    }
+    
+    // Parse the URL using URL class
+    const parsedUrl = new URL(url.replace("bunker://", "https://"));
+    
+    // Remove any secret parameter
+    parsedUrl.searchParams.delete("secret");
+    
+    // Reconstruct the bunker URL without the secret
+    const sanitized = `bunker://${parsedUrl.hostname}${parsedUrl.pathname}`;
+    
+    // Append relay parameters
+    const relays = parsedUrl.searchParams.getAll("relay");
+    const relayParams = relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+    
+    return relayParams ? `${sanitized}?${relayParams}` : sanitized;
+  } catch (error) {
+    log.warn(`Failed to sanitize bunker URL: ${error}`);
+    return url; // Return original if parsing fails
+  }
+}
+
+/**
  * Write project configuration to file
  */
 export function writeProjectFile(projectData: ProjectData): void {
@@ -63,8 +93,16 @@ export function writeProjectFile(projectData: ProjectData): void {
 
   try {
     ensureDirSync(dirname(projectPath));
+    
+    // Clone the data to avoid modifying the original
+    const sanitizedData = { ...projectData };
+    
+    // Sanitize bunker URL if present to remove secrets
+    if (sanitizedData.bunkerUrl) {
+      sanitizedData.bunkerUrl = sanitizeBunkerUrl(sanitizedData.bunkerUrl);
+    }
 
-    Deno.writeTextFileSync(projectPath, JSON.stringify(projectData, null, 2));
+    Deno.writeTextFileSync(projectPath, JSON.stringify(sanitizedData, null, 2));
     log.success(`Project configuration saved to ${configDir}/${projectFile}`);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);

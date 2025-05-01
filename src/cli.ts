@@ -1,5 +1,21 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
 
+// Global error handler for uncaught promise rejections and exceptions
+// This will prevent rate-limiting errors from crashing the entire process
+self.addEventListener("unhandledrejection", (event) => {
+  // Check if it's a rate limiting error
+  if (event.reason && 
+      event.reason.message && 
+      (event.reason.message.includes("rate-limit") || 
+       event.reason.message.includes("noting too much"))) {
+    
+    console.warn(`Rate limiting detected: ${event.reason.message}`);
+    
+    // Prevent the error from crashing the process
+    event.preventDefault();
+  }
+});
+
 import { Command } from "cliffy/command/mod.ts";
 import { colors } from "cliffy/ansi/colors.ts";
 import { registerUploadCommand } from "./commands/upload.ts";
@@ -18,10 +34,21 @@ const nsite = new Command()
 registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
+
+// Register test-bunker command separately to avoid default action behavior
 nsite.command("test-bunker", testBunkerCommand);
 
+// Main action for root command - only runs when no subcommand is specified
 nsite.action(async () => {
+  // This action only runs when no valid subcommand is given
   try {
+    // Check if the first argument is 'test-bunker' but command didn't parse correctly
+    // This handles cases where test-bunker is called with invalid options
+    if (Deno.args.length > 0 && Deno.args[0] === "test-bunker") {
+      await testBunkerCommand.showHelp();
+      return;
+    }
+    
     const { projectData, privateKey } = await setupProject();
     
     if (privateKey || projectData.bunkerUrl) {
