@@ -5,8 +5,7 @@
 A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
 
 - Website file listings are published as events (Kind 34128) on NOSTR relays
-- Binary files are uploaded to blossom servers
-- All data is signed with your private key, making it tamper-proof
+- Binary files are uploaded to configured blossom servers
 
 ## Features
 
@@ -124,7 +123,6 @@ nsyte stores its configuration in a `.nsite/config.json` file in your project di
 
 ```json
 {
-  "privateKey": "your-private-key",  // Only one of privateKey or bunkerUrl will be set
   "bunkerUrl": "bunker://...",       // NIP-46 bunker URL
   "relays": ["wss://relay1", "wss://relay2"],
   "servers": ["https://server1", "https://server2"],
