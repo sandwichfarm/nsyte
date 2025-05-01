@@ -2,7 +2,7 @@ import { createLogger } from "./logger.ts";
 import { encodeHex } from "std/encoding/hex.ts";
 import { Signer } from "./upload.ts";
 import { schnorr } from "@noble/curves/secp256k1";
-import { BunkerSigner } from "./bunker.ts";
+import { BunkerSigner } from "./nip46.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 
 const log = createLogger("nostr");

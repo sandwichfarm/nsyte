@@ -5,6 +5,7 @@ import { colors } from "cliffy/ansi/colors.ts";
 import { registerUploadCommand } from "./commands/upload.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
+import { testBunkerCommand } from "./commands/test-bunker.ts";
 import { setupProject } from "./lib/config.ts";
 import { version } from "../version.ts";
 import { log } from "./lib/logger.ts";
@@ -17,6 +18,7 @@ const nsite = new Command()
 registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
+nsite.command("test-bunker", testBunkerCommand);
 
 nsite.action(async () => {
   try {
