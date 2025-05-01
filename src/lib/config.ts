@@ -7,7 +7,6 @@ import { generateKeyPair } from "./nostr.ts";
 
 const log = createLogger("config");
 
-// Project configuration type
 export interface Profile {
   name?: string;
   about?: string;
@@ -31,17 +30,14 @@ export interface ProjectData {
   fallback?: string;
 }
 
-// Return type for setupProject to include transient private key
 export interface ProjectContext {
   projectData: ProjectData;
-  privateKey?: string; // Transient, never stored in config
+  privateKey?: string;
 }
 
-// Constants
 const configDir = ".nsite";
 const projectFile = "config.json";
 
-// Popular relay and server lists for suggestions
 export const popularRelays = [
   "wss://nostr.cercatrova.me",
   "wss://relay.primal.net",
@@ -66,10 +62,8 @@ export function writeProjectFile(projectData: ProjectData): void {
   const projectPath = join(Deno.cwd(), configDir, projectFile);
 
   try {
-    // Ensure directory exists
     ensureDirSync(dirname(projectPath));
 
-    // Write the file
     Deno.writeTextFileSync(projectPath, JSON.stringify(projectData, null, 2));
     log.success(`Project configuration saved to ${configDir}/${projectFile}`);
   } catch (error: unknown) {
@@ -126,15 +120,13 @@ export async function setupProject(): Promise<ProjectContext> {
     console.log(colors.cyan("No existing project configuration found. Setting up a new one:"));
     const setupResult = await interactiveSetup();
     projectData = setupResult.projectData;
-    privateKey = setupResult.privateKey; // Transient, not stored in config
+    privateKey = setupResult.privateKey;
     writeProjectFile(projectData);
   }
 
-  // If no key configuration is found, prompt specifically for that
   if (!projectData.bunkerUrl && !privateKey) {
     console.log(colors.yellow("No key configuration found. Let's set that up:"));
     
-    // Key management choice
     const keyChoice = await Select.prompt({
       message: "How would you like to manage your NOSTR key?",
       options: [
@@ -144,23 +136,19 @@ export async function setupProject(): Promise<ProjectContext> {
       ],
     });
 
-    // Handle key management based on selection
     if (keyChoice === "generate") {
-      // Generate a new key pair
       const keyPair = generateKeyPair();
-      privateKey = keyPair.privateKey; // Transient, not stored in config
+      privateKey = keyPair.privateKey;
       console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
       console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
       console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
       
     } else if (keyChoice === "existing") {
-      // Ask for existing key - kept in memory only
       privateKey = await Secret.prompt({
         message: "Enter your NOSTR private key (nsec/hex):",
       });
       
     } else if (keyChoice === "bunker") {
-      // Ask for bunker URL
       projectData.bunkerUrl = await Input.prompt({
         message: "Enter your NSEC bunker URL (bunker://...):",
         validate: (input: string) => {
@@ -170,7 +158,6 @@ export async function setupProject(): Promise<ProjectContext> {
       });
     }
     
-    // Save the updated configuration (without private key)
     writeProjectFile(projectData);
     console.log(colors.green("Key configuration set up successfully!"));
   }
@@ -184,7 +171,6 @@ export async function setupProject(): Promise<ProjectContext> {
 async function interactiveSetup(): Promise<ProjectContext> {
   console.log(colors.cyan("Welcome to nsyte setup!"));
   
-  // Key management choice
   const keyChoice = await Select.prompt({
     message: "How would you like to manage your NOSTR key?",
     options: [
@@ -198,23 +184,19 @@ async function interactiveSetup(): Promise<ProjectContext> {
   let bunkerUrl: string | undefined;
   let bunkerSession: string | undefined;
 
-  // Handle key management based on selection
   if (keyChoice === "generate") {
-    // Generate a new key pair
     const keyPair = generateKeyPair();
-    privateKey = keyPair.privateKey; // Transient, not stored in config
+    privateKey = keyPair.privateKey;
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
     console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
     
   } else if (keyChoice === "existing") {
-    // Ask for existing key - kept in memory only
     privateKey = await Secret.prompt({
       message: "Enter your NOSTR private key (nsec/hex):",
     });
     
   } else if (keyChoice === "bunker") {
-    // Ask for bunker URL
     bunkerUrl = await Input.prompt({
       message: "Enter your NSEC bunker URL (bunker://...):",
       validate: (input: string) => {
@@ -224,7 +206,6 @@ async function interactiveSetup(): Promise<ProjectContext> {
     });
   }
 
-  // Get project details
   const projectName = await Input.prompt({
     message: "Enter website or project name:",
   });
@@ -233,15 +214,12 @@ async function interactiveSetup(): Promise<ProjectContext> {
     message: "Enter website or project description:",
   });
 
-  // Get relay URLs
   console.log(colors.cyan("\nEnter NOSTR relay URLs (leave empty when done):"));
   const relays = await promptForUrls("Enter relay URL:", popularRelays);
 
-  // Get blossom servers
   console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
 
-  // Publishing preferences
   const publishProfile = await Confirm.prompt({
     message: "Publish profile information to NOSTR?",
     default: true,
@@ -257,7 +235,6 @@ async function interactiveSetup(): Promise<ProjectContext> {
     default: true,
   });
 
-  // Create project data (without private key)
   const projectData: ProjectData = {
     bunkerUrl,
     bunkerSession,
@@ -273,7 +250,6 @@ async function interactiveSetup(): Promise<ProjectContext> {
     publishServerList,
   };
 
-  // Return both project data and transient private key
   return { projectData, privateKey };
 }
 
@@ -292,7 +268,6 @@ async function promptForUrls(message: string, suggestions: string[]): Promise<st
     
     if (!url) break;
     
-    // Simple URL validation
     if (url.startsWith("http://") || url.startsWith("https://") || 
         url.startsWith("ws://") || url.startsWith("wss://")) {
       urls.push(url);

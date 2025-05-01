@@ -1,7 +1,6 @@
 import { colors } from "cliffy/ansi/colors.ts";
 import { UploadProgress } from "../lib/upload.ts";
 
-// Progress bar configuration
 const PROGRESS_BAR_WIDTH = 30;
 const PROGRESS_CHAR = "█";
 const INCOMPLETE_CHAR = "░";
@@ -52,7 +51,6 @@ interface ProgressData {
   completed: number;
   failed: number;
   inProgress: number;
-  // Optional server stats
   serverStats?: {
     [filename: string]: {
       successCount: number;
@@ -77,7 +75,6 @@ export class ProgressRenderer {
   }
 
   update(data: ProgressData): void {
-    // Clear any existing interval
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -85,26 +82,21 @@ export class ProgressRenderer {
 
     this.renderProgress(data);
 
-    // Periodically update the display to refresh the elapsed time and ETA
     this.intervalId = setInterval(() => {
       this.renderProgress(data);
     }, 1000);
   }
 
   complete(success: boolean, message: string): void {
-    // Clear any existing interval
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
 
-    // Get elapsed time
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
     
-    // Clear the line before showing the final message
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
     
-    // Output final status
     if (success) {
       console.log(`${colors.green("✓ SUCCESS")}: ${message} (took ${elapsed}s)`);
     } else {
@@ -113,16 +105,12 @@ export class ProgressRenderer {
   }
 
   private renderProgress(data: ProgressData): void {
-    // Clear the current line
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
     
-    // Calculate the percentage complete
     const percent = data.total === 0 ? 0 : Math.floor((data.completed / data.total) * 100);
     
-    // Calculate the elapsed time in seconds
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
     
-    // Calculate ETA based on the completed items so far
     let eta = "calculating...";
     if (data.completed > 0) {
       const timePerItem = elapsed / data.completed;
@@ -131,11 +119,9 @@ export class ProgressRenderer {
       eta = etaSeconds <= 0 ? "0s" : `${etaSeconds}s`;
     }
 
-    // Create the progress bar
     const filledLength = Math.floor((percent * this.barLength) / 100);
     const bar = "█".repeat(filledLength) + "░".repeat(this.barLength - filledLength);
 
-    // Format the server status info if available
     let serverInfo = "";
     if (data.serverStats) {
       const entries = Object.entries(data.serverStats);
@@ -146,13 +132,10 @@ export class ProgressRenderer {
       }
     }
     
-    // Create the progress display
     const progressText = `[${bar}] ${percent}% | ${data.completed}/${data.total} files | ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
     
-    // Write to stdout
     Deno.stdout.writeSync(new TextEncoder().encode(progressText));
     
-    // Update the last update time
     this.lastUpdate = Date.now();
   }
 }

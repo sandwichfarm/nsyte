@@ -43,7 +43,6 @@ function signId(id: string, privateKey: Uint8Array): string {
  * Parse a NOSTR private key from various formats
  */
 function parsePrivateKey(key: string): Uint8Array {
-  // Handle bech32 nsec format
   if (key.startsWith("nsec1")) {
     try {
       const { words } = bech32.decode(key, 1000);
@@ -58,7 +57,6 @@ function parsePrivateKey(key: string): Uint8Array {
     }
   }
   
-  // Handle hex format
   if (/^[0-9a-fA-F]{64}$/.test(key)) {
     return hexToBytes(key);
   }
@@ -78,10 +76,8 @@ export class PrivateKeySigner implements Signer {
    */
   constructor(privateKey: string) {
     try {
-      // Parse and validate the private key
       this.privateKeyBytes = parsePrivateKey(privateKey);
       
-      // Derive the public key
       this.publicKeyHex = getPublicKey(this.privateKeyBytes);
       
       log.debug(`Created private key signer for ${this.publicKeyHex.slice(0, 8)}...`);
@@ -103,19 +99,15 @@ export class PrivateKeySigner implements Signer {
    * Sign an event using the private key
    */
   async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
-    // Ensure pubkey is set
     const eventWithPubkey = {
       ...template,
       pubkey: this.publicKeyHex,
     };
     
-    // Calculate event ID
     const id = calculateId(eventWithPubkey);
     
-    // Sign the ID
     const sig = signId(id, this.privateKeyBytes);
     
-    // Return the signed event
     return {
       ...eventWithPubkey,
       id,

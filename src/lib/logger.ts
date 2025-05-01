@@ -1,6 +1,5 @@
 import { colors } from "cliffy/ansi/colors.ts";
 
-// Track if we're in progress mode
 let inProgressMode = false;
 
 /**
@@ -113,5 +112,4 @@ export function createLogger(namespace: string) {
   };
 }
 
-// Default root logger
 export const log = createLogger("nsite"); 

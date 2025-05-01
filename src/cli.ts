@@ -9,18 +9,15 @@ import { setupProject } from "./lib/config.ts";
 import { version } from "../version.ts";
 import { log } from "./lib/logger.ts";
 
-// Create the main command
 const nsite = new Command()
   .name("nsyte")
   .version(version)
   .description("Publish your site to NOSTR and blossom servers");
 
-// Register all sub-commands
 registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
 
-// Default action (shows help or project info)
 nsite.action(async () => {
   try {
     const { projectData, privateKey } = await setupProject();
@@ -42,7 +39,6 @@ nsite.action(async () => {
   }
 });
 
-// Parse command line arguments and run the appropriate command
 try {
   await nsite.parse(Deno.args);
 } catch (error) {

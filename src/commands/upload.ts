@@ -14,7 +14,6 @@ import { nip19 } from "npm:nostr-tools";
 
 const log = createLogger("upload");
 
-// Command options interface
 interface UploadCommandOptions {
   force: boolean;
   verbose: boolean;
@@ -53,7 +52,6 @@ export function registerUploadCommand(program: Command): void {
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("--non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options, folder) => {
-      // Cast options to our interface since Cliffy's types don't match exactly
       await uploadCommand(folder, options as unknown as UploadCommandOptions);
     });
 }
@@ -68,7 +66,6 @@ async function uploadCommand(
   try {
     log.debug("Upload command started");
     
-    // Get project configuration
     const projectContext = options.nonInteractive
       ? { projectData: readProjectFile() || { relays: [], servers: [], publishRelayList: false, publishServerList: false } }
       : await setupProject();
@@ -80,31 +77,26 @@ async function uploadCommand(
       Deno.exit(1);
     }
     
-    // Determine key source with precedence: command-line options > transient private key > project config
     let signer: Signer;
     let publisherPubkey: string;
     
     if (options.privatekey) {
-      // Use private key from command line
       const privateKeySigner = new PrivateKeySigner(options.privatekey);
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from command line");
     } else if (options.bunker) {
-      // Use bunker from command line
       log.info("Connecting to bunker from command line...");
       const { client, userPubkey } = await createNip46ClientFromUrl(options.bunker);
       signer = client;
       publisherPubkey = userPubkey;
       log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
     } else if (projectContext.privateKey) {
-      // Use transient private key from prompt/setup
       const privateKeySigner = new PrivateKeySigner(projectContext.privateKey);
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from prompt");
     } else if (projectData.bunkerUrl) {
-      // Use bunker from project config
       log.info("Connecting to bunker from project config...");
       const { client, userPubkey } = await createNip46ClientFromUrl(projectData.bunkerUrl);
       signer = client;
@@ -115,7 +107,6 @@ async function uploadCommand(
       Deno.exit(1);
     }
     
-    // Determine relays and servers from options and project config
     const relays = options.relays
       ? options.relays.split(",")
       : projectData.relays;
@@ -124,12 +115,10 @@ async function uploadCommand(
       ? options.servers.split(",")
       : projectData.servers;
     
-    // Display info
     console.log(colors.cyan(`Upload for user: ${publisherPubkey}`));
     console.log(colors.cyan(`Using relays: ${relays.join(", ")}`));
     console.log(colors.cyan(`Using servers: ${servers.join(", ")}`));
     
-    // Handle fallback file
     const fallbackFor404 = options.fallback || projectData.fallback;
     if (fallbackFor404) {
       const sourceFolder = normalize(fileOrFolder).replace(/\/$/, "");
@@ -141,7 +130,6 @@ async function uploadCommand(
       console.log(colors.green(`Copied ${htmlSourcePath} to ${fallback404Path} for 404 fallback`));
     }
     
-    // Get local and remote files
     const localFiles = await getLocalFiles(fileOrFolder);
     if (localFiles.length === 0) {
       console.error(colors.red(`No files found in local source folder ${fileOrFolder}.`));
@@ -156,7 +144,6 @@ async function uploadCommand(
       });
     }
     
-    // Get remote files
     console.log(colors.cyan("Fetching file list from NOSTR relays..."));
     const remoteFiles = await listRemoteFiles(relays, publisherPubkey);
     console.log(colors.green(`${remoteFiles.length} files available online.`));
@@ -167,16 +154,13 @@ async function uploadCommand(
       });
     }
     
-    // Add a special check for the case where remote files could not be fetched
     let fileComparisonMessage = "";
     if (remoteFiles.length === 0) {
-      // Check if we previously uploaded to these servers
       const checkFilePath = localFiles[0];
       
       if (checkFilePath && checkFilePath.sha256) {
         console.log(colors.yellow("Checking if files already exist on blossom servers..."));
         
-        // Try to check if one of the files exists on each server
         let alreadyExists = false;
         
         for (const server of servers) {
@@ -193,7 +177,6 @@ async function uploadCommand(
               break;
             }
           } catch (error) {
-            // Ignore errors, just continue checking other servers
           }
         }
         
@@ -203,7 +186,6 @@ async function uploadCommand(
       }
     }
     
-    // Compare files to determine what needs to be uploaded
     const { toTransfer, existing, toDelete } = compareFiles(localFiles, remoteFiles);
     console.log(colors.green(
       `${toTransfer.length} new files to upload, ${existing.length} files unchanged, ${toDelete.length} files to delete online.`
@@ -213,7 +195,6 @@ async function uploadCommand(
       console.log(colors.yellow(fileComparisonMessage));
     }
     
-    // Check if there's anything to do
     if ((toTransfer.length === 0 && (!options.purge || toDelete.length === 0)) || 
         (remoteFiles.length === 0 && fileComparisonMessage && !options.force)) {
       console.log(colors.yellow("No files to upload or delete. Use --force to upload all files."));
@@ -226,7 +207,6 @@ async function uploadCommand(
         
         if (forceUpload) {
           console.log(colors.cyan(`Force uploading all ${localFiles.length} files.`));
-          // Reset the file lists for force upload
           toTransfer.push(...existing);
         } else {
           if (existing.length > 0) {
@@ -237,7 +217,6 @@ async function uploadCommand(
         }
       } else if (options.force) {
         console.log(colors.cyan(`Force uploading all ${localFiles.length} files.`));
-        // Reset the file lists for force upload
         toTransfer.push(...existing);
       } else {
         if (existing.length > 0) {
@@ -249,7 +228,6 @@ async function uploadCommand(
     }
     
     if (toTransfer.length > 0) {
-      // Load file data for each file to upload
       console.log(colors.cyan("Loading file data..."));
       
       const filesToUpload: any[] = [];
@@ -268,13 +246,10 @@ async function uploadCommand(
         Deno.exit(1);
       }
       
-      // Create a progress renderer
       const progress = new ProgressRenderer();
       
-      // Process uploads in parallel
       console.log(colors.cyan(`\nUploading ${filesToUpload.length} files with concurrency ${options.concurrency}...`));
       
-      // Enable progress mode to suppress logs during progress display
       setProgressMode(true);
       
       const results = await processUploads(
@@ -287,18 +262,14 @@ async function uploadCommand(
         (progressData) => progress.update(progressData)
       );
       
-      // Disable progress mode
       setProgressMode(false);
       
-      // Calculate success rate (based on files, not server operations)
       const successCount = results.filter(r => r.success).length;
       const successRate = Math.round((successCount / results.length) * 100);
       
-      // Calculate event publication success rate
       const eventCount = results.filter(r => r.eventPublished).length;
       const eventRate = Math.round((eventCount / results.length) * 100);
       
-      // Count successful file uploads per server (for detailed server metrics only)
       const totalServerOperations = results.length * servers.length;
       const successfulServerOperations = results.reduce((count, result) => {
         const successfulServerCount = Object.values(result.serverResults).filter(s => s.success).length;
@@ -306,24 +277,19 @@ async function uploadCommand(
       }, 0);
       const serverSuccessRate = Math.round((successfulServerOperations / totalServerOperations) * 100);
       
-      // Complete progress with summary - based on files, not server operations
       progress.complete(
         successCount === results.length,
         `Uploaded ${successCount}/${results.length} files (${successRate}%)`
       );
       
-      // Now flush any queued logs that were suppressed during progress display
       flushQueuedLogs();
       
-      // Show upload and event publication summary
       console.log(colors.cyan(`\nUpload summary: ${successCount}/${results.length} files successfully processed (${successRate}%)`));
       
-      // Only show server operation details if verbose
       if (options.verbose) {
         console.log(colors.cyan(`Server operations: ${successfulServerOperations}/${totalServerOperations} uploads successful (${serverSuccessRate}%)`));
       }
       
-      // Show NOSTR event publication summary
       if (eventCount < successCount) {
         console.log(colors.yellow(
           `NOSTR events: ${eventCount}/${successCount} events published to relays (${eventRate}%)`
@@ -340,17 +306,14 @@ async function uploadCommand(
         ));
       }
       
-      // Show server-specific summaries
       console.log("\nServer Results:");
       
-      // Group by server
       const serverResults = new Map<string, { success: number; total: number }>();
       
       for (const server of servers) {
         serverResults.set(server, { success: 0, total: 0 });
       }
       
-      // Count successes per server
       for (const result of results) {
         if (result.success) {
           for (const [server, status] of Object.entries(result.serverResults)) {
@@ -365,7 +328,6 @@ async function uploadCommand(
         }
       }
       
-      // Display server results
       for (const [server, stats] of serverResults.entries()) {
         const serverSuccessRate = stats.total > 0 ? Math.round((stats.success / stats.total) * 100) : 0;
         if (stats.success === stats.total) {
@@ -375,24 +337,18 @@ async function uploadCommand(
         }
       }
       
-      // Group errors by type to create a more readable summary
       if (successCount < results.length) {
         const failedResults = results.filter(r => !r.success);
         
-        // Group by error message
         const errorGroups = new Map<string, string[]>();
         for (const result of failedResults) {
-          // Clean up the error message to remove HTML content
           let errorMessage = result.error || "Unknown error";
           
-          // Remove HTML content
           if (errorMessage.includes("<!DOCTYPE html>")) {
-            // Extract just the error text from HTML pre tag if it exists
             const preMatch = errorMessage.match(/<pre>([^<]+)<\/pre>/);
             if (preMatch && preMatch[1]) {
               errorMessage = preMatch[1];
             } else {
-              // Otherwise just use the first line or a generic message
               errorMessage = errorMessage.split('\n')[0];
               if (errorMessage.includes("<!DOCTYPE html>")) {
                 errorMessage = "Server returned HTML error page";
@@ -400,7 +356,6 @@ async function uploadCommand(
             }
           }
           
-          // Group by server if it's in the error message
           if (errorMessage.includes("https://")) {
             const serverMatch = errorMessage.match(/https:\/\/[^\/:\s]+/);
             if (serverMatch) {
@@ -409,7 +364,6 @@ async function uploadCommand(
             }
           }
           
-          // Simplify common error messages
           if (errorMessage.includes("Failed to upload to any server")) {
             errorMessage = "Failed to upload to any server";
           }
@@ -423,17 +377,14 @@ async function uploadCommand(
         for (const [error, paths] of errorGroups.entries()) {
           console.log(colors.red(`${error} (${paths.length} files)`));
           if (options.verbose) {
-            // In verbose mode, show all affected files
             paths.forEach(path => {
               console.log(colors.gray(`  - ${path}`));
             });
           } else if (paths.length <= 3) {
-            // If only a few files, show them all
             paths.forEach(path => {
               console.log(colors.gray(`  - ${path}`));
             });
           } else {
-            // Otherwise show the first 2 with a count of remaining
             console.log(colors.gray(`  - ${paths[0]}`));
             console.log(colors.gray(`  - ${paths[1]}`));
             console.log(colors.gray(`  - ...and ${paths.length - 2} more files`));
@@ -447,7 +398,6 @@ async function uploadCommand(
         console.log("3. Check your network connection and try again");
       }
       
-      // Show more detailed results in verbose mode
       if (options.verbose) {
         console.log("\nDetailed results:");
         results.forEach(result => {
@@ -460,16 +410,13 @@ async function uploadCommand(
       }
     }
     
-    // Handle file deletion if purge option is enabled
     if (options.purge && toDelete.length > 0) {
       console.log(colors.cyan(`\nDeleting ${toDelete.length} files from relays and servers...`));
       
-      // Create a progress renderer for deletion
       const deleteProgress = new ProgressRenderer();
       let completed = 0;
       let failed = 0;
       
-      // Process each file to delete
       for (const file of toDelete) {
         try {
           if (!file.event || !file.sha256) {
@@ -478,7 +425,6 @@ async function uploadCommand(
             continue;
           }
           
-          // Update progress
           deleteProgress.update({
             total: toDelete.length,
             completed,
@@ -486,28 +432,23 @@ async function uploadCommand(
             inProgress: 1,
           });
           
-          // Create a deletion event
           const deletionEventTemplate: NostrEventTemplate = {
-            kind: 5, // Deletion event kind
+            kind: 5,
             created_at: Math.floor(Date.now() / 1000),
-            tags: [["e", file.event.id]], // Reference to event being deleted
+            tags: [["e", file.event.id]],
             content: "File deleted through nsyte",
           };
           
-          // Sign and publish the deletion event
           const deletionEvent = await signer.signEvent(deletionEventTemplate);
           log.debug(`Created deletion event: ${deletionEvent.id}`);
           
-          // Publish deletion event to relays
           await publishToRelays(deletionEvent, relays);
           
-          // Also try to delete from blossom servers if we have a hash
           if (file.sha256) {
             for (const server of servers) {
               try {
-                // Create deletion auth
                 const deleteAuthTemplate: NostrEventTemplate = {
-                  kind: 27235, // Blossom auth kind
+                  kind: 27235,
                   created_at: Math.floor(Date.now() / 1000),
                   tags: [
                     ["x", file.sha256],
@@ -517,10 +458,8 @@ async function uploadCommand(
                   content: "",
                 };
                 
-                // Sign the auth event
                 const deleteAuth = await signer.signEvent(deleteAuthTemplate);
                 
-                // Send deletion request to server
                 const serverUrl = server.endsWith("/") ? server : `${server}/`;
                 const response = await fetch(`${serverUrl}${file.sha256}`, {
                   method: "DELETE",
@@ -551,27 +490,24 @@ async function uploadCommand(
         }
       }
       
-      // Complete the progress display
       deleteProgress.complete(
         failed === 0,
         `Deleted ${completed}/${toDelete.length} files (${failed} failed)`
       );
     }
     
-    // Publish profile, relay list, and server list if enabled
     if (options.publishRelayList || options.publishServerList || options.publishProfile) {
       console.log(colors.cyan("\nPublishing additional NOSTR events..."));
       
-      // Publish relay list
       if (options.publishRelayList) {
         try {
           console.log(colors.cyan("Publishing relay list (Kind 10002)..."));
           
           const relayListTemplate: NostrEventTemplate = {
-            kind: 10002, // Relay list kind
+            kind: 10002,
             created_at: Math.floor(Date.now() / 1000),
             tags: [
-              ...relays.map(url => ["r", url]), // Add each relay with 'r' tag
+              ...relays.map(url => ["r", url]),
               ["client", "nsyte"],
             ],
             content: "",
@@ -579,7 +515,6 @@ async function uploadCommand(
           
           const relayListEvent = await signer.signEvent(relayListTemplate);
           
-          // Publish to relays
           const published = await publishToRelays(relayListEvent, relays);
           
           if (published) {
@@ -594,16 +529,15 @@ async function uploadCommand(
         }
       }
       
-      // Publish blossom server list
       if (options.publishServerList) {
         try {
           console.log(colors.cyan("Publishing blossom server list (Kind 10063)..."));
           
           const serverListTemplate: NostrEventTemplate = {
-            kind: 10063, // Blossom server list kind
+            kind: 10063,
             created_at: Math.floor(Date.now() / 1000),
             tags: [
-              ...servers.map(url => ["server", url]), // Add each server
+              ...servers.map(url => ["server", url]),
               ["client", "nsyte"],
             ],
             content: "",
@@ -611,7 +545,6 @@ async function uploadCommand(
           
           const serverListEvent = await signer.signEvent(serverListTemplate);
           
-          // Publish to relays
           const published = await publishToRelays(serverListEvent, relays);
           
           if (published) {
@@ -626,15 +559,12 @@ async function uploadCommand(
         }
       }
       
-      // Publish profile
       if (options.publishProfile && projectData.profile) {
         try {
           console.log(colors.cyan("Publishing profile (Kind 0)..."));
           
-          // Get profile data from project configuration
           const { name, about, picture, website, nip05, lud16, banner } = projectData.profile;
           
-          // Create profile content
           const profileContent = JSON.stringify({
             name,
             display_name: name,
@@ -647,7 +577,7 @@ async function uploadCommand(
           });
           
           const profileTemplate: NostrEventTemplate = {
-            kind: 0, // Profile kind
+            kind: 0,
             created_at: Math.floor(Date.now() / 1000),
             tags: [["client", "nsyte"]],
             content: profileContent,
@@ -655,7 +585,6 @@ async function uploadCommand(
           
           const profileEvent = await signer.signEvent(profileTemplate);
           
-          // Publish to relays
           const published = await publishToRelays(profileEvent, relays);
           
           if (published) {
@@ -671,14 +600,12 @@ async function uploadCommand(
       }
     }
     
-    // Convert pubkey to npub format for the URL
     let nsiteUrl = `https://${publisherPubkey}.nsite.lol`;
     try {
       const npub = nip19.npubEncode(publisherPubkey);
       nsiteUrl = `https://${npub}.nsite.lol`;
     } catch (error) {
       log.debug(`Failed to encode pubkey to npub: ${error}`);
-      // Fall back to hex pubkey if encoding fails
     }
     
     console.log(colors.green(`\nThe website is now available on any nsite gateway, e.g.: ${nsiteUrl}`));
@@ -690,32 +617,24 @@ async function uploadCommand(
   }
 }
 
-// Helper function to publish an event to relays
 export async function publishToRelays(event: NostrEvent, relays: string[]): Promise<boolean> {
   try {
-    // Keep track of successful publishes
     let successCount = 0;
     const totalRelays = relays.length;
     const eventJson = JSON.stringify(["EVENT", event]);
     
-    // Connect to each relay in parallel
     await Promise.all(relays.map(async (relay) => {
       try {
-        // Open WebSocket connection
         const socket = new WebSocket(relay);
         
-        // Create a promise that resolves when we get a response or timeout
         const connectPromise = new Promise<boolean>(resolve => {
-          // Handle socket events
           socket.onopen = () => {
             log.debug(`Connected to relay: ${relay}`);
             socket.send(eventJson);
             
-            // Set event handlers
             socket.onmessage = (msg) => {
               try {
                 const data = JSON.parse(msg.data);
-                // Check for OK response
                 if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
                   log.debug(`Event published to relay: ${relay}`);
                   resolve(true);
@@ -726,7 +645,6 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
               }
             };
             
-            // Set a timeout to close the connection in case we don't get a response
             setTimeout(() => {
               resolve(false);
               socket.close();
@@ -743,7 +661,6 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
           };
         });
         
-        // Wait for the connection and publication
         const success = await connectPromise;
         if (success) {
           successCount++;
@@ -753,7 +670,6 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
       }
     }));
     
-    // Return true if at least one relay succeeded
     const success = successCount > 0;
     if (success) {
       log.debug(`Published event to ${successCount}/${totalRelays} relays`);

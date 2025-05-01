@@ -21,18 +21,13 @@ export function registerLsCommand(program: Command): void {
     .option("-p, --pubkey <npub:string>", "The public key to list files for (if not using private key).")
     .action(async (options) => {
       try {
-        // For listing files, we only need the pubkey, so we can operate differently
-        // from upload command
         
         let pubkey: string | undefined;
         
-        // If a pubkey is directly specified, use that
         if (options.pubkey) {
           pubkey = options.pubkey;
         } 
-        // Otherwise get it from the private key or bunker
         else {
-          // Check for command line options first
           if (options.privatekey) {
             const signer = new PrivateKeySigner(options.privatekey);
             pubkey = signer.getPublicKey();
@@ -40,7 +35,6 @@ export function registerLsCommand(program: Command): void {
             const { userPubkey } = await createNip46ClientFromUrl(options.bunker);
             pubkey = userPubkey;
           } else {
-            // Try to get from project config (only bunker is stored in config)
             const projectContext = await setupProject();
             const projectData = projectContext.projectData;
             
@@ -59,25 +53,21 @@ export function registerLsCommand(program: Command): void {
           }
         }
         
-        // Determine relays to use
         let relays: string[] = [];
         
         if (options.relays) {
           relays = options.relays.split(",");
         } else {
-          // Try to get from project config
           const projectData = readProjectFile();
           if (projectData && projectData.relays && projectData.relays.length > 0) {
             relays = projectData.relays;
           } else {
-            // Use default relays
             relays = RELAY_DISCOVERY_RELAYS;
           }
         }
         
         console.log(colors.cyan(`Listing files for ${pubkey} using relays: ${relays.join(", ")}`));
         
-        // Get the file list
         const files = await listRemoteFiles(relays, pubkey);
         
         if (files.length === 0) {
@@ -85,7 +75,6 @@ export function registerLsCommand(program: Command): void {
         } else {
           console.log(colors.green(`Found ${files.length} files:`));
           
-          // Display the files sorted by path
           files.sort((a, b) => a.path.localeCompare(b.path));
           
           files.forEach(file => {

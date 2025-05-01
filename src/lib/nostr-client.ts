@@ -5,11 +5,9 @@ import { generateSecretKey, getEventHash as getEventHashBasic, getPublicKey as g
 
 const log = createLogger("nostr-client");
 
-// NSITE event kind
 export const NSITE_KIND = 34128;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
-// Common types
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -37,7 +35,6 @@ export interface FileEntry {
   event?: NostrEvent;
 }
 
-// Create a NOSTR pool for relay connections
 const pool = new SimplePool();
 
 /**
@@ -78,7 +75,6 @@ function signEvent(event: Event, privateKey: Uint8Array): string {
 export function createPrivateKeySigner(privateKeyHex: string) {
   let privateKeyBytes: Uint8Array;
   
-  // Handle nsec format
   if (privateKeyHex.startsWith("nsec")) {
     try {
       const { data } = nip19.decode(privateKeyHex);
@@ -87,14 +83,12 @@ export function createPrivateKeySigner(privateKeyHex: string) {
       throw new Error("Invalid nsec format");
     }
   } else {
-    // Handle hex format
     if (!/^[0-9a-f]{64}$/i.test(privateKeyHex)) {
       throw new Error("Invalid private key format");
     }
     privateKeyBytes = hexToBytes(privateKeyHex);
   }
   
-  // Get public key
   const pubkey = getPublicKeyBasic(privateKeyBytes);
   
   return {
@@ -103,7 +97,6 @@ export function createPrivateKeySigner(privateKeyHex: string) {
     },
     
     async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
-      // Prepare the event
       const event = {
         ...template,
         pubkey,
@@ -111,10 +104,8 @@ export function createPrivateKeySigner(privateKeyHex: string) {
         sig: "",
       };
       
-      // Calculate ID
       event.id = getEventHashBasic(event as unknown as Event);
       
-      // Sign
       event.sig = signEvent(event as unknown as Event, privateKeyBytes);
       
       return event as NostrEvent;
@@ -129,7 +120,6 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
   log.debug(`Fetching remote files for ${pubKey}`);
   
   try {
-    // Attempt to fetch events from relays
     const relayCount = relays.length;
     
     console.log(`Connecting to ${relayCount} relays...`);
@@ -147,7 +137,6 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
         received.push(event);
       });
       
-      // Set a timeout to ensure we don't wait forever
       setTimeout(() => {
         sub.unsub();
         resolve(received);
@@ -165,7 +154,6 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
     
     log.info(`Found ${events.length} file events from relays`);
     
-    // Convert events to file entries
     const fileEntries: FileEntry[] = [];
     for (const event of events) {
       const path = getTagValue(event, "d");
@@ -176,25 +164,20 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
           path,
           sha256,
           event: event as NostrEvent,
-          size: 0, // Size unknown for remote files
+          size: 0,
         });
       }
     }
     
-    // Deduplicate entries by path, keeping the most recent version
     const uniqueFiles = fileEntries.reduce((acc, current) => {
-      // Find existing file with the same path
       const existingIndex = acc.findIndex(file => file.path === current.path);
       
       if (existingIndex === -1) {
-        // No duplicate, add to list
         return [...acc, current];
       } else {
-        // Duplicate found, check which is newer
         const existing = acc[existingIndex];
         
         if ((existing.event?.created_at || 0) < (current.event?.created_at || 0)) {
-          // Current is newer, replace existing
           acc[existingIndex] = current;
         }
         
@@ -204,7 +187,6 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
     
     log.info(`Found ${uniqueFiles.length} unique remote files for user ${pubKey}`);
     
-    // Sort files by path
     return uniqueFiles.sort((a, b) => a.path > b.path ? 1 : -1);
   } catch (error) {
     log.error(`Error fetching remote files: ${error}`);
@@ -219,20 +201,16 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSITE_B
   log.debug(`Publishing event ${event.id} to ${relays.length} relays`);
   
   try {
-    // Publish the event to relays
     const pub = pool.publish(relays, event as unknown as Event);
     
-    // Wait for at least one OK
     const success = await new Promise<boolean>((resolve) => {
       let succeeded = false;
       
-      // On success from any relay
       pub.on('ok', () => {
         succeeded = true;
         resolve(true);
       });
       
-      // Set a timeout
       setTimeout(() => {
         resolve(succeeded);
       }, 5000);
@@ -259,10 +237,8 @@ export async function createNsiteEvent(
   path: string,
   sha256: string
 ): Promise<NostrEvent> {
-  // Ensure path starts with a slash
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   
-  // Create event template
   const eventTemplate: NostrEventTemplate = {
     kind: NSITE_KIND,
     created_at: Math.floor(Date.now() / 1000),
@@ -274,7 +250,6 @@ export async function createNsiteEvent(
     content: "",
   };
   
-  // Sign the event
   return await signer.signEvent(eventTemplate);
 }
 
@@ -285,7 +260,6 @@ export async function createServerListEvent(
   signer: { signEvent: (template: NostrEventTemplate) => Promise<NostrEvent> },
   servers: string[]
 ): Promise<NostrEvent> {
-  // Create event template
   const eventTemplate: NostrEventTemplate = {
     kind: USER_BLOSSOM_SERVER_LIST_KIND,
     created_at: Math.floor(Date.now() / 1000),
@@ -296,7 +270,6 @@ export async function createServerListEvent(
     content: "",
   };
   
-  // Sign the event
   return await signer.signEvent(eventTemplate);
 }
 
@@ -307,9 +280,8 @@ export async function createRelayListEvent(
   signer: { signEvent: (template: NostrEventTemplate) => Promise<NostrEvent> },
   relays: string[]
 ): Promise<NostrEvent> {
-  // Create event template
   const eventTemplate: NostrEventTemplate = {
-    kind: 10002, // Relay list kind
+    kind: 10002,
     created_at: Math.floor(Date.now() / 1000),
     tags: [
       ...relays.map(url => ["r", url]),
@@ -318,7 +290,6 @@ export async function createRelayListEvent(
     content: "",
   };
   
-  // Sign the event
   return await signer.signEvent(eventTemplate);
 }
 
@@ -329,15 +300,13 @@ export async function createProfileEvent(
   signer: { signEvent: (template: NostrEventTemplate) => Promise<NostrEvent> },
   profile: Record<string, string>
 ): Promise<NostrEvent> {
-  // Create event template
   const eventTemplate: NostrEventTemplate = {
-    kind: 0, // Profile kind
+    kind: 0,
     created_at: Math.floor(Date.now() / 1000),
     tags: [["client", "nsyte"]],
     content: JSON.stringify(profile),
   };
   
-  // Sign the event
   return await signer.signEvent(eventTemplate);
 }
 
@@ -348,15 +317,13 @@ export async function createDeletionEvent(
   signer: { signEvent: (template: NostrEventTemplate) => Promise<NostrEvent> },
   eventId: string
 ): Promise<NostrEvent> {
-  // Create event template
   const eventTemplate: NostrEventTemplate = {
-    kind: 5, // Deletion event kind
+    kind: 5,
     created_at: Math.floor(Date.now() / 1000),
     tags: [["e", eventId]],
     content: "File deleted through nsyte",
   };
   
-  // Sign the event
   return await signer.signEvent(eventTemplate);
 }
 
