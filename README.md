@@ -123,7 +123,6 @@ nsyte stores its configuration in a `.nsite/config.json` file in your project di
 
 ```json
 {
-  "privateKey": "your-private-key",  // Only one of privateKey or bunkerUrl will be set
   "bunkerUrl": "bunker://...",       // NIP-46 bunker URL
   "relays": ["wss://relay1", "wss://relay2"],
   "servers": ["https://server1", "https://server2"],
