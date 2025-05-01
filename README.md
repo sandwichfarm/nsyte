@@ -5,8 +5,7 @@
 A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
 
 - Website file listings are published as events (Kind 34128) on NOSTR relays
-- Binary files are uploaded to blossom servers
-- All data is signed with your private key, making it tamper-proof
+- Binary files are uploaded to configured blossom servers
 
 ## Features
 
