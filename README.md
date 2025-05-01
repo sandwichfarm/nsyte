@@ -1,5 +1,7 @@
 # nsyte
 
+> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. It was ported to deno and almost entirely rewritten in the process. Some behaviors in this fork are slightly different.
+
 A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
 
 - Website file listings are published as events (Kind 34128) on NOSTR relays
