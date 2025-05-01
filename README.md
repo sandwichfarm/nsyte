@@ -10,22 +10,28 @@ A powerful CLI tool for publishing static websites on NOSTR in a decentralized a
 
 ## Features
 
-- **Interactive Setup**: Guided setup to configure your project
+- **Interactive Setup**: Guided setup to configure your nsite
 - **Key Management**: Multiple options for managing your NOSTR keys
   - Generate a new key
   - Use an existing key
-  - Use a NIP-46 bunker for secure remote signing
+  - Use a NIP-46 bunker for secure remote signing [in progress]
 - **Fast Uploads**: Parallel uploads for better performance
 - **Smart File Detection**: Automatically detects files that already exist online
-- **Colorful Terminal UI**: Progress bars and colorized output
 - **Cross-Platform**: Works on macOS, Linux, and Windows
 
 ## Installation
 
-### Build Binary
-
+### Build Binary for host system
 ```bash 
 deno task compile
+```
+
+### Build binaries for Linux/MacOS/Windows
+```bash 
+deno task compile:linux
+deno task compile:macos
+deno task compile:windows
+deno task compile:all
 ```
 
 Binary will be in `./dist`
