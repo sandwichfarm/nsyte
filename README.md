@@ -91,11 +91,11 @@ nsyte download ./target-folder npub1abc123...
 Your private key is used to sign events but is never sent to any server. You can:
 
 ```bash
-# Use from config file (created during interactive setup)
-nsyte upload ./www
-
 # Specify directly (not recommended)
 nsyte upload ./www --privatekey nsec1abc123...
+
+# You will be prompted to generate a private key, use an existing one, or to setup a bunker if argument is not passed
+nsyte upload ./www
 ```
 
 ### Using NSEC Bunkers (NIP-46)

@@ -8,9 +8,9 @@ export const RELAY_DISCOVERY_RELAYS = [
 ];
 
 /**
- * Default NOSTR broadcast relays for nsite events
+ * Default NOSTR broadcast relays for nsyte events
  */
-export const NSITE_BROADCAST_RELAYS = [
+export const NSYTE_BROADCAST_RELAYS = [
   "wss://relay.damus.io",
   "wss://relay.nostr.band",
   "wss://nos.lol",
