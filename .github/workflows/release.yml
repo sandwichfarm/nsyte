@@ -1,0 +1,83 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Run when tag is pushed matching pattern v*, e.g., v1.0.0
+
+jobs:
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: '1.40.5'
+      
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      
+      - name: Build binaries
+        run: |
+          # Ensure dist directory exists
+          mkdir -p dist
+          
+          # Build all platforms
+          deno task compile:linux
+          deno task compile:macos
+          deno task compile:windows
+      
+      - name: Archive binaries
+        run: |
+          cd dist
+          tar -czf nsyte-linux-${{ env.VERSION }}.tar.gz nsyte-linux
+          tar -czf nsyte-macos-${{ env.VERSION }}.tar.gz nsyte-macos
+          zip nsyte-windows-${{ env.VERSION }}.zip nsyte-windows.exe
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: nsyte v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## nsyte v${{ env.VERSION }}
+
+            ### Changes in this release
+            - See the [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details
+            
+            ### Installation
+            Download the appropriate binary for your system and make it executable:
+            
+            #### Linux
+            ```bash
+            chmod +x nsyte-linux
+            ./nsyte-linux
+            ```
+            
+            #### macOS
+            ```bash
+            chmod +x nsyte-macos
+            ./nsyte-macos
+            ```
+            
+            #### Windows
+            Double-click the executable or run from command line:
+            ```
+            nsyte-windows.exe
+            ```
+          files: |
+            dist/nsyte-linux-${{ env.VERSION }}.tar.gz
+            dist/nsyte-macos-${{ env.VERSION }}.tar.gz
+            dist/nsyte-windows-${{ env.VERSION }}.zip
+      
+      - name: Output Release URL
+        run: echo "Release URL -> ${{ steps.create_release.outputs.url }}" 

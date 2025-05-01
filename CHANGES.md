@@ -2,7 +2,7 @@
 # CHANGES
 
 ## 0.1.16
-* Bugfix for download were public servers were not used https://github.com/flox1an/nsite-cli/issues/5
+* Bugfix for download were public servers were not used https://github.com/flox1an/nsyte/issues/5
 
 ## 0.1.15
 * Updated all dependencies

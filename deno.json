@@ -1,0 +1,36 @@
+{
+  "name": "nsyte",
+  "version": "0.3.0",
+  "description": "nsyte - publish your site to NOSTR and blossom servers",
+  "exports": "./src/cli.ts",
+  "tasks": {
+    "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
+    "test": "deno test --allow-read --allow-write --allow-net --allow-env",
+    "compile": "deno compile --allow-read --allow-write --allow-net --allow-env --output dist/nsyte src/cli.ts",
+    "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:windows",
+    "compile:linux": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
+    "compile:macos": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-apple-darwin --output dist/nsyte-macos src/cli.ts",
+    "compile:windows": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts"
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.220.0/",
+    "cliffy/": "https://deno.land/x/cliffy@v1.0.0-rc.3/",
+    "nostr/": "https://deno.land/x/nostr@v0.0.2/",
+    "noble/": "https://deno.land/x/noble@v1.0.0/",
+    "nostr_tools/": "https://deno.land/x/nostr_tools@0.7.9/",
+    "@noble/curves": "npm:@noble/curves@1.3.0",
+    "@noble/hashes": "npm:@noble/hashes@1.3.3",
+    "@scure/base": "npm:@scure/base@1.1.5",
+    "@scure/bip32": "npm:@scure/bip32@1.3.3",
+    "@scure/bip39": "npm:@scure/bip39@1.2.2"
+  },
+  "fmt": {
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "semiColons": true,
+    "singleQuote": false
+  },
+  "test": {
+    "include": ["tests/"]
+  }
+} 

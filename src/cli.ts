@@ -11,7 +11,7 @@ import { log } from "./lib/logger.ts";
 
 // Create the main command
 const nsite = new Command()
-  .name("nsite-cli")
+  .name("nsyte")
   .version(version)
   .description("Publish your site to NOSTR and blossom servers");
 

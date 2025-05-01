@@ -1,4 +1,4 @@
-# nsite-cli
+# nsyte
 
 A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
 
@@ -20,25 +20,33 @@ A powerful CLI tool for publishing static websites on NOSTR in a decentralized a
 
 ## Installation
 
+### Build Binary
+
+```bash 
+deno task compile
+```
+
+Binary will be in `./dist`
+
 ### Using Deno
 
 ```bash
 # Install directly from GitHub
-deno install --allow-read --allow-write --allow-net --allow-env -n nsite-cli https://raw.githubusercontent.com/username/nsite-cli/main/src/cli.ts
+deno install --allow-read --allow-write --allow-net --allow-env -n nsyte https://raw.githubusercontent.com/username/nsyte/main/src/cli.ts
 ```
 
 ### Using Pre-built Binaries
 
-Download the appropriate binary for your system from the [Releases](https://github.com/username/nsite-cli/releases) page.
+Download the appropriate binary for your system from the [Releases](https://github.com/username/nsyte/releases) page.
 
 ## Quick Start
 
 ### Interactive Mode (Recommended)
 
-Running nsite-cli without any subcommand starts the interactive setup:
+Running nsyte without any subcommand starts the interactive setup:
 
 ```bash
-nsite-cli
+nsyte
 ```
 
 This guides you through:
@@ -50,30 +58,30 @@ This guides you through:
 
 ```bash
 # Upload a website interactively
-nsite-cli upload ./www
+nsyte upload ./www
 
 # Upload with specific options
-nsite-cli upload ./www --concurrency 8 --verbose
+nsyte upload ./www --concurrency 8 --verbose
 
 # Force upload even if files are already online
-nsite-cli upload ./www --force
+nsyte upload ./www --force
 ```
 
 ### Listing Files
 
 ```bash
 # List your own files
-nsite-cli ls
+nsyte ls
 
 # List files from another user
-nsite-cli ls npub1abc123...
+nsyte ls npub1abc123...
 ```
 
 ### Downloading Files
 
 ```bash
 # Download files from another user
-nsite-cli download ./target-folder npub1abc123...
+nsyte download ./target-folder npub1abc123...
 ```
 
 ## Key Management
@@ -84,10 +92,10 @@ Your private key is used to sign events but is never sent to any server. You can
 
 ```bash
 # Use from config file (created during interactive setup)
-nsite-cli upload ./www
+nsyte upload ./www
 
 # Specify directly (not recommended)
-nsite-cli upload ./www --privatekey nsec1abc123...
+nsyte upload ./www --privatekey nsec1abc123...
 ```
 
 ### Using NSEC Bunkers (NIP-46)
@@ -96,15 +104,15 @@ For enhanced security, you can use a NIP-46 remote signer:
 
 ```bash
 # Configure a bunker during interactive setup
-nsite-cli
+nsyte
 
 # Specify a bunker URL directly
-nsite-cli upload ./www --bunker bunker://pubkey?relay=wss://relay.example.com&secret=abc123
+nsyte upload ./www --bunker bunker://pubkey?relay=wss://relay.example.com&secret=abc123
 ```
 
 ## Configuration Options
 
-nsite-cli stores its configuration in a `.nsite/config.json` file in your project directory:
+nsyte stores its configuration in a `.nsite/config.json` file in your project directory:
 
 ```json
 {
@@ -129,7 +137,7 @@ nsite-cli stores its configuration in a `.nsite/config.json` file in your projec
 For deep linking with browser-based routing (e.g., React Router), use the `--fallback` option:
 
 ```bash
-nsite-cli upload ./dist --fallback=/index.html
+nsyte upload ./dist --fallback=/index.html
 ```
 
 This creates a copy of the specified file as `/404.html`.
@@ -147,7 +155,7 @@ export NSITE_LOG_LEVEL=debug  # For debug-level logging
 For automated scripts, you can use non-interactive mode:
 
 ```bash
-nsite-cli upload ./www --non-interactive --privatekey nsec1abc123...
+nsyte upload ./www --non-interactive --privatekey nsec1abc123...
 ```
 
 ### Recent Improvements
@@ -167,8 +175,8 @@ nsite-cli upload ./www --non-interactive --privatekey nsec1abc123...
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/nsite-cli.git
-cd nsite-cli
+git clone https://github.com/username/nsyte.git
+cd nsyte
 
 # Run the development version
 deno task dev
@@ -180,6 +188,24 @@ deno task test
 deno task compile      # For current platform
 deno task compile:all  # For all platforms
 ```
+
+### Release Process
+
+The project uses GitHub Actions to automate the release process. To create a new release:
+
+1. Update the version in `deno.json`
+2. Update the `CHANGELOG.md` with the changes
+3. Create and push a new tag:
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+This will trigger the GitHub Actions workflow that:
+- Builds binaries for Linux, macOS, and Windows
+- Creates a GitHub release
+- Uploads the binaries to the release
 
 ### Known Issues and Workarounds
 

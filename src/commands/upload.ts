@@ -491,7 +491,7 @@ async function uploadCommand(
             kind: 5, // Deletion event kind
             created_at: Math.floor(Date.now() / 1000),
             tags: [["e", file.event.id]], // Reference to event being deleted
-            content: "File deleted through nsite-cli",
+            content: "File deleted through nsyte",
           };
           
           // Sign and publish the deletion event
@@ -512,7 +512,7 @@ async function uploadCommand(
                   tags: [
                     ["x", file.sha256],
                     ["operation", "delete"],
-                    ["client", "nsite-cli"],
+                    ["client", "nsyte"],
                   ],
                   content: "",
                 };
@@ -572,7 +572,7 @@ async function uploadCommand(
             created_at: Math.floor(Date.now() / 1000),
             tags: [
               ...relays.map(url => ["r", url]), // Add each relay with 'r' tag
-              ["client", "nsite-cli"],
+              ["client", "nsyte"],
             ],
             content: "",
           };
@@ -604,7 +604,7 @@ async function uploadCommand(
             created_at: Math.floor(Date.now() / 1000),
             tags: [
               ...servers.map(url => ["server", url]), // Add each server
-              ["client", "nsite-cli"],
+              ["client", "nsyte"],
             ],
             content: "",
           };
@@ -649,7 +649,7 @@ async function uploadCommand(
           const profileTemplate: NostrEventTemplate = {
             kind: 0, // Profile kind
             created_at: Math.floor(Date.now() / 1000),
-            tags: [["client", "nsite-cli"]],
+            tags: [["client", "nsyte"]],
             content: profileContent,
           };
           
