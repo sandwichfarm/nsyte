@@ -3,14 +3,14 @@ import { encodeHex } from "std/encoding/hex.ts";
 import { Signer } from "./upload.ts";
 import { schnorr } from "@noble/curves/secp256k1";
 import { BunkerSigner } from "./bunker.ts";
-import { NSITE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
+import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 
 const log = createLogger("nostr");
 
 export const NSITE_KIND = 34128;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
-export { RELAY_DISCOVERY_RELAYS, NSITE_BROADCAST_RELAYS };
+export { RELAY_DISCOVERY_RELAYS, NSYTE_BROADCAST_RELAYS };
 
 /**
  * Profile interface for NOSTR profiles

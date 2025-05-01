@@ -17,6 +17,7 @@ export async function getLocalFiles(dirPath: string): Promise<FileEntry[]> {
   
   try {
     for await (const entry of walkDirectory(normalizedDir)) {
+      // Skip directories and hidden files
       if (entry.isDirectory || entry.name.startsWith(".")) {
         continue;
       }
@@ -25,10 +26,12 @@ export async function getLocalFiles(dirPath: string): Promise<FileEntry[]> {
       const relativePath = relative(normalizedDir, fullPath);
       
       try {
+        // Get file info to get the file size
         const fileInfo = await Deno.stat(fullPath);
         
+        // Create a file entry
         const fileEntry: FileEntry = {
-          path: "/" + relativePath,
+          path: "/" + relativePath, // Ensure path starts with "/"
           size: fileInfo.size,
           contentType: getContentType(relativePath),
         };
@@ -42,14 +45,19 @@ export async function getLocalFiles(dirPath: string): Promise<FileEntry[]> {
     
     log.debug(`Found ${files.length} files in ${dirPath}`);
     
+    // Sort files: files in subdirectories first, root files last
+    // This ensures dependencies (like CSS, JS) are uploaded before HTML files that reference them
     return files.sort((a, b) => {
+      // Count path segments to determine nesting level
       const aSegments = a.path.split('/').filter(s => s.length > 0);
       const bSegments = b.path.split('/').filter(s => s.length > 0);
       
+      // Sort by depth descending (deeper paths first, root files last)
       if (aSegments.length !== bSegments.length) {
         return bSegments.length - aSegments.length;
       }
       
+      // If same depth, sort alphabetically
       return a.path.localeCompare(b.path);
     });
   } catch (error: unknown) {
@@ -73,28 +81,35 @@ export function compareFiles(localFiles: FileEntry[], remoteFiles: FileEntry[]):
   
   log.debug(`Comparing ${localFiles.length} local files with ${remoteFiles.length} remote files`);
   
+  // Normalize paths for better comparison
   const normalizedRemotes = toDelete.map(file => ({
     ...file,
     normalizedPath: file.path.replace(/^\/+/, "/").toLowerCase()
   }));
   
+  // Find files to transfer or that already exist
   for (const localFile of localFiles) {
     const normalizedLocalPath = localFile.path.replace(/^\/+/, "/").toLowerCase();
     let found = false;
     
+    // First, try to find exact path matches
     for (let i = 0; i < normalizedRemotes.length; i++) {
       const remote = normalizedRemotes[i];
       const remoteFile = toDelete[i];
       
       if (remote.normalizedPath === normalizedLocalPath) {
+        // Path matches - check if content is the same
         if (!localFile.sha256 || !remoteFile.sha256 || remoteFile.sha256 === localFile.sha256) {
+          // File exists remotely with same hash or hash can't be compared
           log.debug(`File ${localFile.path} already exists remotely with matching hash`);
           existing.push(localFile);
         } else {
+          // File exists remotely but with different hash
           log.debug(`File ${localFile.path} exists remotely but has different hash, will update`);
           toTransfer.push(localFile);
         }
         
+        // Remove from toDelete list since we found it
         toDelete.splice(i, 1);
         normalizedRemotes.splice(i, 1);
         found = true;
@@ -103,6 +118,7 @@ export function compareFiles(localFiles: FileEntry[], remoteFiles: FileEntry[]):
     }
     
     if (!found) {
+      // File doesn't exist remotely
       log.debug(`File ${localFile.path} doesn't exist remotely, will upload`);
       toTransfer.push(localFile);
     }
@@ -132,11 +148,13 @@ export async function calculateFileHash(filePath: string): Promise<string> {
  */
 export async function loadFileData(dirPath: string, fileEntry: FileEntry): Promise<FileEntry> {
   const normalizedDir = normalize(dirPath).replace(/\/$/, "");
-  const fullPath = join(normalizedDir, fileEntry.path.replace(/^\
+  const fullPath = join(normalizedDir, fileEntry.path.replace(/^\//, ""));
   
   try {
+    // Read file content
     const data = await Deno.readFile(fullPath);
     
+    // Calculate SHA-256 hash
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const sha256 = encodeHex(new Uint8Array(hashBuffer));
     

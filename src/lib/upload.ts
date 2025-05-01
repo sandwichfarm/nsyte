@@ -1,6 +1,6 @@
 import { createLogger } from "./logger.ts";
 import { FileEntry, NostrEvent, NostrEventTemplate, connectToRelay } from "./nostr.ts";
-import { NSITE_BROADCAST_RELAYS } from "./constants.ts";
+import { NSYTE_BROADCAST_RELAYS } from "./constants.ts";
 
 const log = createLogger("upload");
 
@@ -527,13 +527,13 @@ async function uploadFile(
       eventPublished = await publishEventToRelays(signedEvent, relays);
       
       if (eventPublished) {
-        log.info(`Published NSITE event for ${file.path} to relays`);
+        log.info(`Published nsite event for ${file.path} to relays`);
       } else {
-        log.warn(`Failed to publish NSITE event for ${file.path} to relays`);
+        log.warn(`Failed to publish nsite event for ${file.path} to relays`);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Error publishing NSITE event for ${file.path}: ${errorMessage}`);
+      log.error(`Error publishing nsite event for ${file.path}: ${errorMessage}`);
     }
     
     return {

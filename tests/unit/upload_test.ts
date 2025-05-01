@@ -113,7 +113,7 @@ describe("Upload Module", () => {
     assertEquals(fetchMock.calls.length, testFiles.length * servers.length);
     
     // Verify sign event was called for each file
-    assertEquals(signer.callCount, testFiles.length * (servers.length + 1)); // Auth + NSITE event
+    assertEquals(signer.callCount, testFiles.length * (servers.length + 1)); // Auth + nsite event
     
     // Verify progress was tracked correctly
     assertEquals(progressUpdates.length > 0, true);

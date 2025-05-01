@@ -1,6 +1,6 @@
 import { SimplePool, getEventHash, getPublicKey, nip19, type Event, type Filter } from "npm:nostr-tools";
 import { createLogger } from "./logger.ts";
-import { NSITE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
+import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { generateSecretKey, getEventHash as getEventHashBasic, getPublicKey as getPublicKeyBasic, signEvent as signEventBasic, finalizeEvent } from "npm:@noble/secp256k1";
 
 const log = createLogger("nostr-client");
@@ -197,7 +197,7 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
 /**
  * Publish a NOSTR event to relays
  */
-export async function publishEvent(event: NostrEvent, relays: string[] = NSITE_BROADCAST_RELAYS): Promise<boolean> {
+export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_BROADCAST_RELAYS): Promise<boolean> {
   log.debug(`Publishing event ${event.id} to ${relays.length} relays`);
   
   try {
@@ -230,7 +230,7 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSITE_B
 }
 
 /**
- * Create and sign an NSITE event
+ * Create and sign an nsite event
  */
 export async function createNsiteEvent(
   signer: { signEvent: (template: NostrEventTemplate) => Promise<NostrEvent> },
