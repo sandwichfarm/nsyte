@@ -220,5 +220,4 @@ deno task compile:all
 ```
 
 ## License
-
 [MIT License](LICENSE) 
