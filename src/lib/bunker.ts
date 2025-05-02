@@ -236,13 +236,13 @@ export class BunkerSigner implements Signer {
     const signer = new BunkerSigner(pubkey, clientPrivateKey, relays);
     
     try {
-      await signer.connectToRelays();
-      
+    await signer.connectToRelays();
+    
       const connectParams = [pubkey];
-      if (secret) {
-        connectParams.push(secret);
-      }
-      
+    if (secret) {
+      connectParams.push(secret);
+    }
+    
       await signer.sendRequest("connect", connectParams);
       
       const userPubkey = await signer.sendRequest("get_public_key", []) as string;
@@ -446,30 +446,30 @@ export class BunkerSigner implements Signer {
       // Log debug info
       log.debug(`Sending request: ${request.method}`);
       
-      try {
-        const encryptedContent = await nip04.encrypt(
-          this.clientPrivateKey,
-          this.signerPubkey,
-          JSON.stringify(request)
-        );
-        
+    try {
+      const encryptedContent = await nip04.encrypt(
+        this.clientPrivateKey,
+        this.signerPubkey,
+        JSON.stringify(request)
+      );
+      
         const unsignedEvent = {
-          kind: NIP46_KIND,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [["p", this.signerPubkey]],
-          content: encryptedContent,
+        kind: NIP46_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [["p", this.signerPubkey]],
+        content: encryptedContent,
           pubkey: this.clientPubkey
         };
-        
+      
         // Sign the event
         const signedEvent = signEvent(unsignedEvent, this.clientPrivateKey);
         
         // Send the event to each connected relay
-        for (const connection of this.connections) {
-          if (connection.connected) {
-            const eventMsg = JSON.stringify(["EVENT", signedEvent]);
-            connection.socket.send(eventMsg);
-          }
+      for (const connection of this.connections) {
+        if (connection.connected) {
+          const eventMsg = JSON.stringify(["EVENT", signedEvent]);
+          connection.socket.send(eventMsg);
+        }
         }
       } catch (encryptError: unknown) {
         const errorMessage = encryptError instanceof Error ? encryptError.message : String(encryptError);
@@ -490,7 +490,7 @@ export class BunkerSigner implements Signer {
     for (const connection of this.connections) {
       if (connection.connected) {
         try {
-          connection.socket.close();
+        connection.socket.close();
         } catch (e) {
           // Ignore
         }

@@ -5,6 +5,7 @@ import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { createNip46ClientFromUrl } from "../lib/nostr.ts";
 import { setupProject, readProjectFile } from "../lib/config.ts";
+import { BunkerKeyManager } from "../lib/nip46.ts";
 
 const log = createLogger("download");
 
@@ -42,8 +43,22 @@ export function registerDownloadCommand(program: Command): void {
             if (projectContext.privateKey) {
               const signer = new PrivateKeySigner(projectContext.privateKey);
               pubkey = signer.getPublicKey();
-            } else if (projectData.bunkerUrl) {
-              const { userPubkey } = await createNip46ClientFromUrl(projectData.bunkerUrl);
+            } else if (projectData.bunkerPubkey) {
+              // Try to get stored bunker connection with correct relays
+              const bunkerInfo = BunkerKeyManager.getBunkerInfo(projectData.bunkerPubkey);
+              let bunkerUrl: string;
+              
+              if (bunkerInfo && bunkerInfo.bunkerUrl) {
+                bunkerUrl = bunkerInfo.bunkerUrl;
+                log.debug(`Using saved bunker connection info for ${projectData.bunkerPubkey.slice(0, 8)}...`);
+              } else {
+                // Fallback to project relays
+                log.warn("No saved bunker connection info found, using project relays");
+                const relayParams = projectData.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+                bunkerUrl = `bunker://${projectData.bunkerPubkey}?${relayParams}`;
+              }
+              
+              const { userPubkey } = await createNip46ClientFromUrl(bunkerUrl);
               pubkey = userPubkey;
             }
           }

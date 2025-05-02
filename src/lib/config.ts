@@ -4,6 +4,7 @@ import { createLogger } from "./logger.ts";
 import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
 import { colors } from "cliffy/ansi/colors.ts";
 import { generateKeyPair } from "./nostr.ts";
+import { parseBunkerUrl, BunkerKeyManager } from "./nip46.ts";
 
 const log = createLogger("config");
 
@@ -19,8 +20,7 @@ export interface Profile {
 }
 
 export interface ProjectData {
-  bunkerUrl?: string;
-  bunkerSession?: string;
+  bunkerPubkey?: string;  // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
   profile?: Profile;
@@ -93,13 +93,13 @@ export function writeProjectFile(projectData: ProjectData): void {
 
   try {
     ensureDirSync(dirname(projectPath));
-    
+
     // Clone the data to avoid modifying the original
     const sanitizedData = { ...projectData };
     
     // Sanitize bunker URL if present to remove secrets
-    if (sanitizedData.bunkerUrl) {
-      sanitizedData.bunkerUrl = sanitizeBunkerUrl(sanitizedData.bunkerUrl);
+    if (sanitizedData.bunkerPubkey) {
+      sanitizedData.bunkerPubkey = sanitizeBunkerUrl(sanitizedData.bunkerPubkey);
     }
 
     Deno.writeTextFileSync(projectPath, JSON.stringify(sanitizedData, null, 2));
@@ -162,7 +162,7 @@ export async function setupProject(): Promise<ProjectContext> {
     writeProjectFile(projectData);
   }
 
-  if (!projectData.bunkerUrl && !privateKey) {
+  if (!projectData.bunkerPubkey && !privateKey) {
     console.log(colors.yellow("No key configuration found. Let's set that up:"));
     
     const keyChoice = await Select.prompt({
@@ -187,13 +187,27 @@ export async function setupProject(): Promise<ProjectContext> {
       });
       
     } else if (keyChoice === "bunker") {
-      projectData.bunkerUrl = await Input.prompt({
+      const bunkerUrl = await Input.prompt({
         message: "Enter your NSEC bunker URL (bunker://...):",
         validate: (input: string) => {
           return input.trim().startsWith("bunker://") || 
                 "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
         }
       });
+      
+      try {
+        // Extract just the pubkey from the URL for the config
+        const bunkerPointer = parseBunkerUrl(bunkerUrl);
+        projectData.bunkerPubkey = bunkerPointer.pubkey;
+        
+        // Store the bunker URL in the secrets file
+        BunkerKeyManager.storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+        
+        console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
+      } catch (error) {
+        log.error(`Failed to parse bunker URL: ${error}`);
+        throw new Error(`Failed to parse bunker URL. Please check the format: ${error}`);
+      }
     }
     
     writeProjectFile(projectData);
@@ -219,8 +233,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
   });
 
   let privateKey: string | undefined;
-  let bunkerUrl: string | undefined;
-  let bunkerSession: string | undefined;
+  let bunkerPubkey: string | undefined;
 
   if (keyChoice === "generate") {
     const keyPair = generateKeyPair();
@@ -235,13 +248,27 @@ async function interactiveSetup(): Promise<ProjectContext> {
     });
     
   } else if (keyChoice === "bunker") {
-    bunkerUrl = await Input.prompt({
+    const bunkerUrl = await Input.prompt({
       message: "Enter your NSEC bunker URL (bunker://...):",
       validate: (input: string) => {
         return input.trim().startsWith("bunker://") || 
                "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
       }
     });
+    
+    try {
+      // Extract just the pubkey from the URL for the config
+      const bunkerPointer = parseBunkerUrl(bunkerUrl);
+      bunkerPubkey = bunkerPointer.pubkey;
+      
+      // Store the bunker URL in the secrets file
+      BunkerKeyManager.storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+      
+      console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
+    } catch (error) {
+      log.error(`Failed to parse bunker URL: ${error}`);
+      throw new Error(`Failed to parse bunker URL. Please check the format: ${error}`);
+    }
   }
 
   const projectName = await Input.prompt({
@@ -274,8 +301,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
   });
 
   const projectData: ProjectData = {
-    bunkerUrl,
-    bunkerSession,
+    bunkerPubkey,
     relays,
     servers,
     profile: {

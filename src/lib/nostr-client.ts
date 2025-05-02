@@ -211,16 +211,16 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_B
         let anySuccess = false;
         
         // Event handler for successful publish to any relay
-        pub.on('ok', () => {
+      pub.on('ok', () => {
           anySuccess = true;
-          resolve(true);
-        });
-        
-        // Set a timeout to resolve after waiting for responses
-        setTimeout(() => {
-          resolve(anySuccess);
-        }, 5000);
+        resolve(true);
       });
+      
+        // Set a timeout to resolve after waiting for responses
+      setTimeout(() => {
+          resolve(anySuccess);
+      }, 5000);
+    });
     } catch (error) {
       // If we get a rate-limiting error or any other error from SimplePool,
       // log it and try publishing to relays individually

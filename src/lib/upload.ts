@@ -618,15 +618,15 @@ async function uploadFile(
       
       try {
         // Try to publish the event with robust error handling for rate limiting
-        eventPublished = await publishEventToRelays(signedEvent, relays);
-        
-        if (eventPublished) {
-          log.info(`Published nsite event for ${file.path} to relays`);
-        } else {
-          log.warn(`Failed to publish nsite event for ${file.path} to relays`);
-        }
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+      eventPublished = await publishEventToRelays(signedEvent, relays);
+      
+      if (eventPublished) {
+        log.info(`Published nsite event for ${file.path} to relays`);
+      } else {
+        log.warn(`Failed to publish nsite event for ${file.path} to relays`);
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
         
         // Special handling for rate limiting errors
         if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
@@ -642,8 +642,8 @@ async function uploadFile(
           };
         }
         
-        log.error(`Error publishing nsite event for ${file.path}: ${errorMessage}`);
-      }
+      log.error(`Error publishing nsite event for ${file.path}: ${errorMessage}`);
+    }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       

@@ -21,7 +21,6 @@ import { colors } from "cliffy/ansi/colors.ts";
 import { registerUploadCommand } from "./commands/upload.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
-import { testBunkerCommand } from "./commands/test-bunker.ts";
 import { setupProject } from "./lib/config.ts";
 import { version } from "../version.ts";
 import { log } from "./lib/logger.ts";
@@ -35,23 +34,13 @@ registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
 
-// Register test-bunker command separately to avoid default action behavior
-nsite.command("test-bunker", testBunkerCommand);
-
 // Main action for root command - only runs when no subcommand is specified
 nsite.action(async () => {
   // This action only runs when no valid subcommand is given
   try {
-    // Check if the first argument is 'test-bunker' but command didn't parse correctly
-    // This handles cases where test-bunker is called with invalid options
-    if (Deno.args.length > 0 && Deno.args[0] === "test-bunker") {
-      await testBunkerCommand.showHelp();
-      return;
-    }
-    
     const { projectData, privateKey } = await setupProject();
     
-    if (privateKey || projectData.bunkerUrl) {
+    if (privateKey || projectData.bunkerPubkey) {
       const keyType = privateKey ? "private key" : "bunker connection";
       const relayCount = projectData.relays.length;
       const serverCount = projectData.servers.length;

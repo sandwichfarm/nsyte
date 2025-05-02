@@ -11,6 +11,8 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { Confirm } from "cliffy/prompt/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { nip19 } from "npm:nostr-tools";
+import { BunkerKeyManager } from "../lib/nip46.ts";
+import { Input } from "cliffy/prompt/mod.ts";
 
 const log = createLogger("upload");
 
@@ -96,14 +98,25 @@ async function uploadCommand(
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from prompt");
-    } else if (projectData.bunkerUrl) {
-      log.info("Connecting to bunker from project config...");
-      const { client, userPubkey } = await createNip46ClientFromUrl(projectData.bunkerUrl);
+    } else if (projectData.bunkerPubkey) {
+      // DON'T use saved info - directly ask for bunker URL which includes the secret
+      log.info("Need a fresh bunker URL with secret to connect");
+      
+      const bunkerUrl = await Input.prompt({
+        message: "Enter your NSEC bunker URL (bunker://...):",
+        validate: (input: string) => {
+          return input.trim().startsWith("bunker://") || 
+                "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+        }
+      });
+      
+      log.info("Connecting to bunker...");
+      const { client, userPubkey } = await createNip46ClientFromUrl(bunkerUrl);
       signer = client;
       publisherPubkey = userPubkey;
       log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
     } else {
-      console.error(colors.red("No private key or bunker URL available. Please provide a private key or configure a bunker."));
+      console.error(colors.red("No private key or bunker pubkey available. Please provide a private key or configure a bunker."));
       Deno.exit(1);
     }
     
