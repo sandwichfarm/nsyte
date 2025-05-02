@@ -1,3 +1,5 @@
+> ⚠️ nsyte is alpha. use at your own risk.
+
 # nsyte
 
 A command-line tool for publishing websites to NOSTR and Blossom servers. Enables decentralized, censorship-resistant website hosting.
