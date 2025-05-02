@@ -701,7 +701,7 @@ export class BunkerSigner implements Signer {
     
     this.subscription = sub;
     
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     this.connected = true;
     
@@ -719,7 +719,7 @@ export class BunkerSigner implements Signer {
         const directSuccess = await this.publishDirectly(event);
         
         if (!directSuccess) {
-          await this.sendRequest('connect', connectParams, 15000);
+          await this.sendRequest('connect', connectParams, 90000);
         }
         
         log.info("Connect request succeeded");

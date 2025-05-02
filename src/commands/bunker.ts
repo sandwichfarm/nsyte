@@ -2,7 +2,7 @@ import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
 import { Command } from "cliffy/command/mod.ts";
 import { colors } from "cliffy/ansi/colors.ts";
 import { createLogger } from "../lib/logger.ts";
-import { encodeBunkerInfo, decodeBunkerInfo, BunkerKeyManager, BunkerSigner, parseBunkerUrl } from "../lib/nip46.ts";
+import { decodeBunkerInfo, BunkerSigner, parseBunkerUrl } from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 
