@@ -33,8 +33,7 @@ export function flushQueuedLogs(): void {
  * Format a log message
  */
 function formatLogMessage(level: string, namespace: string, message: string): string {
-  const timestamp = new Date().toISOString();
-  
+  // const timestamp = new Date().toISOString()
   switch (level) {
     case "debug":
       return `[${colors.gray("DEBUG")}] ${colors.gray(namespace)}: ${message}`;
