@@ -42,7 +42,7 @@ const nip04Decrypt = async (
 ): Promise<string> => {
   try {
     return await (nostrTools.nip04.decrypt as any)(privateKey, publicKey, content);
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-04 decryption failed: ${errorMessage}`);
     throw error;
@@ -61,7 +61,7 @@ const nip44Encrypt = async (
   
   try {
     return await (nostrTools.nip44.encrypt as any)(privateKey, publicKey, content);
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-44 encryption failed: ${errorMessage}`);
     throw error;
@@ -80,7 +80,7 @@ const nip44Decrypt = async (
   
   try {
     return await (nostrTools.nip44.decrypt as any)(privateKey, publicKey, content);
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-44 decryption failed: ${errorMessage}`);
     throw error;
@@ -218,7 +218,7 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
     }
     
     return bech32.encode("nbunk", bech32.toWords(combinedData), 1000);
-  } catch (error) {
+  } catch (error: unknown) {
     log.error(`Failed to encode bunker info: ${error}`);
     throw new Error(`Failed to encode bunker info: ${error}`);
   }
@@ -275,14 +275,14 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
       throw new Error("Invalid nbunk: missing pubkey");
     }
     if (!result.local_key) {
-      throw new Error("Invalid nbunk: missing local_key");
+      throw new Error("Invalid nbunk: missing local_key");  
     }
     if (result.relays.length === 0) {
       throw new Error("Invalid nbunk: missing relays");
     }
     
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     log.error(`Failed to decode nbunk string: ${error}`);
     throw new Error(`Failed to decode nbunk string: ${error}`);
   }
@@ -291,7 +291,7 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
 /**
  * Compute checksum for a bunker identifier
  */
-function computeBunkerChecksum(pubkey: string, relays: string[]): string {
+export function computeBunkerChecksum(pubkey: string, relays: string[]): string {
   const sortedRelays = [...relays].sort();
   
   const data = pubkey + sortedRelays.join(",");
@@ -1120,7 +1120,8 @@ export class BunkerSigner implements Signer {
       if (this.connected) {
         await this.sendRequest('disconnect', [], 30000);
       }
-    } catch (error) {
+    } catch (e: unknown) {
+      log.debug(`Disconnected from bunker: ${e}`);
     } finally {
       if (this.subscription) {
         this.subscription.close();
