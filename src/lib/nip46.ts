@@ -87,13 +87,11 @@ const nip44Decrypt = async (
   }
 };
 
-// Export the encryption protocol enum so it can be used externally
 export enum EncryptionProtocol {
   NIP04 = "NIP-04",
   NIP44 = "NIP-44"
 }
 
-// Default protocol - initially set to NIP-04 for maximum compatibility
 let defaultEncryptionProtocol = EncryptionProtocol.NIP04;
 
 /**
@@ -104,18 +102,16 @@ export function setEncryptionProtocol(protocol: EncryptionProtocol): void {
   defaultEncryptionProtocol = protocol;
 }
 
-// Automatically detect if NIP-44 is available
 function detectBestEncryptionProtocol(): EncryptionProtocol {
   if (nostrTools.nip44 && typeof nostrTools.nip44.encrypt === 'function') {
     log.debug("NIP-44 encryption is available, but using NIP-04 by default for compatibility");
-    return EncryptionProtocol.NIP04; // We default to NIP-04 for maximum compatibility
+    return EncryptionProtocol.NIP04;
   } else {
     log.debug("NIP-44 encryption is not available, using NIP-04");
     return EncryptionProtocol.NIP04;
   }
 }
 
-// Initialize with the best available protocol
 defaultEncryptionProtocol = detectBestEncryptionProtocol();
 
 async function encryptContent(
@@ -562,28 +558,22 @@ export class BunkerSigner implements Signer {
   public static async connect(bunkerUrl: string): Promise<BunkerSigner> {
     const bunkerPointer = parseBunkerUrl(bunkerUrl);
     
-    // CRITICAL: Verify we have the secret parameter
     if (!bunkerPointer.secret) {
       log.warn("NO SECRET in bunker URL - connection will likely fail!");
     } else {
       log.debug("Secret parameter found in bunker URL");
     }
     
-    // Generate a new client key - DO NOT save it yet
     const secretKey = nostrTools.generateSecretKey();
     log.debug("Generated new client key for this connection");
     
-    // Create signer with the URL's relays and secret
     const signer = new BunkerSigner(bunkerPointer, secretKey);
     
     try {
-      // Try to connect with the fresh key and URL params
       await signer.connect();
       
-      // ONLY save after successful connection
       log.debug("Connection successful - now saving client key");
       
-      // Now we can safely save the key - it's been authorized
       BunkerKeyManager.saveBunkerInfo(bunkerPointer.pubkey, secretKey, bunkerUrl);
       
       return signer;
@@ -1158,28 +1148,21 @@ export class BunkerSigner implements Signer {
    * Sign an event using the bunker
    */
   public async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
-    // Maximum number of retries
     const maxRetries = 3;
     let lastError: unknown = null;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Convert the template to a string for NIP-46 compatibility
-        // According to NIP-46, params must be an array of strings
         const templateString = JSON.stringify(template);
         
         if (attempt > 1) {
           log.info(`Retry attempt ${attempt}/${maxRetries} for sign_event`);
         }
         
-        // Log what we're sending for debugging
         log.debug(`Sending sign_event request with template: ${templateString.slice(0, 100)}...`);
         
-        // Send the template as a string in the params array
-        // Use a longer timeout (60 seconds) for signing operations
         const signedEventJson = await this.sendRequest('sign_event', [templateString], 60000) as string;
         
-        // Parse the response - it should be a JSON string containing the signed event
         try {
           let signedEvent: NostrEvent;
           
@@ -1193,7 +1176,6 @@ export class BunkerSigner implements Signer {
             throw new Error(`Unexpected response type from bunker: ${typeof signedEventJson}`);
           }
           
-          // Verify the signed event is valid
           if (!signedEvent.id || !signedEvent.pubkey || !signedEvent.sig) {
             throw new Error('Invalid signed event: missing id, pubkey, or signature');
           }
@@ -1207,23 +1189,18 @@ export class BunkerSigner implements Signer {
         lastError = error;
         const errorMessage = error instanceof Error ? error.message : String(error);
         
-        // Only log as warning for retries, to avoid log spam
         if (attempt < maxRetries) {
           log.warn(`Sign event attempt ${attempt} failed: ${errorMessage}. Retrying...`);
-          // Wait before retrying (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         } else {
-          // Log as error on the final attempt
           log.error(`Failed to sign event with bunker after ${maxRetries} attempts: ${errorMessage}`);
         }
       }
     }
     
-    // If we get here, all attempts failed
     const finalError = lastError instanceof Error ? lastError.message : String(lastError);
     const errorMsg = `Failed to sign event with bunker: ${finalError}`;
     
-    // Add helpful hints based on the error message
     if (finalError.includes("timeout")) {
       log.error("Bunker signing timed out. This could be due to:");
       log.error("1. The bunker app is not open or responding");
