@@ -99,6 +99,8 @@ interface MockedConfirm {
 }
 
 describe("Bunker Command", () => {
+  const originalConfirmPrompt = Confirm.prompt;
+
   beforeEach(() => {
     mockSecrets.resetMock();
     
@@ -112,11 +114,19 @@ describe("Bunker Command", () => {
       // Do nothing in tests
       return undefined as never;
     };
+
+    // Stub Confirm.prompt to avoid interactive blocking (default "no")
+    // @ts-ignore - Override for testing
+    Confirm.prompt = () => Promise.resolve(false);
   });
   
   afterEach(() => {
     // Restore original getInstance method
     SecretsManager.getInstance = originalGetInstanceMethod;
+
+    // Restore original Confirm.prompt
+    // @ts-ignore - Restore
+    Confirm.prompt = originalConfirmPrompt;
   });
   
   describe("showBunkerHelp", () => {
@@ -230,7 +240,7 @@ describe("Bunker Command", () => {
       const nbunkString = encodeBunkerInfo(testInfo);
       mockSecrets.storeNbunk(testInfo.pubkey, nbunkString);
       
-      // Mock the Confirm.prompt function to return true
+      // Override Confirm.prompt temporarily to simulate confirmation
       const originalConfirm = Confirm.prompt;
       // @ts-ignore - Override for testing
       Confirm.prompt = () => Promise.resolve(true);
@@ -245,7 +255,7 @@ describe("Bunker Command", () => {
         const storedNbunk = mockSecrets.getNbunk(testInfo.pubkey);
         assertEquals(storedNbunk, null);
       } finally {
-        // @ts-ignore - Restore original
+        // @ts-ignore - Restore original override back to stubbed value
         Confirm.prompt = originalConfirm;
       }
     });
