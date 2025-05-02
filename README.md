@@ -1,235 +1,214 @@
 # nsyte
 
-> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. It was ported to deno and almost entirely rewritten in the process. Some behaviors in this fork are slightly different.
+A command-line tool for publishing websites to NOSTR and Blossom servers. Enables decentralized, censorship-resistant website hosting.
 
-A powerful CLI tool for publishing static websites on NOSTR in a decentralized and censorship-resistant way.
+> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://
+njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This fork has been ported to deno and rewritten in the process. Some behaviors in this fork are slightly different.
 
-- Website file listings are published as events (Kind 34128) on NOSTR relays
-- Binary files are uploaded to configured blossom servers
+## Quick Start
 
-## Features
+```bash
+# Install
+deno install -A -f -n nsyte https://github.com/username/nsyte/raw/main/src/cli.ts
+# Or use pre-built binary from releases
 
-- **Interactive Setup**: Guided setup to configure your nsite
-- **Key Management**: Multiple options for managing your NOSTR keys
-  - Generate a new key
-  - Use an existing key
-  - Use a NIP-46 bunker for secure remote signing [in progress]
-- **Fast Uploads**: Parallel uploads for better performance
-- **Smart File Detection**: Automatically detects files that already exist online
-- **Cross-Platform**: Works on macOS, Linux, and Windows
+# Initialize project (interactive setup)
+nsyte init
+
+# Upload website
+nsyte upload ./dist
+```
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Core Commands](#core-commands)
+- [Authentication Methods](#authentication-methods)
+- [Security](#security)
+- [CI/CD Integration](#cicd-integration)
+- [Configuration](#configuration)
+- [Advanced Usage](#advanced-usage)
+- [Development](#development)
 
 ## Installation
-
-### Build Binary for host system
-```bash 
-deno task compile
-```
-
-### Build binaries for Linux/MacOS/Windows
-```bash 
-deno task compile:linux
-deno task compile:macos
-deno task compile:windows
-deno task compile:all
-```
-
-Binary will be in `./dist`
 
 ### Using Deno
 
 ```bash
-# Install directly from GitHub
-deno install --allow-read --allow-write --allow-net --allow-env -n nsyte https://raw.githubusercontent.com/username/nsyte/main/src/cli.ts
+deno install -A -f -n nsyte https://raw.githubusercontent.com/username/nsyte/main/src/cli.ts
 ```
 
-### Using Pre-built Binaries
+### Pre-built Binaries
 
-Download the appropriate binary for your system from the [Releases](https://github.com/username/nsyte/releases) page.
+Download from [Releases](https://github.com/username/nsyte/releases)
 
-## Quick Start
-
-### Interactive Mode (Recommended)
-
-Running nsyte without any subcommand starts the interactive setup:
+### Build Yourself
 
 ```bash
-nsyte
+# Current platform
+deno task compile
+
+# All platforms
+deno task compile:all
 ```
 
-This guides you through:
-- Setting up your key management
-- Configuring relays and blossom servers
-- Setting profile information
+## Core Commands
 
-### Uploading a Website
+| Command | Description |
+|---------|-------------|
+| `nsyte` | Interactive setup wizard |
+| `nsyte init` | Initialize configuration |
+| `nsyte upload <dir>` | Upload files |
+| `nsyte ls` | List published files |
+| `nsyte download <dir>` | Download files |
+| `nsyte bunker <action>` | Manage NIP-46 bunkers |
+
+### Uploading Files
 
 ```bash
-# Upload a website interactively
-nsyte upload ./www
+# Basic upload
+nsyte upload ./dist
 
-# Upload with specific options
-nsyte upload ./www --concurrency 8 --verbose
-
-# Force upload even if files are already online
-nsyte upload ./www --force
+# With options
+nsyte upload ./dist --force --concurrency 8 --verbose
 ```
 
-### Listing Files
+## Authentication Methods
+
+nsyte supports three ways to authenticate:
+
+### 1. Generated Private Key
+Create and use a new NOSTR key pair.
+
+### 2. Existing Private Key
+Use your own NOSTR private key.
+
+### 3. NOSTR Bunker (NIP-46)
+Recommended for maximum security - keep keys on a separate device.
 
 ```bash
-# List your own files
-nsyte ls
+# Connect to bunker
+nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'
 
-# List files from another user
-nsyte ls npub1abc123...
+# Alternative syntax to avoid shell escaping issues
+nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
+
+# List bunkers
+nsyte bunker list
 ```
 
-### Downloading Files
+## Security
+
+**Private Keys**: Never exposed to servers, stored in project configuration.
+
+**Bunker Connections**: 
+- Uses NIP-46 protocol for remote signing
+- Connection secrets stored in system-specific locations:
+  - Linux: `~/.config/nsite`
+  - macOS: `~/Library/Application Support/nsite`
+  - Windows: `%APPDATA%\nsite`
+
+**nbunk Strings**: 
+- Contain sensitive key material
+- Must be stored securely in CI/CD environments
+- Should be rotated periodically
+
+## CI/CD Integration
+
+Use nbunk string to authenticate in CI/CD pipelines:
 
 ```bash
-# Download files from another user
-nsyte download ./target-folder npub1abc123...
+# Export nbunk string (run once)
+nsyte bunker export
+
+# Add to CI/CD secrets, then use:
+nsyte upload ./dist --nbunk ${NBUNK_SECRET}
 ```
 
-## Key Management
+### GitHub Actions Example
 
-### Using Private Keys
-
-Your private key is used to sign events but is never sent to any server. You can:
-
-```bash
-# Specify directly (not recommended)
-nsyte upload ./www --privatekey nsec1abc123...
-
-# You will be prompted to generate a private key, use an existing one, or to setup a bunker if argument is not passed
-nsyte upload ./www
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: denoland/setup-deno@v1
+      - run: nsyte upload ./dist --nbunk ${{ secrets.NBUNK_SECRET }}
 ```
 
-### Using NSEC Bunkers (NIP-46)
+## Configuration
 
-For enhanced security, you can use a NIP-46 remote signer:
-
-```bash
-# Configure a bunker during interactive setup
-nsyte
-
-# Specify a bunker URL directly
-nsyte upload ./www --bunker bunker://pubkey?relay=wss://relay.example.com&secret=abc123
-```
-
-## Configuration Options
-
-nsyte stores its configuration in a `.nsite/config.json` file in your project directory:
+Configuration is stored in `.nsite/config.json`:
 
 ```json
 {
-  "bunkerUrl": "bunker://...",       // NIP-46 bunker URL
+  "bunkerPubkey": "abc123...",
   "relays": ["wss://relay1", "wss://relay2"],
   "servers": ["https://server1", "https://server2"],
-  "profile": {
-    "name": "My Website",
-    "about": "Description of my website"
-  },
+  "profile": { "name": "My Site", "about": "Description" },
   "publishServerList": true,
   "publishRelayList": true,
-  "publishProfile": true
+  "fallback": "/index.html"
 }
 ```
 
 ## Advanced Usage
 
-### Deep Linking in Single Page Applications
+### Bunker Command Options
 
-For deep linking with browser-based routing (e.g., React Router), use the `--fallback` option:
+```bash
+# Import an nbunk string
+nsyte bunker import nbunk1q...
+
+# Export bunker as nbunk
+nsyte bunker export <pubkey>
+
+# Configure project to use specific bunker
+nsyte bunker use <pubkey>
+
+# Remove a bunker
+nsyte bunker remove <pubkey>
+```
+
+### Upload Command Options
+
+```
+--force            Force re-upload of all files
+--purge            Delete files that no longer exist locally
+--verbose          Show detailed progress
+--concurrency <n>  Number of parallel uploads (default: 4)
+--fallback <file>  HTML file to use as 404.html
+--nbunk <string>   nbunk string for authentication
+```
+
+### Deep Linking in SPAs
+
+For client-side routing (React, Vue, etc.):
 
 ```bash
 nsyte upload ./dist --fallback=/index.html
 ```
 
-This creates a copy of the specified file as `/404.html`.
-
-### Environment Variables
-
-You can use environment variables for configuration:
-
-```bash
-export NSITE_LOG_LEVEL=debug  # For debug-level logging
-```
-
-### Non-Interactive Mode
-
-For automated scripts, you can use non-interactive mode:
-
-```bash
-nsyte upload ./www --non-interactive --privatekey nsec1abc123...
-```
-
-### Recent Improvements
-
-- **Smart Existing File Detection**: The tool now correctly identifies files that are already uploaded and avoids unnecessary re-uploads
-- **Improved Progress Tracking**: Progress now correctly tracks files, not server operations
-- **Better Success Reporting**: Separate tracking for file uploads vs. NOSTR event publication
-- **Enhanced Error Handling**: More informative error messages and better recovery from common issues
-
 ## Development
 
 ### Prerequisites
 
-- [Deno](https://deno.land/) 1.40.5 or higher
+- Deno 1.40.5 or higher
 
-### Building from Source
+### Tasks
 
 ```bash
-# Clone the repository
-git clone https://github.com/username/nsyte.git
-cd nsyte
-
-# Run the development version
+# Run development version
 deno task dev
 
 # Run tests
 deno task test
 
 # Build binaries
-deno task compile      # For current platform
-deno task compile:all  # For all platforms
+deno task compile:all
 ```
-
-### Release Process
-
-The project uses GitHub Actions to automate the release process. To create a new release:
-
-1. Update the version in `deno.json`
-2. Update the `CHANGELOG.md` with the changes
-3. Create and push a new tag:
-
-```bash
-git tag v0.3.0
-git push origin v0.3.0
-```
-
-This will trigger the GitHub Actions workflow that:
-- Builds binaries for Linux, macOS, and Windows
-- Creates a GitHub release
-- Uploads the binaries to the release
-
-### Known Issues and Workarounds
-
-**Deno version compatibility**: The current version works best with Deno v1.40.5. If you encounter errors related to import assertions, you can:
-
-```bash
-# Downgrade Deno version
-deno upgrade --version 1.40.5
-
-# Remove the lockfile and recompile
-rm -f deno.lock
-deno task compile
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License 
+[MIT License](LICENSE) 
