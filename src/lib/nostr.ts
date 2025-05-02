@@ -160,7 +160,7 @@ export async function connectToRelay<T>(
       log.debug(`Retrying connection to relay ${relay} (attempt ${attempt}/${maxAttempts})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
-    
+
     const result = await connectToRelayOnce(relay, operation, options.timeout);
     if (result !== null) {
       return result;

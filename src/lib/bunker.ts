@@ -24,8 +24,6 @@ const nip04 = {
     const iv = new Uint8Array(16);
     crypto.getRandomValues(iv);
     
-    // Compute shared point and extract the x-coordinate
-    // This is a compatible way of getting the shared secret for NIP-04
     const sharedSecret = await deriveSharedSecret(privateKey, publicKey);
     
     const cryptoKey = await crypto.subtle.importKey(
@@ -62,8 +60,6 @@ const nip04 = {
     const iv = combined.slice(0, 16);
     const ciphertext = combined.slice(16);
     
-    // Compute shared point and extract the x-coordinate
-    // This is a compatible way of getting the shared secret for NIP-04
     const sharedSecret = await deriveSharedSecret(privateKey, publicKey);
     
     const cryptoKey = await crypto.subtle.importKey(
@@ -89,17 +85,13 @@ const nip04 = {
  * This is the SHA256 of the X coordinate of the ECDH shared point
  */
 async function deriveSharedSecret(privateKey: string, publicKey: string): Promise<Uint8Array> {
-  // Convert hex to Uint8Array
   const privKeyBytes = hexToBytes(privateKey);
   const pubKeyBytes = hexToBytes(publicKey);
   
-  // Hash the concatenation of the two keys
-  // This is actually what most current NIP-04 implementations do
   const input = new Uint8Array(privKeyBytes.length + pubKeyBytes.length);
   input.set(privKeyBytes, 0);
   input.set(pubKeyBytes, privKeyBytes.length);
   
-  // Return the SHA-256 hash
   return sha256(input);
 }
 
@@ -156,13 +148,10 @@ function signEvent(event: {
   content: string;
   pubkey: string;
 }, privateKey: string): NostrEvent {
-  // Calculate the event ID
   const id = calculateId(event);
   
-  // Sign the ID with the private key
   const sig = bytesToHex(schnorr.sign(id, hexToBytes(privateKey)));
   
-  // Return the signed event
   return {
     id,
     pubkey: event.pubkey,
@@ -226,7 +215,6 @@ export class BunkerSigner implements Signer {
   public static async connect(bunkerUrl: string): Promise<BunkerSigner> {
     const { pubkey, relays, secret } = parseBunkerUrl(bunkerUrl);
     
-    // Create a local keypair for the client to securely communicate with the bunker
     const clientPrivateKey = generatePrivateKey();
     const clientPubkey = getPublicKey(clientPrivateKey);
     
@@ -236,13 +224,13 @@ export class BunkerSigner implements Signer {
     const signer = new BunkerSigner(pubkey, clientPrivateKey, relays);
     
     try {
-      await signer.connectToRelays();
-      
+    await signer.connectToRelays();
+    
       const connectParams = [pubkey];
-      if (secret) {
-        connectParams.push(secret);
-      }
-      
+    if (secret) {
+      connectParams.push(secret);
+    }
+    
       await signer.sendRequest("connect", connectParams);
       
       const userPubkey = await signer.sendRequest("get_public_key", []) as string;
@@ -443,33 +431,30 @@ export class BunkerSigner implements Signer {
    */
   private async sendRequestEvent(request: Nip46Request): Promise<void> {
     try {
-      // Log debug info
       log.debug(`Sending request: ${request.method}`);
       
-      try {
-        const encryptedContent = await nip04.encrypt(
-          this.clientPrivateKey,
-          this.signerPubkey,
-          JSON.stringify(request)
-        );
-        
+    try {
+      const encryptedContent = await nip04.encrypt(
+        this.clientPrivateKey,
+        this.signerPubkey,
+        JSON.stringify(request)
+      );
+      
         const unsignedEvent = {
-          kind: NIP46_KIND,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: [["p", this.signerPubkey]],
-          content: encryptedContent,
+        kind: NIP46_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [["p", this.signerPubkey]],
+        content: encryptedContent,
           pubkey: this.clientPubkey
         };
-        
-        // Sign the event
+      
         const signedEvent = signEvent(unsignedEvent, this.clientPrivateKey);
         
-        // Send the event to each connected relay
-        for (const connection of this.connections) {
-          if (connection.connected) {
-            const eventMsg = JSON.stringify(["EVENT", signedEvent]);
-            connection.socket.send(eventMsg);
-          }
+      for (const connection of this.connections) {
+        if (connection.connected) {
+          const eventMsg = JSON.stringify(["EVENT", signedEvent]);
+          connection.socket.send(eventMsg);
+        }
         }
       } catch (encryptError: unknown) {
         const errorMessage = encryptError instanceof Error ? encryptError.message : String(encryptError);
@@ -490,9 +475,8 @@ export class BunkerSigner implements Signer {
     for (const connection of this.connections) {
       if (connection.connected) {
         try {
-          connection.socket.close();
+        connection.socket.close();
         } catch (e) {
-          // Ignore
         }
       }
     }

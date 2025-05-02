@@ -11,6 +11,9 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { Confirm } from "cliffy/prompt/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { nip19 } from "npm:nostr-tools";
+import { BunkerKeyManager, BunkerSigner, decodeBunkerInfo } from "../lib/nip46.ts";
+import { Input } from "cliffy/prompt/mod.ts";
+import { SecretsManager } from "../lib/secrets/mod.ts";
 
 const log = createLogger("upload");
 
@@ -22,6 +25,7 @@ interface UploadCommandOptions {
   relays?: string;
   privatekey?: string;
   bunker?: string;
+  nbunk?: string;
   concurrency: number;
   fallback?: string;
   publishServerList: boolean;
@@ -43,6 +47,7 @@ export function registerUploadCommand(program: Command): void {
     .option("-r, --relays <relays:string>", "The NOSTR relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
+    .option("--nbunk <nbunk:string>", "The NIP-46 bunker encoded as nbunk.")
     .option("-p, --purge", "Delete online file events that are not used anymore.", { default: false })
     .option("-v, --verbose", "Verbose output.")
     .option("-c, --concurrency <number:number>", "Number of parallel uploads.", { default: 4 })
@@ -59,7 +64,7 @@ export function registerUploadCommand(program: Command): void {
 /**
  * Implementation of the upload command
  */
-async function uploadCommand(
+export async function uploadCommand(
   fileOrFolder: string,
   options: UploadCommandOptions
 ): Promise<void> {
@@ -85,6 +90,20 @@ async function uploadCommand(
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from command line");
+    } else if (options.nbunk) {
+      log.info("Using nbunk from command line...");
+      try {
+        const bunkerInfo = decodeBunkerInfo(options.nbunk);
+        const bunkerSigner = await BunkerSigner.importFromNbunk(options.nbunk);
+        signer = bunkerSigner;
+        publisherPubkey = bunkerSigner.getPublicKey();
+        log.info(`Successfully connected to bunker from nbunk, user pubkey: ${publisherPubkey}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.error(`Failed to use nbunk from command line: ${errorMessage}`);
+        console.error(colors.red(`Failed to use nbunk: ${errorMessage}`));
+        Deno.exit(1);
+      }
     } else if (options.bunker) {
       log.info("Connecting to bunker from command line...");
       const { client, userPubkey } = await createNip46ClientFromUrl(options.bunker);
@@ -96,14 +115,59 @@ async function uploadCommand(
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from prompt");
-    } else if (projectData.bunkerUrl) {
-      log.info("Connecting to bunker from project config...");
-      const { client, userPubkey } = await createNip46ClientFromUrl(projectData.bunkerUrl);
+    } else if (projectData.bunkerPubkey) {
+      // First try to get bunker info from system-wide secrets
+      const secretsManager = SecretsManager.getInstance();
+      const nbunkString = secretsManager.getNbunk(projectData.bunkerPubkey);
+      
+      if (nbunkString) {
+        try {
+          log.info("Using stored nbunk for this bunker...");
+          const bunkerSigner = await BunkerSigner.importFromNbunk(nbunkString);
+          signer = bunkerSigner;
+          publisherPubkey = bunkerSigner.getPublicKey();
+          log.debug(`Connected to bunker using nbunk, user pubkey: ${publisherPubkey}`);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log.warn(`Failed to use stored nbunk: ${errorMessage}`);
+          
+          // Fall back to asking for bunker URL
+          log.info("Need a fresh bunker URL with secret to connect");
+          
+          const bunkerUrl = await Input.prompt({
+            message: "Enter your NSEC bunker URL (bunker://...):",
+            validate: (input: string) => {
+              return input.trim().startsWith("bunker://") || 
+                    "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+            }
+          });
+          
+          log.info("Connecting to bunker...");
+          const { client, userPubkey } = await createNip46ClientFromUrl(bunkerUrl);
+          signer = client;
+          publisherPubkey = userPubkey;
+          log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
+        }
+      } else {
+        // Fall back to asking for bunker URL
+      log.info("Need a fresh bunker URL with secret to connect");
+      
+      const bunkerUrl = await Input.prompt({
+        message: "Enter your NSEC bunker URL (bunker://...):",
+        validate: (input: string) => {
+          return input.trim().startsWith("bunker://") || 
+                "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+        }
+      });
+      
+      log.info("Connecting to bunker...");
+      const { client, userPubkey } = await createNip46ClientFromUrl(bunkerUrl);
       signer = client;
       publisherPubkey = userPubkey;
       log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
+      }
     } else {
-      console.error(colors.red("No private key or bunker URL available. Please provide a private key or configure a bunker."));
+      console.error(colors.red("No private key or bunker pubkey available. Please provide a private key or configure a bunker."));
       Deno.exit(1);
     }
     
@@ -622,6 +686,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
     let successCount = 0;
     const totalRelays = relays.length;
     const eventJson = JSON.stringify(["EVENT", event]);
+    const relayErrors = new Map<string, string>();
     
     await Promise.all(relays.map(async (relay) => {
       try {
@@ -635,9 +700,29 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
             socket.onmessage = (msg) => {
               try {
                 const data = JSON.parse(msg.data);
+                
+                // Handle successful publish
                 if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
                   log.debug(`Event published to relay: ${relay}`);
                   resolve(true);
+                  socket.close();
+                  return;
+                }
+                
+                // Handle error responses like ["OK", <event_id>, false, <error_message>]
+                if (Array.isArray(data) && data.length >= 4 && data[0] === "OK" && data[2] === false) {
+                  const errorMessage = data[3] || "Unknown relay error";
+                  
+                  // Record the error but don't crash on rate limiting
+                  if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
+                    log.warn(`Relay ${relay} rate-limited this publish: ${errorMessage}`);
+                    relayErrors.set(relay, `Rate limited: ${errorMessage}`);
+                  } else {
+                    log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
+                    relayErrors.set(relay, errorMessage);
+                  }
+                  
+                  resolve(false);
                   socket.close();
                 }
               } catch (e) {
@@ -646,6 +731,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
             };
             
             setTimeout(() => {
+              relayErrors.set(relay, "Timeout waiting for response");
               resolve(false);
               socket.close();
             }, 5000);
@@ -653,6 +739,7 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
           
           socket.onerror = (e) => {
             log.debug(`WebSocket error with relay ${relay}: ${e}`);
+            relayErrors.set(relay, `WebSocket error: ${e}`);
             resolve(false);
           };
           
@@ -667,15 +754,29 @@ export async function publishToRelays(event: NostrEvent, relays: string[]): Prom
         }
       } catch (e) {
         log.debug(`Failed to connect to relay ${relay}: ${e}`);
+        relayErrors.set(relay, `Connection failed: ${e}`);
       }
     }));
     
     const success = successCount > 0;
+    
     if (success) {
       log.debug(`Published event to ${successCount}/${totalRelays} relays`);
+      
+      if (successCount < totalRelays) {
+        log.debug("Some relays failed to accept the event:");
+        for (const [relay, error] of relayErrors.entries()) {
+          log.debug(`  - ${relay}: ${error}`);
+        }
+      }
     } else {
       log.warn("Failed to publish event to any relay");
+      log.debug("Relay errors:");
+      for (const [relay, error] of relayErrors.entries()) {
+        log.debug(`  - ${relay}: ${error}`);
+      }
     }
+    
     return success;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
