@@ -125,6 +125,11 @@ async function uploadToServer(
     } catch (e) {
       log.debug(`PUT to /upload with auth header failed: ${e}`);
     }
+  }
+  catch (e) {
+    log.debug(`PUT to /upload with auth header failed: ${e}`);
+  }
+  return false;
 }
 
 /**
