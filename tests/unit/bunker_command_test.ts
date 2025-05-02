@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertStringIncludes } from "std/testing/asserts.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
+import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert";
+import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { 
   showBunkerHelp, 
   importNbunk, 

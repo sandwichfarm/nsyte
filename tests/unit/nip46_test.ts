@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertThrows } from "std/testing/asserts.ts";
-import { describe, it } from "std/testing/bdd.ts";
+import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { describe, it } from "jsr:@std/testing/bdd";
 import { encodeBunkerInfo, decodeBunkerInfo, parseBunkerUrl, BunkerInfo } from "../../src/lib/nip46.ts";
 
 describe("NIP-46 Bunker Functions", () => {

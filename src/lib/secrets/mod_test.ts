@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
+import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { SecretsManager } from "./mod.ts";
 import { getSystemConfigDir, ensureSystemConfigDir } from "./utils.ts";
 import { join } from "std/path/mod.ts";

@@ -1,5 +1,5 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
+import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { readProjectFile, writeProjectFile } from "../../src/lib/config.ts";
 import { join, dirname } from "std/path/mod.ts";
 import { ensureDirSync } from "std/fs/ensure_dir.ts";

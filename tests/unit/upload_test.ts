@@ -1,5 +1,5 @@
 import { assertEquals } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
+import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { processUploads, Signer, UploadResponse } from "../../src/lib/upload.ts";
 import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
 

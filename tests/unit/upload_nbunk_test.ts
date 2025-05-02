@@ -1,5 +1,5 @@
-import { assertEquals, assertStringIncludes } from "std/testing/asserts.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
+import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { encodeBunkerInfo, BunkerInfo, BunkerSigner } from "../../src/lib/nip46.ts";
 import * as path from "std/path/mod.ts";
