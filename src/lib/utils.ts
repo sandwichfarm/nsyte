@@ -1,4 +1,5 @@
 import { NostrEvent } from "./nostr.ts";
+import { Command } from "cliffy/command/mod.ts";
 
 /**
  * Extract a tag value from a NOSTR event
@@ -10,4 +11,28 @@ export function extractTagValue(event: NostrEvent, tagName: string): string | un
     }
   }
   return undefined;
+}
+
+/**
+ * Creates a properly grouped subcommand structure
+ * 
+ * This function takes a parent command and adds a subcommand with nested commands
+ * in a way that ensures they display properly in the help output.
+ */
+export function createGroupedCommand(
+  parentCommand: Command,
+  name: string,
+  description: string
+): Command {
+  // First create the subcommand
+  const subCommand = new Command()
+    .name(name)
+    .description(description);
+  
+  // Add it to the parent command using the right override
+  parentCommand.command(name, description).action(() => {
+    subCommand.showHelp();
+  });
+  
+  return subCommand;
 } 

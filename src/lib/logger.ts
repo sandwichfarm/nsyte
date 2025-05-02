@@ -13,7 +13,6 @@ export function setProgressMode(enabled: boolean): void {
 /**
  * Store logs that occur during progress mode
  */
-const queuedLogs: Array<{ level: string; namespace: string; message: string }> = [];
 
 /**
  * Flush queued logs

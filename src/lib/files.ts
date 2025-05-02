@@ -132,7 +132,7 @@ export async function calculateFileHash(filePath: string): Promise<string> {
  */
 export async function loadFileData(dirPath: string, fileEntry: FileEntry): Promise<FileEntry> {
   const normalizedDir = normalize(dirPath).replace(/\/$/, "");
-  const fullPath = join(normalizedDir, fileEntry.path.replace(/^\//, ""));
+  const fullPath = join(normalizedDir, fileEntry.path.replace(/^\
   
   try {
     const data = await Deno.readFile(fullPath);

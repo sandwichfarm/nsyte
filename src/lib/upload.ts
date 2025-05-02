@@ -319,7 +319,6 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
             try {
               const data = JSON.parse(msg.data);
               
-              // Handle successful publish
               if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
                 log.debug(`Event published to relay: ${relay}`);
                 resolve(true);
@@ -327,11 +326,9 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
                 return;
               }
               
-              // Handle error responses like ["OK", <event_id>, false, <error_message>]
               if (Array.isArray(data) && data.length >= 4 && data[0] === "OK" && data[2] === false) {
                 const errorMessage = data[3] || "Unknown relay error";
                 
-                // Record the error but don't crash on rate limiting
                 if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
                   log.warn(`Relay ${relay} rate-limited this publish: ${errorMessage}`);
                   relayErrors.set(relay, `Rate limited: ${errorMessage}`);
@@ -440,21 +437,16 @@ export async function processUploads(
       progressCallback({ ...progress });
     }
     
-    // Process uploads with extra error handling
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
         try {
-          // Wrap each upload in its own try-catch to protect against unhandled rejections
           return await uploadFile(file, baseDir, servers, signer, relays);
         } catch (error: unknown) {
-          // Handle any errors that bubble up including rate limiting
           const errorMessage = error instanceof Error ? error.message : String(error);
           
-          // If it's a rate limiting error, log it but don't consider it a failure
           if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
             log.warn(`Rate limiting detected while uploading ${file.path}: ${errorMessage}`);
             
-            // Return a "successful" result but with no event published
             return {
               file,
               success: true,
@@ -464,7 +456,6 @@ export async function processUploads(
             };
           }
           
-          // For other errors, return a failed result
           log.error(`Failed to upload ${file.path}: ${errorMessage}`);
           return {
             file,
@@ -476,7 +467,6 @@ export async function processUploads(
         }
       })
     ).catch(error => {
-      // Extra safety catch for the Promise.all itself
       log.error(`Error processing batch: ${error.message || error}`);
       return chunk.map(file => ({
         file,
@@ -493,7 +483,6 @@ export async function processUploads(
       if (result.success) {
         progress.completed++;
         
-        // Special handling for rate-limited "successful" uploads
         if (result.error && (result.error.includes("rate-limit") || result.error.includes("noting too much"))) {
           log.warn(`Upload for ${result.file.path} succeeded but event publishing was rate-limited`);
         }
@@ -512,7 +501,6 @@ export async function processUploads(
       }
     }
     
-    // Small delay between batches to help avoid rate limiting
     if (queue.length > 0) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
@@ -605,7 +593,6 @@ async function uploadFile(
     
     const successfulServers = Object.values(serverResults).filter(r => r.success).length;
     
-    // Generate the NOSTR event
     let signedEvent: NostrEvent | null = null;
     let eventPublished = false;
     
@@ -617,7 +604,6 @@ async function uploadFile(
       }
       
       try {
-        // Try to publish the event with robust error handling for rate limiting
       eventPublished = await publishEventToRelays(signedEvent, relays);
       
       if (eventPublished) {
@@ -628,10 +614,8 @@ async function uploadFile(
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
         
-        // Special handling for rate limiting errors
         if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
           log.warn(`Rate limiting detected when publishing event for ${file.path}: ${errorMessage}`);
-          // Don't consider this a failure that requires retry - continue with the upload
           return {
             file,
             success: true,
@@ -647,10 +631,8 @@ async function uploadFile(
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      // Special handling for rate limiting errors in event signing
       if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
         log.warn(`Rate limiting detected when signing event for ${file.path}: ${errorMessage}`);
-        // Don't consider this a failure that requires retry
         return {
           file,
           success: true,
@@ -663,7 +645,6 @@ async function uploadFile(
       log.error(`Error signing nsite event for ${file.path}: ${errorMessage}`);
     }
     
-    // If we get here, the uploads succeeded but event publishing might have failed
     return {
       file,
       success: true,
@@ -674,14 +655,12 @@ async function uploadFile(
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    // Check for rate limiting errors
     if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
       log.warn(`Rate limiting detected for ${file.path}: ${errorMessage}`);
       
-      // Don't retry on rate limiting - just return with partial success
       return {
         file,
-        success: true, // Mark as success so we don't stop the entire process
+        success: true,
         error: `Rate limited: ${errorMessage}`,
         serverResults: {},
         eventPublished: false

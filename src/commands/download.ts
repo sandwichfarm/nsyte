@@ -44,7 +44,6 @@ export function registerDownloadCommand(program: Command): void {
               const signer = new PrivateKeySigner(projectContext.privateKey);
               pubkey = signer.getPublicKey();
             } else if (projectData.bunkerPubkey) {
-              // Try to get stored bunker connection with correct relays
               const bunkerInfo = BunkerKeyManager.getBunkerInfo(projectData.bunkerPubkey);
               let bunkerUrl: string;
               
@@ -52,7 +51,6 @@ export function registerDownloadCommand(program: Command): void {
                 bunkerUrl = bunkerInfo.bunkerUrl;
                 log.debug(`Using saved bunker connection info for ${projectData.bunkerPubkey.slice(0, 8)}...`);
               } else {
-                // Fallback to project relays
                 log.warn("No saved bunker connection info found, using project relays");
                 const relayParams = projectData.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
                 bunkerUrl = `bunker://${projectData.bunkerPubkey}?${relayParams}`;
