@@ -128,6 +128,10 @@ nsyte bunker remove
 nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
 ```
 
+Notes:
+- The `nbunksec` should deauthed from your bunker and rotated periodically for maximum security
+- Restricting bunker permissions to only kinds you are fine with your CI/CD publishing is recommended. 
+
 ### GitHub Actions Example
 
 ```yaml
