@@ -119,13 +119,12 @@ nsyte bunker list
 Use nbunksec string to authenticate in CI/CD pipelines:
 
 ```bash
-# LOCAL SYSYEM ----->
+# ON LOCAL SYSYEM
 nsyte bunker connect bunker://...
-nsyte bunker export (copy the nbunksec)
+nsyte bunker export # copy the nbunksec...
 nsyte bunker remove 
 
-# CI/CD Workflow ----->
-# add nbunksec as secret in CI/CD system
+# IN CI/CD - add nbunksec as secret and then in the workflow...
 nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
 ```
 
