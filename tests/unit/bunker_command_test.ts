@@ -62,8 +62,8 @@ class MockSecretsManager {
     return MockSecretsManager.mockInstance;
   }
   
-  public storeNbunk(pubkey: string, nbunk: string): boolean {
-    this.secrets[pubkey] = nbunk;
+  public storeNbunk(pubkey: string, nbunksec: string): boolean {
+    this.secrets[pubkey] = nbunksec;
     return true;
   }
   
@@ -144,8 +144,8 @@ describe("Bunker Command", () => {
   });
   
   describe("importNbunk", () => {
-    it("should import a valid nbunk string", async () => {
-      // Create a valid nbunk string for testing
+    it("should import a valid nbunksec string", async () => {
+      // Create a valid nbunksec string for testing
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
@@ -167,7 +167,7 @@ describe("Bunker Command", () => {
       try {
         await importNbunk(nbunkString);
         
-        // Verify the nbunk was stored
+        // Verify the nbunksec was stored
         const storedNbunk = mockSecrets.getNbunk(testInfo.pubkey);
         assertExists(storedNbunk);
         assertEquals(storedNbunk, nbunkString);
@@ -177,8 +177,8 @@ describe("Bunker Command", () => {
       }
     });
     
-    it("should handle invalid nbunk string", async () => {
-      const invalidNbunk = "invalid-nbunk";
+    it("should handle invalid nbunksec string", async () => {
+      const invalidNbunk = "invalid-nbunksec";
       
       // Mock Deno.exit to prevent the function from exiting the test
       const originalExit = Deno.exit;
@@ -193,7 +193,7 @@ describe("Bunker Command", () => {
       try {
         const output = await captureConsoleOutput(() => importNbunk(invalidNbunk));
         
-        assertStringIncludes(output, "Failed to import nbunk");
+        assertStringIncludes(output, "Failed to import nbunksec");
         assertEquals(exitCode, 1); // Should exit with error
       } finally {
         Deno.exit = originalExit;
@@ -202,8 +202,8 @@ describe("Bunker Command", () => {
   });
   
   describe("exportNbunk", () => {
-    it("should export a stored nbunk", async () => {
-      // Store a test nbunk first
+    it("should export a stored nbunksec", async () => {
+      // Store a test nbunksec first
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
@@ -230,7 +230,7 @@ describe("Bunker Command", () => {
   
   describe("removeBunker", () => {
     it("should remove a stored bunker", async () => {
-      // First store a test nbunk
+      // First store a test nbunksec
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
@@ -251,7 +251,7 @@ describe("Bunker Command", () => {
         assertStringIncludes(output, "Bunker");
         assertStringIncludes(output, "removed from system storage");
         
-        // Verify the nbunk was removed
+        // Verify the nbunksec was removed
         const storedNbunk = mockSecrets.getNbunk(testInfo.pubkey);
         assertEquals(storedNbunk, null);
       } finally {

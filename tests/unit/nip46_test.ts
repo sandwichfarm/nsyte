@@ -49,8 +49,8 @@ describe("NIP-46 Bunker Functions", () => {
 
       const encoded = encodeBunkerInfo(originalInfo);
       
-      // Should start with nbunk
-      assertEquals(encoded.slice(0, 5), "nbunk");
+      // Should start with nbunksec
+      assertEquals(encoded.slice(0, 5), "nbunksec");
       
       const decoded = decodeBunkerInfo(encoded);
       
@@ -79,12 +79,12 @@ describe("NIP-46 Bunker Functions", () => {
       assertEquals(decoded.secret, undefined);
     });
 
-    it("should throw error when decoding invalid nbunk string", () => {
-      assertThrows(() => decodeBunkerInfo("invalid"), Error, "Not a valid nbunk string");
+    it("should throw error when decoding invalid nbunksec string", () => {
+      assertThrows(() => decodeBunkerInfo("invalid"), Error, "Not a valid nbunksec string");
     });
 
-    it("should throw error for nbunk missing required fields", () => {
-      // Create a minimal valid nbunk then corrupt it 
+    it("should throw error for nbunksec missing required fields", () => {
+      // Create a minimal valid nbunksec then corrupt it 
       const info: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
@@ -92,7 +92,7 @@ describe("NIP-46 Bunker Functions", () => {
       };
       
       const encoded = encodeBunkerInfo(info);
-      // Corrupt by replacing nbunk prefix with nbuck (invalid)
+      // Corrupt by replacing nbunksec prefix with nbuck (invalid)
       const corrupted = "nbuck" + encoded.slice(5);
       
       assertThrows(() => decodeBunkerInfo(corrupted), Error);

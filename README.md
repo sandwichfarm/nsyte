@@ -109,14 +109,14 @@ nsyte bunker list
   - macOS: `~/Library/Application Support/nsite`
   - Windows: `%APPDATA%\nsite`
 
-**nbunk Strings**: 
+**nbunksec Strings**: 
 - Contain sensitive key material
 - Must be stored securely in CI/CD environments
 - Should be rotated periodically
 
 ## CI/CD Integration
 
-Use nbunk string to authenticate in CI/CD pipelines:
+Use nbunksec string to authenticate in CI/CD pipelines:
 
 ```bash
 # Connect to a bunker
@@ -124,11 +124,11 @@ nsyte bunker connect bunker://...
 
 # The bunker is referred to by the hex public key from here on out...
 
-# Export nbunk string (run once)
+# Export nbunksec string (run once)
 nsyte bunker export
 
 # Add to CI/CD secrets, then use:
-nsyte upload ./dist --nbunk ${NBUNK_SECRET}
+nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
 
 # Clear data locally
 nsyte bunker remove 
@@ -145,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v1
-      - run: nsyte upload ./dist --nbunk ${{ secrets.NBUNK_SECRET }}
+      - run: nsyte upload ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ## Configuration
@@ -169,10 +169,10 @@ Configuration is stored in `.nsite/config.json`:
 ### Bunker Command Options
 
 ```bash
-# Import an nbunk string
+# Import an nbunksec string
 nsyte bunker import nbunk1q...
 
-# Export bunker as nbunk
+# Export bunker as nbunksec
 nsyte bunker export <pubkey>
 
 # Configure project to use specific bunker
@@ -190,7 +190,7 @@ nsyte bunker remove <pubkey>
 --verbose          Show detailed progress
 --concurrency <n>  Number of parallel uploads (default: 4)
 --fallback <file>  HTML file to use as 404.html
---nbunk <string>   nbunk string for authentication
+--nbunksec <string>   nbunksec string for authentication
 ```
 
 ### Deep Linking in SPAs

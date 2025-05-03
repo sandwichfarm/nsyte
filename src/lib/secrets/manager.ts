@@ -11,7 +11,7 @@ const SECRETS_FILENAME = "secrets.json";
  * Interface for the secrets storage file
  */
 export interface SecretsStorage {
-  // Map pubkeys to nbunk strings
+  // Map pubkeys to nbunksec strings
   [pubkey: string]: string;
 }
 
@@ -76,25 +76,25 @@ export class SecretsManager {
   }
 
   /**
-   * Store a nbunk string for a pubkey
+   * Store a nbunksec string for a pubkey
    */
-  public storeNbunk(pubkey: string, nbunk: string): boolean {
+  public storeNbunk(pubkey: string, nbunksec: string): boolean {
     if (!this.initialize()) return false;
     
     try {
-      this.secrets[pubkey] = nbunk;
+      this.secrets[pubkey] = nbunksec;
       this.save();
-      log.debug(`Stored nbunk for pubkey ${pubkey.slice(0, 8)}...`);
+      log.debug(`Stored nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
       return true;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to store nbunk: ${errorMessage}`);
+      log.error(`Failed to store nbunksec: ${errorMessage}`);
       return false;
     }
   }
 
   /**
-   * Retrieve a nbunk string for a pubkey
+   * Retrieve a nbunksec string for a pubkey
    */
   public getNbunk(pubkey: string): string | null {
     if (!this.initialize()) return null;
@@ -112,7 +112,7 @@ export class SecretsManager {
   }
 
   /**
-   * Delete a nbunk for a pubkey
+   * Delete a nbunksec for a pubkey
    */
   public deleteNbunk(pubkey: string): boolean {
     if (!this.initialize()) return false;
@@ -123,7 +123,7 @@ export class SecretsManager {
     
     delete this.secrets[pubkey];
     this.save();
-    log.debug(`Deleted nbunk for pubkey ${pubkey.slice(0, 8)}...`);
+    log.debug(`Deleted nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
     return true;
   }
 

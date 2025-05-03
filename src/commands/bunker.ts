@@ -25,17 +25,17 @@ export function registerBunkerCommand(program: Command): void {
       listBunkers();
     })
     .reset()
-    .command("import [nbunk:string]", "Import a bunker from an nbunk string")
-    .action((_, nbunk) => {
-      importNbunk(nbunk);
+    .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
+    .action((_, nbunksec) => {
+      importNbunk(nbunksec);
     })
     .reset()
-    .command("export [pubkey:string]", "Export a bunker as an nbunk string")
+    .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
     .action((_, pubkey) => {
       exportNbunk(pubkey);
     })
     .reset()
-    .command("connect [url:string]", "Connect to a bunker URL and store as nbunk")
+    .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
     .action((_, url) => {
       connectBunker(url);
     })
@@ -104,9 +104,9 @@ export async function showBunkerHelp(): Promise<void> {
   
   console.log(colors.cyan("Available actions:"));
   console.log("  list                     List all stored bunkers in the system");
-  console.log("  import <nbunk>           Import a bunker from an nbunk string");
-  console.log("  export <pubkey>          Export a bunker as an nbunk string");
-  console.log("  connect <url>            Connect to a bunker URL and store as nbunk");
+  console.log("  import <nbunksec>           Import a bunker from an nbunksec string");
+  console.log("  export <pubkey>          Export a bunker as an nbunksec string");
+  console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
   console.log("  connect --pubkey <key> --relay <url> [--secret <secret>]");
   console.log("                           Connect using separate parameters (avoids shell escaping issues)");
   console.log("  use <pubkey>             Configure current project to use a bunker");
@@ -118,9 +118,9 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --secret xxx\n");
   
   console.log(colors.cyan("CI/CD Usage:"));
-  console.log("  1. Use 'nsyte bunker export' to get an nbunk string");
-  console.log("  2. Add the nbunk as a secret in your CI system");
-  console.log("  3. Use the nbunk in CI with: nsyte upload ./dist --nbunk ${NBUNK_SECRET}\n");
+  console.log("  1. Use 'nsyte bunker export' to get an nbunksec string");
+  console.log("  2. Add the nbunksec as a secret in your CI system");
+  console.log("  3. Use the nbunksec in CI with: nsyte upload ./dist --nbunksec ${NBUNK_SECRET}\n");
   
   console.log(colors.cyan("More examples:"));
   console.log("  nsyte bunker list");
@@ -128,7 +128,7 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker export");
   console.log("  nsyte bunker use 3bf0c63...");
   console.log("  nsyte bunker remove 3bf0c63...");
-  console.log("  nsyte upload ./dist --nbunk nbunk1q...");
+  console.log("  nsyte upload ./dist --nbunksec nbunk1q...");
   console.log("");
 }
 
@@ -154,7 +154,7 @@ export async function listBunkers(): Promise<void> {
       console.log(`- ${colors.green(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))}`);
       console.log(`  Relays: ${info.relays.join(", ")}`);
     } catch (error) {
-      console.log(`- ${colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))} (Error decoding nbunk)`);
+      console.log(`- ${colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))} (Error decoding nbunksec)`);
     }
   }
   
@@ -169,24 +169,24 @@ export async function listBunkers(): Promise<void> {
 }
 
 /**
- * Import a bunker from an nbunk string
+ * Import a bunker from an nbunksec string
  */
 export async function importNbunk(nbunkString?: string): Promise<void> {
   try {
     if (!nbunkString) {
       nbunkString = await Input.prompt({
-        message: "Enter the nbunk string to import:",
+        message: "Enter the nbunksec string to import:",
         validate: (input: string) => {
-          return input.trim().startsWith("nbunk") || 
-                "Invalid nbunk string. Must start with 'nbunk'";
+          return input.trim().startsWith("nbunksec") || 
+                "Invalid nbunksec string. Must start with 'nbunksec'";
         }
       });
     }
     
-    // First verify the nbunk is valid by decoding it
+    // First verify the nbunksec is valid by decoding it
     const info = decodeBunkerInfo(nbunkString);
     
-    // Store the nbunk in the system-wide secrets
+    // Store the nbunksec in the system-wide secrets
     const secretsManager = SecretsManager.getInstance();
     secretsManager.storeNbunk(info.pubkey, nbunkString);
     
@@ -206,13 +206,13 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
     Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log(colors.red(`Failed to import nbunk: ${errorMessage}`));
+    console.log(colors.red(`Failed to import nbunksec: ${errorMessage}`));
     Deno.exit(1);
   }
 }
 
 /**
- * Export a bunker as an nbunk string
+ * Export a bunker as an nbunksec string
  */
 export async function exportNbunk(pubkey?: string): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
@@ -304,7 +304,7 @@ export async function connectBunker(bunkerUrl?: string): Promise<void> {
     secretsManager.storeNbunk(bunkerPointer.pubkey, nbunkString);
     
     console.log(colors.green(`Successfully connected to bunker ${bunkerPointer.pubkey.slice(0, 8)}... 
-Generated and stored nbunk string.`));
+Generated and stored nbunksec string.`));
     
     // Ask if the user wants to use this bunker for the current project
     const useForProject = await Confirm.prompt({

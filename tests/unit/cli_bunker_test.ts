@@ -103,7 +103,7 @@ describe("CLI Bunker Command Exports", () => {
       
       // Check that CI/CD usage is documented
       assertStringIncludes(output, "CI/CD Usage");
-      assertStringIncludes(output, "--nbunk");
+      assertStringIncludes(output, "--nbunksec");
     } finally {
       Deno.exit = originalExit;
     }

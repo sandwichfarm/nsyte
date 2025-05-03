@@ -25,7 +25,7 @@ interface UploadCommandOptions {
   relays?: string;
   privatekey?: string;
   bunker?: string;
-  nbunk?: string;
+  nbunksec?: string;
   concurrency: number;
   fallback?: string;
   publishServerList: boolean;
@@ -47,7 +47,7 @@ export function registerUploadCommand(program: Command): void {
     .option("-r, --relays <relays:string>", "The NOSTR relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
-    .option("--nbunk <nbunk:string>", "The NIP-46 bunker encoded as nbunk.")
+    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
     .option("-p, --purge", "Delete online file events that are not used anymore.", { default: false })
     .option("-v, --verbose", "Verbose output.")
     .option("-c, --concurrency <number:number>", "Number of parallel uploads.", { default: 4 })
@@ -90,18 +90,18 @@ export async function uploadCommand(
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
       log.debug("Using private key from command line");
-    } else if (options.nbunk) {
-      log.info("Using nbunk from command line...");
+    } else if (options.nbunksec) {
+      log.info("Using nbunksec from command line...");
       try {
-        const bunkerInfo = decodeBunkerInfo(options.nbunk);
-        const bunkerSigner = await BunkerSigner.importFromNbunk(options.nbunk);
+        const bunkerInfo = decodeBunkerInfo(options.nbunksec);
+        const bunkerSigner = await BunkerSigner.importFromNbunk(options.nbunksec);
         signer = bunkerSigner;
         publisherPubkey = bunkerSigner.getPublicKey();
-        log.info(`Successfully connected to bunker from nbunk, user pubkey: ${publisherPubkey}`);
+        log.info(`Successfully connected to bunker from nbunksec, user pubkey: ${publisherPubkey}`);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to use nbunk from command line: ${errorMessage}`);
-        console.error(colors.red(`Failed to use nbunk: ${errorMessage}`));
+        log.error(`Failed to use nbunksec from command line: ${errorMessage}`);
+        console.error(colors.red(`Failed to use nbunksec: ${errorMessage}`));
         Deno.exit(1);
       }
     } else if (options.bunker) {
@@ -122,14 +122,14 @@ export async function uploadCommand(
       
       if (nbunkString) {
         try {
-          log.info("Using stored nbunk for this bunker...");
+          log.info("Using stored nbunksec for this bunker...");
           const bunkerSigner = await BunkerSigner.importFromNbunk(nbunkString);
           signer = bunkerSigner;
           publisherPubkey = bunkerSigner.getPublicKey();
-          log.debug(`Connected to bunker using nbunk, user pubkey: ${publisherPubkey}`);
+          log.debug(`Connected to bunker using nbunksec, user pubkey: ${publisherPubkey}`);
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          log.warn(`Failed to use stored nbunk: ${errorMessage}`);
+          log.warn(`Failed to use stored nbunksec: ${errorMessage}`);
           
           // Fall back to asking for bunker URL
           log.info("Need a fresh bunker URL with secret to connect");

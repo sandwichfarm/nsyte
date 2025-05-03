@@ -30,7 +30,7 @@ describe("Secrets Module", () => {
     });
   });
   
-  it("should store and retrieve nbunk strings", () => {
+  it("should store and retrieve nbunksec strings", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
     
@@ -38,17 +38,17 @@ describe("Secrets Module", () => {
     const nbunkString = "nbunk1q2w3e4r";
     
     const stored = manager.storeNbunk(pubkey, nbunkString);
-    assertEquals(stored, true, "Should successfully store the nbunk");
+    assertEquals(stored, true, "Should successfully store the nbunksec");
     
     const retrieved = manager.getNbunk(pubkey);
-    assertEquals(retrieved, nbunkString, "Should retrieve the stored nbunk");
+    assertEquals(retrieved, nbunkString, "Should retrieve the stored nbunksec");
     
     const pubkeys = manager.getAllPubkeys();
     assertEquals(pubkeys.length, 1, "Should have one pubkey stored");
     assertEquals(pubkeys[0], pubkey, "Should match the stored pubkey");
   });
   
-  it("should delete a stored nbunk", () => {
+  it("should delete a stored nbunksec", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
     
@@ -58,7 +58,7 @@ describe("Secrets Module", () => {
     manager.storeNbunk(pubkey, nbunkString);
     
     const retrieved = manager.getNbunk(pubkey);
-    assertEquals(retrieved, nbunkString, "Should have stored the nbunk");
+    assertEquals(retrieved, nbunkString, "Should have stored the nbunksec");
     
     const deleted = manager.deleteNbunk(pubkey);
     assertEquals(deleted, true, "Should return true for successful deletion");

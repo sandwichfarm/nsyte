@@ -182,7 +182,7 @@ export interface BunkerInfo {
 }
 
 /**
- * Encode bunker information in NIP-19 style with "nbunk" prefix
+ * Encode bunker information in NIP-19 style with "nbunksec" prefix
  */
 export function encodeBunkerInfo(info: BunkerInfo): string {
   try {
@@ -217,7 +217,7 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
       offset += part.length;
     }
     
-    return bech32.encode("nbunk", bech32.toWords(combinedData), 1000);
+    return bech32.encode("nbunksec", bech32.toWords(combinedData), 1000);
   } catch (error: unknown) {
     log.error(`Failed to encode bunker info: ${error}`);
     throw new Error(`Failed to encode bunker info: ${error}`);
@@ -225,17 +225,17 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
 }
 
 /**
- * Decode a NIP-19 style "nbunk" string into bunker information
+ * Decode a NIP-19 style "nbunksec" string into bunker information
  */
 export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
   try {
-    if (!nbunkString.startsWith("nbunk")) {
-      throw new Error("Not a valid nbunk string. Must start with nbunk");
+    if (!nbunkString.startsWith("nbunksec")) {
+      throw new Error("Not a valid nbunksec string. Must start with nbunksec");
     }
     
     const decoded = bech32.decodeUnsafe(nbunkString, 1000);
-    if (!decoded || decoded.prefix !== "nbunk") {
-      throw new Error(`Invalid prefix: ${decoded?.prefix || "none"}, expected nbunk`);
+    if (!decoded || decoded.prefix !== "nbunksec") {
+      throw new Error(`Invalid prefix: ${decoded?.prefix || "none"}, expected nbunksec`);
     }
     
     const data = bech32.fromWords(decoded.words);
@@ -272,19 +272,19 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
     }
     
     if (!result.pubkey) {
-      throw new Error("Invalid nbunk: missing pubkey");
+      throw new Error("Invalid nbunksec: missing pubkey");
     }
     if (!result.local_key) {
-      throw new Error("Invalid nbunk: missing local_key");  
+      throw new Error("Invalid nbunksec: missing local_key");  
     }
     if (result.relays.length === 0) {
-      throw new Error("Invalid nbunk: missing relays");
+      throw new Error("Invalid nbunksec: missing relays");
     }
     
     return result;
   } catch (error: unknown) {
-    log.error(`Failed to decode nbunk string: ${error}`);
-    throw new Error(`Failed to decode nbunk string: ${error}`);
+    log.error(`Failed to decode nbunksec string: ${error}`);
+    throw new Error(`Failed to decode nbunksec string: ${error}`);
   }
 }
 
@@ -316,7 +316,7 @@ export class BunkerKeyManager {
       const nbunkString = secretsManager.getNbunk(bunkerPubkey);
       
       if (nbunkString) {
-        log.debug(`Found nbunk in system secrets for ${bunkerPubkey.slice(0, 8)}...`);
+        log.debug(`Found nbunksec in system secrets for ${bunkerPubkey.slice(0, 8)}...`);
         const info = decodeBunkerInfo(nbunkString);
         
         const clientKey = new Uint8Array(
@@ -340,8 +340,8 @@ export class BunkerKeyManager {
         return null;
       }
 
-      if (bunkerData.nbunk) {
-        const info = decodeBunkerInfo(bunkerData.nbunk);
+      if (bunkerData.nbunksec) {
+        const info = decodeBunkerInfo(bunkerData.nbunksec);
         
         const clientKey = new Uint8Array(
           info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
@@ -353,7 +353,7 @@ export class BunkerKeyManager {
         return {
           clientKey,
           bunkerUrl,
-          nbunkString: bunkerData.nbunk
+          nbunkString: bunkerData.nbunksec
         };
       }
       
@@ -365,7 +365,7 @@ export class BunkerKeyManager {
         return {
           clientKey,
           bunkerUrl: bunkerData.bunker_url || "",
-          nbunkString: bunkerData.nbunk
+          nbunkString: bunkerData.nbunksec
         };
       }
       
@@ -395,11 +395,11 @@ export class BunkerKeyManager {
       const data = this.loadProjectSecrets();
       
       data[bunkerPubkey] = {
-        nbunk: nbunkString
+        nbunksec: nbunkString
       };
       
       this.saveProjectSecrets(data);
-      log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}... as nbunk`);
+      log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
     } catch (error) {
       log.warn(`Failed to save bunker info: ${error}`);
     }
@@ -415,9 +415,9 @@ export class BunkerKeyManager {
       
       this.saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
       
-      log.debug(`Created nbunk for bunker ${bunkerPubkey.slice(0, 8)}...`);
+      log.debug(`Created nbunksec for bunker ${bunkerPubkey.slice(0, 8)}...`);
     } catch (error) {
-      log.warn(`Failed to create nbunk: ${error}`);
+      log.warn(`Failed to create nbunksec: ${error}`);
     }
   }
   
@@ -451,11 +451,11 @@ export class BunkerKeyManager {
       
       const data = this.loadProjectSecrets();
       data[bunkerPubkey] = {
-        nbunk: nbunkString
+        nbunksec: nbunkString
       };
       
       this.saveProjectSecrets(data);
-      log.debug(`Saved client key for bunker ${bunkerPubkey.slice(0, 8)}... as nbunk`);
+      log.debug(`Saved client key for bunker ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
     }
   }
   
@@ -465,7 +465,7 @@ export class BunkerKeyManager {
   private static loadProjectSecrets(): Record<string, { 
     local_key?: string; 
     bunker_url?: string;
-    nbunk?: string;
+    nbunksec?: string;
   }> {
     const secretsPath = this.getProjectSecretsPath();
     
@@ -488,7 +488,7 @@ export class BunkerKeyManager {
   private static saveProjectSecrets(data: Record<string, { 
     local_key?: string; 
     bunker_url?: string;
-    nbunk?: string;
+    nbunksec?: string;
   }>): void {
     const secretsPath = this.getProjectSecretsPath();
     
@@ -587,7 +587,7 @@ export class BunkerSigner implements Signer {
   }
   
   /**
-   * Import from an nbunk string
+   * Import from an nbunksec string
    */
   public static async importFromNbunk(nbunkString: string): Promise<BunkerSigner> {
     try {
@@ -608,7 +608,7 @@ export class BunkerSigner implements Signer {
       try {
         await signer.connect();
         
-        log.info("Connection successful - saving nbunk");
+        log.info("Connection successful - saving nbunksec");
         const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
         BunkerKeyManager.saveBunkerInfo(info.pubkey, secretKey, dummyUrl);
         
@@ -617,13 +617,13 @@ export class BunkerSigner implements Signer {
         await signer.disconnect();
         
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to connect to bunker from nbunk: ${errorMessage}`);
-        throw new Error(`Failed to connect to bunker from nbunk: ${errorMessage}`);
+        log.error(`Failed to connect to bunker from nbunksec: ${errorMessage}`);
+        throw new Error(`Failed to connect to bunker from nbunksec: ${errorMessage}`);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to import from nbunk: ${errorMessage}`);
-      throw new Error(`Failed to import from nbunk: ${errorMessage}`);
+      log.error(`Failed to import from nbunksec: ${errorMessage}`);
+      throw new Error(`Failed to import from nbunksec: ${errorMessage}`);
     }
   }
   
@@ -1241,7 +1241,7 @@ export class BunkerSigner implements Signer {
   }
 
   /**
-   * Get the nbunk string for this connection
+   * Get the nbunksec string for this connection
    */
   public getNbunkString(): string {
     const bunkerInfo: BunkerInfo = {

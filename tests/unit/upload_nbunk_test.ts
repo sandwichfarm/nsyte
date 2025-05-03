@@ -13,7 +13,7 @@ interface UploadCommandOptions {
   relays?: string;
   privatekey?: string;
   bunker?: string;
-  nbunk?: string;
+  nbunksec?: string;
   concurrency: number;
   fallback?: string;
   publishServerList: boolean;
@@ -36,8 +36,8 @@ class MockSecretsManager {
     return MockSecretsManager.mockInstance;
   }
   
-  public storeNbunk(pubkey: string, nbunk: string): boolean {
-    this.secrets[pubkey] = nbunk;
+  public storeNbunk(pubkey: string, nbunksec: string): boolean {
+    this.secrets[pubkey] = nbunksec;
     return true;
   }
   
@@ -100,11 +100,11 @@ class MockBunkerSigner {
 
 // Mock the decodeBunkerInfo function from nip46.ts
 function decodeMockBunkerInfo(nbunkString: string): BunkerInfo {
-  if (!nbunkString.startsWith("nbunk")) {
-    throw new Error("Not a valid nbunk string. Must start with nbunk");
+  if (!nbunkString.startsWith("nbunksec")) {
+    throw new Error("Not a valid nbunksec string. Must start with nbunksec");
   }
   
-  // Parse out the pubkey from the mocked nbunk string
+  // Parse out the pubkey from the mocked nbunksec string
   // In a real scenario, this would be properly decoded
   const pubkeyMatch = nbunkString.match(/pubkey:([a-f0-9]{64})/);
   const pubkey = pubkeyMatch ? pubkeyMatch[1] : "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
@@ -151,9 +151,9 @@ function captureConsoleOutput(fn: () => Promise<void> | void): Promise<string> {
   }
 }
 
-// Test for upload command with nbunk
+// Test for upload command with nbunksec
 describe("Upload Command with Nbunk", () => {
-  // Create a mock for the upload function to test the nbunk parsing and connection logic
+  // Create a mock for the upload function to test the nbunksec parsing and connection logic
   let uploadCommandMock: (
     fileOrFolder: string, 
     options: UploadCommandOptions
@@ -177,24 +177,24 @@ describe("Upload Command with Nbunk", () => {
     // @ts-ignore - Mock for testing
     BunkerSigner.importFromNbunk = MockBunkerSigner.importFromNbunk;
     
-    // Create mock upload command function that just verifies nbunk is handled correctly
+    // Create mock upload command function that just verifies nbunksec is handled correctly
     uploadCommandMock = async (fileOrFolder: string, options: UploadCommandOptions) => {
       try {
-        // Process just the nbunk part of the command
-        if (options.nbunk) {
-          // Test decoding and using nbunk
-          const signer = await MockBunkerSigner.importFromNbunk(options.nbunk);
+        // Process just the nbunksec part of the command
+        if (options.nbunksec) {
+          // Test decoding and using nbunksec
+          const signer = await MockBunkerSigner.importFromNbunk(options.nbunksec);
           const pubkey = signer.getPublicKey();
           
           return {
             success: true,
-            message: `Successfully used nbunk for pubkey ${pubkey}`
+            message: `Successfully used nbunksec for pubkey ${pubkey}`
           };
         }
         
         return {
           success: false,
-          message: "No nbunk provided in options"
+          message: "No nbunksec provided in options"
         };
       } catch (error) {
         return {
@@ -212,13 +212,13 @@ describe("Upload Command with Nbunk", () => {
     BunkerSigner.importFromNbunk = originalImportFromNbunk;
   });
   
-  describe("nbunk option", () => {
-    it("should accept a valid nbunk string", async () => {
+  describe("nbunksec option", () => {
+    it("should accept a valid nbunksec string", async () => {
       const testPubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
       const mockNbunk = `nbunk1pubkey:${testPubkey}relay:wss://relay.example.com`;
       
       const result = await uploadCommandMock("./test", {
-        nbunk: mockNbunk,
+        nbunksec: mockNbunk,
         force: false,
         verbose: false,
         purge: false,
@@ -230,15 +230,15 @@ describe("Upload Command with Nbunk", () => {
       });
       
       assertEquals(result.success, true);
-      assertStringIncludes(result.message, "Successfully used nbunk");
+      assertStringIncludes(result.message, "Successfully used nbunksec");
       assertStringIncludes(result.message, testPubkey);
     });
     
-    it("should handle invalid nbunk string", async () => {
-      const invalidNbunk = "invalid-nbunk";
+    it("should handle invalid nbunksec string", async () => {
+      const invalidNbunk = "invalid-nbunksec";
       
       const result = await uploadCommandMock("./test", {
-        nbunk: invalidNbunk,
+        nbunksec: invalidNbunk,
         force: false,
         verbose: false,
         purge: false,
@@ -251,20 +251,20 @@ describe("Upload Command with Nbunk", () => {
       
       assertEquals(result.success, false);
       assertStringIncludes(result.message, "Error");
-      assertStringIncludes(result.message, "valid nbunk");
+      assertStringIncludes(result.message, "valid nbunksec");
     });
     
-    it("should use stored nbunk from secrets manager", async () => {
+    it("should use stored nbunksec from secrets manager", async () => {
       const testPubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
       const mockNbunk = `nbunk1pubkey:${testPubkey}relay:wss://relay.example.com`;
       
-      // Store the nbunk in the secrets manager
+      // Store the nbunksec in the secrets manager
       mockSecrets.storeNbunk(testPubkey, mockNbunk);
       
-      // In a real scenario, this would look up the nbunk from the project config
-      // and then find it in the secrets manager. Here we're testing just the nbunk part.
+      // In a real scenario, this would look up the nbunksec from the project config
+      // and then find it in the secrets manager. Here we're testing just the nbunksec part.
       const result = await uploadCommandMock("./test", {
-        nbunk: mockNbunk,
+        nbunksec: mockNbunk,
         force: false,
         verbose: false,
         purge: false,
@@ -276,10 +276,10 @@ describe("Upload Command with Nbunk", () => {
       });
       
       assertEquals(result.success, true);
-      assertStringIncludes(result.message, "Successfully used nbunk");
+      assertStringIncludes(result.message, "Successfully used nbunksec");
       assertStringIncludes(result.message, testPubkey);
       
-      // Verify the nbunk was retrieved
+      // Verify the nbunksec was retrieved
       const storedNbunk = mockSecrets.getNbunk(testPubkey);
       assertEquals(storedNbunk, mockNbunk);
     });

@@ -32,8 +32,8 @@ class TestableSecretsManager {
     return this._initialized;
   }
 
-  public storeNbunk(pubkey: string, nbunk: string): boolean {
-    this._secrets[pubkey] = nbunk;
+  public storeNbunk(pubkey: string, nbunksec: string): boolean {
+    this._secrets[pubkey] = nbunksec;
     this.save();
     return true;
   }
@@ -94,16 +94,16 @@ describe("Secrets Manager", () => {
     }
   });
 
-  describe("nbunk storage", () => {
-    it("should store and retrieve a nbunk string", () => {
+  describe("nbunksec storage", () => {
+    it("should store and retrieve a nbunksec string", () => {
       const pubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      const nbunk = "nbunk1q..."; // Simplified for testing
+      const nbunksec = "nbunk1q..."; // Simplified for testing
       
-      const storeResult = secretsManager.storeNbunk(pubkey, nbunk);
+      const storeResult = secretsManager.storeNbunk(pubkey, nbunksec);
       assertEquals(storeResult, true, "storeNbunk should return true on success");
       
       const retrievedNbunk = secretsManager.getNbunk(pubkey);
-      assertEquals(retrievedNbunk, nbunk, "Retrieved nbunk should match stored nbunk");
+      assertEquals(retrievedNbunk, nbunksec, "Retrieved nbunksec should match stored nbunksec");
       
       // Check that the secrets file was created
       assertEquals(fileExists(secretsManager.getSecretsPath()), true, "Secrets file should exist after storage");
@@ -130,11 +130,11 @@ describe("Secrets Manager", () => {
       assertEquals(pubkeys.includes(pubkey2), true, "Should include pubkey2");
     });
     
-    it("should delete stored nbunk", () => {
+    it("should delete stored nbunksec", () => {
       const pubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      const nbunk = "nbunk1q..."; // Simplified for testing
+      const nbunksec = "nbunk1q..."; // Simplified for testing
       
-      secretsManager.storeNbunk(pubkey, nbunk);
+      secretsManager.storeNbunk(pubkey, nbunksec);
       
       // Verify it was stored
       assertExists(secretsManager.getNbunk(pubkey));
@@ -144,10 +144,10 @@ describe("Secrets Manager", () => {
       assertEquals(deleteResult, true, "deleteNbunk should return true on success");
       
       // Verify it was deleted
-      assertEquals(secretsManager.getNbunk(pubkey), null, "nbunk should be null after deletion");
+      assertEquals(secretsManager.getNbunk(pubkey), null, "nbunksec should be null after deletion");
     });
     
-    it("should return false when deleting non-existent nbunk", () => {
+    it("should return false when deleting non-existent nbunksec", () => {
       const nonExistentPubkey = "0000000000000000000000000000000000000000000000000000000000000000";
       const deleteResult = secretsManager.deleteNbunk(nonExistentPubkey);
       assertEquals(deleteResult, false, "deleteNbunk should return false for non-existent pubkey");
@@ -157,9 +157,9 @@ describe("Secrets Manager", () => {
   describe("persistence", () => {
     it("should persist secrets to disk", () => {
       const pubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      const nbunk = "nbunk1q..."; // Simplified for testing
+      const nbunksec = "nbunk1q..."; // Simplified for testing
       
-      secretsManager.storeNbunk(pubkey, nbunk);
+      secretsManager.storeNbunk(pubkey, nbunksec);
       
       // Create a new instance to verify persistence
       TestableSecretsManager.resetInstance();
@@ -169,7 +169,7 @@ describe("Secrets Manager", () => {
       try {
         const content = Deno.readTextFileSync(newSecretsManager.getSecretsPath());
         const secrets = JSON.parse(content);
-        assertEquals(secrets[pubkey], nbunk, "Persisted secret should match");
+        assertEquals(secrets[pubkey], nbunksec, "Persisted secret should match");
       } catch (error) {
         assertEquals(true, false, `Failed to read secrets file: ${error}`);
       }

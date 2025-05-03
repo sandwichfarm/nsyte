@@ -63,19 +63,19 @@ bunkerCommand
   });
 
 bunkerCommand
-  .command("import [nbunk:string]", "Import a bunker from an nbunk string")
-  .action(async (_, nbunk) => {
-    importNbunk(nbunk);
+  .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
+  .action(async (_, nbunksec) => {
+    importNbunk(nbunksec);
   });
 
 bunkerCommand
-  .command("export [pubkey:string]", "Export a bunker as an nbunk string")
+  .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
   .action(async (_, pubkey) => {
     exportNbunk(pubkey);
   });
 
 bunkerCommand
-  .command("connect [url:string]", "Connect to a bunker URL and store as nbunk")
+  .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
   .action(async (_, url) => {
     connectBunker(url);
   });
