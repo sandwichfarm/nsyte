@@ -23,6 +23,7 @@ import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { setupProject } from "./lib/config.ts";
 import { createLogger } from "./lib/logger.ts";
+import { header } from "./lib/header.ts";
 import { 
   bunkerCommand as bunkerCommandHandler, 
   listBunkers, 
@@ -132,14 +133,44 @@ nsite.action(async () => {
 });
 
 /**
+ * Display the nsyte header in a random color
+ */
+function displayColorfulHeader() {
+  // List of available color functions
+  const colorFunctions = [
+    colors.red,
+    colors.green,
+    colors.blue,
+    colors.yellow,
+    colors.magenta,
+    colors.cyan,
+    colors.brightRed,
+    colors.brightGreen,
+    colors.brightBlue,
+    colors.brightYellow,
+    colors.brightMagenta,
+    colors.brightCyan
+  ];
+  
+  // Select a random color function
+  const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
+  
+  // Display the header in the random color
+  console.log(randomColorFn(header));
+}
+
+/**
  * Main function - the entry point for the command line
  */
 async function main() {
   try {
+    // Display the colorful header
+    displayColorfulHeader();
+    
     // Handle bunker command specially to avoid setup
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
       // Use bunkerCommand directly without triggering setup
-      await handleBunkerCommand();
+      await handleBunkerCommand(false); // Pass false to skip header display
       return;
     }
     
@@ -165,8 +196,13 @@ async function main() {
 /**
  * Handle bunker commands directly without going through setupProject
  */
-async function handleBunkerCommand(): Promise<void> {
+async function handleBunkerCommand(showHeader = true): Promise<void> {
   try {
+    // Display the colorful header for bunker commands if not already shown
+    if (showHeader) {
+      displayColorfulHeader();
+    }
+    
     if (Deno.args.length === 1 || Deno.args.includes("-h") || Deno.args.includes("--help")) {
       // Just show bunker help
       showBunkerHelp();
