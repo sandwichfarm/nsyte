@@ -24,12 +24,10 @@ export function createGroupedCommand(
   name: string,
   description: string
 ): Command {
-  // First create the subcommand
   const subCommand = new Command()
     .name(name)
     .description(description);
   
-  // Add it to the parent command using the right override
   parentCommand.command(name, description).action(() => {
     subCommand.showHelp();
   });

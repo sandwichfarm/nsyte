@@ -2,7 +2,7 @@ import { assertEquals, assertNotEquals } from "std/testing/asserts.ts";
 import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
 import * as nostrTools from "npm:nostr-tools";
 import * as path from "std/path/mod.ts";
-import { SecretsManager } from "./mod.ts";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { 
   getBunkerInfo, 
   saveBunkerInfo, 
@@ -13,7 +13,7 @@ import {
   encodeBunkerInfo,
   decodeBunkerInfo,
   parseBunkerUrl
-} from "../nip46.ts";
+} from "../../src/lib/nip46.ts";
 
 describe("Secrets and NIP-46 Integration", () => {
   const testDir = path.join(Deno.cwd(), ".test_secrets");

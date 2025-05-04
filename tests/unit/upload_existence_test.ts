@@ -1,14 +1,14 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
-import { processUploads, Signer } from "../src/lib/upload.ts";
-import { FileEntry, NostrEvent, NostrEventTemplate } from "../src/lib/nostr.ts";
+import { processUploads, Signer } from "../../src/lib/upload.ts";
+import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
 
 // Store original fetch and WebSocket for restoration
 const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
 let originalSetTimeout: typeof globalThis.setTimeout;
 
-describe("Upload Module", () => {
+describe("Upload Module File Existence", () => {
   // Mock signer for testing
   const mockSigner: Signer = {
     async signEvent(event: NostrEventTemplate): Promise<NostrEvent> {

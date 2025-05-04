@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
-import { SecretsManager } from "./mod.ts";
-import { getSystemConfigDir, ensureSystemConfigDir } from "./utils.ts";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
+import { getSystemConfigDir, ensureSystemConfigDir } from "../../src/lib/secrets/utils.ts";
 import { join } from "std/path/mod.ts";
 
 const originalEnv = Deno.env.toObject();
@@ -14,11 +14,9 @@ describe("Secrets Module", () => {
   beforeEach(() => {
     tempDir = Deno.makeTempDirSync({ prefix: "nsite-secrets-test-" });
     
-    // Reset the instance
     (SecretsManager as any).instance = null;
     secretsManagerInstance = null;
     
-    // Create a new instance using the temp directory
     Deno.env.set("HOME", tempDir);
     Deno.env.set("USERPROFILE", tempDir);
   });
@@ -30,7 +28,6 @@ describe("Secrets Module", () => {
       console.error(`Failed to clean up test directory: ${error}`);
     }
     
-    // Restore the original environment
     Object.entries(originalEnv).forEach(([key, value]) => {
       Deno.env.set(key, value);
     });
@@ -40,7 +37,6 @@ describe("Secrets Module", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
     
-    // Delete any existing keys from previous tests
     manager.getAllPubkeys().forEach(pubkey => {
       manager.deleteNbunk(pubkey);
     });
@@ -63,7 +59,6 @@ describe("Secrets Module", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
     
-    // Delete any existing keys from previous tests
     manager.getAllPubkeys().forEach(pubkey => {
       manager.deleteNbunk(pubkey);
     });

@@ -381,12 +381,16 @@ export async function uploadCommand(
         (remoteFiles.length === 0 && fileComparisonMessage && !options.force)) {
       
       if (displayManager.isInteractive()) {
-        statusDisplay.update("No changes detected. Use --force to upload all files anyway.");
+        // First display the status message as a permanent message (not ephemeral)
+        console.log(colors.yellow("No changes detected. Use --force to upload all files anyway."));
       } else {
         console.log(colors.yellow("No files to upload or delete. Use --force to upload all files."));
       }
       
       if (!options.nonInteractive) {
+        // Add an extra line break to ensure clean prompt display
+        console.log("");
+        
         const forceUpload = await Confirm.prompt({
           message: "Do you want to force upload all files anyway?",
           default: false,

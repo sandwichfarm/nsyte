@@ -123,8 +123,6 @@ export class DisplayManager {
     
     if (options.verbose) {
       this.setVerbose(true);
-      // If verbose flag is provided, but we're not already in debug mode and not in non-interactive,
-      // set the mode to debug
       if (!this.isDebug() && !this.isNonInteractive()) {
         this.setMode(DisplayMode.DEBUG);
       }

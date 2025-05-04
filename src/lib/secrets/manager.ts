@@ -4,14 +4,12 @@ import { ensureSystemConfigDir, fileExists } from "./utils.ts";
 
 const log = createLogger("secrets-manager");
 
-// Filename for the system-wide secrets storage
 const SECRETS_FILENAME = "secrets.json";
 
 /**
  * Interface for the secrets storage file
  */
 export interface SecretsStorage {
-  // Map pubkeys to nbunksec strings
   [pubkey: string]: string;
 }
 
@@ -25,7 +23,6 @@ export class SecretsManager {
   private initialized = false;
 
   private constructor() {
-    // Private constructor for singleton pattern
   }
 
   /**
@@ -55,7 +52,6 @@ export class SecretsManager {
     this.secretsPath = join(configDir, SECRETS_FILENAME);
     log.debug(`Secrets will be stored at: ${this.secretsPath}`);
 
-    // Load existing secrets if available
     if (fileExists(this.secretsPath)) {
       try {
         const content = Deno.readTextFileSync(this.secretsPath);

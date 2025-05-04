@@ -22,9 +22,7 @@ const queuedLogs: Array<{ level: string; namespace: string; message: string }> =
 export function flushQueuedLogs(): void {
   const displayManager = getDisplayManager();
   
-  // In interactive mode, only flush logs if in debug mode
   if (displayManager.isInteractive() && !displayManager.isDebug()) {
-    // Clear the queue without displaying anything
     queuedLogs.length = 0;
     return;
   }
@@ -43,7 +41,6 @@ export function flushQueuedLogs(): void {
  * Format a log message
  */
 function formatLogMessage(level: string, namespace: string, message: string): string {
-  // const timestamp = new Date().toISOString()
   switch (level) {
     case "debug":
       return `[${colors.gray("DEBUG")}] ${colors.gray(namespace)}: ${message}`;
@@ -66,7 +63,6 @@ function formatLogMessage(level: string, namespace: string, message: string): st
 function shouldShowLog(level: string): boolean {
   const displayManager = getDisplayManager();
   
-  // In interactive mode, only show logs in debug mode
   if (displayManager.isInteractive() && !displayManager.isDebug() && level !== "error") {
     return false;
   }

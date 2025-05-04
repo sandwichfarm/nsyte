@@ -25,7 +25,7 @@ export interface Message {
   content: string;
   target: string;
   count?: number;
-  data?: any; // Additional data like file hash, event ID, etc.
+  data?: any;
 }
 
 /**
@@ -56,7 +56,6 @@ export class MessageCollector {
    * Add a message to the collector
    */
   addMessage(type: MessageType, category: MessageCategory, content: string, target: string, data?: any): void {
-    // Look for an existing message to combine
     const existingIndex = this.messages.findIndex(m => 
       m.type === type && 
       m.category === category && 
@@ -67,7 +66,6 @@ export class MessageCollector {
     if (existingIndex >= 0) {
       this.messages[existingIndex].count = (this.messages[existingIndex].count || 1) + 1;
       
-      // If we have new data, store it too
       if (data) {
         this.messages[existingIndex].data = data;
       }
@@ -238,7 +236,6 @@ export class MessageCollector {
           return `${colors.cyan("i")} ${message.target}: ${message.content}${countInfo}`;
       }
     } else {
-      // Standard log format
       const typeFormatted = message.type.toUpperCase();
       return `[${typeFormatted}] ${message.category}(${message.target}): ${message.content}${countInfo}`;
     }
@@ -334,7 +331,6 @@ export class MessageCollector {
    * Print all grouped messages in the requested format
    */
   printAllGroupedMessages(): void {
-    // Print all issue groups only if they have messages
     this.printRelayIssuesSummary();
     this.printErrorSummary();
     this.printNotices();
