@@ -15,7 +15,7 @@ export function registerBunkerCommand(program: Command): void {
   // Add the main bunker command with its own action
   program
     .command("bunker")
-    .description("Manage NOSTR bunker connections and nbunks")
+    .description("Manage nostr bunker connections and nbunks")
     .action(() => {
       showBunkerHelp();
     })
@@ -100,7 +100,7 @@ export async function showBunkerHelp(): Promise<void> {
   console.log(colors.cyan("Description:"));
   console.log("  The bunker command allows you to manage NIP-46 bunker connections and nbunks.");
   console.log("  Nbunks are encoded strings that contain all necessary information to connect to"); 
-  console.log("  a NOSTR bunker. They can be used for CI/CD workflows or shared access.\n");
+  console.log("  a nostr bunker. They can be used for CI/CD workflows or shared access.\n");
   
   console.log(colors.cyan("Available actions:"));
   console.log("  list                     List all stored bunkers in the system");

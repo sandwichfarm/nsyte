@@ -2,7 +2,7 @@
 
 # nsyte
 
-A command-line tool for publishing websites to NOSTR and Blossom servers. Enables decentralized, censorship-resistant website hosting.
+A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized, censorship-resistant website hosting.
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This fork has been ported to deno and rewritten in the process. Some behaviors in this fork are slightly different.
 
@@ -79,12 +79,12 @@ nsyte upload ./dist --force --concurrency 8 --verbose
 nsyte supports three ways to authenticate:
 
 ### 1. Generated Private Key
-Create and use a new NOSTR key pair.
+Create and use a new nostr key pair.
 
 ### 2. Existing Private Key
-Use your own NOSTR private key.
+Use your own nostr private key.
 
-### 3. NOSTR Bunker (NIP-46)
+### 3. nostr Bunker (NIP-46)
 Recommended for maximum security - keep keys on a separate device.
 
 ```bash

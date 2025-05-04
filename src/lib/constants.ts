@@ -1,5 +1,5 @@
 /**
- * Default NOSTR relay discovery relays
+ * Default nostr relay discovery relays
  */
 export const RELAY_DISCOVERY_RELAYS = [
   "wss://purplepag.es",
@@ -8,7 +8,7 @@ export const RELAY_DISCOVERY_RELAYS = [
 ];
 
 /**
- * Default NOSTR broadcast relays for nsyte events
+ * Default nostr broadcast relays for nsyte events
  */
 export const NSYTE_BROADCAST_RELAYS = [
   "wss://relay.damus.io",

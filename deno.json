@@ -1,7 +1,7 @@
 {
   "name": "nsyte",
   "version": "0.2.6",
-  "description": "nsyte - publish your site to NOSTR and blossom servers",
+  "description": "nsyte - publish your site to nostr and blossom servers",
   "exports": "./src/cli.ts",
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",

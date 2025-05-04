@@ -114,7 +114,7 @@ export function createPrivateKeySigner(privateKeyHex: string) {
 }
 
 /**
- * List files available on NOSTR
+ * List files available on nostr
  */
 export async function listRemoteFiles(relays: string[], pubKey: string): Promise<FileEntry[]> {
   log.debug(`Fetching remote files for ${pubKey}`);
@@ -195,7 +195,7 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
 }
 
 /**
- * Publish a NOSTR event to relays
+ * Publish a nostr event to relays
  */
 export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_BROADCAST_RELAYS): Promise<boolean> {
   log.debug(`Publishing event ${event.id} to ${relays.length} relays`);

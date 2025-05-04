@@ -204,7 +204,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
     type KeyChoice = "generate" | "existing" | "new_bunker" | "existing_bunker";
     
     const keyChoice = await Select.prompt<KeyChoice>({
-      message: "How would you like to manage your NOSTR key?",
+      message: "How would you like to manage your nostr key?",
       options: keyOptions,
     });
 
@@ -217,7 +217,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
       
     } else if (keyChoice === "existing") {
       privateKey = await Secret.prompt({
-        message: "Enter your NOSTR private key (nsec/hex):",
+        message: "Enter your nostr private key (nsec/hex):",
       });
       
     } else if (keyChoice === "new_bunker") {
@@ -299,7 +299,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
   type KeyChoice = "generate" | "existing" | "new_bunker" | "existing_bunker";
   
   const keyChoice = await Select.prompt<KeyChoice>({
-    message: "How would you like to manage your NOSTR key?",
+    message: "How would you like to manage your nostr key?",
     options: keyOptions,
   });
 
@@ -315,7 +315,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
     
   } else if (keyChoice === "existing") {
     privateKey = await Secret.prompt({
-      message: "Enter your NOSTR private key (nsec/hex):",
+      message: "Enter your nostr private key (nsec/hex):",
     });
     
   } else if (keyChoice === "new_bunker") {
@@ -366,24 +366,24 @@ async function interactiveSetup(): Promise<ProjectContext> {
     message: "Enter website or project description:",
   });
 
-  console.log(colors.cyan("\nEnter NOSTR relay URLs (leave empty when done):"));
+  console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
   const relays = await promptForUrls("Enter relay URL:", popularRelays);
 
   console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
 
   const publishProfile = await Confirm.prompt({
-    message: "Publish profile information to NOSTR?",
+    message: "Publish profile information to nostr?",
     default: true,
   });
 
   const publishRelayList = await Confirm.prompt({
-    message: "Publish relay list to NOSTR?",
+    message: "Publish relay list to nostr?",
     default: true,
   });
 
   const publishServerList = await Confirm.prompt({
-    message: "Publish blossom server list to NOSTR?",
+    message: "Publish blossom server list to nostr?",
     default: true,
   });
 

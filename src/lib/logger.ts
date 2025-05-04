@@ -1,4 +1,5 @@
 import { colors } from "cliffy/ansi/colors.ts";
+import { getDisplayManager, DisplayMode } from "./display-mode.ts";
 
 let inProgressMode = false;
 
@@ -19,6 +20,15 @@ const queuedLogs: Array<{ level: string; namespace: string; message: string }> =
  * Flush queued logs
  */
 export function flushQueuedLogs(): void {
+  const displayManager = getDisplayManager();
+  
+  // In interactive mode, only flush logs if in debug mode
+  if (displayManager.isInteractive() && !displayManager.isDebug()) {
+    // Clear the queue without displaying anything
+    queuedLogs.length = 0;
+    return;
+  }
+  
   for (const log of queuedLogs) {
     if (log.level === "error") {
       console.error(formatLogMessage(log.level, log.namespace, log.message));
@@ -51,6 +61,20 @@ function formatLogMessage(level: string, namespace: string, message: string): st
 }
 
 /**
+ * Check if we should show the log based on display mode
+ */
+function shouldShowLog(level: string): boolean {
+  const displayManager = getDisplayManager();
+  
+  // In interactive mode, only show logs in debug mode
+  if (displayManager.isInteractive() && !displayManager.isDebug() && level !== "error") {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * Create a logger for a specific namespace
  */
 export function createLogger(namespace: string) {
@@ -70,7 +94,7 @@ export function createLogger(namespace: string) {
   
   return {
     debug(message: string): void {
-      if (shouldLog("debug")) {
+      if (shouldLog("debug") && shouldShowLog("debug")) {
         console.log(formatLogMessage("debug", namespace, message));
       }
     },
@@ -79,7 +103,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("info")) {
         if (inProgressMode) {
           queuedLogs.push({ level: "info", namespace, message });
-        } else {
+        } else if (shouldShowLog("info")) {
           console.log(formatLogMessage("info", namespace, message));
         }
       }
@@ -89,7 +113,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("warn")) {
         if (inProgressMode) {
           queuedLogs.push({ level: "warn", namespace, message });
-        } else {
+        } else if (shouldShowLog("warn")) {
           console.log(formatLogMessage("warn", namespace, message));
         }
       }
@@ -99,14 +123,16 @@ export function createLogger(namespace: string) {
       if (shouldLog("error")) {
         if (inProgressMode) {
           queuedLogs.push({ level: "error", namespace, message });
-        } else {
+        } else if (shouldShowLog("error")) {
           console.error(formatLogMessage("error", namespace, message));
         }
       }
     },
     
     success(message: string): void {
-      console.log(formatLogMessage("success", namespace, message));
+      if (shouldShowLog("success")) {
+        console.log(formatLogMessage("success", namespace, message));
+      }
     },
   };
 }

@@ -133,7 +133,7 @@ async function uploadToServer(
 }
 
 /**
- * Publish an nsite event to NOSTR
+ * Publish an nsite event to nostr
  */
 async function publishNsiteEvent(signer: Signer, pubkey: string, path: string, sha256: string): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

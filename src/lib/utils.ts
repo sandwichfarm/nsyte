@@ -2,7 +2,7 @@ import { NostrEvent } from "./nostr.ts";
 import { Command } from "cliffy/command/mod.ts";
 
 /**
- * Extract a tag value from a NOSTR event
+ * Extract a tag value from a nostr event
  */
 export function extractTagValue(event: NostrEvent, tagName: string): string | undefined {
   for (const tag of event.tags) {

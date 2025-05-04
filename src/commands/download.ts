@@ -15,8 +15,8 @@ const log = createLogger("download");
 export function registerDownloadCommand(program: Command): void {
   program
     .command("download")
-    .description("Download files from the NOSTR network")
-    .option("-r, --relays <relays:string>", "The NOSTR relays to use (comma separated).")
+    .description("Download files from the nostr network")
+    .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("-p, --pubkey <npub:string>", "The public key to download files from (if not using private key).")

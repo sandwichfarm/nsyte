@@ -40,7 +40,7 @@ function signId(id: string, privateKey: Uint8Array): string {
 }
 
 /**
- * Parse a NOSTR private key from various formats
+ * Parse a nostr private key from various formats
  */
 function parsePrivateKey(key: string): Uint8Array {
   if (key.startsWith("nsec1")) {

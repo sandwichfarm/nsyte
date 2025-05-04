@@ -41,7 +41,7 @@ const log = createLogger("cli");
 const nsite = new Command()
   .name("nsyte")
   .version("0.2.0") // Hard-coded for now - should come from version.ts
-  .description("Publish your site to NOSTR and blossom servers");
+  .description("Publish your site to nostr and blossom servers");
 
 // Register standard commands
 registerUploadCommand(nsite);
@@ -51,7 +51,7 @@ registerDownloadCommand(nsite);
 // Create bunker as a separate command object, then add it to nsite
 const bunkerCommand = new Command()
   .name("bunker")
-  .description("Manage NOSTR bunker connections and nbunks")
+  .description("Manage nostr bunker connections and nbunks")
   .action(async () => {
     showBunkerHelp();
   });
