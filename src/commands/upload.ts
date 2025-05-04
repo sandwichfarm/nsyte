@@ -11,7 +11,7 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { Confirm } from "cliffy/prompt/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { nip19 } from "npm:nostr-tools";
-import { BunkerKeyManager, BunkerSigner, decodeBunkerInfo } from "../lib/nip46.ts";
+import { BunkerSigner, decodeBunkerInfo } from "../lib/nip46.ts";
 import { Input } from "cliffy/prompt/mod.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 

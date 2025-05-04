@@ -5,7 +5,7 @@ import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { createNip46ClientFromUrl } from "../lib/nostr.ts";
 import { setupProject, readProjectFile } from "../lib/config.ts";
-import { BunkerKeyManager } from "../lib/nip46.ts";
+import { getBunkerInfo } from "../lib/nip46.ts";
 
 const log = createLogger("ls");
 
@@ -43,7 +43,7 @@ export function registerLsCommand(program: Command): void {
               const signer = new PrivateKeySigner(projectContext.privateKey);
               pubkey = signer.getPublicKey();
             } else if (projectData.bunkerPubkey) {
-              const bunkerInfo = BunkerKeyManager.getBunkerInfo(projectData.bunkerPubkey);
+              const bunkerInfo = getBunkerInfo(projectData.bunkerPubkey);
               let bunkerUrl: string;
               
               if (bunkerInfo && bunkerInfo.bunkerUrl) {

@@ -50,7 +50,7 @@ describe("NIP-46 Bunker Functions", () => {
       const encoded = encodeBunkerInfo(originalInfo);
       
       // Should start with nbunksec
-      assertEquals(encoded.slice(0, 5), "nbunksec");
+      assertEquals(encoded.startsWith("nbunksec"), true);
       
       const decoded = decodeBunkerInfo(encoded);
       

@@ -124,11 +124,11 @@ export async function showBunkerHelp(): Promise<void> {
   
   console.log(colors.cyan("More examples:"));
   console.log("  nsyte bunker list");
-  console.log("  nsyte bunker import nbunk1q...");
+  console.log("  nsyte bunker import nbunksec1q...");
   console.log("  nsyte bunker export");
   console.log("  nsyte bunker use 3bf0c63...");
   console.log("  nsyte bunker remove 3bf0c63...");
-  console.log("  nsyte upload ./dist --nbunksec nbunk1q...");
+  console.log("  nsyte upload ./dist --nbunksec nbunksec1q...");
   console.log("");
 }
 

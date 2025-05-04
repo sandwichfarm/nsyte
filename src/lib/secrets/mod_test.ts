@@ -14,8 +14,13 @@ describe("Secrets Module", () => {
   beforeEach(() => {
     tempDir = Deno.makeTempDirSync({ prefix: "nsite-secrets-test-" });
     
+    // Reset the instance
     (SecretsManager as any).instance = null;
     secretsManagerInstance = null;
+    
+    // Create a new instance using the temp directory
+    Deno.env.set("HOME", tempDir);
+    Deno.env.set("USERPROFILE", tempDir);
   });
   
   afterEach(() => {
@@ -25,6 +30,7 @@ describe("Secrets Module", () => {
       console.error(`Failed to clean up test directory: ${error}`);
     }
     
+    // Restore the original environment
     Object.entries(originalEnv).forEach(([key, value]) => {
       Deno.env.set(key, value);
     });
@@ -33,6 +39,11 @@ describe("Secrets Module", () => {
   it("should store and retrieve nbunksec strings", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
+    
+    // Delete any existing keys from previous tests
+    manager.getAllPubkeys().forEach(pubkey => {
+      manager.deleteNbunk(pubkey);
+    });
     
     const pubkey = "e8b487c079b0f67c695ae6c4c2552a47f38adfa6d0fc795cfd1f5bd787875948";
     const nbunkString = "nbunk1q2w3e4r";
@@ -51,6 +62,11 @@ describe("Secrets Module", () => {
   it("should delete a stored nbunksec", () => {
     const manager = SecretsManager.getInstance();
     secretsManagerInstance = manager;
+    
+    // Delete any existing keys from previous tests
+    manager.getAllPubkeys().forEach(pubkey => {
+      manager.deleteNbunk(pubkey);
+    });
     
     const pubkey = "e8b487c079b0f67c695ae6c4c2552a47f38adfa6d0fc795cfd1f5bd787875948";
     const nbunkString = "nbunk1q2w3e4r";

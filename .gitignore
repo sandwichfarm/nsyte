@@ -2,6 +2,7 @@
 .deprecated
 .devdocs
 .nsite
+.test_secrets
 
 dist
 node_modules

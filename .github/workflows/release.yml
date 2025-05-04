@@ -33,12 +33,12 @@ jobs:
           deno task compile:macos
           deno task compile:windows
       
-      - name: Archive binaries
+      - name: Rename binaries with version info
         run: |
           cd dist
-          tar -czf nsyte-linux-${{ env.VERSION }}.tar.gz nsyte-linux
-          tar -czf nsyte-macos-${{ env.VERSION }}.tar.gz nsyte-macos
-          zip nsyte-windows-${{ env.VERSION }}.zip nsyte-windows.exe
+          cp nsyte-linux nsyte-linux-${{ env.VERSION }}
+          cp nsyte-macos nsyte-macos-${{ env.VERSION }}
+          cp nsyte-windows.exe nsyte-windows-${{ env.VERSION }}.exe
       
       - name: Create GitHub Release
         id: create_release
@@ -59,25 +59,25 @@ jobs:
             
             #### Linux
             ```bash
-            chmod +x nsyte-linux
-            ./nsyte-linux
+            chmod +x nsyte-linux-${{ env.VERSION }}
+            ./nsyte-linux-${{ env.VERSION }}
             ```
             
             #### macOS
             ```bash
-            chmod +x nsyte-macos
-            ./nsyte-macos
+            chmod +x nsyte-macos-${{ env.VERSION }}
+            ./nsyte-macos-${{ env.VERSION }}
             ```
             
             #### Windows
             Double-click the executable or run from command line:
             ```
-            nsyte-windows.exe
+            nsyte-windows-${{ env.VERSION }}.exe
             ```
           files: |
-            dist/nsyte-linux-${{ env.VERSION }}.tar.gz
-            dist/nsyte-macos-${{ env.VERSION }}.tar.gz
-            dist/nsyte-windows-${{ env.VERSION }}.zip
+            dist/nsyte-linux-${{ env.VERSION }}
+            dist/nsyte-macos-${{ env.VERSION }}
+            dist/nsyte-windows-${{ env.VERSION }}.exe
       
       - name: Output Release URL
         run: echo "Release URL -> ${{ steps.create_release.outputs.url }}" 

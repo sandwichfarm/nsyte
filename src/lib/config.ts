@@ -4,7 +4,7 @@ import { createLogger } from "./logger.ts";
 import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
 import { colors } from "cliffy/ansi/colors.ts";
 import { generateKeyPair } from "./nostr.ts";
-import { parseBunkerUrl, BunkerKeyManager } from "./nip46.ts";
+import { parseBunkerUrl, storeBunkerUrl } from "./nip46.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("config");
@@ -235,7 +235,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
         projectData.bunkerPubkey = bunkerPointer.pubkey;
         
         // Store the bunker URL in the secrets file
-        BunkerKeyManager.storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+        storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
         
         console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
       } catch (error) {
@@ -333,7 +333,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
       bunkerPubkey = bunkerPointer.pubkey;
       
       // Store the bunker URL in the secrets file
-      BunkerKeyManager.storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+      storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
       
       console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
     } catch (error) {

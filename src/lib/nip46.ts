@@ -301,225 +301,104 @@ export function computeBunkerChecksum(pubkey: string, relays: string[]): string 
 }
 
 /**
- * Manages the client keys for NIP-46 bunker connections
+ * Get stored bunker information for a bunker pubkey
  */
-export class BunkerKeyManager {
-  private static readonly CONFIG_DIR = ".nsite";
-  private static readonly BUNKER_SECRETS_FILE = "bunker_secrets.json";
-  
-  /**
-   * Get stored bunker information for a bunker pubkey
-   */
-  public static getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null {
-    try {
-      const secretsManager = SecretsManager.getInstance();
-      const nbunkString = secretsManager.getNbunk(bunkerPubkey);
-      
-      if (nbunkString) {
-        log.debug(`Found nbunksec in system secrets for ${bunkerPubkey.slice(0, 8)}...`);
-        const info = decodeBunkerInfo(nbunkString);
-        
-        const clientKey = new Uint8Array(
-          info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
-        );
-        
-        const relayParams = info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
-        const bunkerUrl = `bunker://${info.pubkey}?${relayParams}`;
-        
-        return {
-          clientKey,
-          bunkerUrl,
-          nbunkString
-        };
-      }
-      
-      const data = this.loadProjectSecrets();
-      const bunkerData = data[bunkerPubkey];
-      
-      if (!bunkerData) {
-        return null;
-      }
+export function getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null {
+  try {
+    const secretsManager = SecretsManager.getInstance();
+    const nbunkString = secretsManager.getNbunk(bunkerPubkey);
+    
+    if (!nbunkString) {
+      return null;
+    }
+    
+    log.debug(`Found nbunksec in system secrets for ${bunkerPubkey.slice(0, 8)}...`);
+    const info = decodeBunkerInfo(nbunkString);
+    
+    const clientKey = new Uint8Array(
+      info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+    );
+    
+    const relayParams = info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+    const bunkerUrl = `bunker://${info.pubkey}?${relayParams}`;
+    
+    return {
+      clientKey,
+      bunkerUrl,
+      nbunkString
+    };
+  } catch (error) {
+    log.debug(`No existing bunker info found for bunker ${bunkerPubkey}: ${error}`);
+    return null;
+  }
+}
 
-      if (bunkerData.nbunksec) {
-        const info = decodeBunkerInfo(bunkerData.nbunksec);
-        
-        const clientKey = new Uint8Array(
-          info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
-        );
-        
-        const relayParams = info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
-        const bunkerUrl = `bunker://${info.pubkey}?${relayParams}`;
-        
-        return {
-          clientKey,
-          bunkerUrl,
-          nbunkString: bunkerData.nbunksec
-        };
-      }
-      
-      if (bunkerData.local_key) {
-        const clientKey = new Uint8Array(
-          bunkerData.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
-        );
-        
-        return {
-          clientKey,
-          bunkerUrl: bunkerData.bunker_url || "",
-          nbunkString: bunkerData.nbunksec
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      log.debug(`No existing bunker info found for bunker ${bunkerPubkey}: ${error}`);
-      return null;
-    }
-  }
-  
-  /**
-   * Store bunker information
-   */
-  public static saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunkerUrl: string): void {
-    try {
-      const bunkerInfo: BunkerInfo = {
-        pubkey: bunkerPubkey,
-        relays: parseBunkerUrl(bunkerUrl).relays,
-        local_key: bytesToHex(clientKey)
-      };
-      
-      const nbunkString = encodeBunkerInfo(bunkerInfo);
-      
-      const secretsManager = SecretsManager.getInstance();
-      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
-      
-      const data = this.loadProjectSecrets();
-      
-      data[bunkerPubkey] = {
-        nbunksec: nbunkString
-      };
-      
-      this.saveProjectSecrets(data);
-      log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
-    } catch (error) {
-      log.warn(`Failed to save bunker info: ${error}`);
-    }
-  }
-  
-  /**
-   * Store a bunker URL in the secrets file
-   * This method is used from config.ts during setup
-   */
-  public static storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): void {
-    try {
-      const tempClientKey = nostrTools.generateSecretKey();
-      
-      this.saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
-      
-      log.debug(`Created nbunksec for bunker ${bunkerPubkey.slice(0, 8)}...`);
-    } catch (error) {
-      log.warn(`Failed to create nbunksec: ${error}`);
-    }
-  }
-  
-  /**
-   * Get just the client key for backward compatibility
-   */
-  public static getClientKey(bunkerPubkey: string): Uint8Array | null {
-    const info = this.getBunkerInfo(bunkerPubkey);
-    return info?.clientKey || null;
-  }
-  
-  /**
-   * Save just the client key for backward compatibility
-   */
-  public static saveClientKey(bunkerPubkey: string, clientKey: Uint8Array): void {
-    const existingInfo = this.getBunkerInfo(bunkerPubkey);
+/**
+ * Store bunker information
+ */
+export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunkerUrl: string): void {
+  try {
+    const bunkerInfo: BunkerInfo = {
+      pubkey: bunkerPubkey,
+      relays: parseBunkerUrl(bunkerUrl).relays,
+      local_key: bytesToHex(clientKey)
+    };
     
-    if (existingInfo && existingInfo.bunkerUrl) {
-      this.saveBunkerInfo(bunkerPubkey, clientKey, existingInfo.bunkerUrl);
-    } else {
-      const bunkerInfo: BunkerInfo = {
-        pubkey: bunkerPubkey,
-        relays: ["wss://dummy.relay"],
-        local_key: bytesToHex(clientKey)
-      };
-      
-      const nbunkString = encodeBunkerInfo(bunkerInfo);
-      
-      const secretsManager = SecretsManager.getInstance();
-      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
-      
-      const data = this.loadProjectSecrets();
-      data[bunkerPubkey] = {
-        nbunksec: nbunkString
-      };
-      
-      this.saveProjectSecrets(data);
-      log.debug(`Saved client key for bunker ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
-    }
-  }
-  
-  /**
-   * Load stored bunker secrets from project config
-   */
-  private static loadProjectSecrets(): Record<string, { 
-    local_key?: string; 
-    bunker_url?: string;
-    nbunksec?: string;
-  }> {
-    const secretsPath = this.getProjectSecretsPath();
+    const nbunkString = encodeBunkerInfo(bunkerInfo);
     
-    try {
-      if (!this.fileExists(secretsPath)) {
-        return {};
-      }
-      
-      const fileContent = Deno.readTextFileSync(secretsPath);
-      return JSON.parse(fileContent);
-    } catch (error) {
-      log.debug(`Failed to load bunker secrets: ${error}`);
-      return {};
-    }
-  }
-  
-  /**
-   * Save bunker secrets to project config
-   */
-  private static saveProjectSecrets(data: Record<string, { 
-    local_key?: string; 
-    bunker_url?: string;
-    nbunksec?: string;
-  }>): void {
-    const secretsPath = this.getProjectSecretsPath();
+    const secretsManager = SecretsManager.getInstance();
+    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
     
-    try {
-      ensureDirSync(dirname(secretsPath));
-      Deno.writeTextFileSync(secretsPath, JSON.stringify(data, null, 2));
-    } catch (error) {
-      log.warn(`Failed to save bunker secrets: ${error}`);
-    }
+    log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
+  } catch (error) {
+    log.warn(`Failed to save bunker info: ${error}`);
   }
-  
-  /**
-   * Get the path to the project secrets file
-   */
-  private static getProjectSecretsPath(): string {
-    return join(Deno.cwd(), this.CONFIG_DIR, this.BUNKER_SECRETS_FILE);
+}
+
+/**
+ * Store a bunker URL in the secrets system
+ */
+export function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): void {
+  try {
+    const tempClientKey = nostrTools.generateSecretKey();
+    
+    saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
+    
+    log.debug(`Created nbunksec for bunker ${bunkerPubkey.slice(0, 8)}...`);
+  } catch (error) {
+    log.warn(`Failed to create nbunksec: ${error}`);
   }
+}
+
+/**
+ * Get just the client key for backward compatibility
+ */
+export function getClientKey(bunkerPubkey: string): Uint8Array | null {
+  const info = getBunkerInfo(bunkerPubkey);
+  return info?.clientKey || null;
+}
+
+/**
+ * Save just the client key for backward compatibility
+ */
+export function saveClientKey(bunkerPubkey: string, clientKey: Uint8Array): void {
+  const existingInfo = getBunkerInfo(bunkerPubkey);
   
-  /**
-   * Check if a file exists
-   */
-  private static fileExists(filePath: string): boolean {
-    try {
-      const stats = Deno.statSync(filePath);
-      return stats.isFile;
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        return false;
-      }
-      throw error;
-    }
+  if (existingInfo && existingInfo.bunkerUrl) {
+    saveBunkerInfo(bunkerPubkey, clientKey, existingInfo.bunkerUrl);
+  } else {
+    const bunkerInfo: BunkerInfo = {
+      pubkey: bunkerPubkey,
+      relays: ["wss://dummy.relay"],
+      local_key: bytesToHex(clientKey)
+    };
+    
+    const nbunkString = encodeBunkerInfo(bunkerInfo);
+    
+    const secretsManager = SecretsManager.getInstance();
+    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+    
+    log.debug(`Saved client key for bunker ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
   }
 }
 
@@ -574,7 +453,7 @@ export class BunkerSigner implements Signer {
       
       log.debug("Connection successful - now saving client key");
       
-      BunkerKeyManager.saveBunkerInfo(bunkerPointer.pubkey, secretKey, bunkerUrl);
+      saveBunkerInfo(bunkerPointer.pubkey, secretKey, bunkerUrl);
       
       return signer;
     } catch (error: unknown) {
@@ -610,7 +489,7 @@ export class BunkerSigner implements Signer {
         
         log.info("Connection successful - saving nbunksec");
         const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
-        BunkerKeyManager.saveBunkerInfo(info.pubkey, secretKey, dummyUrl);
+        saveBunkerInfo(info.pubkey, secretKey, dummyUrl);
         
         return signer;
       } catch (error: unknown) {

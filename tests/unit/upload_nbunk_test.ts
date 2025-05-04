@@ -215,7 +215,7 @@ describe("Upload Command with Nbunk", () => {
   describe("nbunksec option", () => {
     it("should accept a valid nbunksec string", async () => {
       const testPubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      const mockNbunk = `nbunk1pubkey:${testPubkey}relay:wss://relay.example.com`;
+      const mockNbunk = `nbunksecpubkey:${testPubkey}relay:wss://relay.example.com`;
       
       const result = await uploadCommandMock("./test", {
         nbunksec: mockNbunk,
@@ -256,7 +256,7 @@ describe("Upload Command with Nbunk", () => {
     
     it("should use stored nbunksec from secrets manager", async () => {
       const testPubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      const mockNbunk = `nbunk1pubkey:${testPubkey}relay:wss://relay.example.com`;
+      const mockNbunk = `nbunksecpubkey:${testPubkey}relay:wss://relay.example.com`;
       
       // Store the nbunksec in the secrets manager
       mockSecrets.storeNbunk(testPubkey, mockNbunk);
