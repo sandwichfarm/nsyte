@@ -259,7 +259,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
  * Connect to a bunker URL and store credentials
  */
 export async function connectBunker(bunkerUrl?: string): Promise<void> {
-  let signer = null;
+  let signer: BunkerSigner | null = null;
   
   try {
     if (!bunkerUrl) {
@@ -330,18 +330,12 @@ Generated and stored nbunksec string.`));
         console.log(colors.cyan("Disconnecting from bunker..."));
         await signer.disconnect();
         console.log(colors.green("Disconnected from bunker."));
-        
-        // Force disconnect unresolved event listeners and WebSocket connections
-        setTimeout(() => {
-          // Force exit the process after a brief delay
-          // This ensures any lingering connections are properly closed
-          Deno.exit(0);
-        }, 500);
       } catch (err) {
         console.error(colors.red(`Error during disconnect: ${err}`));
-        // Force exit even if there's an error
-        Deno.exit(1);
       }
+      
+      // Force exit immediately to prevent any further WebSocket operations
+      Deno.exit(0);
     }
   }
 }

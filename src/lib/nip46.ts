@@ -1,3 +1,7 @@
+/**
+ * NIP-46: Nostr Remote Signing implementation
+ * Following the specification at https://nostr-nips.com/nip-46
+ */
 import { dirname, join } from "std/path/mod.ts";
 import { ensureDirSync } from "std/fs/ensure_dir.ts";
 import { createLogger } from "./logger.ts";
@@ -11,16 +15,26 @@ import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
 
+// Core event kind for NIP-46 Remote Signing
 const NIP46_KIND = 24133;
 
+/**
+ * Get a public key from a secret key
+ */
 const getPublicKey = (secretKey: string): string => {
   return (nostrTools.getPublicKey as any)(secretKey);
 };
 
+/**
+ * Finalize an event by adding an ID and signature
+ */
 const finalizeEvent = (event: NostrEventTemplate, secretKey: string): NostrEvent => {
   return (nostrTools.finalizeEvent as any)(event, secretKey);
 };
 
+/**
+ * Encrypt a message using NIP-04
+ */
 const nip04Encrypt = async (
   privateKey: string,
   publicKey: string,
@@ -28,13 +42,16 @@ const nip04Encrypt = async (
 ): Promise<string> => {
   try {
     return await (nostrTools.nip04.encrypt as any)(privateKey, publicKey, content);
-  } catch (error) {
+  } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-04 encryption failed: ${errorMessage}`);
     throw error;
   }
 };
 
+/**
+ * Decrypt a message using NIP-04
+ */
 const nip04Decrypt = async (
   privateKey: string,
   publicKey: string,
@@ -49,18 +66,25 @@ const nip04Decrypt = async (
   }
 };
 
+/**
+ * Encrypt a message using NIP-44 if available
+ */
 const nip44Encrypt = async (
   privateKey: string,
   publicKey: string,
   content: string
 ): Promise<string> => {
   if (!nostrTools.nip44 || typeof nostrTools.nip44.encrypt !== 'function') {
-    log.error("NIP-44 encryption is not available in the nostr-tools library");
-    throw new Error("NIP-44 encryption not available - update your nostr-tools version");
+    throw new Error("NIP-44 encryption not available");
   }
   
   try {
-    return await (nostrTools.nip44.encrypt as any)(privateKey, publicKey, content);
+    const privKeyBytes = new Uint8Array(
+      privateKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+    );
+    
+    const conversationKey = nostrTools.nip44.getConversationKey(privKeyBytes, publicKey);
+    return nostrTools.nip44.encrypt(content, conversationKey);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-44 encryption failed: ${errorMessage}`);
@@ -68,18 +92,25 @@ const nip44Encrypt = async (
   }
 };
 
+/**
+ * Decrypt a message using NIP-44 if available
+ */
 const nip44Decrypt = async (
   privateKey: string,
   publicKey: string,
   content: string
 ): Promise<string> => {
   if (!nostrTools.nip44 || typeof nostrTools.nip44.decrypt !== 'function') {
-    log.error("NIP-44 decryption is not available in the nostr-tools library");
-    throw new Error("NIP-44 decryption not available - update your nostr-tools version");
+    throw new Error("NIP-44 decryption not available");
   }
   
   try {
-    return await (nostrTools.nip44.decrypt as any)(privateKey, publicKey, content);
+    const privKeyBytes = new Uint8Array(
+      privateKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+    );
+    
+    const conversationKey = nostrTools.nip44.getConversationKey(privKeyBytes, publicKey);
+    return nostrTools.nip44.decrypt(content, conversationKey);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`NIP-44 decryption failed: ${errorMessage}`);
@@ -87,65 +118,63 @@ const nip44Decrypt = async (
   }
 };
 
-export enum EncryptionProtocol {
-  NIP04 = "NIP-04",
-  NIP44 = "NIP-44"
-}
-
-let defaultEncryptionProtocol = EncryptionProtocol.NIP04;
-
 /**
- * Set the encryption protocol to use for bunker communication
+ * Encrypt content using the best available method
+ * Most bunkers still use NIP-04 despite NIP-46 recommending NIP-44
  */
-export function setEncryptionProtocol(protocol: EncryptionProtocol): void {
-  log.info(`Setting bunker encryption protocol to ${protocol}`);
-  defaultEncryptionProtocol = protocol;
-}
-
-function detectBestEncryptionProtocol(): EncryptionProtocol {
-  if (nostrTools.nip44 && typeof nostrTools.nip44.encrypt === 'function') {
-    log.debug("NIP-44 encryption is available, but using NIP-04 by default for compatibility");
-    return EncryptionProtocol.NIP04;
-  } else {
-    log.debug("NIP-44 encryption is not available, using NIP-04");
-    return EncryptionProtocol.NIP04;
-  }
-}
-
-defaultEncryptionProtocol = detectBestEncryptionProtocol();
-
 async function encryptContent(
   privateKey: string,
   publicKey: string,
   content: string
 ): Promise<string> {
-  if (defaultEncryptionProtocol === EncryptionProtocol.NIP44) {
-    return await nip44Encrypt(privateKey, publicKey, content);
-  } else {
+  try {
+    // Use NIP-04 first for maximum compatibility
+    log.debug("Using NIP-04 encryption for maximum compatibility");
     return await nip04Encrypt(privateKey, publicKey, content);
+  } catch (error) {
+    // Fall back to NIP-44 if NIP-04 fails
+    log.debug("NIP-04 encryption failed, trying NIP-44 as fallback");
+    return await nip44Encrypt(privateKey, publicKey, content);
   }
 }
 
+/**
+ * Decrypt content using the appropriate method
+ * Tries NIP-04 first as most bunkers use it
+ */
 async function decryptContent(
   privateKey: string,
   publicKey: string,
   content: string
 ): Promise<string> {
-  if (defaultEncryptionProtocol === EncryptionProtocol.NIP44) {
-    return await nip44Decrypt(privateKey, publicKey, content);
-  } else {
+  // Try NIP-04 first since most bunkers use it
+  try {
+    log.debug("Trying NIP-04 decryption first (for maximum compatibility)");
     return await nip04Decrypt(privateKey, publicKey, content);
+  } catch (nip04Error) {
+    try {
+      // Fall back to NIP-44
+      log.debug("NIP-04 decryption failed, trying NIP-44 as fallback");
+      return await nip44Decrypt(privateKey, publicKey, content);
+    } catch (nip44Error) {
+      log.error("Failed to decrypt with both NIP-04 and NIP-44");
+      throw new Error(`Decryption failed with both protocols. NIP-04 error: ${nip04Error}, NIP-44 error: ${nip44Error}`);
+    }
   }
 }
 
+/**
+ * Interface for a bunker connection information
+ */
 export interface BunkerPointer {
-  pubkey: string;
-  relays: string[];
-  secret: string | null;
+  pubkey: string;   // remote-signer-pubkey
+  relays: string[]; // relays to connect on
+  secret: string | null; // optional secret for connection
 }
 
 /**
- * Parse a bunker URL into its components
+ * Parse a bunker URL following NIP-46 format:
+ * bunker://<remote-signer-pubkey>?relay=<wss://relay1>&relay=<wss://relay2>&secret=<optional>
  */
 export function parseBunkerUrl(url: string): BunkerPointer {
   if (!url.startsWith("bunker://")) {
@@ -172,42 +201,47 @@ export function parseBunkerUrl(url: string): BunkerPointer {
 }
 
 /**
- * NIP-19 style bunker information
+ * Bundle of information for bunker connections
  */
 export interface BunkerInfo {
-  pubkey: string;
-  relays: string[];
-  local_key: string;
-  secret?: string;
+  pubkey: string;    // remote-signer-pubkey
+  relays: string[];  // relays to connect on
+  local_key: string; // client-keypair secret key (hex)
+  secret?: string;   // optional connection secret
 }
 
 /**
- * Encode bunker information in NIP-19 style with "nbunksec" prefix
+ * Generate a TLV encoded string for storing bunker connection info
  */
 export function encodeBunkerInfo(info: BunkerInfo): string {
   try {
     const encodedData: Uint8Array[] = [];
     
+    // Add pubkey (type 0)
     const pubkeyBytes = new Uint8Array(info.pubkey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
     encodedData.push(new Uint8Array([0, pubkeyBytes.length]));
     encodedData.push(pubkeyBytes);
     
+    // Add local key (type 1)
     const localKeyBytes = new Uint8Array(info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
     encodedData.push(new Uint8Array([1, localKeyBytes.length]));
     encodedData.push(localKeyBytes);
     
+    // Add relays (type 2)
     for (const relay of info.relays) {
       const relayBytes = new TextEncoder().encode(relay);
       encodedData.push(new Uint8Array([2, relayBytes.length]));
       encodedData.push(relayBytes);
     }
     
+    // Add secret if available (type 3)
     if (info.secret) {
       const secretBytes = new TextEncoder().encode(info.secret);
       encodedData.push(new Uint8Array([3, secretBytes.length]));
       encodedData.push(secretBytes);
     }
     
+    // Combine all data
     const combinedLength = encodedData.reduce((sum, part) => sum + part.length, 0);
     const combinedData = new Uint8Array(combinedLength);
     
@@ -217,6 +251,7 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
       offset += part.length;
     }
     
+    // Encode as bech32 string with nbunksec prefix
     return bech32.encode("nbunksec", bech32.toWords(combinedData), 1000);
   } catch (error: unknown) {
     log.error(`Failed to encode bunker info: ${error}`);
@@ -225,7 +260,7 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
 }
 
 /**
- * Decode a NIP-19 style "nbunksec" string into bunker information
+ * Decode a nbunksec string into bunker information
  */
 export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
   try {
@@ -289,19 +324,7 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
 }
 
 /**
- * Compute checksum for a bunker identifier
- */
-export function computeBunkerChecksum(pubkey: string, relays: string[]): string {
-  const sortedRelays = [...relays].sort();
-  
-  const data = pubkey + sortedRelays.join(",");
-  const hash = sha256(new TextEncoder().encode(data));
-  
-  return bytesToHex(hash.slice(0, 8));
-}
-
-/**
- * Get stored bunker information for a bunker pubkey
+ * Bunker management functions for secrets storage
  */
 export function getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null {
   try {
@@ -312,7 +335,6 @@ export function getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bu
       return null;
     }
     
-    log.debug(`Found nbunksec in system secrets for ${bunkerPubkey.slice(0, 8)}...`);
     const info = decodeBunkerInfo(nbunkString);
     
     const clientKey = new Uint8Array(
@@ -349,7 +371,7 @@ export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunk
     const secretsManager = SecretsManager.getInstance();
     secretsManager.storeNbunk(bunkerPubkey, nbunkString);
     
-    log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
+    log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}...`);
   } catch (error) {
     log.warn(`Failed to save bunker info: ${error}`);
   }
@@ -357,6 +379,7 @@ export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunk
 
 /**
  * Store a bunker URL in the secrets system
+ * This function is used by the config system
  */
 export function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): void {
   try {
@@ -371,39 +394,8 @@ export function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): void {
 }
 
 /**
- * Get just the client key for backward compatibility
- */
-export function getClientKey(bunkerPubkey: string): Uint8Array | null {
-  const info = getBunkerInfo(bunkerPubkey);
-  return info?.clientKey || null;
-}
-
-/**
- * Save just the client key for backward compatibility
- */
-export function saveClientKey(bunkerPubkey: string, clientKey: Uint8Array): void {
-  const existingInfo = getBunkerInfo(bunkerPubkey);
-  
-  if (existingInfo && existingInfo.bunkerUrl) {
-    saveBunkerInfo(bunkerPubkey, clientKey, existingInfo.bunkerUrl);
-  } else {
-    const bunkerInfo: BunkerInfo = {
-      pubkey: bunkerPubkey,
-      relays: ["wss://dummy.relay"],
-      local_key: bytesToHex(clientKey)
-    };
-    
-    const nbunkString = encodeBunkerInfo(bunkerInfo);
-    
-    const secretsManager = SecretsManager.getInstance();
-    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
-    
-    log.debug(`Saved client key for bunker ${bunkerPubkey.slice(0, 8)}... as nbunksec`);
-  }
-}
-
-/**
  * NIP-46 Bunker Signer Implementation
+ * Follows the specification for Nostr Remote Signing
  */
 export class BunkerSigner implements Signer {
   private secretKeyHex: string;
@@ -411,7 +403,7 @@ export class BunkerSigner implements Signer {
   private connected = false;
   private pendingRequests = new Map<string, { 
     resolve: (value: unknown) => void; 
-    reject: (reason: unknown) => void 
+    reject: (reason: unknown) => void;
   }>();
   private clientPubkey: string;
   private userPubkey = "";
@@ -419,12 +411,14 @@ export class BunkerSigner implements Signer {
   
   /**
    * Create a new BunkerSigner instance
+   * @param bunkerPointer - Remote signer connection details
+   * @param clientKey - Client keypair secret key
    */
   private constructor(
     private bunkerPointer: BunkerPointer,
-    secretKey: Uint8Array
+    clientKey: Uint8Array
   ) {
-    this.secretKeyHex = bytesToHex(secretKey);
+    this.secretKeyHex = bytesToHex(clientKey);
     this.clientPubkey = getPublicKey(this.secretKeyHex);
     this.pool = new nostrTools.SimplePool();
     
@@ -432,64 +426,69 @@ export class BunkerSigner implements Signer {
   }
   
   /**
-   * Connect to a NIP-46 bunker
+   * Connect to a remote signer using a bunker URL
+   * @param bunkerUrl - URL in the format bunker://<pubkey>?relay=<wsurl>&secret=<secret>
    */
   public static async connect(bunkerUrl: string): Promise<BunkerSigner> {
     const bunkerPointer = parseBunkerUrl(bunkerUrl);
     
     if (!bunkerPointer.secret) {
-      log.warn("NO SECRET in bunker URL - connection will likely fail!");
+      log.warn("No secret in bunker URL - connection may fail if required by the remote signer");
     } else {
       log.debug("Secret parameter found in bunker URL");
     }
     
-    const secretKey = nostrTools.generateSecretKey();
-    log.debug("Generated new client key for this connection");
+    // Generate client keypair as specified in NIP-46
+    const clientKey = nostrTools.generateSecretKey();
+    log.debug("Generated new client keypair for this connection");
     
-    const signer = new BunkerSigner(bunkerPointer, secretKey);
+    const signer = new BunkerSigner(bunkerPointer, clientKey);
     
     try {
       await signer.connect();
       
-      log.debug("Connection successful - now saving client key");
-      
-      saveBunkerInfo(bunkerPointer.pubkey, secretKey, bunkerUrl);
+      log.debug("Connection successful - saving client key");
+      saveBunkerInfo(bunkerPointer.pubkey, clientKey, bunkerUrl);
       
       return signer;
     } catch (error: unknown) {
-      await signer.disconnect();
+      try {
+        await signer.disconnect();
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
       
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Failed to connect to bunker: ${errorMessage}`);
-      throw new Error(`Failed to connect to bunker: ${errorMessage}`);
+      throw error;
     }
   }
   
   /**
-   * Import from an nbunksec string
+   * Connect to a bunker from an nbunksec string
    */
   public static async importFromNbunk(nbunkString: string): Promise<BunkerSigner> {
     try {
       const info = decodeBunkerInfo(nbunkString);
       
-      const secretKey = new Uint8Array(
+      const clientKey = new Uint8Array(
         info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
       );
       
       const bunkerPointer: BunkerPointer = {
         pubkey: info.pubkey,
         relays: info.relays,
-        secret: null
+        secret: info.secret || null
       };
       
-      const signer = new BunkerSigner(bunkerPointer, secretKey);
+      const signer = new BunkerSigner(bunkerPointer, clientKey);
       
       try {
         await signer.connect();
         
-        log.info("Connection successful - saving nbunksec");
+        log.info("Connection successful from nbunksec");
         const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
-        saveBunkerInfo(info.pubkey, secretKey, dummyUrl);
+        saveBunkerInfo(info.pubkey, clientKey, dummyUrl);
         
         return signer;
       } catch (error: unknown) {
@@ -497,136 +496,199 @@ export class BunkerSigner implements Signer {
         
         const errorMessage = error instanceof Error ? error.message : String(error);
         log.error(`Failed to connect to bunker from nbunksec: ${errorMessage}`);
-        throw new Error(`Failed to connect to bunker from nbunksec: ${errorMessage}`);
+        throw error;
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`Failed to import from nbunksec: ${errorMessage}`);
-      throw new Error(`Failed to import from nbunksec: ${errorMessage}`);
+      throw error;
     }
   }
   
   /**
-   * Connect to the bunker
+   * Connect to the remote signer
+   * Follows the NIP-46 connection flow
    */
   private async connect(): Promise<void> {
+    // Mark as not connected at the start
+    this.connected = false;
+    
     log.info(`Connecting to bunker ${this.bunkerPointer.pubkey.slice(0, 8)}... via ${this.bunkerPointer.relays.join(", ")}`);
     
-    if (!this.bunkerPointer.secret) {
-      log.warn("No secret parameter provided in bunker URL - this will likely fail");
-    } else {
-      log.debug("Using secret from URL for connection");
-    }
-    
-    const directRelayConnections = await Promise.all(
-      this.bunkerPointer.relays.map(async (relay) => {
-        try {
-          const ws = new WebSocket(relay);
-          return new Promise<boolean>((resolve) => {
-            const timeout = setTimeout(() => {
-              log.warn(`Timed out connecting to relay: ${relay}`);
-              resolve(false);
-            }, 3000);
-            
-            ws.onopen = () => {
-              clearTimeout(timeout);
-              ws.close();
-              resolve(true);
-            };
-            
-            ws.onerror = () => {
-              clearTimeout(timeout);
-              resolve(false);
-            };
-          });
-        } catch (e) {
-          log.warn(`Failed to connect to relay: ${relay}`);
-          return false;
-        }
-      })
-    );
-    
-    const connectedRelayCount = directRelayConnections.filter(Boolean).length;
-    if (connectedRelayCount === 0) {
-      throw new Error("Failed to connect to any relay - check relay URLs");
-    }
-    
-    log.info(`Successfully connected to ${connectedRelayCount}/${this.bunkerPointer.relays.length} relays`);
-    
-    const filter = {
-      kinds: [NIP46_KIND],
-      "#p": [this.clientPubkey],
-    };
-    
-    const sub = this.pool.subscribeMany(
-      this.bunkerPointer.relays,
-      [filter],
-      {
-        onevent: (event: NostrEvent) => {
-          this.handleResponse(event);
-        }
-      }
-    );
-    
-    this.subscription = sub;
-    
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    this.connected = true;
-    
     try {
+      // Close any existing connections
+      this.cleanup();
+      
+      // Initialize a fresh pool
+      this.pool = new nostrTools.SimplePool();
+      
+      // Set up subscription for responses from the bunker
+      log.debug(`Setting up subscription for responses to client pubkey ${this.clientPubkey.slice(0, 8)}...`);
+      
+      const filter = {
+        kinds: [NIP46_KIND],
+        "#p": [this.clientPubkey],
+      };
+      
+      try {
+        this.subscription = this.pool.subscribeMany(
+          this.bunkerPointer.relays,
+          [filter],
+          {
+            onevent: (event: NostrEvent) => {
+              this.handleResponse(event);
+            }
+          }
+        );
+        
+        // Wait for subscription to be established
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        log.error(`Failed to create subscription: ${error}`);
+        this.cleanup();
+        throw new Error(`Failed to create subscription: ${error}`);
+      }
+      
+      // Send connect request as defined in NIP-46
+      const permissionsStr = "get_public_key,sign_event";
       const connectParams = [this.bunkerPointer.pubkey];
       if (this.bunkerPointer.secret) {
         log.debug("Adding secret to connect request");
         connectParams.push(this.bunkerPointer.secret);
       }
+      connectParams.push(permissionsStr);
       
-      log.info("Sending connect request to bunker...");
+      log.info("Sending connect request to bunker");
       
       try {
-        const event = await this.prepareRequestEvent('connect', connectParams);
-        const directSuccess = await this.publishDirectly(event);
+        const connectResponse = await this.sendRequest('connect', connectParams, 15000);
+        log.debug(`Connect response: ${JSON.stringify(connectResponse)}`);
         
-        if (!directSuccess) {
-          await this.sendRequest('connect', connectParams, 90000);
+        if (connectResponse === "ack" || 
+            (typeof connectResponse === "string" && 
+              (connectResponse.includes("ack") || connectResponse.includes("ok") || connectResponse.includes("success") || connectResponse.includes("already")))) {
+          this.connected = true;
+          log.info("Connect request succeeded");
+        } else {
+          log.debug(`Unexpected connect response: ${JSON.stringify(connectResponse)}`);
+          this.connected = true; // Assume connected if we got any response
         }
-        
-        log.info("Connect request succeeded");
       } catch (connectError: unknown) {
         const errorMessage = connectError instanceof Error ? connectError.message : String(connectError);
         
-        if (errorMessage.includes("already connected")) {
-          log.info("Bunker reports we're already connected, proceeding...");
+        if (errorMessage.includes("already")) {
+          log.info("Already connected to bunker");
+          this.connected = true;
         } else if (errorMessage.includes("unauthorized") || errorMessage.includes("permission")) {
-          throw new Error("Unauthorized - the secret parameter may be incorrect or missing");
+          log.error(`Unauthorized: ${errorMessage}. Check secret parameter.`);
+          this.connected = false;
+          throw new Error(`Unauthorized: ${errorMessage}`);
         } else {
+          log.error(`Connect error: ${errorMessage}`);
+          this.connected = false;
           throw connectError;
         }
       }
       
-      try {
-        const userPubkey = await this.sendRequest('get_public_key', [], 10000) as string;
-        this.userPubkey = userPubkey;
-        log.info(`Connected to bunker, user pubkey: ${this.userPubkey.slice(0, 8)}...`);
-        return;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes("permission") || errorMessage.includes("not authorized") || 
-            errorMessage.includes("unauthorized")) {
-          log.info("Permission needed, requesting authorization...");
-        } else {
+      // Request user's public key as required by NIP-46
+      if (this.connected) {
+        log.debug("Connected successfully, requesting user public key");
+        
+        try {
+          const userPubkey = await this.sendRequest('get_public_key', [], 10000) as string;
+          
+          if (!userPubkey || userPubkey.length !== 64) {
+            log.error(`Invalid user pubkey received: ${userPubkey}`);
+            throw new Error(`Invalid user pubkey received: ${userPubkey}`);
+          }
+          
+          this.userPubkey = userPubkey;
+          log.info(`Connected to bunker, user pubkey: ${this.userPubkey.slice(0, 8)}...`);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          log.error(`Failed to get user pubkey: ${errorMessage}`);
           throw error;
         }
+      } else {
+        throw new Error("Failed to establish connection to bunker");
       }
-      
-      await this.requestPermissions();
-      
-      const userPubkey = await this.sendRequest('get_public_key', [], 10000) as string;
-      this.userPubkey = userPubkey;
-      log.info(`Connected to bunker, user pubkey: ${this.userPubkey.slice(0, 8)}...`);
     } catch (error) {
       this.connected = false;
+      this.cleanup();
       throw error;
+    }
+  }
+  
+  /**
+   * Clean up resources
+   */
+  private cleanup(): void {
+    if (this.subscription) {
+      try {
+        this.subscription.close();
+      } catch (e) {
+        // Ignore errors
+      }
+      this.subscription = null;
+    }
+    
+    if (this.pool) {
+      try {
+        this.pool.close(this.bunkerPointer.relays);
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+  }
+  
+  /**
+   * Handle a response from the bunker
+   */
+  private async handleResponse(event: NostrEvent): Promise<void> {
+    if (event.pubkey !== this.bunkerPointer.pubkey) {
+      return;
+    }
+    
+    try {
+      log.debug(`Received response event from bunker, attempting to decrypt`);
+      
+      let decrypted: string;
+      try {
+        decrypted = await decryptContent(this.secretKeyHex, event.pubkey, event.content);
+      } catch (error) {
+        log.error(`Failed to decrypt response: ${error}`);
+        throw error;
+      }
+      
+      let response;
+      try {
+        response = JSON.parse(decrypted);
+      } catch (parseError) {
+        log.error(`Failed to parse decrypted response: ${decrypted.substring(0, 100)}`);
+        throw parseError;
+      }
+      
+      if (response.error) {
+        log.debug(`Bunker error response: ${response.error}`);
+      } else {
+        log.debug(`Received successful bunker response for id: ${response.id}`);
+      }
+      
+      const pendingRequest = this.pendingRequests.get(response.id);
+      if (!pendingRequest) {
+        return;
+      }
+      
+      this.pendingRequests.delete(response.id);
+      
+      if (response.error) {
+        pendingRequest.reject(new Error(response.error));
+      } else {
+        pendingRequest.resolve(response.result);
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error(`Failed to process response: ${errorMessage}`);
     }
   }
   
@@ -660,183 +722,9 @@ export class BunkerSigner implements Signer {
   }
   
   /**
-   * Publish an event directly to all relays using basic WebSockets
-   * For maximum compatibility with various relay implementations
-   */
-  private async publishDirectly(event: NostrEvent): Promise<boolean> {
-    log.debug("Attempting direct WebSocket publishing for maximum compatibility");
-    
-    const results = await Promise.all(
-      this.bunkerPointer.relays.map(async (relay) => {
-        return new Promise<boolean>((resolve) => {
-          try {
-            const ws = new WebSocket(relay);
-            let success = false;
-            
-            const timeout = setTimeout(() => {
-              if (!success) {
-                ws.close();
-                resolve(false);
-              }
-            }, 5000);
-            
-            ws.onopen = () => {
-              const message = JSON.stringify(["EVENT", event]);
-              ws.send(message);
-              
-              success = true;
-              
-              setTimeout(() => {
-                clearTimeout(timeout);
-                ws.close();
-                resolve(true);
-              }, 1000);
-            };
-            
-            ws.onmessage = (msg: MessageEvent) => {
-              try {
-                const data = JSON.parse(msg.data as string);
-                if (Array.isArray(data) && data[0] === "OK" && data[1] === event.id) {
-                  success = true;
-                  clearTimeout(timeout);
-                  ws.close();
-                  resolve(true);
-                }
-              } catch (e) {
-              }
-            };
-            
-            ws.onerror = () => {
-              clearTimeout(timeout);
-              resolve(false);
-            };
-            
-            ws.onclose = () => {
-              clearTimeout(timeout);
-              if (!success) {
-                resolve(false);
-              }
-            };
-          } catch (e) {
-            resolve(false);
-          }
-        });
-      })
-    );
-    
-    const successCount = results.filter(Boolean).length;
-    if (successCount > 0) {
-      log.debug(`Direct publishing succeeded on ${successCount}/${this.bunkerPointer.relays.length} relays`);
-      return true;
-    }
-    
-    log.debug("Direct publishing failed on all relays");
-    return false;
-  }
-  
-  /**
-   * Request permissions from the bunker
-   */
-  private async requestPermissions(): Promise<void> {
-    const permissions = ["get_public_key", "sign_event"];
-    
-    const methods = [
-      'request_permissions',
-      'request_permission',
-      'authorize'
-    ];
-    
-    log.info("Requesting bunker permission - check your bunker app for approval prompt");
-    
-    for (const method of methods) {
-      try {
-        const event = await this.prepareRequestEvent(method, [permissions]);
-        const directSuccess = await this.publishDirectly(event);
-        
-        if (!directSuccess) {
-          await this.sendRequest(method, [permissions], 8000);
-        }
-        
-        log.info(`Permission request sent with ${method}, waiting for approval...`);
-        return;
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        
-        if (errorMessage.includes("method not found") || 
-            errorMessage.includes("unknown method") || 
-            errorMessage.includes("not implemented") ||
-            errorMessage.includes("no such method")) {
-          continue;
-        }
-        
-        if (errorMessage.includes("already authorized") || 
-            errorMessage.includes("already granted") ||
-            errorMessage.includes("permission already") ||
-            errorMessage.includes("already has permission")) {
-          log.info("Permission already granted");
-          return;
-        }
-        
-        log.warn(`Error requesting permission with ${method}: ${errorMessage}`);
-      }
-    }
-    
-    log.warn("Could not automatically request permissions. Please approve this client in your bunker app.");
-    
-    await new Promise(resolve => setTimeout(resolve, 5000));
-  }
-  
-  /**
-   * Handle a response from the bunker
-   */
-  private async handleResponse(event: NostrEvent): Promise<void> {
-    if (event.pubkey !== this.bunkerPointer.pubkey) {
-      return;
-    }
-    
-    try {
-      const decrypted = await decryptContent(
-        this.secretKeyHex,
-        event.pubkey, 
-        event.content
-      );
-      
-      const response = JSON.parse(decrypted);
-      
-      if (response.error) {
-        const methodInfo = response.id ? ` for request ${response.id}` : '';
-        
-        if (response.error.includes("permission") || response.error.includes("access")) {
-          log.error(`${response.error.toUpperCase()} error${methodInfo}. The user might need to approve this action in their bunker app.`);
-        } else {
-          log.debug(`Bunker response error${methodInfo}: ${response.error}`);
-        }
-      } else {
-        log.debug(`Received bunker response for id: ${response.id}`);
-      }
-      
-      const pendingRequest = this.pendingRequests.get(response.id);
-      if (!pendingRequest) {
-        return;
-      }
-      
-      this.pendingRequests.delete(response.id);
-      
-      if (response.error) {
-        pendingRequest.reject(new Error(response.error));
-      } else {
-        pendingRequest.resolve(response.result);
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to decrypt response: ${errorMessage}`);
-    }
-  }
-  
-  /**
    * Send a request to the bunker
    */
-  private async sendRequest(method: string, params: unknown[], timeoutMs = 30000): Promise<unknown> {
+  private async sendRequest(method: string, params: unknown[], timeoutMs = 10000): Promise<unknown> {
     if (method !== 'connect' && !this.connected) {
       throw new Error("Not connected to the bunker");
     }
@@ -857,29 +745,26 @@ export class BunkerSigner implements Signer {
       const timeoutHandle = setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
-          log.error(`Request timed out: ${method} (id: ${id})`);
           reject(new Error(`Request timed out: ${method}`));
         }
       }, timeoutMs);
       
-      this.encryptAndSendRequest(request, id, timeoutHandle).catch(error => {
-        clearTimeout(timeoutHandle);
-        this.pendingRequests.delete(id);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to send ${method} request (id: ${id}): ${errorMessage}`);
-        reject(new Error(`Failed to send request: ${errorMessage}`));
-      });
+      this.encryptAndSendRequest(request)
+        .then(() => {
+          // Request sent successfully, waiting for response
+        })
+        .catch(error => {
+          clearTimeout(timeoutHandle);
+          this.pendingRequests.delete(id);
+          reject(error);
+        });
     });
   }
   
   /**
    * Encrypt and send a request to the bunker
    */
-  private async encryptAndSendRequest(
-    request: { id: string; method: string; params: unknown[] },
-    requestId: string,
-    timeoutHandle: number
-  ): Promise<void> {
+  private async encryptAndSendRequest(request: { id: string; method: string; params: unknown[] }): Promise<void> {
     try {
       const encrypted = await encryptContent(
         this.secretKeyHex,
@@ -899,122 +784,33 @@ export class BunkerSigner implements Signer {
         this.secretKeyHex
       );
       
-      log.debug(`Publishing ${request.method} request to ${this.bunkerPointer.relays.length} relays (id: ${requestId})`);
+      log.debug(`Publishing ${request.method} request to ${this.bunkerPointer.relays.length} relays`);
       
-      const relayStatuses = new Map<string, string>();
-      
-      let allRelaysPublished = false;
-      
-      try {
-        await this.pool.publish(this.bunkerPointer.relays, signedEvent);
-        log.debug(`Request ${requestId} published to all relays at once`);
-        allRelaysPublished = true;
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        
-        if (errorMsg.includes("rate-limit") || errorMsg.includes("noting too much")) {
-          log.warn(`Rate limiting detected: ${errorMsg}`);
-        } else {
-          log.warn(`Failed to publish to all relays at once: ${errorMsg}`);
-        }
-        
-      }
-      
-      const criticalMethods = ['connect', 'request_permissions', 'request_permission', 'authorize', 'get_public_key'];
-      const needsDirectPublish = criticalMethods.includes(request.method);
-      
-      if (needsDirectPublish) {
-        log.debug(`Using direct publishing for critical method: ${request.method}`);
-        
-        const directSuccess = await this.publishDirectly(signedEvent);
-        if (directSuccess) {
-          log.debug(`Direct publish succeeded for ${request.method}`);
-        } else {
-          log.warn(`Direct publish failed for critical method: ${request.method}`);
-        }
-      }
-      
-      const needsIndividualPublish = !allRelaysPublished || criticalMethods.includes(request.method);
-      
-      if (needsIndividualPublish) {
-        log.debug(`${!allRelaysPublished ? "Trying" : "Also trying"} individual relay publishing for ${request.method}`);
-        
-        const individualPublishPromises = this.bunkerPointer.relays.map(async (relay) => {
-          try {
-            await this.pool.publish([relay], signedEvent);
-            log.debug(`Request ${requestId} published successfully to relay: ${relay}`);
-            relayStatuses.set(relay, "success");
-            return true;
-          } catch (err) {
-            const errMsg = err instanceof Error ? err.message : String(err);
-            if (errMsg.includes("rate-limit") || errMsg.includes("noting too much")) {
-              log.warn(`Rate limited on relay ${relay}: ${errMsg}`);
-              relayStatuses.set(relay, `rate-limited: ${errMsg}`);
-            } else if (errMsg.includes("blocked")) {
-              log.warn(`Blocked on relay ${relay}: ${errMsg}`);
-              relayStatuses.set(relay, `blocked: ${errMsg}`);
-            } else {
-              log.debug(`Failed to publish to ${relay}: ${errMsg}`);
-              relayStatuses.set(relay, `error: ${errMsg}`);
-            }
-            return false;
-          }
-        });
-        
-        const results = await Promise.all(individualPublishPromises);
-        const successCount = results.filter(r => r).length;
-        
-        if (successCount > 0) {
-          log.debug(`Successfully published to ${successCount}/${this.bunkerPointer.relays.length} relays individually`);
-          
-          log.debug("Relay publish statuses:");
-          for (const [relay, status] of relayStatuses.entries()) {
-            log.debug(`  - ${relay}: ${status}`);
-          }
-          
-          return;
-        }
-        
-        log.error("Failed to publish to any relay individually");
-        log.debug("Relay publish statuses:");
-        for (const [relay, status] of relayStatuses.entries()) {
-          log.debug(`  - ${relay}: ${status}`);
-        }
-        
-        throw new Error("Failed to publish to any relay - check relay connections");
-      }
-      
+      await this.pool.publish(this.bunkerPointer.relays, signedEvent);
     } catch (error: unknown) {
-      clearTimeout(timeoutHandle);
-      this.pendingRequests.delete(requestId);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error(`Failed to send request: ${errorMessage}`);
       throw error;
     }
   }
   
   /**
    * Disconnect from the bunker
+   * Note: NIP-46 doesn't define a disconnect method, this just cleans up resources
    */
   public async disconnect(): Promise<void> {
-    try {
-      if (this.connected) {
-        await this.sendRequest('disconnect', [], 30000);
-      }
-    } catch (e: unknown) {
-      log.debug(`Disconnected from bunker: ${e}`);
-    } finally {
-      if (this.subscription) {
-        this.subscription.close();
-        this.subscription = null;
-      }
-      
-      this.pool.close(this.bunkerPointer.relays);
-      this.connected = false;
-      
-      for (const [id, { reject }] of this.pendingRequests.entries()) {
-        reject(new Error("Disconnected from bunker"));
-        this.pendingRequests.delete(id);
-      }
+    this.connected = false;
+    
+    // Release all pending requests
+    for (const [id, { reject }] of this.pendingRequests.entries()) {
+      reject(new Error("Disconnected from bunker"));
+      this.pendingRequests.delete(id);
     }
+    
+    // Clean up resources
+    this.cleanup();
+    
+    log.debug("Disconnected from bunker");
   }
   
   /**
@@ -1026,101 +822,43 @@ export class BunkerSigner implements Signer {
   
   /**
    * Sign an event using the bunker
+   * Implements the main NIP-46 sign_event method
    */
   public async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
-    const maxRetries = 3;
-    let lastError: unknown = null;
+    const templateString = JSON.stringify(template);
     
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const templateString = JSON.stringify(template);
-        
-        if (attempt > 1) {
-          log.info(`Retry attempt ${attempt}/${maxRetries} for sign_event`);
-        }
-        
-        log.debug(`Sending sign_event request with template: ${templateString.slice(0, 100)}...`);
-        
-        const signedEventJson = await this.sendRequest('sign_event', [templateString], 60000) as string;
-        
-        try {
-          let signedEvent: NostrEvent;
-          
-          if (typeof signedEventJson === 'string') {
-            log.debug(`Received sign_event response as string, parsing`);
-            signedEvent = JSON.parse(signedEventJson);
-          } else if (typeof signedEventJson === 'object') {
-            log.debug(`Received sign_event response as object`);
-            signedEvent = signedEventJson as NostrEvent;
-          } else {
-            throw new Error(`Unexpected response type from bunker: ${typeof signedEventJson}`);
-          }
-          
-          if (!signedEvent.id || !signedEvent.pubkey || !signedEvent.sig) {
-            throw new Error('Invalid signed event: missing id, pubkey, or signature');
-          }
-          
-          return signedEvent;
-        } catch (parseError: unknown) {
-          const parseErrorMsg = parseError instanceof Error ? parseError.message : String(parseError);
-          throw new Error(`Failed to parse signed event: ${parseErrorMsg}. Received: ${typeof signedEventJson === 'string' ? signedEventJson.slice(0, 100) : JSON.stringify(signedEventJson).slice(0, 100)}...`);
-        }
-      } catch (error: unknown) {
-        lastError = error;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        
-        if (attempt < maxRetries) {
-          log.warn(`Sign event attempt ${attempt} failed: ${errorMessage}. Retrying...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        } else {
-          log.error(`Failed to sign event with bunker after ${maxRetries} attempts: ${errorMessage}`);
-        }
-      }
-    }
+    log.debug(`Sending sign_event request`);
     
-    const finalError = lastError instanceof Error ? lastError.message : String(lastError);
-    const errorMsg = `Failed to sign event with bunker: ${finalError}`;
-    
-    if (finalError.includes("timeout")) {
-      log.error("Bunker signing timed out. This could be due to:");
-      log.error("1. The bunker app is not open or responding");
-      log.error("2. The bunker has not approved the signing request");
-      log.error("3. Network issues between the client and relays");
-      log.error("Please check your bunker app and try again.");
-    } else if (finalError.includes("permission") || finalError.includes("unauthorized")) {
-      log.error("Permission error. The bunker has not authorized signing for this client.");
-      log.error("Please approve the NIP-46 permission request in your bunker app.");
-    } else if (finalError.includes("parse") || finalError.includes("unmarshal")) {
-      log.error("The bunker could not parse the sign request. This is likely a compatibility issue.");
-      log.error("Please check that your bunker implementation supports NIP-46 fully.");
-      log.error("The event template should be a JSON string, not an object.");
-    }
-    
-    throw new Error(errorMsg);
-  }
-
-  /**
-   * Describe bunker capabilities
-   * This method can help debug what methods the bunker supports
-   */
-  public async describeBunker(): Promise<string[]> {
     try {
-      if (!this.connected) {
-        await this.connect();
-      }
+      const signedEventJson = await this.sendRequest('sign_event', [templateString]) as string;
       
-      const methods = await this.sendRequest('describe', [], 30000) as string[];
-      log.info(`Bunker supports the following methods: ${methods.join(', ')}`);
-      return methods;
+      try {
+        let signedEvent: NostrEvent;
+        
+        if (typeof signedEventJson === 'string') {
+          signedEvent = JSON.parse(signedEventJson);
+        } else {
+          signedEvent = signedEventJson as NostrEvent;
+        }
+        
+        if (!signedEvent.id || !signedEvent.pubkey || !signedEvent.sig) {
+          throw new Error('Invalid signed event: missing id, pubkey, or signature');
+        }
+        
+        return signedEvent;
+      } catch (parseError: unknown) {
+        const parseErrorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+        throw new Error(`Failed to parse signed event: ${parseErrorMsg}`);
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to describe bunker capabilities: ${errorMessage}`);
-      throw new Error(`Failed to describe bunker: ${errorMessage}`);
+      log.error(`Failed to sign event: ${errorMessage}`);
+      throw error;
     }
   }
-
+  
   /**
-   * Get the nbunksec string for this connection
+   * Get the encoded bunker info for this connection
    */
   public getNbunkString(): string {
     const bunkerInfo: BunkerInfo = {
@@ -1130,34 +868,5 @@ export class BunkerSigner implements Signer {
     };
     
     return encodeBunkerInfo(bunkerInfo);
-  }
-
-  /**
-   * Set the encryption protocol for bunker signer
-   */
-  public setEncryptionProtocol(protocol: EncryptionProtocol): void {
-    log.info(`Bunker signer for ${this.bunkerPointer.pubkey.slice(0, 8)}... using ${protocol} encryption`);
-    defaultEncryptionProtocol = protocol;
-  }
-
-  /**
-   * Static method to explicitly use NIP-04 encryption for all bunker communication
-   */
-  public static useNip04Encryption(): void {
-    log.info("Setting all bunker communication to use NIP-04 encryption");
-    defaultEncryptionProtocol = EncryptionProtocol.NIP04;
-  }
-
-  /**
-   * Static method to explicitly use NIP-44 encryption for all bunker communication
-   */
-  public static useNip44Encryption(): void {
-    if (!nostrTools.nip44 || typeof nostrTools.nip44.encrypt !== 'function') {
-      log.error("NIP-44 encryption is not available in the nostr-tools library");
-      throw new Error("NIP-44 encryption not available - make sure you have the latest nostr-tools version");
-    }
-    
-    log.info("Setting all bunker communication to use NIP-44 encryption");
-    defaultEncryptionProtocol = EncryptionProtocol.NIP44;
   }
 } 
