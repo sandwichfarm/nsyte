@@ -536,7 +536,7 @@ export class BunkerSigner implements Signer {
       log.info("Sending connect request for pairing");
       
       try {
-        const connectResponse = await this.sendRequest('connect', connectParams, 15000);
+        const connectResponse = await this.sendRequest('connect', connectParams, 120000);
         log.debug(`Connect response: ${JSON.stringify(connectResponse)}`);
         
         if (connectResponse === "ack" || 
