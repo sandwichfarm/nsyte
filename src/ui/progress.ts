@@ -68,6 +68,7 @@ export class ProgressRenderer {
   private intervalId: number | null = null;
   private barLength = 30;
   private status: string | null = null;
+  private isFirstRender = true;
 
   constructor() {
     this.startTime = Date.now();
@@ -75,16 +76,17 @@ export class ProgressRenderer {
   }
 
   update(data: ProgressData): void {
+    if (this.isFirstRender) {
+      Deno.stdout.writeSync(new TextEncoder().encode("\n"));
+      this.isFirstRender = false;
+    }
+
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
 
     this.renderProgress(data);
-
-    this.intervalId = setInterval(() => {
-      this.renderProgress(data);
-    }, 1000);
   }
 
   complete(success: boolean, message: string): void {

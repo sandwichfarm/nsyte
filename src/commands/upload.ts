@@ -463,6 +463,8 @@ export async function uploadCommand(
         console.error(colors.red("No files could be loaded for upload."));
         Deno.exit(1);
       }
+
+      console.log(""); //line break
       
       const progress = new ProgressRenderer();
       
