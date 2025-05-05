@@ -162,6 +162,40 @@ Configuration is stored in `.nsite/config.json`:
 }
 ```
 
+### Ignoring Files (`.nsite-ignore`)
+
+Similar to `.gitignore`, you can create a `.nsite-ignore` file in the root of your project (the directory where you run the `nsyte` command) to specify files and directories that should be excluded from uploads.
+
+- Create a file named `.nsite-ignore`.
+- Add patterns using standard [glob syntax](https://en.wikipedia.org/wiki/Glob_(programming)), one pattern per line.
+- Lines starting with `#` are treated as comments.
+- Directories should usually end with a `/`.
+- The patterns are matched against paths relative to the directory where `nsyte` is executed.
+
+**Default Ignore Patterns:**
+
+By default, `nsyte` ignores the following patterns:
+
+```
+.git/**
+.DS_Store
+node_modules/**
+.nsite-ignore
+.nsite/config.json
+.vscode/**
+```
+
+**Example `.nsite-ignore`:**
+
+```
+# Ignore build artifacts
+dist/
+*.log
+
+# Ignore specific config files
+secrets.json
+```
+
 ## Advanced Usage
 
 ### Bunker Command Options

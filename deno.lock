@@ -4,13 +4,17 @@
     "specifiers": {
       "jsr:@std/assert": "jsr:@std/assert@1.0.13",
       "jsr:@std/assert@^1.0.12": "jsr:@std/assert@1.0.13",
+      "jsr:@std/fs": "jsr:@std/fs@1.0.17",
       "jsr:@std/internal@^1.0.6": "jsr:@std/internal@1.0.6",
+      "jsr:@std/path": "jsr:@std/path@1.0.9",
+      "jsr:@std/path@^1.0.9": "jsr:@std/path@1.0.9",
       "jsr:@std/testing": "jsr:@std/testing@1.0.11",
       "npm:@noble/curves@1.3.0": "npm:@noble/curves@1.3.0",
       "npm:@noble/hashes": "npm:@noble/hashes@1.8.0",
       "npm:@noble/hashes@1.3.3": "npm:@noble/hashes@1.3.3",
       "npm:@scure/base": "npm:@scure/base@1.2.5",
       "npm:@scure/base@1.1.5": "npm:@scure/base@1.1.5",
+      "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:nostr-tools": "npm:nostr-tools@2.12.0"
     },
     "jsr": {
@@ -19,7 +23,13 @@
           "jsr:@std/internal@^1.0.6"
         ]
       },
+      "@std/fs@1.0.17": {
+        "dependencies": [
+          "jsr:@std/path@^1.0.9"
+        ]
+      },
       "@std/internal@1.0.6": {},
+      "@std/path@1.0.9": {},
       "@std/testing@1.0.11": {
         "dependencies": [
           "jsr:@std/assert@^1.0.12",
@@ -92,6 +102,10 @@
           "@noble/hashes": "@noble/hashes@1.3.3",
           "@scure/base": "@scure/base@1.1.1"
         }
+      },
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
+        "dependencies": {}
       },
       "nostr-tools@2.12.0": {
         "integrity": "sha512-pUWEb020gTvt1XZvTa8AKNIHWFapjsv2NKyk43Ez2nnvz6WSXsrTFE0XtkNLSRBjPn6EpxumKeNiVzLz74jNSA==",
@@ -168,6 +182,7 @@
     "https://deno.land/std@0.220.0/fs/_to_path_string.ts": "29bfc9c6c112254961d75cbf6ba814d6de5349767818eb93090cecfa9665591e",
     "https://deno.land/std@0.220.0/fs/copy.ts": "dc0f68c4b6c3b090bfdb909387e309f6169b746bd713927c9507c9ef545d71f6",
     "https://deno.land/std@0.220.0/fs/ensure_dir.ts": "dffff68de0d10799b5aa9e39dec4e327e12bbd29e762292193684542648c4aeb",
+    "https://deno.land/std@0.220.0/fs/exists.ts": "d2757ef764eaf5c6c5af7228e8447db2de42ab084a2dae540097f905723d83f5",
     "https://deno.land/std@0.220.0/media_types/_db.ts": "19563a2491cd81b53b9c1c6ffd1a9145c355042d4a854c52f6e1424f73ff3923",
     "https://deno.land/std@0.220.0/media_types/_util.ts": "97fadcdfc82fdb02da87efb0fcd3171b0004fb810284114e9d0914a7c4a0b7e5",
     "https://deno.land/std@0.220.0/media_types/content_type.ts": "ed3f2e1f243b418ad3f441edc95fd92efbadb0f9bde36219c7564c67f9639513",
@@ -372,6 +387,10 @@
     "https://jsr.io/@std/assert/1.0.13/throws.ts": "da8c0645e5069cc07b67a406a776a37aeab8fe8b650bd6e4729442e80cda3503",
     "https://jsr.io/@std/assert/1.0.13/unimplemented.ts": "b5d6d66666482ffb48d207741efd541d314f30bd420578b83cb620502bb34567",
     "https://jsr.io/@std/assert/1.0.13/unreachable.ts": "427e5b60e680002109ee9e1b9d07b3463c53462c180591ad459f4843b3b8db72",
+    "https://jsr.io/@std/fs/1.0.17/_create_walk_entry.ts": "2a01ed1a788f9fd4d94fd097a603ce877d842f9263309730a485a8e4bd5fea86",
+    "https://jsr.io/@std/fs/1.0.17/_to_path_string.ts": "32b0c2c12d6f61b023453a9b0c90b4bd482b5cfc710bbe0b36ca7599308859b0",
+    "https://jsr.io/@std/fs/1.0.17/expand_glob.ts": "2bc093965ea4c6046cf2d6ce11c2107f070a50e63ed3c86e6933f33e7f3106cd",
+    "https://jsr.io/@std/fs/1.0.17/walk.ts": "7034f2f915a5e3418d288b14863729f2a20a59aee354621a50996dabdff71e98",
     "https://jsr.io/@std/internal/1.0.6/assertion_state.ts": "7ce14fe387fbd872eb537af6432a906b3f4b7db01d30162cd868284b36ed8546",
     "https://jsr.io/@std/internal/1.0.6/build_message.ts": "325115803ec9bb87c34142bc40f6ff4551885b4af704619a96e5cee69425635d",
     "https://jsr.io/@std/internal/1.0.6/diff.ts": "8a75475658ad5a0210ce59c8f71c1df9a654a714809c1fef5f6533572f7907a7",
@@ -379,6 +398,47 @@
     "https://jsr.io/@std/internal/1.0.6/format.ts": "ff7166a5423bcf760b6ab39088a158e13f1e3f19e8c48b6e9c6778654194c017",
     "https://jsr.io/@std/internal/1.0.6/styles.ts": "9bcd79843151e58b174e5ef4a8be1711dd7fa0596b490ee580dc130f071039d8",
     "https://jsr.io/@std/internal/1.0.6/types.ts": "19d54fd088240fbe1b3179dcbbdc31c8f9fd442f130d980e1dff689f889a183d",
+    "https://jsr.io/@std/path/1.0.9/_common/assert_path.ts": "a949eb38fd4313b71f8a895be40288b5fa3b3bd1d83296fc668d2f5d5a592fce",
+    "https://jsr.io/@std/path/1.0.9/_common/basename.ts": "2a0216d60c7177522ff1e19c2f0f1ca277449b5c655dbb4acf86b52d26311776",
+    "https://jsr.io/@std/path/1.0.9/_common/constants.ts": "ae184d036e3e972922a5cbee73b025a0ad5c36cb726980443e710d8d861b59a0",
+    "https://jsr.io/@std/path/1.0.9/_common/from_file_url.ts": "5f6691894a61b2e582ce68ca4eb5124770bb17c6a6c18405e4436c015d3825d6",
+    "https://jsr.io/@std/path/1.0.9/_common/glob_to_reg_exp.ts": "7225c61a26dc00dddc0d9877d9116d7911c315d99df6a39c4eb79b99e6f22ac4",
+    "https://jsr.io/@std/path/1.0.9/_common/normalize.ts": "9bbe7bbf479962bb960ac1820147164c8e0dd5f6d80e1849012031da094d7330",
+    "https://jsr.io/@std/path/1.0.9/_common/normalize_string.ts": "360263fe94345b168bc807eeb99616b1cbc1b9b06180f833b3f9a12d1c257864",
+    "https://jsr.io/@std/path/1.0.9/_common/strip_trailing_separators.ts": "991e42dc0fa9286bd4945f33401036e788a41d5770428e13f3019a349e9b5d44",
+    "https://jsr.io/@std/path/1.0.9/_os.ts": "a12543163f3658040f3350b304885c72cc09503407324d49ab777cafd5bb5e59",
+    "https://jsr.io/@std/path/1.0.9/basename.ts": "b0b11a9e45912d0d57601a6459379a394cc4541a262a86133832dbb1e3edd844",
+    "https://jsr.io/@std/path/1.0.9/constants.ts": "53dbceb3549201dce1882993fb2e3129b7d4261b23da6ae3011423440ec24dd9",
+    "https://jsr.io/@std/path/1.0.9/from_file_url.ts": "6a3ab42fae39d5a125c81ad0ba8dad08748efb1b166750f143caed239b5067f3",
+    "https://jsr.io/@std/path/1.0.9/glob_to_regexp.ts": "4fbbf4583d6bf033cbc64b33f86f899a94e6a1eddce6baf73ba46a3eddb41564",
+    "https://jsr.io/@std/path/1.0.9/is_absolute.ts": "11dab3424f89df7939fb5c7722acbbb0a0a12c4b1fb90c97c8f987540bfa54a5",
+    "https://jsr.io/@std/path/1.0.9/is_glob.ts": "17424d5f73ec24adc7ee95f69579f8ff43694768ad8cb6f13e9231ea842ac01c",
+    "https://jsr.io/@std/path/1.0.9/join.ts": "de37d802f7797c36a6dd3344e70c251413c55f461fe00f87b25193ec2b1b5188",
+    "https://jsr.io/@std/path/1.0.9/join_globs.ts": "d08d0000b8a1e756ef97dceeffe6ad28b0c3e3db5d779eb614d486aaed42ddef",
+    "https://jsr.io/@std/path/1.0.9/normalize.ts": "150279ab370772435a12a230ae0b6899f48b6d4b2cf0cb3eb462ffedefa85678",
+    "https://jsr.io/@std/path/1.0.9/posix/_util.ts": "5ad9a97c8f7fb5bf83737f52df458e89fe643437442dae0c00b8ed3d953ed8c6",
+    "https://jsr.io/@std/path/1.0.9/posix/basename.ts": "c7ea8b847a1bf4272194cc61ad56dc5596771d3c7427d0ba8492fc5cd1d59ae5",
+    "https://jsr.io/@std/path/1.0.9/posix/constants.ts": "3d427a2135aa826a598ca74234c5523fcda84f91014e58785da20ce6ea0a360a",
+    "https://jsr.io/@std/path/1.0.9/posix/from_file_url.ts": "017ab37b52df68e46abc2331b30179c04ea45a4b435a583ba4e508db210c7b49",
+    "https://jsr.io/@std/path/1.0.9/posix/glob_to_regexp.ts": "aec729f2a468a5e0ef59b51bfd60356cd0d433eb3c1c1349682800fb2ad97a71",
+    "https://jsr.io/@std/path/1.0.9/posix/is_absolute.ts": "9c64861f75d3583b356e345a769b40893f0907144a061774a777c2d727a04e59",
+    "https://jsr.io/@std/path/1.0.9/posix/join.ts": "7b7edd1cc2eb8a3e39388deafa252de157ac7e19ed24e5b9c5a7ed42461e80ef",
+    "https://jsr.io/@std/path/1.0.9/posix/join_globs.ts": "cccb72fdd9732b893377d88841df0cd2fd8fbe0b7514bdb86dbb25344bc54342",
+    "https://jsr.io/@std/path/1.0.9/posix/normalize.ts": "3d455557dd2741e41ef0142b05a821b333890dade7664c4e69578e15e04eb770",
+    "https://jsr.io/@std/path/1.0.9/posix/normalize_glob.ts": "0bbc1e820097fff2b99b9b9f7c48235c57c166dd8f6605b18172a83cf0977de9",
+    "https://jsr.io/@std/path/1.0.9/posix/resolve.ts": "d4899ea37938b0563b041a76fab63b6558cc5f0d7d993c67ea1a206e63a472e9",
+    "https://jsr.io/@std/path/1.0.9/resolve.ts": "57dec9aac3c661384e933f8671b623ff434e7b60482b507f5f995033bf45533d",
+    "https://jsr.io/@std/path/1.0.9/windows/_util.ts": "1736489bbe16fe334ac88a412039cbb16d302ea3164d72e1f5dad33b50ed3571",
+    "https://jsr.io/@std/path/1.0.9/windows/basename.ts": "1f948e4c867ebfb479efee16350dc78b9fc9a88ed874f8451cf085909d421f56",
+    "https://jsr.io/@std/path/1.0.9/windows/constants.ts": "82155c55b5efce25cbe0eeaaab0dd603718efe160325ee837ec17ed87017f97c",
+    "https://jsr.io/@std/path/1.0.9/windows/from_file_url.ts": "fe7f8251f2971d7c8220a4037a9a4c333b449f54ada48bbc6a306d08fb5aa1fe",
+    "https://jsr.io/@std/path/1.0.9/windows/glob_to_regexp.ts": "b32685fd05743538f8d075a9800601510e56d5741744711bef23130a49ac8575",
+    "https://jsr.io/@std/path/1.0.9/windows/is_absolute.ts": "7a07471c17af78576e5ca8f7a16682ee09480fbd05906248261a6a6e0b5c603f",
+    "https://jsr.io/@std/path/1.0.9/windows/join.ts": "b001b20bc70087d440a40e281de017fff2052cc13f18d02446e55df080749bb5",
+    "https://jsr.io/@std/path/1.0.9/windows/join_globs.ts": "fff524aec4c7fba515f1c6e0cb43e98340f84732ae04710bf8bfd0dd61fd68ac",
+    "https://jsr.io/@std/path/1.0.9/windows/normalize.ts": "b03269019bb49418867561d5aa54c638d69101ff250dfd5a215503ef43411ec4",
+    "https://jsr.io/@std/path/1.0.9/windows/normalize_glob.ts": "809bbe15a435df6dbe1e0f9bae0ceacf9c1c08bc428ff05dc616e1099330f401",
+    "https://jsr.io/@std/path/1.0.9/windows/resolve.ts": "2e86d85a44766505bd1408895d2edef2e4688368e15d1cc05a6f1b06dac2edd1",
     "https://jsr.io/@std/testing/1.0.11/_test_suite.ts": "165f1d209f1ca3d4a5f0403e882e364a6b150d8b6fbbd18b1f75761f7ebe22f5",
     "https://jsr.io/@std/testing/1.0.11/bdd.ts": "2a6ec3584c61224e0eb726e416a9832f5fa337c18f614e8c9501f1255c537f75"
   },

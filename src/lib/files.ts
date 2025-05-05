@@ -3,60 +3,207 @@ import { contentType } from "std/media_types/mod.ts";
 import { encodeHex } from "std/encoding/hex.ts";
 import { createLogger } from "./logger.ts";
 import { FileEntry } from "./nostr.ts";
+import { existsSync } from "std/fs/exists.ts";
+import { expandGlob, type WalkEntry } from "jsr:@std/fs/expand-glob";
+import { globToRegExp } from "jsr:@std/path/glob-to-regexp";
 
 const log = createLogger("files");
 
+const DEFAULT_IGNORE_PATTERNS = [
+  ".git/**",
+  ".DS_Store",
+  "node_modules/**",
+  ".nsite-ignore",
+  ".nsite/config.json",
+  ".vscode/**",
+];
+
 /**
- * Get all files from a local directory
+ * Get all files from a local directory, honoring .nsite-ignore using Deno std lib
+ * Returns both the files to include and the paths of those ignored.
  */
-export async function getLocalFiles(dirPath: string): Promise<FileEntry[]> {
+export async function getLocalFiles(dirPath: string): Promise<{ includedFiles: FileEntry[]; ignoredFilePaths: string[] }> {
   log.info(`Scanning local files in ${dirPath}`);
   
-  const files: FileEntry[] = [];
-  const normalizedDir = normalize(dirPath).replace(/\/$/, "");
+  const includedFiles: FileEntry[] = [];
+  const ignoredFilePaths: string[] = [];
+  const normalizedDir = normalize(dirPath).replace(/\/$/, ""); // Target directory for upload
+  const cwd = Deno.cwd(); // Current working directory (where .nsite-ignore lives)
   
+  // --- Load and parse .nsite-ignore rules from CWD --- 
+  const ignoreFilePath = join(cwd, ".nsite-ignore");
+  let ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
+  let foundIgnoreFile = false;
+
+  if (existsSync(ignoreFilePath)) {
+    try {
+      const ignoreContent = await Deno.readTextFile(ignoreFilePath);
+      const customPatterns = ignoreContent
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("#"));
+      ignorePatterns.push(...customPatterns);
+      log.info(`Found .nsite-ignore in ${cwd}, loaded ${customPatterns.length} custom rules.`);
+      foundIgnoreFile = true;
+    } catch (error) {
+      log.warn(`Failed to read .nsite-ignore file from ${cwd}: ${error}. Using default ignore patterns.`);
+    }
+  } else {
+    log.debug(`No .nsite-ignore file found in ${cwd}, using default ignore patterns.`);
+  }
+  const parsedRules = parseIgnorePatterns(ignorePatterns);
+  // --- End ignore rule loading ---
+
   try {
-    for await (const entry of walkDirectory(normalizedDir)) {
-      if (entry.isDirectory || entry.name.startsWith(".")) {
-        continue;
+    // Use expandGlob to walk the target directory
+    for await (const entry of expandGlob("**/*", { 
+        root: normalizedDir, 
+        includeDirs: true, 
+        extended: true,
+        globstar: true,
+    })) {
+      // --- Ignore Check Logic --- 
+      // 1. Get path relative to CWD (where .nsite-ignore is)
+      const pathRelativeToCwd = relative(cwd, entry.path);
+      const isDir = entry.isDirectory;
+      // 2. Format path for matching (add trailing slash for dirs)
+      const checkPath = isDir ? pathRelativeToCwd + "/" : pathRelativeToCwd;
+      // 3. Perform the check
+      if (isIgnored(checkPath, parsedRules, isDir)) {
+          const ignoredPath = checkPath.replace(/\\/g, '/'); 
+          ignoredFilePaths.push(ignoredPath);
+          // Log which path (relative to CWD) caused the ignore
+          if (isDir) {
+              log.debug(`Ignoring directory (and contents): ${ignoredPath}`);
+          } else {
+              log.debug(`Ignoring file: ${ignoredPath}`);
+          }
+          continue; // Skip this entry entirely
       }
+      // --- End Ignore Check --- 
       
-      const fullPath = join(entry.path, entry.name);
-      const relativePath = relative(normalizedDir, fullPath);
-      
+      // Skip directories that were *not* ignored (we only upload files)
+      if (isDir) {
+          continue;
+      }
+
+      // --- Process Included File --- 
+      // This code only runs for files that were NOT ignored.
+      // Get path relative to the UPLOAD directory for the final FileEntry path
+      const relativeToUploadDir = relative(normalizedDir, entry.path);
       try {
-        const fileInfo = await Deno.stat(fullPath);
-        
+        const fileInfo = await Deno.stat(entry.path);
         const fileEntry: FileEntry = {
-          path: "/" + relativePath,
+          path: "/" + relativeToUploadDir.replace(/\\/g, '/'), // Correct regex, ensure leading /
           size: fileInfo.size,
-          contentType: getContentType(relativePath),
+          contentType: getContentType(relativeToUploadDir),
         };
-        
-        files.push(fileEntry);
+        includedFiles.push(fileEntry);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log.warn(`Could not get file stats for ${fullPath}: ${errorMessage}`);
+        log.warn(`Could not get file stats for included file ${entry.path}: ${errorMessage}`);
       }
+      // --- End Process Included File --- 
     }
     
-    log.debug(`Found ${files.length} files in ${dirPath}`);
+    log.info(`Scan complete: ${includedFiles.length} files included, ${ignoredFilePaths.length} ignored.` + 
+             (foundIgnoreFile ? ` (Used .nsite-ignore from CWD)` : ""));
     
-    return files.sort((a, b) => {
-      const aSegments = a.path.split('/').filter(s => s.length > 0);
-      const bSegments = b.path.split('/').filter(s => s.length > 0);
-      
-      if (aSegments.length !== bSegments.length) {
-        return bSegments.length - aSegments.length;
-      }
-      
-      return a.path.localeCompare(b.path);
-    });
+    return { 
+        includedFiles: includedFiles.sort((a, b) => a.path.localeCompare(b.path)), 
+        ignoredFilePaths: ignoredFilePaths.sort((a, b) => a.localeCompare(b))
+    }; 
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to scan directory ${dirPath}: ${errorMessage}`);
     throw new Error(`Failed to scan directory: ${errorMessage}`);
   }
+}
+
+
+interface IgnoreRule {
+  pattern: string;
+  regex: RegExp;
+  negates: boolean;
+  appliesToDir: boolean;
+}
+
+/**
+ * Parses raw ignore patterns into structured rules with regex
+ */
+function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
+  const rules: IgnoreRule[] = [];
+  for (let pattern of patterns) {
+    let negates = false;
+    if (pattern.startsWith("!")) {
+      negates = true;
+      pattern = pattern.substring(1);
+    }
+
+    let appliesToDir = false;
+    if (pattern.endsWith("/")) {
+      appliesToDir = true;
+    }
+
+    try {
+      const regex = globToRegExp(pattern.endsWith('/') ? pattern.slice(0, -1) : pattern, { 
+          extended: true, 
+          globstar: true, 
+          caseInsensitive: false 
+      });
+      rules.push({ pattern, regex, negates, appliesToDir });
+    } catch (e) {
+      log.warn(`Invalid pattern in .nsite-ignore, skipping: "${patterns[patterns.indexOf(pattern)]}" - Error: ${e.message}`);
+    }
+  }
+  return rules;
+}
+
+/**
+ * Checks if a given path should be ignored based on the rules.
+ * Rules are processed in order. The last matching rule determines the outcome.
+ * Negation rules (`!pattern`) override previous ignore rules.
+ */
+function isIgnored(relativePath: string, rules: IgnoreRule[], isDirectory: boolean): boolean {
+  let lastMatchStatus: { ignored: boolean } | null = null;
+
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const checkPath = isDirectory && !normalizedPath.endsWith("/") ? normalizedPath + "/" : normalizedPath;
+
+  for (const rule of rules) {
+    let match = false;
+    if (rule.appliesToDir) {
+        const dirPattern = rule.pattern.endsWith('/') ? rule.pattern : rule.pattern + '/';
+        if (checkPath === dirPattern || checkPath.startsWith(dirPattern)) {
+            match = true;
+        }
+    } else if (isDirectory && !rule.pattern.endsWith('/')) {
+        if (rule.regex.test(checkPath.endsWith('/') ? checkPath.slice(0,-1) : checkPath)) {
+             match = true;
+        }
+    } else {
+        if (rule.regex.test(checkPath)) {
+            match = true;
+        }
+    }
+
+    if (match) {
+        lastMatchStatus = { ignored: !rule.negates }; 
+    }
+  }
+
+  if (lastMatchStatus === null) {
+      if (checkPath.startsWith(".") && !checkPath.startsWith(".well-known/")) {
+          log.debug(`Implicitly ignoring dotfile/dir (no rule matched): ${checkPath}`);
+          return true; 
+      } else {
+          return false; 
+      }
+  }
+
+  log.debug(`Ignore check for ${checkPath}: ${lastMatchStatus.ignored ? 'IGNORED' : 'NOT IGNORED'} (last match rule)`);
+  return lastMatchStatus.ignored;
 }
 
 /**
@@ -133,6 +280,7 @@ export async function calculateFileHash(filePath: string): Promise<string> {
 export async function loadFileData(dirPath: string, fileEntry: FileEntry): Promise<FileEntry> {
   const normalizedDir = normalize(dirPath).replace(/\/$/, "");
   const fullPath = join(normalizedDir, fileEntry.path.replace(/^\//, ""));
+
   
   try {
     const data = await Deno.readFile(fullPath);
@@ -160,19 +308,4 @@ function getContentType(filePath: string): string {
   const ext = extname(filePath).toLowerCase();
   const type = contentType(ext);
   return type || "application/octet-stream";
-}
-
-/**
- * Walk a directory recursively
- */
-async function* walkDirectory(dir: string): AsyncGenerator<Deno.DirEntry & { path: string }> {
-  for await (const entry of Deno.readDir(dir)) {
-    const entryPath = join(dir, entry.name);
-    if (entry.isDirectory) {
-      yield { ...entry, path: dir };
-      yield* walkDirectory(entryPath);
-    } else {
-      yield { ...entry, path: dir };
-    }
-  }
 } 

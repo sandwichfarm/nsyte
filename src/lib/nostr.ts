@@ -13,7 +13,7 @@ export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 export { RELAY_DISCOVERY_RELAYS, NSYTE_BROADCAST_RELAYS };
 
 /**
- * Profile interface for NOSTR profiles
+ * Profile interface for nostr profiles
  */
 export interface Profile {
   name?: string;
@@ -39,7 +39,7 @@ export interface FileEntry {
 }
 
 /**
- * Generate a new NOSTR key pair
+ * Generate a new nostr key pair
  */
 export function generateKeyPair(): { privateKey: string; publicKey: string } {
   const privateKeyBytes = new Uint8Array(32);
@@ -84,7 +84,7 @@ export function parseBunkerUrl(bunkerUrl: string): {
 }
 
 /**
- * Basic NOSTR event interface
+ * Basic nostr event interface
  * This is a simplified version for this example
  */
 export interface NostrEvent {
@@ -98,7 +98,7 @@ export interface NostrEvent {
 }
 
 /**
- * Interface for NOSTR event template (unsigned)
+ * Interface for nostr event template (unsigned)
  */
 export interface NostrEventTemplate {
   kind: number;
@@ -142,7 +142,7 @@ export function getTagValue(event: NostrEvent, tagName: string): string | undefi
 }
 
 /**
- * Connect to a NOSTR relay and perform an operation
+ * Connect to a nostr relay and perform an operation
  */
 export async function connectToRelay<T>(
   relay: string,
@@ -173,7 +173,7 @@ export async function connectToRelay<T>(
 }
 
 /**
- * Single attempt to connect to a NOSTR relay
+ * Single attempt to connect to a nostr relay
  */
 async function connectToRelayOnce<T>(
   relay: string,
@@ -259,7 +259,7 @@ async function connectToRelayOnce<T>(
 }
 
 /**
- * Fetch file events from NOSTR relays
+ * Fetch file events from nostr relays
  */
 export async function fetchFileEvents(
   relays: string[],
@@ -488,7 +488,7 @@ export async function listRemoteFiles(relays: string[], pubkey: string): Promise
 }
 
 /**
- * Publish an nsite event to NOSTR
+ * Publish an nsite event to nostr
  */
 export async function publishNsiteEvent(
   signer: Signer,

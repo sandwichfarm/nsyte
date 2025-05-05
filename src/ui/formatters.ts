@@ -244,4 +244,30 @@ export function formatServerResults(
  */
 export function formatSummaryTitle(text: string, success: boolean): string {
   return success ? colors.green(text) : colors.yellow(text);
+}
+
+/**
+ * Formats a single configuration line for display.
+ * Pads the label and adds a (default) marker if applicable.
+ */
+export function formatConfigValue(label: string, value: string | number | boolean, isDefault: boolean): string {
+  const PADDING = 35; // Adjust as needed
+  const labelPadded = label.padEnd(PADDING - 1) + ":"; // Pad label and add colon
+  let valueStr: string;
+
+  if (typeof value === 'boolean') {
+    valueStr = value ? colors.green('true') : colors.red('false');
+  } else if (typeof value === 'number') {
+    valueStr = colors.yellow(String(value));
+  } else if (Array.isArray(value)) {
+    // Assuming formatRelayList handles colors
+    valueStr = value.length > 0 ? value.join(', ') : colors.gray('none'); 
+  } else {
+    // Assuming formatRelayList handles colors for relays/servers
+    // For other strings like user, fallback, etc., use cyan
+    valueStr = value === 'none' ? colors.gray('none') : colors.cyan(String(value)); 
+  }
+
+  const defaultMarker = isDefault ? colors.dim(' (default)') : '';
+  return `${labelPadded} ${valueStr}${defaultMarker}`;
 } 
