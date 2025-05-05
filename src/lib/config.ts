@@ -4,7 +4,7 @@ import { createLogger } from "./logger.ts";
 import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
 import { colors } from "cliffy/ansi/colors.ts";
 import { generateKeyPair } from "./nostr.ts";
-import { parseBunkerUrl, storeBunkerUrl } from "./nip46.ts";
+import { parseBunkerUrl, BunkerSigner } from "./nip46.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("config");
@@ -229,18 +229,34 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
         }
       });
       
+      let signer: BunkerSigner | null = null;
+      
       try {
-        // Extract just the pubkey from the URL for the config
-        const bunkerPointer = parseBunkerUrl(bunkerUrl);
-        projectData.bunkerPubkey = bunkerPointer.pubkey;
+        console.log(colors.cyan("Connecting to bunker..."));
         
-        // Store the bunker URL in the secrets file
-        storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+        // Attempt to connect immediately, like bunker.connect does
+        signer = await BunkerSigner.connect(bunkerUrl);
         
-        console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
+        // Get the pubkey from the successful connection
+        projectData.bunkerPubkey = signer.getPublicKey();
+        
+        console.log(colors.green(`Successfully connected to bunker ${projectData.bunkerPubkey.slice(0, 8)}... 
+Generated and stored nbunksec string.`));
       } catch (error) {
-        log.error(`Failed to parse bunker URL: ${error}`);
-        throw new Error(`Failed to parse bunker URL. Please check the format: ${error}`);
+        log.error(`Failed to connect to bunker: ${error}`);
+        console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
+        Deno.exit(1); // Exit if connection fails
+      } finally {
+        // Make sure to clean up and disconnect properly
+        if (signer) {
+          try {
+            console.log(colors.cyan("Disconnecting from bunker..."));
+            await signer.disconnect();
+            console.log(colors.green("Disconnected from bunker."));
+          } catch (err) {
+            console.error(colors.red(`Error during disconnect: ${err}`));
+          }
+        }
       }
     } else if (keyChoice === "existing_bunker") {
       // Present a list of existing bunkers to choose from
@@ -327,18 +343,34 @@ async function interactiveSetup(): Promise<ProjectContext> {
       }
     });
     
+    let signer: BunkerSigner | null = null;
+    
     try {
-      // Extract just the pubkey from the URL for the config
-      const bunkerPointer = parseBunkerUrl(bunkerUrl);
-      bunkerPubkey = bunkerPointer.pubkey;
+      console.log(colors.cyan("Connecting to bunker..."));
       
-      // Store the bunker URL in the secrets file
-      storeBunkerUrl(bunkerPointer.pubkey, bunkerUrl);
+      // Attempt to connect immediately, like bunker.connect does
+      signer = await BunkerSigner.connect(bunkerUrl);
       
-      console.log(colors.green(`Stored bunker connection for pubkey: ${bunkerPointer.pubkey.slice(0, 8)}...`));
+      // Get the pubkey from the successful connection
+      bunkerPubkey = signer.getPublicKey();
+      
+      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}... 
+Generated and stored nbunksec string.`));
     } catch (error) {
-      log.error(`Failed to parse bunker URL: ${error}`);
-      throw new Error(`Failed to parse bunker URL. Please check the format: ${error}`);
+      log.error(`Failed to connect to bunker: ${error}`);
+      console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
+      Deno.exit(1); // Exit if connection fails
+    } finally {
+      // Make sure to clean up and disconnect properly
+      if (signer) {
+        try {
+          console.log(colors.cyan("Disconnecting from bunker..."));
+          await signer.disconnect();
+          console.log(colors.green("Disconnected from bunker."));
+        } catch (err) {
+          console.error(colors.red(`Error during disconnect: ${err}`));
+        }
+      }
     }
   } else if (keyChoice === "existing_bunker") {
     // Present a list of existing bunkers to choose from
