@@ -29,6 +29,7 @@ export class DisplayManager {
   private static instance: DisplayManager;
   private currentMode: DisplayMode = DisplayMode.INTERACTIVE;
   private verbose: boolean = false;
+  private initialized: boolean = false;
   
   /**
    * Create a new DisplayManager
@@ -49,7 +50,14 @@ export class DisplayManager {
       }
     }
     
-    log.debug(`Display mode initialized to ${this.currentMode}`);
+    // Also check NSITE_LOG_LEVEL for debug mode
+    const logLevel = Deno.env.get("NSITE_LOG_LEVEL");
+    if (logLevel?.toLowerCase() === "debug") {
+      this.currentMode = DisplayMode.DEBUG;
+    }
+    
+    // Avoid calling logger during initialization to prevent circular dependency
+    this.initialized = true;
   }
   
   /**
@@ -58,6 +66,10 @@ export class DisplayManager {
   public static getInstance(): DisplayManager {
     if (!DisplayManager.instance) {
       DisplayManager.instance = new DisplayManager();
+      // Now that we're fully initialized, we can log
+      if (DisplayManager.instance.initialized) {
+        log.debug(`Display mode initialized to ${DisplayManager.instance.currentMode}`);
+      }
     }
     return DisplayManager.instance;
   }

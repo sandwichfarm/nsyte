@@ -415,7 +415,8 @@ export class BunkerSigner implements Signer {
   }
   
   /**
-   * Connect to a remote signer using a bunker URL
+   * Initial pairing with a bunker using the secret from a bunker URL
+   * This should only be used for the first connection during setup
    * @param bunkerUrl - URL in the format bunker://<pubkey>?relay=<wsurl>&secret=<secret>
    */
   public static async connect(bunkerUrl: string): Promise<BunkerSigner> {
@@ -433,9 +434,9 @@ export class BunkerSigner implements Signer {
     const signer = new BunkerSigner(bunkerPointer, clientKey);
     
     try {
-      await signer.connect();
+      await signer.performPairingHandshake();
       
-      log.debug("Connection successful - saving client key");
+      log.debug("Pairing handshake successful - saving client key");
       saveBunkerInfo(bunkerPointer.pubkey, clientKey, bunkerUrl);
       
       return signer;
@@ -446,13 +447,14 @@ export class BunkerSigner implements Signer {
       }
       
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to connect to bunker: ${errorMessage}`);
+      log.error(`Failed to pair with bunker: ${errorMessage}`);
       throw error;
     }
   }
   
   /**
-   * Connect to a bunker from an nbunksec string
+   * Reconnect to a bunker using a previously stored nbunksec
+   * This should be used for reconnections after initial pairing
    */
   public static async importFromNbunk(nbunkString: string): Promise<BunkerSigner> {
     try {
@@ -471,9 +473,10 @@ export class BunkerSigner implements Signer {
       const signer = new BunkerSigner(bunkerPointer, clientKey);
       
       try {
-        await signer.connect();
+        await signer.establishSession();
         
-        log.info("Connection successful from nbunksec");
+        log.info("Session established from nbunksec");
+        
         const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
         saveBunkerInfo(info.pubkey, clientKey, dummyUrl);
         
@@ -482,7 +485,7 @@ export class BunkerSigner implements Signer {
         await signer.disconnect();
         
         const errorMessage = error instanceof Error ? error.message : String(error);
-        log.error(`Failed to connect to bunker from nbunksec: ${errorMessage}`);
+        log.error(`Failed to establish session with bunker from nbunksec: ${errorMessage}`);
         throw error;
       }
     } catch (error: unknown) {
@@ -492,152 +495,251 @@ export class BunkerSigner implements Signer {
     }
   }
   
-   /**
-   * Connect to the remote signer
-   * Follows the NIP-46 connection flow
+  /**
+   * Legacy method that routes to either performPairingHandshake or establishSession
+   * depending on whether a secret is present in the bunkerPointer
+   * @deprecated Use performPairingHandshake or establishSession directly
    */
-   private async connect(): Promise<void> {
+  private async connect(): Promise<void> {
+    if (this.bunkerPointer.secret) {
+      await this.performPairingHandshake();
+    } else {
+      await this.establishSession();
+    }
+  }
+  
+  /**
+   * Perform the initial pairing handshake with a bunker
+   * This uses the secret from the bunker URL to establish trust
+   */
+  private async performPairingHandshake(): Promise<void> {
     this.connected = false;
     
-    log.info(`Connecting to bunker ${this.bunkerPointer.pubkey.slice(0, 8)}... via ${this.bunkerPointer.relays.join(", ")}`);
+    log.info(`Pairing with bunker ${this.bunkerPointer.pubkey.slice(0, 8)}... via ${this.bunkerPointer.relays.join(", ")}`);
     
     try {
-      this.cleanup();
+      await this.ensureRelayConnections();
       
-      this.pool = new nostrTools.SimplePool();
-      
-      let oneSuccessfulConnection = false;
-      const connectionPromises = this.bunkerPointer.relays.map(async (relayUrl) => {
-        try {
-          log.debug(`Ensuring connection to relay: ${relayUrl}`);
-          await this.pool.ensureRelay(relayUrl); 
-          log.debug(`Successfully connected to relay: ${relayUrl}`);
-          oneSuccessfulConnection = true; 
-        } catch (error) {
-          log.warn(`Failed to connect to relay ${relayUrl}: ${error}`);
-        }
-      });
-      
-      await Promise.allSettled(connectionPromises);
-      
-      if (!oneSuccessfulConnection) {
-        throw new Error("Failed to connect to any of the specified bunker relays.");
-      }
-      log.info("Established connection to at least one relay.");
-      
-      
-      log.debug(`Setting up subscription for responses to client pubkey ${this.clientPubkey.slice(0, 8)}...`);
-      
-      const filter = {
-        kinds: [NIP46_KIND],
-        "#p": [this.clientPubkey],
-      };
-      
-      try {
-        this.subscription = this.pool.subscribeMany(
-          this.bunkerPointer.relays,
-          [filter],
-          {
-            onevent: (event: NostrEvent) => {
-              this.handleResponse(event);
-            }
-          }
-        );
-        
-      } catch (error) {
-        log.error(`Failed to create subscription: ${error}`);
-        this.cleanup();
-        throw new Error(`Failed to create subscription: ${error}`);
-      }
+      await this.setupSubscription();
       
       const permissionsStr = "get_public_key,sign_event";
       const connectParams = [this.bunkerPointer.pubkey];
       
       if (this.bunkerPointer.secret) {
-        log.debug("Adding secret to connect request");
+        log.debug("Adding secret to connect request for pairing");
         connectParams.push(this.bunkerPointer.secret);
+      } else {
+        log.warn("No secret available for pairing - this may fail");
       }
       connectParams.push(permissionsStr);
       
-      log.info("Sending connect request to bunker");
+      log.info("Sending connect request for pairing");
       
       try {
         const connectResponse = await this.sendRequest('connect', connectParams, 15000);
         log.debug(`Connect response: ${JSON.stringify(connectResponse)}`);
         
-        if (connectResponse === "ack") {
+        if (connectResponse === "ack" || 
+            (typeof connectResponse === "string" && 
+             (connectResponse.includes("success") || connectResponse.includes("ok")))) {
           this.connected = true;
-          log.info("Connect request acknowledged (ack)");
+          log.info("Pairing successful - bunker approved connection");
         } else {
-          log.warn(`Unexpected connect response: ${JSON.stringify(connectResponse)}. Assuming not connected.`);
-          this.connected = false; 
-          throw new Error(`Bunker returned unexpected response to connect request: ${JSON.stringify(connectResponse)}`);
+          log.warn(`Unexpected connect response: ${JSON.stringify(connectResponse)}`);
+          this.connected = true;
         }
       } catch (connectError: unknown) {
         const errorMessage = connectError instanceof Error ? connectError.message : String(connectError);
         
-        if (errorMessage.toLowerCase().includes("already connected")) { 
-          log.info("Already connected to bunker (or bunker reported as such)");
-          this.connected = true; 
-        } else if (errorMessage.toLowerCase().includes("unauthorized") || errorMessage.toLowerCase().includes("permission")) {
-          log.error(`Unauthorized: ${errorMessage}. Check secret parameter.`);
+        if (errorMessage.toLowerCase().includes("already")) {
+          log.info("Bunker reports already paired/connected");
+          this.connected = true;
+        } else if (errorMessage.toLowerCase().includes("unauthorized") || 
+                   errorMessage.toLowerCase().includes("permission")) {
+          log.error(`Unauthorized: ${errorMessage}. Secret may be invalid or expired.`);
           this.connected = false;
-          throw new Error(`Unauthorized: ${errorMessage}`);
+          throw new Error(`Unauthorized during pairing: ${errorMessage}`);
         } else {
-          log.error(`Connect error: ${errorMessage}`);
+          log.error(`Pairing error: ${errorMessage}`);
           this.connected = false;
           throw connectError;
         }
       }
       
       if (this.connected) {
-        log.debug("Connected successfully, requesting user public key");
-        
-        try {
-          const userPubkey = await this.sendRequest('get_public_key', [], 10000) as string;
-          
-          if (!userPubkey || typeof userPubkey !== 'string' || userPubkey.length !== 64) {
-            log.error(`Invalid user pubkey received: ${userPubkey}`);
-            this.connected = false; 
-            throw new Error(`Invalid user pubkey received: ${userPubkey}`);
-          }
-          
-          this.userPubkey = userPubkey;
-          log.info(`Connected to bunker, user pubkey: ${this.userPubkey.slice(0, 8)}...`);
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          log.error(`Failed to get user pubkey: ${errorMessage}`);
-          this.connected = false; 
-          throw error; 
-        }
+        await this.fetchUserPublicKey();
       } else {
-        throw new Error("Failed to establish connection to bunker (connect request failed, was denied, or response invalid)");
+        throw new Error("Failed to pair with bunker - connect request failed");
       }
     } catch (error) {
       this.connected = false;
       this.cleanup();
-      throw error; 
+      throw error;
     }
   }
   
   /**
-   * Clean up resources
+       * Establish a session with an already-paired bunker
+       * This uses the client's stored key to authenticate
+       */
+  private async establishSession(): Promise<void> {
+    this.connected = false;
+    
+    log.info(`Establishing session with bunker ${this.bunkerPointer.pubkey.slice(0, 8)}... via ${this.bunkerPointer.relays.join(", ")}`);
+    
+    try {
+      await this.ensureRelayConnections();
+      
+      await this.setupSubscription();
+      
+      this.connected = true; 
+      log.debug("Relays connected and subscription ready. Flag set to connected.");
+      
+      try {
+        await this.fetchUserPublicKey();
+        log.info("Session established successfully (pubkey verified)");
+      } catch (error: unknown) {
+        this.connected = false;
+        log.warn("Failed initial get_public_key check after connecting relays.");
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        if (errorMessage.includes("not connected") || 
+            errorMessage.includes("unauthorized") || 
+            errorMessage.includes("permission") || 
+            errorMessage.includes("timed out")) { 
+          
+          log.info("Attempting explicit connect request for session recovery...");
+          
+          try {
+            const connectResponse = await this.sendRequest('connect', 
+                                                         [this.bunkerPointer.pubkey, "get_public_key,sign_event"], 
+                                                         15000, 
+                                                         true);
+            log.debug(`Connect response: ${JSON.stringify(connectResponse)}`);
+            
+            this.connected = true; 
+            await this.fetchUserPublicKey();
+            log.info("Session established after explicit connect request and pubkey verification");
+          } catch (reconnectError: unknown) {
+            this.connected = false;
+            const reconnectErrorMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+            log.error(`Failed to establish session via connect/get_public_key retry: ${reconnectErrorMsg}`);
+            throw new Error(`Session recovery failed: ${reconnectErrorMsg}`); 
+          }
+        } else {
+          log.error(`Failed to establish session (initial get_public_key failed): ${errorMessage}`);
+          throw error;
+        }
+      }
+      
+      if (!this.connected) {
+        throw new Error("Failed to establish session with bunker - state is not connected after checks.");
+      }
+    } catch (error) {
+      this.connected = false;
+      this.cleanup();
+      throw error;
+    }
+  }
+  
+  /**
+   * Ensure connections to the bunker's relays
+   * This method waits for at least one relay to be connected
+   */
+  private async ensureRelayConnections(): Promise<void> {
+    this.cleanup(); 
+    
+    
+    let connectedToAnyRelay = false;
+    const connectionPromises = this.bunkerPointer.relays.map(async (relayUrl) => {
+      try {
+        log.debug(`Ensuring connection to relay: ${relayUrl}`);
+        await this.pool.ensureRelay(relayUrl);
+        log.debug(`Successfully connected to relay: ${relayUrl}`);
+        connectedToAnyRelay = true;
+      } catch (error) {
+        log.warn(`Failed to connect to relay ${relayUrl}: ${error}`);
+      }
+    });
+    
+    await Promise.allSettled(connectionPromises);
+    
+    if (!connectedToAnyRelay) {
+      throw new Error(`Failed to connect to any relays: ${this.bunkerPointer.relays.join(", ")}`);
+    }
+    
+    log.info("Connected to at least one relay successfully");
+  }
+  
+  /**
+   * Set up subscription for bunker responses
+   */
+  private async setupSubscription(): Promise<void> {
+    log.debug(`Setting up subscription for responses to client pubkey ${this.clientPubkey.slice(0, 8)}...`);
+    
+    const filter = {
+      kinds: [NIP46_KIND],
+      "#p": [this.clientPubkey],
+    };
+    
+    try {
+      this.subscription = this.pool.subscribeMany(
+        this.bunkerPointer.relays,
+        [filter],
+        {
+          onevent: (event: NostrEvent) => {
+            this.handleResponse(event);
+          }
+        }
+      );
+      
+      log.debug("Subscription set up successfully");
+    } catch (error) {
+      log.error(`Failed to create subscription: ${error}`);
+      this.cleanup();
+      throw new Error(`Failed to create subscription: ${error}`);
+    }
+  }
+  
+  /**
+   * Fetch the user's public key from the bunker
+   * This confirms the bunker is responsive and our connection is working
+   */
+  private async fetchUserPublicKey(): Promise<void> {
+    log.debug("Requesting user public key");
+    
+    try {
+      const userPubkey = await this.sendRequest('get_public_key', [], 10000) as string;
+      
+      if (!userPubkey || typeof userPubkey !== 'string' || userPubkey.length !== 64) {
+        log.error(`Invalid user pubkey received: ${userPubkey}`);
+        throw new Error(`Invalid user pubkey received: ${userPubkey}`);
+      }
+      
+      this.userPubkey = userPubkey;
+      log.info(`Received user pubkey: ${this.userPubkey.slice(0, 8)}...`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      log.error(`Failed to get user pubkey: ${errorMessage}`);
+      throw error;
+    }
+  }
+  
+  /**
+   * Clean up resources (subscriptions, pending requests, but not the pool itself)
    */
   private cleanup(): void {
     if (this.subscription) {
       try {
         this.subscription.close();
-      } catch (e) {
-      }
+      } catch (e) {""}
       this.subscription = null;
     }
     
-    if (this.pool) {
-      try {
-        this.pool.close(this.bunkerPointer.relays);
-      } catch (e) {
-      }
-    }
+    this.pendingRequests.forEach(({ reject }) => reject(new Error("Signer cleanup")));
+    this.pendingRequests.clear();
+    
+    log.debug("Cleaned up subscriptions and pending requests.");
   }
   
   /**
@@ -721,9 +823,20 @@ export class BunkerSigner implements Signer {
   }
   
   /**
-   * Send a request to the bunker
-   */
-  private async sendRequest(method: string, params: unknown[], timeoutMs = 10000): Promise<unknown> {
+       * Send a request to the bunker
+       * @param bypassConnectionCheck - Internal flag to allow sending during session setup checks
+       */
+  private async sendRequest(
+    method: string, 
+    params: unknown[], 
+    timeoutMs = 10000, 
+    bypassConnectionCheck = false 
+  ): Promise<unknown> {
+
+    if (!bypassConnectionCheck && method !== 'connect' && !this.connected) {
+      throw new Error("Not connected to the bunker");
+    }
+
     if (method !== 'connect' && !this.connected) {
       throw new Error("Not connected to the bunker");
     }
@@ -784,6 +897,14 @@ export class BunkerSigner implements Signer {
       
       log.debug(`Publishing ${request.method} request to ${this.bunkerPointer.relays.length} relays`);
       
+      for (const relay of this.bunkerPointer.relays) {
+        try {
+          await this.pool.ensureRelay(relay);
+        } catch (e) {
+          log.warn(`Failed to ensure relay connection to ${relay} before sending request: ${e}`);
+        }
+      }
+      
       await this.pool.publish(this.bunkerPointer.relays, signedEvent);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -821,6 +942,17 @@ export class BunkerSigner implements Signer {
    * Implements the main NIP-46 sign_event method
    */
   public async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
+    if (!this.connected) {
+      log.debug("Not connected to bunker, attempting to re-establish session");
+      try {
+        await this.establishSession();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.error(`Failed to re-establish session before signing: ${errorMessage}`);
+        throw new Error(`Cannot sign event - not connected to bunker: ${errorMessage}`);
+      }
+    }
+    
     const templateString = JSON.stringify(template);
     
     log.debug(`Sending sign_event request`);
