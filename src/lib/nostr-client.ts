@@ -1,7 +1,7 @@
-import { SimplePool, getEventHash, getPublicKey, nip19, type Event, type Filter } from "npm:nostr-tools";
+import { getEventHash as getEventHashBasic, getPublicKey as getPublicKeyBasic, signEvent as signEventBasic } from "npm:@noble/secp256k1";
+import { SimplePool, nip19, type Event, type Filter } from "npm:nostr-tools";
+import { NSYTE_BROADCAST_RELAYS } from "./constants.ts";
 import { createLogger } from "./logger.ts";
-import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
-import { generateSecretKey, getEventHash as getEventHashBasic, getPublicKey as getPublicKeyBasic, signEvent as signEventBasic, finalizeEvent } from "npm:@noble/secp256k1";
 
 const log = createLogger("nostr-client");
 
@@ -74,7 +74,7 @@ function signEvent(event: Event, privateKey: Uint8Array): string {
  */
 export function createPrivateKeySigner(privateKeyHex: string) {
   let privateKeyBytes: Uint8Array;
-  
+
   if (privateKeyHex.startsWith("nsec")) {
     try {
       const { data } = nip19.decode(privateKeyHex);
@@ -88,14 +88,14 @@ export function createPrivateKeySigner(privateKeyHex: string) {
     }
     privateKeyBytes = hexToBytes(privateKeyHex);
   }
-  
+
   const pubkey = getPublicKeyBasic(privateKeyBytes);
-  
+
   return {
     getPublicKey(): string {
       return pubkey;
     },
-    
+
     async signEvent(template: NostrEventTemplate): Promise<NostrEvent> {
       const event = {
         ...template,
@@ -103,11 +103,11 @@ export function createPrivateKeySigner(privateKeyHex: string) {
         id: "",
         sig: "",
       };
-      
+
       event.id = getEventHashBasic(event as unknown as Event);
-      
+
       event.sig = signEvent(event as unknown as Event, privateKeyBytes);
-      
+
       return event as NostrEvent;
     }
   };
@@ -118,31 +118,31 @@ export function createPrivateKeySigner(privateKeyHex: string) {
  */
 export async function listRemoteFiles(relays: string[], pubKey: string): Promise<FileEntry[]> {
   log.debug(`Fetching remote files for ${pubKey}`);
-  
+
   try {
     const relayCount = relays.length;
-    
+
     console.log(`Connecting to ${relayCount} relays...`);
-    
+
     const filter: Filter = {
       kinds: [NSITE_KIND],
       authors: [pubKey],
     };
-    
+
     const events: Event[] = await new Promise((resolve) => {
       let received: Event[] = [];
       const sub = pool.sub(relays, [filter]);
-      
+
       sub.on('event', (event: Event) => {
         received.push(event);
       });
-      
+
       setTimeout(() => {
         sub.unsub();
         resolve(received);
       }, 5000);
     });
-    
+
     if (!events || events.length === 0) {
       log.warn(`No file events found for user ${pubKey} from any relays`);
       log.info("This could mean one of these things:");
@@ -151,14 +151,14 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
       log.info("3. The previous uploads were not successfully published to relays");
       return [];
     }
-    
+
     log.info(`Found ${events.length} file events from relays`);
-    
+
     const fileEntries: FileEntry[] = [];
     for (const event of events) {
       const path = getTagValue(event, "d");
       const sha256 = getTagValue(event, "x") || getTagValue(event, "sha256");
-      
+
       if (path && sha256) {
         fileEntries.push({
           path,
@@ -168,25 +168,25 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
         });
       }
     }
-    
+
     const uniqueFiles = fileEntries.reduce((acc, current) => {
       const existingIndex = acc.findIndex(file => file.path === current.path);
-      
+
       if (existingIndex === -1) {
         return [...acc, current];
       } else {
         const existing = acc[existingIndex];
-        
+
         if ((existing.event?.created_at || 0) < (current.event?.created_at || 0)) {
           acc[existingIndex] = current;
         }
-        
+
         return acc;
       }
     }, [] as FileEntry[]);
-    
+
     log.info(`Found ${uniqueFiles.length} unique remote files for user ${pubKey}`);
-    
+
     return uniqueFiles.sort((a, b) => a.path > b.path ? 1 : -1);
   } catch (error) {
     log.error(`Error fetching remote files: ${error}`);
@@ -199,23 +199,23 @@ export async function listRemoteFiles(relays: string[], pubKey: string): Promise
  */
 export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_BROADCAST_RELAYS): Promise<boolean> {
   log.debug(`Publishing event ${event.id} to ${relays.length} relays`);
-  
+
   try {
     // Try to publish to all relays at once, but catch any errors that might occur
     let succeeded = false;
-    
+
     try {
       const pub = pool.publish(relays, event as unknown as Event);
-      
+
       succeeded = await new Promise<boolean>((resolve) => {
         let anySuccess = false;
-        
+
         // Event handler for successful publish to any relay
       pub.on('ok', () => {
           anySuccess = true;
         resolve(true);
       });
-      
+
         // Set a timeout to resolve after waiting for responses
       setTimeout(() => {
           resolve(anySuccess);
@@ -229,23 +229,23 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_B
       } else {
         log.warn(`Error from SimplePool: ${error}`);
       }
-      
+
       // Try publishing to each relay individually
       log.info("Trying to publish to relays individually...");
-      
+
       // Track successful publishes
       const individualSuccesses = await Promise.all(
         relays.map(async (relay) => {
           try {
             // Try publishing to a single relay
             const singlePub = pool.publish([relay], event as unknown as Event);
-            
+
             return await new Promise<boolean>((resolve) => {
               singlePub.on('ok', () => {
                 log.debug(`Successfully published to relay: ${relay}`);
                 resolve(true);
               });
-              
+
               setTimeout(() => {
                 resolve(false);
               }, 3000);
@@ -256,17 +256,17 @@ export async function publishEvent(event: NostrEvent, relays: string[] = NSYTE_B
           }
         })
       );
-      
+
       // If any individual publish succeeded, consider it a success
       succeeded = individualSuccesses.some(success => success);
     }
-    
+
     if (succeeded) {
       log.info(`Successfully published event to at least one relay`);
     } else {
       log.warn(`Failed to publish event to any relay`);
     }
-    
+
     return succeeded;
   } catch (error) {
     // This is our final fallback for any uncaught errors
@@ -284,7 +284,7 @@ export async function createNsiteEvent(
   sha256: string
 ): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  
+
   const eventTemplate: NostrEventTemplate = {
     kind: NSITE_KIND,
     created_at: Math.floor(Date.now() / 1000),
@@ -295,7 +295,7 @@ export async function createNsiteEvent(
     ],
     content: "",
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -315,7 +315,7 @@ export async function createServerListEvent(
     ],
     content: "",
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -335,7 +335,7 @@ export async function createRelayListEvent(
     ],
     content: "",
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -352,7 +352,7 @@ export async function createProfileEvent(
     tags: [["client", "nsyte"]],
     content: JSON.stringify(profile),
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -369,7 +369,7 @@ export async function createDeletionEvent(
     tags: [["e", eventId]],
     content: "File deleted through nsyte",
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -378,4 +378,4 @@ export async function createDeletionEvent(
  */
 export function closeAllConnections(): void {
   pool.close();
-} 
+}

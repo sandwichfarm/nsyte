@@ -1,16 +1,16 @@
-import { createLogger } from "./logger.ts";
-import { encodeHex } from "std/encoding/hex.ts";
-import { Signer } from "./upload.ts";
 import { schnorr } from "@noble/curves/secp256k1";
-import { BunkerSigner } from "./nip46.ts";
+import { encodeHex } from "std/encoding/hex.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
+import { createLogger } from "./logger.ts";
+import { NostrConnectSigner } from "applesauce-signers";
+import type { Signer } from "./upload.ts";
 
 const log = createLogger("nostr");
 
 export const NSITE_KIND = 34128;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
-export { RELAY_DISCOVERY_RELAYS, NSYTE_BROADCAST_RELAYS };
+export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
 
 /**
  * Profile interface for nostr profiles
@@ -44,12 +44,12 @@ export interface FileEntry {
 export function generateKeyPair(): { privateKey: string; publicKey: string } {
   const privateKeyBytes = new Uint8Array(32);
   crypto.getRandomValues(privateKeyBytes);
-  
+
   const privateKey = encodeHex(privateKeyBytes);
-  
+
   const publicKeyBytes = schnorr.getPublicKey(privateKeyBytes);
   const publicKey = encodeHex(publicKeyBytes);
-  
+
   return { privateKey, publicKey };
 }
 
@@ -64,18 +64,18 @@ export function parseBunkerUrl(bunkerUrl: string): {
   if (!bunkerUrl.startsWith("bunker://")) {
     throw new Error("Invalid bunker URL format. Must start with bunker://");
   }
-  
+
   try {
     const url = new URL(bunkerUrl.replace("bunker://", "https://"));
     const pubkey = url.hostname;
-    
+
     const relays: string[] = [];
     url.searchParams.getAll("relay").forEach((relay) => {
       relays.push(relay);
     });
-    
+
     const secret = url.searchParams.get("secret") || undefined;
-    
+
     return { pubkey, relays, secret };
   } catch (error) {
     log.error(`Failed to parse bunker URL: ${bunkerUrl}`);
@@ -117,9 +117,9 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
 }> {
   try {
     log.info(`Connecting to bunker: ${bunkerUrl}`);
-    const bunkerSigner = await BunkerSigner.connect(bunkerUrl);
-    const userPubkey = bunkerSigner.getPublicKey();
-    
+    const bunkerSigner = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+    const userPubkey = await bunkerSigner.getPublicKey();
+
     log.info(`Connected to bunker, user pubkey: ${userPubkey}`);
     return { client: bunkerSigner, userPubkey };
   } catch (error: unknown) {
@@ -151,11 +151,11 @@ export async function connectToRelay<T>(
 ): Promise<T | null> {
   let attempt = 0;
   const maxAttempts = options.retries + 1;
-  
+
   while (attempt < maxAttempts) {
     attempt++;
     const isRetry = attempt > 1;
-    
+
     if (isRetry) {
       log.debug(`Retrying connection to relay ${relay} (attempt ${attempt}/${maxAttempts})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -165,9 +165,9 @@ export async function connectToRelay<T>(
     if (result !== null) {
       return result;
     }
-    
+
   }
-  
+
   log.warn(`Failed to connect to relay ${relay} after ${maxAttempts} attempts`);
   return null;
 }
@@ -183,7 +183,7 @@ async function connectToRelayOnce<T>(
   return new Promise<T | null>((resolve) => {
     let resolved = false;
     let socket: WebSocket | null = null;
-    
+
     const timeoutId = setTimeout(() => {
       if (!resolved) {
         log.warn(`Timeout connecting to relay ${relay}`);
@@ -197,10 +197,10 @@ async function connectToRelayOnce<T>(
         resolve(null);
       }
     }, timeout);
-    
+
     try {
       socket = new WebSocket(relay);
-      
+
       socket.onopen = async () => {
         try {
           if (socket) {
@@ -228,7 +228,7 @@ async function connectToRelayOnce<T>(
           }
         }
       };
-      
+
       socket.onerror = (error: Event) => {
         log.debug(`WebSocket error with relay ${relay}: ${String(error)}`);
         clearTimeout(timeoutId);
@@ -237,7 +237,7 @@ async function connectToRelayOnce<T>(
           resolve(null);
         }
       };
-      
+
       socket.onclose = () => {
         log.debug(`WebSocket closed for relay ${relay}`);
         clearTimeout(timeoutId);
@@ -266,27 +266,27 @@ export async function fetchFileEvents(
   pubkey: string
 ): Promise<NostrEvent[]> {
   log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
-  
+
   const events: NostrEvent[] = [];
   const attemptedRelays = new Set<string>();
   let successfulRelays = 0;
-  
+
   try {
     await Promise.all(
       relays.map(async (relay) => {
         try {
           attemptedRelays.add(relay);
           const socket = new WebSocket(relay);
-          
+
           const eventsPromise = new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
               socket.close();
               reject(new Error(`Timeout connecting to relay ${relay}`));
             }, 15000);
-            
+
             socket.onopen = () => {
               const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-              
+
               const subscriptionMessage = JSON.stringify([
                 "REQ",
                 subId,
@@ -295,13 +295,13 @@ export async function fetchFileEvents(
                   authors: [pubkey],
                 }
               ]);
-              
+
               socket.send(subscriptionMessage);
-              
+
               socket.onmessage = (event) => {
                 try {
                   const message = JSON.parse(event.data);
-                  
+
                   if (Array.isArray(message) && message.length >= 2) {
                     if (message[0] === "EVENT" && message[1] === subId && message[2]) {
                       events.push(message[2]);
@@ -317,46 +317,46 @@ export async function fetchFileEvents(
                 }
               };
             };
-            
+
             socket.onerror = (error) => {
               clearTimeout(timeout);
               log.error(`WebSocket error with relay ${relay}: ${String(error)}`);
               reject(error);
             };
-            
+
             socket.onclose = () => {
               clearTimeout(timeout);
               resolve();
             };
           });
-          
+
           await eventsPromise;
         } catch (error) {
           log.error(`Failed to fetch events from relay ${relay}: ${String(error)}`);
         }
       })
     );
-    
+
     if (successfulRelays === 0 && attemptedRelays.size < relays.length) {
       const remainingRelays = relays.filter(r => !attemptedRelays.has(r));
-      
+
       log.warn(`No relays responded in parallel fetch, trying ${remainingRelays.length} remaining relays sequentially`);
-      
+
       for (const relay of remainingRelays) {
         try {
           attemptedRelays.add(relay);
-          
+
           const socket = new WebSocket(relay);
-          
+
           const eventsPromise = new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
               socket.close();
               reject(new Error(`Timeout connecting to relay ${relay}`));
             }, 20000);
-            
+
             socket.onopen = () => {
               const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-              
+
               const subscriptionMessage = JSON.stringify([
                 "REQ",
                 subId,
@@ -365,13 +365,13 @@ export async function fetchFileEvents(
                   authors: [pubkey],
                 }
               ]);
-              
+
               socket.send(subscriptionMessage);
-              
+
               socket.onmessage = (event) => {
                 try {
                   const message = JSON.parse(event.data);
-                  
+
                   if (Array.isArray(message) && message.length >= 2) {
                     if (message[0] === "EVENT" && message[1] === subId && message[2]) {
                       events.push(message[2]);
@@ -387,21 +387,21 @@ export async function fetchFileEvents(
                 }
               };
             };
-            
+
             socket.onerror = (error) => {
               clearTimeout(timeout);
               log.error(`WebSocket error with relay ${relay}: ${String(error)}`);
               reject(error);
             };
-            
+
             socket.onclose = () => {
               clearTimeout(timeout);
               resolve();
             };
           });
-          
+
           await eventsPromise;
-          
+
           if (events.length > 0) {
             log.debug(`Got ${events.length} events from relay ${relay}, stopping sequential fetch`);
             break;
@@ -411,7 +411,7 @@ export async function fetchFileEvents(
         }
       }
     }
-    
+
     log.debug(`Fetched ${events.length} events from ${successfulRelays} successful relays out of ${attemptedRelays.size} attempted`);
     return events;
   } catch (error) {
@@ -425,23 +425,23 @@ export async function fetchFileEvents(
  */
 export async function listRemoteFiles(relays: string[], pubkey: string): Promise<FileEntry[]> {
   const events = await fetchFileEvents(relays, pubkey);
-  
+
   if (events.length === 0) {
     log.warn(`No file events found for user ${pubkey} from any relays`);
     log.info("This could mean one of these things:");
     log.info("1. This is the first time you're uploading files for this user");
     log.info("2. The relays are not responding or are unreachable");
     log.info("3. The previous uploads were not successfully published to relays");
-    
+
     return [];
   }
-  
+
   const fileEntries: FileEntry[] = [];
-  
+
   for (const event of events) {
     const path = getTagValue(event, "d");
     const sha256 = getTagValue(event, "x") || getTagValue(event, "sha256");
-    
+
     if (path && sha256) {
       fileEntries.push({
         path,
@@ -451,37 +451,37 @@ export async function listRemoteFiles(relays: string[], pubkey: string): Promise
       });
     }
   }
-  
+
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex(file => file.path === current.path);
-    
+
     if (existingIndex === -1) {
       return [...acc, current];
     } else {
       const existing = acc[existingIndex];
-      
+
       if ((existing.event?.created_at || 0) < (current.event?.created_at || 0)) {
         acc[existingIndex] = current;
       }
-      
+
       return acc;
     }
   }, [] as FileEntry[]);
-  
+
   log.info(`Found ${uniqueFiles.length} unique remote files for user ${pubkey}`);
-  
+
   if (uniqueFiles.length > 0) {
     const truncatedList = uniqueFiles.slice(0, Math.min(5, uniqueFiles.length));
     log.debug("Remote files found (sample):");
     truncatedList.forEach(file => {
       log.debug(`- ${file.path} (hash: ${file.sha256?.substring(0, 8)}...)`);
     });
-    
+
     if (uniqueFiles.length > 5) {
       log.debug(`... and ${uniqueFiles.length - 5} more files`);
     }
   }
-  
+
   return uniqueFiles.sort((a, b) => {
     return a.path > b.path ? 1 : -1;
   });
@@ -497,7 +497,7 @@ export async function publishNsiteEvent(
   sha256: string
 ): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  
+
   const eventTemplate: NostrEventTemplate = {
     kind: NSITE_KIND,
     created_at: Math.floor(Date.now() / 1000),
@@ -508,6 +508,6 @@ export async function publishNsiteEvent(
     ],
     content: "",
   };
-  
+
   return await signer.signEvent(eventTemplate);
-} 
+}

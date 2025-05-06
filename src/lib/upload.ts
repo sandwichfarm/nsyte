@@ -1,6 +1,5 @@
 import { createLogger } from "./logger.ts";
-import { FileEntry, NostrEvent, NostrEventTemplate, connectToRelay } from "./nostr.ts";
-import { NSYTE_BROADCAST_RELAYS } from "./constants.ts";
+import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
 
 const log = createLogger("upload");
 
@@ -11,7 +10,7 @@ const DEFAULT_CONCURRENCY = 4;
 
 export interface Signer {
   signEvent(event: NostrEventTemplate): Promise<NostrEvent>;
-  getPublicKey(): string;
+  getPublicKey(): string|Promise<string>;
 }
 
 export interface UploadProgress {
@@ -41,7 +40,7 @@ export type UploadResponse = {
  */
 async function createUploadAuth(signer: Signer, blobSha256: string): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
-  
+
   const authTemplate: NostrEventTemplate = {
     kind: 24242,
     created_at: currentTime,
@@ -53,9 +52,9 @@ async function createUploadAuth(signer: Signer, blobSha256: string): Promise<str
     ],
     content: "Upload blob via nsyte",
   };
-  
+
   const signedEvent = await signer.signEvent(authTemplate);
-  
+
   return JSON.stringify(signedEvent);
 }
 
@@ -63,27 +62,27 @@ async function createUploadAuth(signer: Signer, blobSha256: string): Promise<str
  * Upload a blob to a single blossom server
  */
 async function uploadToServer(
-  server: string, 
-  file: FileEntry, 
+  server: string,
+  file: FileEntry,
   signer: Signer
 ): Promise<boolean> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
   }
-  
+
   try {
     const blobSha256 = file.sha256;
     const fileName = file.path.split("/").pop() || "file";
     const contentType = file.contentType || "application/octet-stream";
-    
+
     try {
       const serverUrl = server.endsWith("/") ? server : `${server}/`;
-      
+
       log.debug(`Checking if ${file.path} (${blobSha256}) already exists on ${server}`);
       const response = await fetch(`${serverUrl}${blobSha256}`, {
         method: "HEAD"
       });
-      
+
       if (response.ok) {
         log.debug(`File ${file.path} (${blobSha256}) already exists on ${server}`);
         return true;
@@ -91,22 +90,22 @@ async function uploadToServer(
     } catch (e) {
       log.debug(`Error checking if file exists on ${server}: ${e}`);
     }
-    
+
     const fileObj = new File([file.data], fileName, {
       type: contentType,
       lastModified: Date.now(),
     });
-    
+
     const auth = await createUploadAuth(signer, blobSha256);
-    
+
     const serverUrl = server.endsWith("/") ? server : `${server}/`;
-    
+
     const base64Auth = btoa(auth);
     const authHeader = { "Authorization": `Nostr ${base64Auth}` };
-    
+
     const formData = new FormData();
     formData.append("file", fileObj);
-    
+
     try {
       log.debug(`Trying PUT to ${serverUrl}upload with auth header`);
       const response = await fetch(`${serverUrl}upload`, {
@@ -114,12 +113,12 @@ async function uploadToServer(
         headers: authHeader,
         body: fileObj
       });
-      
+
       if (response.ok) {
         log.debug(`Uploaded ${file.path} to ${server} using PUT to /upload with auth header`);
         return true;
       }
-      
+
       const errorText = await response.text();
       log.debug(`PUT to /upload with auth header failed: ${response.status} - ${errorText}`);
     } catch (e) {
@@ -137,7 +136,7 @@ async function uploadToServer(
  */
 async function publishNsiteEvent(signer: Signer, pubkey: string, path: string, sha256: string): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  
+
   const eventTemplate: NostrEventTemplate = {
     kind: 34128,
     created_at: Math.floor(Date.now() / 1000),
@@ -149,7 +148,7 @@ async function publishNsiteEvent(signer: Signer, pubkey: string, path: string, s
     content: "",
     pubkey: pubkey,
   };
-  
+
   return await signer.signEvent(eventTemplate);
 }
 
@@ -158,34 +157,34 @@ async function publishNsiteEvent(signer: Signer, pubkey: string, path: string, s
  */
 async function publishEventToRelays(event: NostrEvent, relays: string[]): Promise<boolean> {
   log.debug(`Publishing event to ${relays.length} relays`);
-  
+
   let successCount = 0;
   const eventJson = JSON.stringify(["EVENT", event]);
   const relayErrors = new Map<string, string>();
-  
+
   await Promise.all(relays.map(async (relay) => {
     try {
       const socket = new WebSocket(relay);
-      
+
       const connectPromise = new Promise<boolean>(resolve => {
         socket.onopen = () => {
           log.debug(`Connected to relay: ${relay}`);
           socket.send(eventJson);
-          
+
           socket.onmessage = (msg) => {
             try {
               const data = JSON.parse(msg.data);
-              
+
               if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
                 log.debug(`Event published to relay: ${relay}`);
                 resolve(true);
                 socket.close();
                 return;
               }
-              
+
               if (Array.isArray(data) && data.length >= 4 && data[0] === "OK" && data[2] === false) {
                 const errorMessage = data[3] || "Unknown relay error";
-                
+
                 if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
                   log.warn(`Relay ${relay} rate-limited this publish: ${errorMessage}`);
                   relayErrors.set(relay, `Rate limited: ${errorMessage}`);
@@ -193,7 +192,7 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
                   log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
                   relayErrors.set(relay, errorMessage);
                 }
-                
+
                 resolve(false);
                 socket.close();
               }
@@ -201,25 +200,25 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
               log.debug(`Error parsing message from relay ${relay}: ${e}`);
             }
           };
-          
+
           setTimeout(() => {
             relayErrors.set(relay, "Timeout waiting for response");
             resolve(false);
             socket.close();
           }, 5000);
         };
-        
+
         socket.onerror = (e) => {
           log.debug(`WebSocket error with relay ${relay}: ${e}`);
           relayErrors.set(relay, `WebSocket error: ${e}`);
           resolve(false);
         };
-        
+
         socket.onclose = () => {
           resolve(false);
         };
       });
-      
+
       const success = await connectPromise;
       if (success) {
         successCount++;
@@ -229,12 +228,12 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
       relayErrors.set(relay, `Connection failed: ${e}`);
     }
   }));
-  
+
   const success = successCount > 0;
-  
+
   if (success) {
     log.info(`Published event to ${successCount}/${relays.length} relays`);
-    
+
     if (successCount < relays.length) {
       log.debug("Some relays failed to accept the event:");
       for (const [relay, error] of relayErrors.entries()) {
@@ -248,7 +247,7 @@ async function publishEventToRelays(event: NostrEvent, relays: string[]): Promis
       log.debug(`  - ${relay}: ${error}`);
     }
   }
-  
+
   return success;
 }
 
@@ -267,43 +266,43 @@ export async function processUploads(
   if (!relays || relays.length === 0) {
     throw new Error("No relays provided for publishing events. Events must be published to relays to make the files accessible.");
   }
-  
+
   log.info(`Starting upload of ${files.length} files to ${servers.length} servers with concurrency ${concurrency}`);
-  
+
   const progress: UploadProgress = {
     total: files.length,
     completed: 0,
     failed: 0,
     inProgress: 0,
   };
-  
+
   if (progressCallback) {
     progressCallback({ ...progress });
   }
-  
+
   const results: UploadResponse[] = [];
   const queue = [...files];
-  
+
   const errors: Array<{file: string, error: string}> = [];
-  
+
   while (queue.length > 0) {
     const chunk = queue.splice(0, Math.min(concurrency, queue.length));
     progress.inProgress = chunk.length;
-    
+
     if (progressCallback) {
       progressCallback({ ...progress });
     }
-    
+
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
         try {
           return await uploadFile(file, baseDir, servers, signer, relays);
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          
+
           if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
             log.warn(`Rate limiting detected while uploading ${file.path}: ${errorMessage}`);
-            
+
             return {
               file,
               success: true,
@@ -312,7 +311,7 @@ export async function processUploads(
               serverResults: {},
             };
           }
-          
+
           log.error(`Failed to upload ${file.path}: ${errorMessage}`);
           return {
             file,
@@ -333,13 +332,13 @@ export async function processUploads(
         eventPublished: false
       }));
     });
-    
+
     for (const result of chunkResults) {
       results.push(result);
-      
+
       if (result.success) {
         progress.completed++;
-        
+
         if (result.error && (result.error.includes("rate-limit") || result.error.includes("noting too much"))) {
           log.warn(`Upload for ${result.file.path} succeeded but event publishing was rate-limited`);
         }
@@ -350,26 +349,26 @@ export async function processUploads(
           error: result.error || "Unknown error"
         });
       }
-      
+
       progress.inProgress = Math.max(0, progress.inProgress - 1);
-      
+
       if (progressCallback) {
         progressCallback({ ...progress });
       }
     }
-    
+
     if (queue.length > 0) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
-  
+
   if (errors.length > 0) {
     log.info("\nFile upload errors:");
     for (const error of errors) {
       log.error(`Failed to upload ${error.file}: ${error.error}`);
     }
   }
-  
+
   log.info(`Upload completed: ${progress.completed} succeeded, ${progress.failed} failed`);
   return results;
 }
@@ -387,23 +386,23 @@ async function uploadFile(
 ): Promise<UploadResponse> {
   try {
     log.debug(`Uploading file ${file.path}${retryCount > 0 ? ` (retry ${retryCount})` : ""}`);
-    
-    const userPubkey = signer.getPublicKey();
-    
+
+    const userPubkey = await signer.getPublicKey();
+
     if (!file.data || !file.sha256) {
       throw new Error("File data or SHA-256 hash missing");
     }
-    
+
     const serverResults: { [server: string]: { success: boolean; error?: string; alreadyExists?: boolean } } = {};
-    
+
     const uploadResults = await Promise.all(
       servers.map(async (server) => {
         try {
           const success = await uploadToServer(server, file, signer);
-          
+
           const serverUrl = server.endsWith("/") ? server : `${server}/`;
           let alreadyExists = false;
-          
+
           try {
             const response = await fetch(`${serverUrl}${file.sha256}`, {
               method: "HEAD"
@@ -411,12 +410,12 @@ async function uploadFile(
             alreadyExists = response.ok;
           } catch (e) {
           }
-          
-          serverResults[server] = { 
-            success, 
+
+          serverResults[server] = {
+            success,
             alreadyExists: alreadyExists && success
           };
-          
+
           return success;
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -425,15 +424,15 @@ async function uploadFile(
         }
       })
     );
-    
+
     const anyServerSuccess = uploadResults.some(result => result);
-    
+
     if (!anyServerSuccess) {
       const allServersHaveFile = servers.every(server => {
         const result = serverResults[server];
         return result && (result.success || result.alreadyExists);
       });
-      
+
       if (allServersHaveFile) {
         log.info(`File ${file.path} already exists on all servers, skipping upload but publishing events`);
         for (const server of servers) {
@@ -443,26 +442,26 @@ async function uploadFile(
         const serverErrors = Object.entries(serverResults)
           .map(([server, result]) => `${server}: ${result.error || "Unknown error"}`)
           .join("; ");
-        
+
         throw new Error(`Failed to upload to any server: ${serverErrors}`);
       }
     }
-    
+
     const successfulServers = Object.values(serverResults).filter(r => r.success).length;
-    
+
     let signedEvent: NostrEvent | null = null;
     let eventPublished = false;
-    
+
     try {
       signedEvent = await publishNsiteEvent(signer, userPubkey, file.path, file.sha256);
-      
+
       if (!relays || relays.length === 0) {
         throw new Error("No relays provided for publishing events");
       }
-      
+
       try {
       eventPublished = await publishEventToRelays(signedEvent, relays);
-      
+
       if (eventPublished) {
         log.info(`Published nsite event for ${file.path} to relays`);
       } else {
@@ -470,7 +469,7 @@ async function uploadFile(
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-        
+
         if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
           log.warn(`Rate limiting detected when publishing event for ${file.path}: ${errorMessage}`);
           return {
@@ -482,12 +481,12 @@ async function uploadFile(
             error: `Rate limited: ${errorMessage}`
           };
         }
-        
+
       log.error(`Error publishing nsite event for ${file.path}: ${errorMessage}`);
     }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
         log.warn(`Rate limiting detected when signing event for ${file.path}: ${errorMessage}`);
         return {
@@ -498,10 +497,10 @@ async function uploadFile(
           error: `Rate limited during signing: ${errorMessage}`
         };
       }
-      
+
       log.error(`Error signing nsite event for ${file.path}: ${errorMessage}`);
     }
-    
+
     return {
       file,
       success: true,
@@ -511,10 +510,10 @@ async function uploadFile(
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
       log.warn(`Rate limiting detected for ${file.path}: ${errorMessage}`);
-      
+
       return {
         file,
         success: true,
@@ -523,15 +522,15 @@ async function uploadFile(
         eventPublished: false
       };
     }
-    
+
     log.error(`Failed to upload ${file.path}: ${errorMessage}`);
-    
+
     if (retryCount < MAX_RETRIES) {
       log.debug(`Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       return uploadFile(file, baseDir, servers, signer, relays, retryCount + 1);
     }
-    
+
     return {
       file,
       success: false,
@@ -540,4 +539,4 @@ async function uploadFile(
       eventPublished: false
     };
   }
-} 
+}
