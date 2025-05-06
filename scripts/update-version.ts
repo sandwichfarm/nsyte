@@ -1,4 +1,5 @@
 import * as path from "std/path/mod.ts";
+import { Confirm } from "@cliffy/prompt";
 
 async function updateVersion() {
   const rootDir = path.resolve(path.dirname(path.fromFileUrl(import.meta.url)), "..");
@@ -112,18 +113,35 @@ async function updateVersion() {
     // Check if tag already exists
     const tagCheckProcess = new Deno.Command("git", { args: ["tag", "-l", gitTagVersion] });
     const { stdout: tagCheckOutput } = await tagCheckProcess.output();
-    if (new TextDecoder().decode(tagCheckOutput).trim() === gitTagVersion) {
-        console.log(`Git tag ${gitTagVersion} already exists.`);
-    } else {
-        console.log(`Creating git tag ${gitTagVersion}...`);
-        const tagProcess = new Deno.Command("git", { args: ["tag", gitTagVersion] });
-        const { stderr: tagErr } = await tagProcess.output();
-        const tagErrText = new TextDecoder().decode(tagErr);
-        if (tagErrText) {
-            console.error("Error creating git tag:", tagErrText);
+    const localTagExists = new TextDecoder().decode(tagCheckOutput).trim() === gitTagVersion;
+
+    if (localTagExists) {
+        console.log(`Git tag ${gitTagVersion} already exists locally.`);
+        const overwrite = await Confirm.prompt("Overwrite it? (Y/n)");
+        if (overwrite) {
+            console.log(`Deleting local tag ${gitTagVersion}...`);
+            const deleteTagProcess = new Deno.Command("git", { args: ["tag", "-d", gitTagVersion] });
+            const { stderr: deleteTagErr } = await deleteTagProcess.output();
+            const deleteTagErrText = new TextDecoder().decode(deleteTagErr);
+            if (deleteTagErrText) {
+                console.error(`Error deleting local tag ${gitTagVersion}:`, deleteTagErrText);
+                return; // Don't proceed if deletion failed
+            }
+            console.log(`Successfully deleted local tag ${gitTagVersion}.`);
         } else {
-            console.log(`Successfully created git tag ${gitTagVersion}. Run 'git push --tags' to publish it.`);
+            console.log("Skipping tag creation.");
+            return; // User chose not to overwrite, so we exit this part
         }
+    }
+    // Proceed to create tag if it didn't exist or if user chose to overwrite
+    console.log(`Creating git tag ${gitTagVersion}...`);
+    const tagProcess = new Deno.Command("git", { args: ["tag", gitTagVersion] });
+    const { stderr: tagErr } = await tagProcess.output();
+    const tagErrText = new TextDecoder().decode(tagErr);
+    if (tagErrText) {
+        console.error("Error creating git tag:", tagErrText);
+    } else {
+        console.log(`Successfully created git tag ${gitTagVersion}. Run 'git push --tags' to publish it.`);
     }
 
   } catch (error) {
