@@ -1,14 +1,15 @@
-import { Command } from "@cliffy/command";
 import { colors } from "@cliffy/ansi/colors";
-import { createLogger } from "../lib/logger.ts";
-import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
-import { PrivateKeySigner } from "../lib/signer.ts";
-import { setupProject, readProjectFile } from "../lib/config.ts";
-import { BunkerSigner } from "../lib/nip46.ts";
-import { SecretsManager } from "../lib/secrets/mod.ts";
+import type { Command } from "@cliffy/command";
+import type { NostrConnectSigner } from "applesauce-signers";
+import { globToRegExp } from "jsr:@std/path/glob-to-regexp"; // Use correct JSR import
 import { existsSync } from "std/fs/exists.ts";
 import { join } from "std/path/mod.ts";
-import { globToRegExp } from "jsr:@std/path/glob-to-regexp"; // Use correct JSR import
+import { readProjectFile, setupProject } from "../lib/config.ts";
+import { createLogger } from "../lib/logger.ts";
+import { importFromNbunk } from "../lib/nip46.ts";
+import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
+import { SecretsManager } from "../lib/secrets/mod.ts";
+import { PrivateKeySigner } from "../lib/signer.ts";
 
 const log = createLogger("ls");
 
@@ -37,8 +38,8 @@ function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
       appliesToDir = true;
     }
     try {
-      const regex = globToRegExp(pattern.endsWith('/') ? pattern.slice(0, -1) : pattern, { 
-          extended: true, globstar: true, caseInsensitive: false 
+      const regex = globToRegExp(pattern.endsWith('/') ? pattern.slice(0, -1) : pattern, {
+          extended: true, globstar: true, caseInsensitive: false
       });
       rules.push({ pattern, regex, negates, appliesToDir });
     } catch (e) {
@@ -73,7 +74,7 @@ function isIgnored(relativePath: string, rules: IgnoreRule[], isDirectory: boole
   }
   return ignored;
 }
-// --- End Copied/Adapted --- 
+// --- End Copied/Adapted ---
 
 /**
  * Register the ls command
@@ -87,14 +88,14 @@ export function registerLsCommand(program: Command): void {
     .option("-p, --pubkey <npub:string>", "The public key to list files for (if not using private key).")
     .action(async (options) => {
       try {
-        
+
         let pubkey: string | undefined;
-        let signer: PrivateKeySigner | BunkerSigner | undefined;
-        
+        let signer: PrivateKeySigner | NostrConnectSigner | undefined;
+
         if (options.pubkey) {
           pubkey = options.pubkey;
           log.debug(`Using explicit pubkey: ${pubkey}`)
-        } 
+        }
         else if (options.privatekey) {
           signer = new PrivateKeySigner(options.privatekey);
           pubkey = signer.getPublicKey();
@@ -103,7 +104,7 @@ export function registerLsCommand(program: Command): void {
           log.debug("No explicit key/pubkey provided, checking project config...")
           const projectContext = await setupProject();
           const projectData = projectContext.projectData;
-            
+
           if (projectContext.privateKey) {
             signer = new PrivateKeySigner(projectContext.privateKey);
             pubkey = signer.getPublicKey();
@@ -116,10 +117,10 @@ export function registerLsCommand(program: Command): void {
             if (nbunkString) {
               try {
                 log.info("Attempting connection using stored nbunksec...");
-                signer = await BunkerSigner.importFromNbunk(nbunkString);
-                pubkey = signer.getPublicKey();
+                signer = await importFromNbunk(nbunkString);
+                pubkey = await signer.getPublicKey();
                 log.info(`Session established with bunker, user pubkey: ${pubkey.slice(0,8)}...`);
-                await signer.disconnect(); 
+                await signer.close();
                 log.debug("Disconnected bunker signer after getting pubkey.")
               } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -136,14 +137,14 @@ export function registerLsCommand(program: Command): void {
             }
           }
         }
-          
+
         if (!pubkey) {
           console.error(colors.red("Could not determine public key. Use --pubkey, --privatekey, or configure a project key."));
           Deno.exit(1);
         }
-        
+
         let relays: string[] = [];
-        
+
         if (options.relays) {
           relays = options.relays.split(",");
         } else {
@@ -155,15 +156,15 @@ export function registerLsCommand(program: Command): void {
             relays = RELAY_DISCOVERY_RELAYS;
           }
         }
-        
+
         console.log(colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`));
-        
-        // --- Load .nsite-ignore rules --- 
+
+        // --- Load .nsite-ignore rules ---
         const cwd = Deno.cwd();
         const ignoreFilePath = join(cwd, ".nsite-ignore");
         let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
         let ignoredFileCount = 0;
-        
+
         if (existsSync(ignoreFilePath)) {
           try {
             const ignoreContent = await Deno.readTextFile(ignoreFilePath);
@@ -176,29 +177,29 @@ export function registerLsCommand(program: Command): void {
         } else {
           log.debug("No .nsite-ignore file found, using default patterns.");
         }
-        // --- End ignore rule loading --- 
+        // --- End ignore rule loading ---
 
         const files = await listRemoteFiles(relays, pubkey);
-        
+
         if (files.length === 0) {
           console.log(colors.yellow("\nNo files found for this user."));
         } else {
           console.log(colors.green(`\nFound ${files.length} files:`));
-          
+
           files.sort((a, b) => a.path.localeCompare(b.path));
-          
+
           files.forEach(file => {
             // Remove leading slash for local ignore check
             const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
             // isIgnored expects isDirectory hint, assume false for ls output
             const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
-            
+
             if (shouldBeIgnored) {
               console.log(colors.red(file.path) + colors.gray(" (ignored locally)"));
               ignoredFileCount++;
             } else {
               // Use white for standard files
-              console.log(colors.white(file.path)); 
+              console.log(colors.white(file.path));
             }
           });
 
@@ -212,4 +213,4 @@ export function registerLsCommand(program: Command): void {
         Deno.exit(1);
       }
     });
-} 
+}
