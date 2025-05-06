@@ -11,7 +11,7 @@ import { encodeBunkerInfo, BunkerInfo } from "../../src/lib/nip46.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import * as path from "std/path/mod.ts";
 import { ensureDirSync } from "std/fs/ensure_dir.ts";
-import { Confirm } from "cliffy/prompt/mod.ts";
+import { Confirm } from "@cliffy/prompt";
 
 // Helper function to capture console output
 function captureConsoleOutput(fn: () => Promise<void> | void): Promise<string> {

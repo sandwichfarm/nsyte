@@ -16,8 +16,8 @@ self.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-import { Command } from "cliffy/command/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Command } from "@cliffy/command";
+import { colors } from "@cliffy/ansi/colors";
 import { registerUploadCommand } from "./commands/upload.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
@@ -65,31 +65,31 @@ bunkerCommand
 
 bunkerCommand
   .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
-  .action(async (_, nbunksec) => {
+  .action(async (_: unknown, nbunksec: string | undefined) => {
     importNbunk(nbunksec);
   });
 
 bunkerCommand
   .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
-  .action(async (_, pubkey) => {
+  .action(async (_: unknown, pubkey: string | undefined) => {
     exportNbunk(pubkey);
   });
 
 bunkerCommand
   .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
-  .action(async (_, url) => {
+  .action(async (_: unknown, url: string | undefined) => {
     connectBunker(url);
   });
 
 bunkerCommand
   .command("use [pubkey:string]", "Configure current project to use a bunker")
-  .action(async (_, pubkey) => {
+  .action(async (_: unknown, pubkey: string | undefined) => {
     useBunkerForProject(pubkey);
   });
 
 bunkerCommand
   .command("remove [pubkey:string]", "Remove a bunker from storage")
-  .action(async (_, pubkey) => {
+  .action(async (_: unknown, pubkey: string | undefined) => {
     removeBunker(pubkey);
   });
 

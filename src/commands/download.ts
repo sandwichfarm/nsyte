@@ -1,5 +1,5 @@
-import { Command } from "cliffy/command/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Command } from "@cliffy/command";
+import { colors } from "@cliffy/ansi/colors";
 import { createLogger } from "../lib/logger.ts";
 import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";

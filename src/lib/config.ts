@@ -1,8 +1,8 @@
 import { join, dirname } from "std/path/mod.ts";
 import { ensureDirSync } from "std/fs/ensure_dir.ts";
 import { createLogger } from "./logger.ts";
-import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Input, Confirm, Select, Secret } from "@cliffy/prompt";
+import { colors } from "@cliffy/ansi/colors";
 import { generateKeyPair } from "./nostr.ts";
 import { parseBunkerUrl, BunkerSigner } from "./nip46.ts";
 import { SecretsManager } from "./secrets/mod.ts";

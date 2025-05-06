@@ -1,4 +1,4 @@
-import { colors } from "cliffy/ansi/colors.ts";
+import { colors } from "@cliffy/ansi/colors";
 import { getDisplayManager, DisplayMode } from "../lib/display-mode.ts";
 
 /**

@@ -1,5 +1,5 @@
-import { Command } from "cliffy/command/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Command } from "@cliffy/command";
+import { colors } from "@cliffy/ansi/colors";
 import { createLogger } from "../lib/logger.ts";
 import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
@@ -42,7 +42,9 @@ function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
       });
       rules.push({ pattern, regex, negates, appliesToDir });
     } catch (e) {
-      log.warn(`Invalid pattern in .nsite-ignore, skipping: "${pattern}" - Error: ${e.message}`);
+      // Safely get error message
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      log.warn(`Invalid pattern in .nsite-ignore, skipping: "${pattern}" - Error: ${errorMessage}`);
     }
   }
   return rules;

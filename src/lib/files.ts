@@ -154,7 +154,9 @@ function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
       });
       rules.push({ pattern, regex, negates, appliesToDir });
     } catch (e) {
-      log.warn(`Invalid pattern in .nsite-ignore, skipping: "${patterns[patterns.indexOf(pattern)]}" - Error: ${e.message}`);
+      // Safely get error message
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      log.warn(`Invalid pattern in .nsite-ignore, skipping: "${patterns[patterns.indexOf(pattern)]}" - Error: ${errorMessage}`);
     }
   }
   return rules;

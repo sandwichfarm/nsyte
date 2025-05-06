@@ -1,6 +1,6 @@
-import { Input, Confirm, Select, Secret } from "cliffy/prompt/mod.ts";
-import { Command } from "cliffy/command/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Input, Confirm, Select, Secret } from "@cliffy/prompt";
+import { Command } from "@cliffy/command";
+import { colors } from "@cliffy/ansi/colors";
 import { createLogger } from "../lib/logger.ts";
 import { decodeBunkerInfo, BunkerSigner, parseBunkerUrl } from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
@@ -26,27 +26,35 @@ export function registerBunkerCommand(program: Command): void {
     })
     .reset()
     .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
-    .action((_, nbunksec) => {
-      importNbunk(nbunksec);
+    .action((_: unknown, nbunksec: string | undefined) => {
+      if (nbunksec !== undefined) {
+        importNbunk(nbunksec);
+      } else {
+        importNbunk();
+      }
     })
     .reset()
     .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
-    .action((_, pubkey) => {
+    .action((_: unknown, pubkey: string | undefined) => {
       exportNbunk(pubkey);
     })
     .reset()
     .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
-    .action((_, url) => {
-      connectBunker(url);
+    .action((_: unknown, url: string | undefined) => {
+      if (url !== undefined) {
+        connectBunker(url);
+      } else {
+        connectBunker();
+      }
     })
     .reset()
     .command("use [pubkey:string]", "Configure current project to use a bunker")
-    .action((_, pubkey) => {
+    .action((_: unknown, pubkey: string | undefined) => {
       useBunkerForProject(pubkey);
     })
     .reset()
     .command("remove [pubkey:string]", "Remove a bunker from storage")
-    .action((_, pubkey) => {
+    .action((_: unknown, pubkey: string | undefined) => {
       removeBunker(pubkey);
     })
     .reset()
@@ -151,7 +159,7 @@ export async function listBunkers(): Promise<void> {
     
     try {
       const info = decodeBunkerInfo(nbunkString);
-      console.log(`- ${colors.green(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))}`);
+      console.log(`- ${colors.green(pubkey)}`);
       console.log(`  Relays: ${info.relays.join(", ")}`);
     } catch (error) {
       console.log(`- ${colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))} (Error decoding nbunksec)`);
@@ -162,7 +170,7 @@ export async function listBunkers(): Promise<void> {
   const projectData = readProjectFile();
   if (projectData?.bunkerPubkey) {
     console.log(colors.cyan("\nCurrent project uses bunker:"));
-    console.log(`- ${colors.green(projectData.bunkerPubkey.slice(0, 8) + "..." + projectData.bunkerPubkey.slice(-4))}`);
+    console.log(`- ${colors.green(projectData.bunkerPubkey)}`);
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
@@ -181,6 +189,13 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
                 "Invalid nbunksec string. Must start with 'nbunksec'";
         }
       });
+    }
+
+    // Add check after prompt in case it returned undefined/empty (e.g., Ctrl+C)
+    if (!nbunkString) {
+      console.log(colors.yellow("Import cancelled."));
+      Deno.exit(0);
+      return; // Explicit return to satisfy TS
     }
     
     // First verify the nbunksec is valid by decoding it
@@ -273,7 +288,7 @@ export async function connectBunker(bunkerUrl?: string): Promise<void> {
     }
     
     // Handle the case when the URL isn't properly quoted in the shell
-    if (!bunkerUrl.includes("?relay=") && !bunkerUrl.includes("&secret=")) {
+    if (bunkerUrl && !bunkerUrl.includes("?relay=") && !bunkerUrl.includes("&secret=")) {
       console.log(colors.yellow("The bunker URL appears to be incomplete. Shell metacharacters like ? and & need to be quoted."));
       console.log(colors.yellow("Example: nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
       console.log(colors.yellow("You can also enter the URL interactively to avoid shell escaping issues.\n"));
@@ -293,6 +308,10 @@ export async function connectBunker(bunkerUrl?: string): Promise<void> {
     console.log(colors.cyan("Connecting to bunker..."));
     
     // Parse the URL and extract the pubkey
+    if (!bunkerUrl) {
+      console.log(colors.red("Bunker URL is missing after prompt."));
+      Deno.exit(1);
+    }
     const bunkerPointer = parseBunkerUrl(bunkerUrl);
     
     // Try to connect to the bunker

@@ -1,5 +1,5 @@
-import { Command } from "cliffy/command/mod.ts";
-import { colors } from "cliffy/ansi/colors.ts";
+import { Command } from "@cliffy/command";
+import { colors } from "@cliffy/ansi/colors";
 import { copy } from "std/fs/copy.ts";
 import { join, normalize } from "std/path/mod.ts";
 import { createLogger, setProgressMode, flushQueuedLogs } from "../lib/logger.ts";
@@ -9,12 +9,10 @@ import { processUploads, Signer } from "../lib/upload.ts";
 import { createNip46ClientFromUrl, NostrEventTemplate, NostrEvent, listRemoteFiles, connectToRelay } from "../lib/nostr.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
-import { Confirm } from "cliffy/prompt/mod.ts";
+import { Confirm, Input } from "@cliffy/prompt";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { nip19 } from "npm:nostr-tools";
 import { BunkerSigner, decodeBunkerInfo } from "../lib/nip46.ts";
-import { Input } from "cliffy/prompt/mod.ts";
-import { SecretsManager } from "../lib/secrets/mod.ts";
 import { MessageCollector, MessageCategory } from "../lib/message-collector.ts";
 import { DisplayManager, getDisplayManager, DisplayMode } from "../lib/display-mode.ts";
 import { header } from "../lib/header.ts";
@@ -29,6 +27,7 @@ import {
   formatSummaryTitle,
   formatConfigValue
 } from "../ui/formatters.ts";
+import { SecretsManager } from "../lib/secrets/mod.ts";
 
 const log = createLogger("upload");
 
@@ -64,15 +63,15 @@ export function registerUploadCommand(program: Command): void {
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
     .option("-p, --purge", "Delete online file events that are not used anymore.", { default: false })
-    .option("-v, --verbose", "Verbose output.")
+    .option("-v, --verbose", "Verbose output.", { default: false })
     .option("-c, --concurrency <number:number>", "Number of parallel uploads.", { default: 4 })
     .option("--publish-server-list", "Publish the list of blossom servers (Kind 10063).", { default: false })
     .option("--publish-relay-list", "Publish the list of nostr relays (Kind 10002).", { default: false })
     .option("--publish-profile", "Publish the app profile for the npub (Kind 0).", { default: false })
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("--non-interactive", "Run in non-interactive mode", { default: false })
-    .action(async (options, folder) => {
-      await uploadCommand(folder, options as unknown as UploadCommandOptions);
+    .action(async (options: UploadCommandOptions, folder: string) => {
+      await uploadCommand(folder, options);
     });
 }
 

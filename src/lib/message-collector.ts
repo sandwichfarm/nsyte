@@ -1,4 +1,4 @@
-import { colors } from "cliffy/ansi/colors.ts";
+import { colors } from "@cliffy/ansi/colors";
 
 /**
  * Message type for collector

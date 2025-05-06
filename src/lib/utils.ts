@@ -1,5 +1,5 @@
 import { NostrEvent } from "./nostr.ts";
-import { Command } from "cliffy/command/mod.ts";
+import { Command } from "@cliffy/command";
 
 /**
  * Extract a tag value from a nostr event

@@ -1,4 +1,4 @@
-import { colors } from "cliffy/ansi/colors.ts";
+import { colors } from "@cliffy/ansi/colors";
 import { UploadProgress } from "../lib/upload.ts";
 
 const PROGRESS_BAR_WIDTH = 30;
