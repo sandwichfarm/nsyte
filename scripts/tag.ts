@@ -22,29 +22,6 @@ async function updateVersion() {
   console.log(`Source version from VERSION file: ${version}`);
   const gitTagVersion = `v${version}`;
 
-  // Update src/version.ts
-  try {
-    const srcVersionTsContent = `export const version = "${version}";\n`;
-    // Check current content to avoid unnecessary writes/git changes
-    let currentSrcVersion = "";
-    try {
-        currentSrcVersion = (await Deno.readTextFile(srcVersionTsPath)).trim();
-    } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound)) throw e;
-        // if file doesn't exist, that's fine, we'll create it
-    }
-    if (currentSrcVersion !== srcVersionTsContent.trim()) {
-        await Deno.writeTextFile(srcVersionTsPath, srcVersionTsContent);
-        console.log(`Successfully updated src/version.ts to ${version}`);
-    } else {
-        console.log("src/version.ts is already up to date.");
-    }
-  } catch (error) {
-    console.error("Error updating src/version.ts:", error);
-    return;
-  }
-
-  // Update deno.json
   try {
     const denoJsonContent = await Deno.readTextFile(denoJsonPath);
     const denoJson = JSON.parse(denoJsonContent);
@@ -61,7 +38,6 @@ async function updateVersion() {
     return;
   }
 
-  // Git operations (commit and tag)
   try {
     const statusProcess = new Deno.Command("git", { args: ["status", "--porcelain", "VERSION", "src/version.ts", "deno.json"] });
     const { stdout: statusOutput } = await statusProcess.output();
@@ -82,7 +58,7 @@ async function updateVersion() {
         if (commitErrText && !commitOutText.includes("nothing to commit") && !commitOutText.includes(commitMessage)) {
              if (!commitErrText.includes("nothing to commit")) {
                 console.error("Error committing changes:", commitErrText);
-                return; // If commit failed, don't tag
+                return;
              } else {
                 console.log("Nothing to commit. Monitored files are already in the desired state.");
              }
@@ -96,7 +72,6 @@ async function updateVersion() {
         console.log("No changes in VERSION, src/version.ts, or deno.json to commit.");
     }
     
-    // Check for other unstaged changes not related to version files
     const generalStatusProcess = new Deno.Command("git", { args: ["status", "--porcelain"] });
     const { stdout: generalStatusOutput } = await generalStatusProcess.output();
     const generalStatus = new TextDecoder().decode(generalStatusOutput).trim();
@@ -110,7 +85,6 @@ async function updateVersion() {
         console.warn(`Warning: Uncommitted changes detected in other files: ${otherChanges}. Please commit or stash them if they should not be part of the version tag ${gitTagVersion}.`);
     }
 
-    // Check if tag already exists
     const tagCheckProcess = new Deno.Command("git", { args: ["tag", "-l", gitTagVersion] });
     const { stdout: tagCheckOutput } = await tagCheckProcess.output();
     const localTagExists = new TextDecoder().decode(tagCheckOutput).trim() === gitTagVersion;
@@ -125,15 +99,14 @@ async function updateVersion() {
             const deleteTagErrText = new TextDecoder().decode(deleteTagErr);
             if (deleteTagErrText) {
                 console.error(`Error deleting local tag ${gitTagVersion}:`, deleteTagErrText);
-                return; // Don't proceed if deletion failed
+                return;
             }
             console.log(`Successfully deleted local tag ${gitTagVersion}.`);
         } else {
             console.log("Skipping tag creation.");
-            return; // User chose not to overwrite, so we exit this part
+            return;
         }
     }
-    // Proceed to create tag if it didn't exist or if user chose to overwrite
     console.log(`Creating git tag ${gitTagVersion}...`);
     const tagProcess = new Deno.Command("git", { args: ["tag", gitTagVersion] });
     const { stderr: tagErr } = await tagProcess.output();

@@ -1,1 +1,1 @@
-export const version = "0.5.0";
+export const version = await Deno.readTextFile("VERSION").then(v => v.trim());

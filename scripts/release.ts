@@ -20,7 +20,6 @@ async function release() {
   const gitTagVersion = `v${version}`;
   console.log(`Preparing to release version ${version} (tag ${gitTagVersion}).`);
 
-  // Check if local tag exists first
   try {
     const localTagCheckProcess = new Deno.Command("git", { args: ["rev-parse", gitTagVersion], stdout: "piped", stderr: "piped" });
     const localTagCheckOutput = await localTagCheckProcess.output();
@@ -38,7 +37,6 @@ async function release() {
     return;
   }
 
-  // Push main branch commits first
   try {
     console.log("Pushing commits to origin...");
     const pushCommitsProcess = new Deno.Command("git", { args: ["push"], stdout: "piped", stderr: "piped" });
@@ -47,8 +45,6 @@ async function release() {
         const errText = new TextDecoder().decode(pushCommitsOutput.stderr).trim();
         if (errText && !errText.includes("Everything up-to-date")) {
             console.error("Error pushing commits:", errText);
-            // Decide if we should stop or continue if push fails
-            // For now, we'll continue to the tag part but this might need adjustment based on workflow desires
         } else {
             console.log("Commits are up-to-date or pushed successfully.");
         }
@@ -57,10 +53,8 @@ async function release() {
     }
   } catch (error) {
     console.error("Error during git push:", error);
-    // Not returning here, as tag push is a separate operation
   }
 
-  // Check if tag exists on remote 'origin'
   try {
     console.log(`Checking if tag ${gitTagVersion} exists on remote 'origin'...`);
     const remoteTagCheckProcess = new Deno.Command("git", { args: ["ls-remote", "--tags", "origin", `refs/tags/${gitTagVersion}`], stdout: "piped", stderr: "piped" });
@@ -70,7 +64,6 @@ async function release() {
 
     if (remoteTagCheckCode !== 0 && remoteTagErrText) {
         console.warn("Warning checking remote tag:", remoteTagErrText);
-        // Potentially proceed if it's a recoverable error or network issue, or just inform user
     }
 
     const remoteTagExists = remoteTagOutput.includes(`refs/tags/${gitTagVersion}`);
@@ -93,7 +86,6 @@ async function release() {
       }
     }
 
-    // Push the tag
     console.log(`Pushing tag ${gitTagVersion} to 'origin'...`);
     const pushTagProcess = new Deno.Command("git", { args: ["push", "origin", gitTagVersion], stdout: "piped", stderr: "piped" });
     const pushTagOut = await pushTagProcess.output();
