@@ -1,6 +1,6 @@
 {
   "name": "nsyte",
-  "version": "0.2.6",
+  "version": "0.3.7",
   "description": "nsyte - publish your site to nostr and blossom servers",
   "exports": "./src/cli.ts",
   "tasks": {
@@ -10,7 +10,8 @@
     "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:windows",
     "compile:linux": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
     "compile:macos": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-apple-darwin --output dist/nsyte-macos src/cli.ts",
-    "compile:windows": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts"
+    "compile:windows": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts",
+    "version:update": "deno run --allow-read --allow-write --allow-run=git scripts/update-version.ts"
   },
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.7",
@@ -34,6 +35,8 @@
     "singleQuote": false
   },
   "test": {
-    "include": ["tests/"]
+    "include": [
+      "tests/"
+    ]
   }
-} 
+}\n
