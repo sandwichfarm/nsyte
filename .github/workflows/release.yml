@@ -17,7 +17,7 @@ jobs:
       - name: Set up Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: '1.40.5'
+          deno-version: '2.3.1'
       
       - name: Get version from tag
         id: get_version

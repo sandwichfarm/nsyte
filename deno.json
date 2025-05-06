@@ -11,7 +11,7 @@
     "compile:linux": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
     "compile:macos": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-apple-darwin --output dist/nsyte-macos src/cli.ts",
     "compile:windows": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts",
-    "version:update": "deno run --allow-read --allow-write --allow-run=git scripts/update-version.ts",
+    "tag": "deno run --allow-read --allow-write --allow-run=git scripts/update-version.ts",
     "release": "deno run --allow-read --allow-run=git --allow-net scripts/release.ts"
   },
   "imports": {
