@@ -1,9 +1,6 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
 
-// Global error handler for uncaught promise rejections and exceptions
-// This will prevent rate-limiting errors from crashing the entire process
 self.addEventListener("unhandledrejection", (event) => {
-  // Check if it's a rate limiting error
   if (event.reason && 
       event.reason.message && 
       (event.reason.message.includes("rate-limit") || 
@@ -11,7 +8,6 @@ self.addEventListener("unhandledrejection", (event) => {
     
     console.warn(`Rate limiting detected: ${event.reason.message}`);
     
-    // Prevent the error from crashing the process
     event.preventDefault();
   }
 });
@@ -23,7 +19,9 @@ import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { setupProject } from "./lib/config.ts";
 import { createLogger } from "./lib/logger.ts";
-import { header } from "./lib/header.ts";
+import { header } from "./ui/header.ts";
+import { version } from "./version.ts";
+
 import { 
   bunkerCommand as bunkerCommandHandler, 
   listBunkers, 
@@ -37,18 +35,15 @@ import {
 
 const log = createLogger("cli");
 
-// Create the main command
 const nsite = new Command()
   .name("nsyte")
-  .version("0.2.0") // Hard-coded for now - should come from version.ts
+  .version(version)
   .description("Publish your site to nostr and blossom servers");
 
-// Register standard commands
 registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
 
-// Create bunker as a separate command object, then add it to nsite
 const bunkerCommand = new Command()
   .name("bunker")
   .description("Manage nostr bunker connections and nbunks")
@@ -56,7 +51,6 @@ const bunkerCommand = new Command()
     showBunkerHelp();
   });
 
-// Add subcommands to the bunker command
 bunkerCommand
   .command("list", "List all stored bunkers in the system")
   .action(async () => {
@@ -99,14 +93,10 @@ bunkerCommand
     showBunkerHelp();
   });
 
-// Add the bunker command to the main program
 nsite.command("bunker", bunkerCommand);
 
-// Main action for root command - only runs when no subcommand is specified
 nsite.action(async () => {
-  // This action only runs when no valid subcommand is given
   try {
-    // Skip setup if we're showing help or version
     if (Deno.args.includes("-h") || Deno.args.includes("--help") || 
         Deno.args.includes("-V") || Deno.args.includes("--version")) {
       await nsite.showHelp();
@@ -136,7 +126,6 @@ nsite.action(async () => {
  * Display the nsyte header in a random color
  */
 function displayColorfulHeader() {
-  // List of available color functions
   const colorFunctions = [
     colors.red,
     colors.green,
@@ -152,10 +141,8 @@ function displayColorfulHeader() {
     colors.brightCyan
   ];
   
-  // Select a random color function
   const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
   
-  // Display the header in the random color
   console.log(randomColorFn(header));
 }
 
@@ -164,26 +151,20 @@ function displayColorfulHeader() {
  */
 async function main() {
   try {
-    // Display the colorful header
     displayColorfulHeader();
     
-    // Handle bunker command specially to avoid setup
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
-      // Use bunkerCommand directly without triggering setup
-      await handleBunkerCommand(false); // Pass false to skip header display
+      await handleBunkerCommand(false);
       return;
     }
     
-    // For help flags, skip the setup
     const isHelp = Deno.args.includes("-h") || Deno.args.includes("--help") || 
                   Deno.args.includes("-V") || Deno.args.includes("--version");
     
-    // For other commands, we need to initialize the project
     if (!isHelp) {
       const { projectData, privateKey } = await setupProject(isHelp);
     }
     
-    // Parse arguments and run command
     await nsite.parse(Deno.args);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -198,15 +179,12 @@ async function main() {
  */
 async function handleBunkerCommand(showHeader = true): Promise<void> {
   try {
-    // Display the colorful header for bunker commands if not already shown
     if (showHeader) {
       displayColorfulHeader();
     }
     
     if (Deno.args.length === 1 || Deno.args.includes("-h") || Deno.args.includes("--help")) {
-      // Just show bunker help
       showBunkerHelp();
-      // Force exit for help command
       Deno.exit(0);
       return;
     }
@@ -221,25 +199,19 @@ async function handleBunkerCommand(showHeader = true): Promise<void> {
         break;
       case "import":
         await importNbunk(args[0]);
-        // importNbunk already handles its own exit
         break;
       case "export":
         await exportNbunk(args[0]);
         Deno.exit(0);
         break;
       case "connect":
-        // Handle special case for connect to support separate parameters
         if (args.length > 0 && !args[0].startsWith("-")) {
-          // Standard URL approach
           await connectBunker(args[0]);
-          // connectBunker has its own exit handling
         } else {
-          // Allow for separate parameters to avoid shell escaping issues
           let pubkey = "";
           let relay = "";
           let secret = "";
           
-          // Extract parameters
           for (let i = 0; i < args.length; i++) {
             if (args[i] === "--pubkey" && i + 1 < args.length) {
               pubkey = args[i + 1];
@@ -253,15 +225,11 @@ async function handleBunkerCommand(showHeader = true): Promise<void> {
             }
           }
           
-          // Construct the URL if we have the required parts
           if (pubkey && relay) {
             const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${secret ? `&secret=${secret}` : ''}`;
             await connectBunker(url);
-            // connectBunker has its own exit handling
           } else {
-            // Not enough parameters, use interactive mode
             await connectBunker();
-            // connectBunker has its own exit handling
           }
         }
         break;
@@ -284,7 +252,6 @@ async function handleBunkerCommand(showHeader = true): Promise<void> {
         break;
     }
     
-    // Default exit at the end as a fallback
     setTimeout(() => {
       Deno.exit(0);
     }, 500);
@@ -292,12 +259,10 @@ async function handleBunkerCommand(showHeader = true): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Error in bunker command: ${errorMessage}`);
     console.error(colors.red(`Error: ${errorMessage}`));
-    // Exit with error code on exceptions
     Deno.exit(1);
   }
 }
 
-// Run the CLI
 main().catch((err) => {
   console.error("Unexpected error:", err);
   Deno.exit(1);

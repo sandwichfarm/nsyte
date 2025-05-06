@@ -15,7 +15,7 @@ import { nip19 } from "npm:nostr-tools";
 import { BunkerSigner, decodeBunkerInfo } from "../lib/nip46.ts";
 import { MessageCollector, MessageCategory } from "../lib/message-collector.ts";
 import { DisplayManager, getDisplayManager, DisplayMode } from "../lib/display-mode.ts";
-import { header } from "../lib/header.ts";
+import { header } from "../ui/header.ts";
 import { 
   formatTitle, 
   formatSectionHeader, 
