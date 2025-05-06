@@ -32,18 +32,20 @@ function _renderQrArrayWithQuietZone(
   borderSize: number,
   lightCharPair = "\u2588\u2588", // Full blocks (appears as foreground color, e.g., white)
   darkCharPair = "  " // Spaces (appears as background color, e.g., black)
-): void {
+): number {
   if (!qrArray || qrArray.length === 0) {
     log.warn("QR array is empty, cannot render.");
-    return;
+    return 0;
   }
 
   const qrWidth = qrArray[0].length;
   const totalWidthModules = qrWidth + 2 * borderSize;
+  let linesPrinted = 0;
 
   // Top border
   for (let i = 0; i < borderSize; i++) {
     console.log(lightCharPair.repeat(totalWidthModules));
+    linesPrinted++;
   }
 
   // QR content with side borders
@@ -55,12 +57,15 @@ function _renderQrArrayWithQuietZone(
     }
     line += lightCharPair.repeat(borderSize); // Right border
     console.log(line);
+    linesPrinted++;
   }
 
   // Bottom border
   for (let i = 0; i < borderSize; i++) {
     console.log(lightCharPair.repeat(totalWidthModules));
+    linesPrinted++;
   }
+  return linesPrinted;
 }
 
 /**
@@ -549,47 +554,62 @@ export class BunkerSigner implements Signer {
     appRelays: string[],
     connectTimeoutMs = 120000 // 2 minutes
   ): Promise<BunkerSigner> {
-    const appClientKey = nostrTools.generateSecretKey(); // Uint8Array
-    const appClientPubkey = getPublicKey(bytesToHex(appClientKey)); // hex string
+    const appClientKey = nostrTools.generateSecretKey();
+    const appClientPubkey = getPublicKey(bytesToHex(appClientKey));
 
-    const metadata = JSON.stringify({ name: appName });
-    const nostrConnectUri = `nostrconnect://${appClientPubkey}?${appRelays.map(r => `relay=${encodeURIComponent(r)}`).join('&')}&metadata=${encodeURIComponent(metadata)}&perms=${PERMISSIONS}`;
+    const metadata = JSON.stringify({ name: appName, perms: PERMISSIONS });
+    const nostrConnectUri = `nostrconnect://${appClientPubkey}?${appRelays.map(r => `relay=${encodeURIComponent(r)}`).join('&')}&name=${encodeURIComponent(appName)}&perms=${encodeURIComponent(PERMISSIONS)}`;
 
     log.info("Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):");
+    let qrLines = 0;
     try {
-      // Generate QR data as an array of booleans
       const qrArray: boolean[][] | undefined = await generateQrCodeForTerminal(nostrConnectUri, { output: "array" });
-      _renderQrArrayWithQuietZone(qrArray, 2); // Render with a 2-module quiet zone
+      qrLines = _renderQrArrayWithQuietZone(qrArray, 2);
     } catch (qrError) {
       log.error(`Failed to generate QR code: ${qrError}. Please copy the URI manually.`);
+      qrLines = -1; 
     }
     log.info(`Or copy-paste this URI: ${nostrConnectUri}`);
     log.info(`Waiting for Signer to connect (timeout in ${connectTimeoutMs / 1000}s)...`);
+    
+    const linesToClearAfterScanOrTimeout = qrLines >= 0 ? qrLines + 3 : 3; // +3 for scan, uri, waiting msgs
+
+    const clearConsoleMessages = (lines: number) => {
+      if (lines > 0 && Deno.stdout.isTerminal()) {
+        const encoder = new TextEncoder();
+        // Move cursor to the line of the first message we want to clear
+        Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`)); 
+        for (let i = 0; i < lines; i++) {
+          Deno.stdout.writeSync(encoder.encode('\x1b[2K\x1b[B')); // Clear line, then move down
+        }
+        // After clearing, move cursor back up to the start of the cleared block
+        Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`)); 
+      }
+    };
 
     return new Promise<BunkerSigner>((resolve, reject) => {
       const tempPool = new nostrTools.SimplePool();
       let subscription: { close: () => void } | null = null;
       let timeoutHandle: number | undefined = undefined;
 
-      const cleanup = () => {
+      const cleanupAndReject = (errorMsg: string) => {
+        clearConsoleMessages(linesToClearAfterScanOrTimeout);
+        log.error(errorMsg); // Log error after clearing
         if (timeoutHandle) clearTimeout(timeoutHandle);
-        if (subscription) {
-          try {
-            subscription.close();
-          } catch (e) {
-            log.debug(`Error closing nostrconnect subscription in onevent: ${e}`);
-          }
-        }
-        try {
-          tempPool.close(appRelays);
-        } catch (e) {
-          log.debug(`Error closing tempPool for nostrconnect: ${e}`);
-        }
+        if (subscription) try { subscription.close(); } catch (e) { /* ignore */ }
+        try { tempPool.close(appRelays); } catch (e) { /* ignore */ }
+        reject(new Error(errorMsg));
+      };
+
+      const cleanup = () => { // General cleanup without rejecting (for success path)
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        if (subscription) try { subscription.close(); } catch (e) { /* ignore */ }
+        // tempPool closed specifically in success/failure paths after use
       };
 
       timeoutHandle = setTimeout(() => {
-        cleanup();
-        reject(new Error(`Timeout waiting for Signer connection (${connectTimeoutMs / 1000}s).`));
+        const msg = `Timeout waiting for Signer connection (${connectTimeoutMs / 1000}s).`;
+        cleanupAndReject(msg); // Calls clearConsoleMessages internally
       }, connectTimeoutMs);
 
       const filter = {
@@ -599,7 +619,6 @@ export class BunkerSigner implements Signer {
       };
 
       log.info("NostrConnect: Attempting to ensure initial relay connections for listening...");
-      // Ensure connections to app relays before subscribing
       Promise.allSettled(appRelays.map(r => tempPool.ensureRelay(r)))
         .then((results) => {
           const successfulRelays = results
@@ -614,9 +633,8 @@ export class BunkerSigner implements Signer {
           if (successfulRelays.length > 0) {
             log.info(`NostrConnect: Successfully connected to listening relays: ${successfulRelays.join(', ')}`);
           } else {
-            log.error(`NostrConnect: Failed to connect to any listening relays: ${appRelays.join(', ')}. Failures: ${failedRelays.join('; ')}`);
-            cleanup();
-            reject(new Error(`NostrConnect: Failed to connect to any of the initial listening relays: ${failedRelays.join('; ')}`));
+            const errorDetail = `Failed to connect to any listening relays: ${appRelays.join(', ')}. Failures: ${failedRelays.join('; ')}`;
+            cleanupAndReject(`NostrConnect: ${errorDetail}`); // Calls clearConsoleMessages
             return;
           }
           if (failedRelays.length > 0) {
@@ -697,6 +715,7 @@ export class BunkerSigner implements Signer {
 
                   // --- Common logic if userMainPubkey was determined by either scenario --- 
                   if (userMainPubkey) {
+                    clearConsoleMessages(linesToClearAfterScanOrTimeout);
                     // Close the temporary pool connections used for listening, as handshake part is done.
                     try {
                       log.debug("Nostrconnect: Closing temp pool for app relays post-handshake signal.");
@@ -717,19 +736,22 @@ export class BunkerSigner implements Signer {
                       log.info("NostrConnect: Successfully resolved BunkerSigner instance.");
                       resolve(newSignerInstance);
                     } catch (sessionError) {
+                      // If establishSession fails, we need to ensure console is cleared before logging final error
+                      clearConsoleMessages(linesToClearAfterScanOrTimeout);
                       log.error(`Nostrconnect: Failed to establish session after handshake: ${sessionError}`);
-                      await newSignerInstance.disconnect();
+                      await newSignerInstance.disconnect(); // Disconnect the partially formed signer
                       reject(new Error(`Failed to establish session with Signer: ${sessionError}`));
                     }
                   } else {
-                    // Should not happen if logic above is correct, but as a safeguard:
-                    log.error("NostrConnect: userMainPubkey could not be determined from Signer's message.");
-                    // Let it timeout or handle other events if any.
+                    // This path (userMainPubkey is null after processing) implies a non-critical error for THIS event,
+                    // but we don't clear or reject the main promise yet. Let it timeout or get another event.
+                    log.error("NostrConnect: userMainPubkey could not be determined from Signer's message. Waiting for other events or timeout.");
                   }
 
-                } catch (error) {
+                } catch (error) { // Error during event processing (e.g., decryption)
+                  // Don't clear or reject the main promise for a single event processing error.
+                  // Log it and let it timeout or receive another, valid event.
                   log.error(`Nostrconnect: Error processing event from ${signerProxyPubkey.slice(0,8)}...: ${error}`);
-                  // Don't reject the main promise here for a single event processing error, let it timeout or get a good event.
                 }
               },
               oneose: () => {
@@ -741,9 +763,8 @@ export class BunkerSigner implements Signer {
             }
           );
         }).catch(relayConnectionError => {
-          log.error(`NostrConnect: Error during initial relay connection setup promise chain: ${relayConnectionError}`);
-          cleanup();
-          reject(new Error(`Failed to connect to initial relays for NostrConnect: ${relayConnectionError}`));
+          const errorDetail = `Error during initial relay connection setup promise chain: ${relayConnectionError}`;
+          cleanupAndReject(`NostrConnect: ${errorDetail}`); // Calls clearConsoleMessages
         });
     });
   }
