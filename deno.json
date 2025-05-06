@@ -1,6 +1,6 @@
 {
   "name": "nsyte",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "nsyte - publish your site to nostr and blossom servers",
   "exports": "./src/cli.ts",
   "tasks": {
@@ -39,4 +39,4 @@
       "tests/"
     ]
   }
-}\n
+}
