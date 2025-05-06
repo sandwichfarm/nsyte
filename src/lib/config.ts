@@ -434,9 +434,7 @@ Generated and stored nbunksec string.`));
   };
 
   return { projectData, privateKey };
-}
-
-/**
+}/**
  * Prompt for URLs with suggestions
  */
 async function promptForUrls(message: string, suggestions: string[]): Promise<string[]> {
@@ -461,3 +459,4 @@ async function promptForUrls(message: string, suggestions: string[]): Promise<st
   
   return urls;
 } 
+

@@ -1,4 +1,5 @@
-import { colors } from "cliffy/ansi/colors.ts";
+import { colors } from "@cliffy/ansi/colors";
+import { version } from "../version.ts";
 
 /**
  * Display the nsyte ASCII logo
@@ -12,6 +13,6 @@ export function displayLogo(): void {
 88    88       88 88.  .88   88   88.  ... 
 dP    dP \`88888P' \`8888P88   dP   \`88888P' 
                        .88                 
-                   d8888P                  
+                   d8888P        ${colors.white(`v${version}`)}
 `));
 } 

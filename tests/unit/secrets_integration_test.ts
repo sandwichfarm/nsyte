@@ -7,8 +7,6 @@ import {
   getBunkerInfo, 
   saveBunkerInfo, 
   storeBunkerUrl,
-  getClientKey,
-  saveClientKey,
   BunkerInfo,
   encodeBunkerInfo,
   decodeBunkerInfo,
@@ -115,27 +113,5 @@ describe("Secrets and NIP-46 Integration", () => {
     assertEquals(decoded.relays.length, 2);
     assertEquals(decoded.relays.includes("wss://test.relay"), true);
     assertEquals(decoded.relays.includes("wss://another.relay"), true);
-  });
-
-  it("should provide backwards compatibility with getClientKey and saveClientKey", () => {
-    // Generate a client key
-    const clientKey = nostrTools.generateSecretKey();
-    
-    // Save it
-    saveClientKey(testBunkerPubkey, clientKey);
-    
-    // Retrieve it
-    const retrievedKey = getClientKey(testBunkerPubkey);
-    
-    // Verify it
-    assertNotEquals(retrievedKey, null);
-    assertEquals(new Uint8Array(retrievedKey!).toString(), new Uint8Array(clientKey).toString());
-    
-    // Delete it using the secrets manager
-    secretsManager.deleteNbunk(testBunkerPubkey);
-    
-    // Verify it's gone
-    const afterDelete = getClientKey(testBunkerPubkey);
-    assertEquals(afterDelete, null);
   });
 }); 
