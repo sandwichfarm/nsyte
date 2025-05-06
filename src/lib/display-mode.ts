@@ -50,8 +50,8 @@ export class DisplayManager {
       }
     }
     
-    // Also check NSITE_LOG_LEVEL for debug mode
-    const logLevel = Deno.env.get("NSITE_LOG_LEVEL");
+    // Also check LOG_LEVEL for debug mode
+    const logLevel = Deno.env.get("LOG_LEVEL");
     if (logLevel?.toLowerCase() === "debug") {
       this.currentMode = DisplayMode.DEBUG;
     }

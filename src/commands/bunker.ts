@@ -12,14 +12,12 @@ const log = createLogger("bunker-cmd");
  * Register the bunker command with the CLI
  */
 export function registerBunkerCommand(program: Command): void {
-  // Add the main bunker command with its own action
   program
     .command("bunker")
     .description("Manage nostr bunker connections and nbunks")
     .action(() => {
       showBunkerHelp();
     })
-    // Add subcommands as child commands
     .command("list", "List all stored bunkers in the system")
     .action(() => {
       listBunkers();
@@ -166,7 +164,6 @@ export async function listBunkers(): Promise<void> {
     }
   }
   
-  // Check if current project is using any bunker
   const projectData = readProjectFile();
   if (projectData?.bunkerPubkey) {
     console.log(colors.cyan("\nCurrent project uses bunker:"));
@@ -191,23 +188,19 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
       });
     }
 
-    // Add check after prompt in case it returned undefined/empty (e.g., Ctrl+C)
     if (!nbunkString) {
       console.log(colors.yellow("Import cancelled."));
       Deno.exit(0);
-      return; // Explicit return to satisfy TS
+      return;
     }
     
-    // First verify the nbunksec is valid by decoding it
     const info = decodeBunkerInfo(nbunkString);
     
-    // Store the nbunksec in the system-wide secrets
     const secretsManager = SecretsManager.getInstance();
     secretsManager.storeNbunk(info.pubkey, nbunkString);
     
     console.log(colors.green(`Successfully imported bunker with pubkey ${info.pubkey.slice(0, 8)}...`));
     
-    // Ask if the user wants to use this bunker for the current project
     const useForProject = await Confirm.prompt({
       message: "Would you like to use this bunker for the current project?",
       default: true,
@@ -217,7 +210,6 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
       await useBunkerForProject(info.pubkey);
     }
     
-    // Ensure process exits
     Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -240,7 +232,6 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
       return;
     }
     
-    // Format pubkeys for selection
     const options = pubkeys.map(key => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key
@@ -275,67 +266,107 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
  */
 export async function connectBunker(bunkerUrl?: string): Promise<void> {
   let signer: BunkerSigner | null = null;
-  
+  let bunkerPubkey: string | null = null;
+  let operationError: Error | null = null;
+
   try {
     if (!bunkerUrl) {
-      bunkerUrl = await Input.prompt({
-        message: "Enter the bunker URL (bunker://...):",
-        validate: (input: string) => {
-          return input.trim().startsWith("bunker://") || 
-                "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+      const choice = await Select.prompt<string>({
+        message: "How would you like to connect to the bunker?",
+        options: [
+          { name: "Scan QR Code (Nostr Connect)", value: "qr" },
+          { name: "Enter Bunker URL manually", value: "url" },
+        ],
+      });
+
+      if (choice === "qr") {
+        const appName = "nsyte";
+        const defaultRelays = ["wss://relay.nsec.app"];
+        
+        const relayInput = await Input.prompt({
+          message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+          default: defaultRelays.join(", "),
+        });
+
+        let chosenRelays: string[];
+        if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+          chosenRelays = defaultRelays;
+        } else {
+          chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
         }
-      });
-    }
-    
-    // Handle the case when the URL isn't properly quoted in the shell
-    if (bunkerUrl && !bunkerUrl.includes("?relay=") && !bunkerUrl.includes("&secret=")) {
-      console.log(colors.yellow("The bunker URL appears to be incomplete. Shell metacharacters like ? and & need to be quoted."));
-      console.log(colors.yellow("Example: nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
-      console.log(colors.yellow("You can also enter the URL interactively to avoid shell escaping issues.\n"));
-      
-      const retry = await Confirm.prompt({
-        message: "Would you like to enter the bunker URL again interactively?",
-        default: true,
-      });
-      
-      if (retry) {
-        return connectBunker(); // Retry with interactive prompt
+
+        if (chosenRelays.length === 0) {
+          console.log(colors.yellow("No relays provided. Using default relays."));
+          chosenRelays = defaultRelays;
+        }
+
+        console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+        signer = await BunkerSigner.initiateNostrConnect(appName, chosenRelays);
+        bunkerPubkey = signer.getPublicKey();
+      } else if (choice === "url") {
+        bunkerUrl = await Input.prompt({
+          message: "Enter the bunker URL (bunker://...):",
+          validate: (input: string) => {
+            return input.trim().startsWith("bunker://") ||
+                  "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+          }
+        });
       } else {
+        console.log(colors.yellow("Invalid choice. Exiting."));
         return;
       }
     }
-    
-    console.log(colors.cyan("Connecting to bunker..."));
-    
-    // Parse the URL and extract the pubkey
-    if (!bunkerUrl) {
-      console.log(colors.red("Bunker URL is missing after prompt."));
-      Deno.exit(1);
+
+    if (bunkerUrl && !signer) {
+      if (!bunkerUrl.includes("?relay=") && !bunkerUrl.includes("&secret=")) {
+        console.log(colors.yellow("The bunker URL appears to be incomplete. Shell metacharacters like ? and & need to be quoted."));
+        console.log(colors.yellow("Example: nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
+        console.log(colors.yellow("You can also enter the URL interactively to avoid shell escaping issues.\n"));
+        
+        const retry = await Confirm.prompt({
+          message: "Would you like to enter the bunker URL again interactively?",
+          default: true,
+        });
+        
+        if (retry) {
+          return connectBunker();
+        } else {
+          return;
+        }
+      }
+      
+      console.log(colors.cyan("Connecting to bunker via URL..."));
+      
+      const parsedPointer = parseBunkerUrl(bunkerUrl);
+      bunkerPubkey = parsedPointer.pubkey;
+      signer = await BunkerSigner.connect(bunkerUrl);
     }
-    const bunkerPointer = parseBunkerUrl(bunkerUrl);
+
+    if (!signer || !bunkerPubkey) {
+      console.log(colors.red("Failed to establish a signer connection."));
+      Deno.exit(1);
+      return;
+    }
     
-    // Try to connect to the bunker
-    signer = await BunkerSigner.connect(bunkerUrl);
     const nbunkString = signer.getNbunkString();
     
-    // Store the connection
     const secretsManager = SecretsManager.getInstance();
-    secretsManager.storeNbunk(bunkerPointer.pubkey, nbunkString);
+    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
     
-    console.log(colors.green(`Successfully connected to bunker ${bunkerPointer.pubkey.slice(0, 8)}... 
+    console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}... 
 Generated and stored nbunksec string.`));
     
-    // Ask if the user wants to use this bunker for the current project
     const useForProject = await Confirm.prompt({
       message: "Would you like to use this bunker for the current project?",
       default: true,
     });
     
     if (useForProject) {
-      await useBunkerForProject(bunkerPointer.pubkey);
+      await useBunkerForProject(bunkerPubkey);
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    operationError = error instanceof Error ? error : new Error(String(error));
+    const errorMessage = operationError.message;
     console.log(colors.red(`Failed to connect to bunker: ${errorMessage}`));
     
     if (errorMessage.includes("URL format") || errorMessage.includes("invalid URL")) {
@@ -343,7 +374,6 @@ Generated and stored nbunksec string.`));
       console.log(colors.cyan("  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
     }
   } finally {
-    // Make sure to clean up and disconnect properly
     if (signer) {
       try {
         console.log(colors.cyan("Disconnecting from bunker..."));
@@ -353,8 +383,10 @@ Generated and stored nbunksec string.`));
         console.error(colors.red(`Error during disconnect: ${err}`));
       }
       
-      // Force exit immediately to prevent any further WebSocket operations
-      Deno.exit(0);
+      if (!operationError) {
+         Deno.exit(0);
+      } else {
+      }
     }
   }
 }
@@ -373,7 +405,6 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
       return;
     }
     
-    // Format pubkeys for selection
     const options = pubkeys.map(key => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key
@@ -398,14 +429,12 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
     return;
   }
   
-  // Read current project config
   const projectData = readProjectFile();
   if (!projectData) {
     console.log(colors.red("No project configuration found. Initialize a project first with 'nsyte init'."));
     return;
   }
   
-  // Update project config with the bunker pubkey
   projectData.bunkerPubkey = pubkey;
   writeProjectFile(projectData);
   
@@ -426,7 +455,6 @@ export async function removeBunker(pubkey?: string): Promise<void> {
       return;
     }
     
-    // Format pubkeys for selection
     const options = pubkeys.map(key => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key
@@ -445,7 +473,6 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     return;
   }
   
-  // Confirm deletion
   const confirm = await Confirm.prompt({
     message: `Are you sure you want to remove bunker ${pubkey.slice(0, 8)}...?`,
     default: false,
@@ -456,16 +483,13 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     return;
   }
   
-  // Delete from system storage
   const deleted = secretsManager.deleteNbunk(pubkey);
   
   if (deleted) {
     console.log(colors.green(`Bunker ${pubkey.slice(0, 8)}... removed from system storage.`));
     
-    // Check if current project is using this bunker
     const projectData = readProjectFile();
     if (projectData?.bunkerPubkey === pubkey) {
-      // Ask if user wants to remove it from project config
       const removeFromProject = await Confirm.prompt({
         message: "This bunker is used by the current project. Remove it from project configuration?",
         default: true,
@@ -482,7 +506,6 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   }
 }
 
-// When the script is run directly, execute the bunker command with the arguments
 if (import.meta.main) {
   if (Deno.args.length > 0) {
     await bunkerCommand(Deno.args[0], ...Deno.args.slice(1));

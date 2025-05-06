@@ -74,7 +74,7 @@ function shouldShowLog(level: string): boolean {
  * Create a logger for a specific namespace
  */
 export function createLogger(namespace: string) {
-  const logLevel = Deno.env.get("NSITE_LOG_LEVEL") || "info";
+  const logLevel = Deno.env.get("LOG_LEVEL") || "info";
   
   const shouldLog = (level: string): boolean => {
     const levels = {
