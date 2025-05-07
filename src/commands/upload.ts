@@ -67,7 +67,7 @@ export function registerUploadCommand(program: Command): void {
     .option("--publish-relay-list", "Publish the list of nostr relays (Kind 10002).", { default: false })
     .option("--publish-profile", "Publish the app profile for the npub (Kind 0).", { default: false })
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
-    .option("--non-interactive", "Run in non-interactive mode", { default: false })
+    .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
       await uploadCommand(folder, options);
     });
