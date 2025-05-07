@@ -306,7 +306,12 @@
       "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
     }
   },
+  "redirects": {
+    "https://cdn.skypack.dev/-/@sinonjs/fake-timers@v7.1.2-pt93Fzvqp6qMXzl1XrND/dist=es2019,mode=types/index.d.ts": "https://cdn.skypack.dev/-/@sinonjs/fake-timers@v7.1.2-pt93Fzvqp6qMXzl1XrND/dist=es2019,mode=types/types/fake-timers-src.d.ts"
+  },
   "remote": {
+    "https://cdn.skypack.dev/-/sinon@v11.1.2-gD7yE198nweGBLV5XWgz/dist=es2019,mode=imports/optimized/sinon.js": "0fe70206408639006c4b013933c8a79b171ef80da43911b20038c5e6c0ef7f1b",
+    "https://cdn.skypack.dev/sinon@11.1.2?dts": "9e657d14822452c78c87c3da0e4c9156cc0504ff25f30045dc7508362e21dbf6",
     "https://deno.land/std@0.220.0/assert/_constants.ts": "a271e8ef5a573f1df8e822a6eb9d09df064ad66a4390f21b3e31f820a38e0975",
     "https://deno.land/std@0.220.0/assert/_diff.ts": "4bf42969aa8b1a33aaf23eb8e478b011bfaa31b82d85d2ff4b5c4662d8780d2b",
     "https://deno.land/std@0.220.0/assert/_format.ts": "0ba808961bf678437fb486b56405b6fefad2cf87b5809667c781ddee8c32aff4",
