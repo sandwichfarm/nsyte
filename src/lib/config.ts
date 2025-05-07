@@ -29,6 +29,7 @@ export type ProjectConfig = {
   publishRelayList: boolean;
   publishProfile?: boolean;
   fallback?: string;
+  gatewayHostnames?: string[];
 }
 
 export interface ProjectContext {
@@ -62,7 +63,10 @@ export const defaultConfig: ProjectConfig = {
   relays: [],
   servers: [],
   publishServerList: false,
-  publishRelayList: false
+  publishRelayList: false,
+  gatewayHostnames: [ 
+    'nsite.lol',
+  ]
 }
 
 /**
@@ -450,7 +454,7 @@ Generated and stored nbunksec string.`));
     },
     publishProfile,
     publishRelayList,
-    publishServerList,
+    publishServerList
   };
 
   return { config, privateKey };

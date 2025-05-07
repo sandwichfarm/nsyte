@@ -490,7 +490,7 @@ export async function listRemoteFiles(relays: string[], pubkey: string): Promise
 /**
  * Publish an nsite event to nostr
  */
-export async function publishNsiteEvent(
+export async function createpublishNsiteEvent(
   signer: Signer,
   pubkey: string,
   path: string,
