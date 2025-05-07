@@ -169,10 +169,10 @@ export async function listBunkers(): Promise<void> {
     }
   }
 
-  const projectData = readProjectFile();
-  if (projectData?.bunkerPubkey) {
+  const config = readProjectFile();
+  if (config?.bunkerPubkey) {
     console.log(colors.cyan("\nCurrent project uses bunker:"));
-    console.log(`- ${colors.green(projectData.bunkerPubkey)}`);
+    console.log(`- ${colors.green(config.bunkerPubkey)}`);
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
@@ -447,15 +447,15 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
     return;
   }
 
-  const projectData = readProjectFile();
-  if (!projectData) {
+  const config = readProjectFile();
+  if (!config) {
     console.log(colors.red("No project configuration found. Initialize a project first with 'nsyte init'."));
     Deno.exit(0);
     return;
   }
 
-  projectData.bunkerPubkey = pubkey;
-  writeProjectFile(projectData);
+  config.bunkerPubkey = pubkey;
+  writeProjectFile(config);
 
   console.log(colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`));
   
@@ -513,16 +513,16 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   if (deleted) {
     console.log(colors.green(`Bunker ${pubkey.slice(0, 8)}... removed from system storage.`));
 
-    const projectData = readProjectFile();
-    if (projectData?.bunkerPubkey === pubkey) {
+    const config = readProjectFile();
+    if (config?.bunkerPubkey === pubkey) {
       const removeFromProject = await Confirm.prompt({
         message: "This bunker is used by the current project. Remove it from project configuration?",
         default: true,
       });
 
       if (removeFromProject) {
-        delete projectData.bunkerPubkey;
-        writeProjectFile(projectData);
+        delete config.bunkerPubkey;
+        writeProjectFile(config);
         console.log(colors.green("Bunker removed from project configuration."));
       }
     }

@@ -103,12 +103,12 @@ nsite.action(async () => {
       return;
     }
     
-    const { projectData, privateKey } = await setupProject();
+    const { config, privateKey } = await setupProject();
     
-    if (privateKey || projectData.bunkerPubkey) {
+    if (privateKey || config.bunkerPubkey) {
       const keyType = privateKey ? "private key" : "bunker connection";
-      const relayCount = projectData.relays.length;
-      const serverCount = projectData.servers.length;
+      const relayCount = config.relays.length;
+      const serverCount = config.servers.length;
       
       console.log(
         colors.green(`Project is set up with ${keyType}, ${relayCount} relays and ${serverCount} blossom servers.`)

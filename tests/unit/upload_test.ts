@@ -12,7 +12,7 @@ import * as files from "../../src/lib/files.ts";
 import * as nostr from "../../src/lib/nostr.ts";
 import * as nip46 from "../../src/lib/nip46.ts";
 import { PrivateKeySigner } from "../../src/lib/signer.ts";
-import { ProjectData, ProjectContext } from "../../src/lib/config.ts";
+import { ProjectConfig, ProjectContext } from "../../src/lib/config.ts";
 import { createLogger } from "../../src/lib/logger.ts"; // To get the logger instance
 
 // MockSigner class for "Upload Module" tests (can remain as is if not used by uploadCommand tests)
@@ -206,7 +206,7 @@ describe("uploadCommand", () => {
       assert(consoleErrorStub?.calls.some(call => typeof call.args[0] === 'string' && call.args[0].includes("Missing signing key")), "Error message for missing key option not logged");
     });
 
-    it("should use CLI args for projectData even if a config file exists", async () => {
+    it("should use CLI args for config even if a config file exists", async () => {
       // This test becomes about observing the behavior of processUploads (via fetch calls)
       // to ensure it uses CLI servers/relays.
       // We need to make readProjectFile return some dummy config.

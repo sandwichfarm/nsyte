@@ -1,11 +1,11 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { Confirm, Input } from "@cliffy/prompt";
+import { Confirm } from "@cliffy/prompt";
 import { nip19 } from "npm:nostr-tools";
 import { copy } from "std/fs/copy.ts";
 import { join, normalize, dirname } from "std/path/mod.ts";
-import { readProjectFile, setupProject, type ProjectData, type ProjectContext } from "../lib/config.ts";
-import { DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
+import { defaultConfig, readProjectFile, setupProject, type ProjectConfig, type ProjectContext } from "../lib/config.ts";
+import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCollector, MessageCategory } from "../lib/message-collector.ts";
@@ -40,9 +40,28 @@ import {
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
 
+// ------------------------------------------------------------------------------------------------ //
+
 const log = createLogger("upload");
 
-interface UploadCommandOptions {
+let displayManager!: DisplayManager;
+let statusDisplay!: StatusDisplay;
+let messageCollector!: MessageCollector;
+let signer!: Signer;
+let progressRenderer!: ProgressRenderer;
+
+let options!: UploadCommandOptions;
+let resolvedRelays: string[] = [];
+let resolvedServers: string[] = [];
+let config!: ProjectConfig;
+
+const currentWorkingDir = Deno.cwd();
+let targetDir!: string; 
+let context!: ProjectContext;
+
+// ------------------------------------------------------------------------------------------------ //
+
+export interface UploadCommandOptions {
   force: boolean;
   verbose: boolean;
   purge: boolean;
@@ -59,255 +78,10 @@ interface UploadCommandOptions {
   nonInteractive: boolean;
 }
 
-let displayManager!: DisplayManager;
-let statusDisplay!: StatusDisplay;
-let messageCollector!: MessageCollector;
-let signer!: Signer;
-
-/**
- * Implementation of the upload command
- */
-export async function uploadCommand(
-  fileOrFolder: string,
-  options: UploadCommandOptions
-): Promise<void> {
-
-  log.debug("nstye upload");
-  initState(options);
-
-  try {
-    const currentWorkingDir = Deno.cwd();
-    const targetDir = join(currentWorkingDir, fileOrFolder);
-
-    const contextResult = await resolveContext(options);
-    
-    if (contextResult.error) {
-      statusDisplay.error(contextResult.error);
-      log.error(`Configuration error: ${contextResult.error}`);
-      return Deno.exit(1);
-    }
-    
-    const { projectData, authKeyHex } = contextResult;
-
-    if (!projectData) {
-      statusDisplay.error("Critical error: Project data could not be resolved.");
-      log.error("Critical error: Project data is null after context resolution without error (interactive mode).");
-      return Deno.exit(1);
-    }
-    
-    signer = (await initSigner(options, authKeyHex, projectData)) as Signer;
-    
-    if ("error" in signer) {
-      statusDisplay.error(`Signer: ${signer.error}`);
-      log.error(`Signer initialization failed: ${signer.error}`);
-      return Deno.exit(1);
-    }
-    
-    const publisherPubkey = await signer.getPublicKey();
-    const resolvedServers = options.servers?.split(",") || projectData.servers || [];
-    const resolvedRelays = options.relays?.split(",") || projectData.relays || [];
-    
-    displayConfig(
-      publisherPubkey, 
-      resolvedRelays, 
-      resolvedServers, 
-      options, 
-      projectData
-    );
-
-
-    const includedFiles = await scanLocalFiles(
-      targetDir, 
-      options
-    );
-    
-    const remoteFileEntries = await fetchRemoteFiles(
-      resolvedRelays, 
-      publisherPubkey, 
-      options
-    );
-    
-    const updatedRemoteFiles = await handlePurgeOperation(
-      options.purge, 
-      resolvedRelays, 
-      remoteFileEntries, 
-      options
-    );
-    
-    const { toTransfer, toDelete } = await compareAndPrepareFiles(
-      includedFiles, 
-      updatedRemoteFiles, 
-      options
-    );
-    
-    await maybeProcessFiles(
-      toTransfer, 
-      toDelete,
-      targetDir, 
-      resolvedServers, 
-      resolvedRelays, 
-      options,
-      projectData
-    );
-    
-    await maybePublishMetadata(
-      options, 
-      projectData, 
-      resolvedRelays
-    );
-    
-    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 && 
-        !(options.publishProfile || options.publishRelayList || options.publishServerList)) {
-      log.info("No effective operations performed.");
-    }
-    
-    flushQueuedLogs();
-    
-    return Deno.exit(0);
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    statusDisplay.error(`Upload command failed: ${errorMessage}`);
-    log.error(`Upload command failed: ${errorMessage}`);
-    return Deno.exit(1);
-  }
-}
-
-async function resolveContext(
-  options: UploadCommandOptions,
-): Promise<{ projectData: ProjectData | null; authKeyHex: string | null | undefined; error?: string }> {
-  let projectData: ProjectData | null = null;
-  let authKeyHex: string | null | undefined = options.privatekey || undefined;
-
-    if (options.nonInteractive) {
-    log.debug("Resolving project context in non-interactive mode.");
-      const existingProjectData = readProjectFile();
-
-    if (!options.servers && (!existingProjectData?.servers || existingProjectData.servers.length === 0)) {
-      return { projectData: existingProjectData, authKeyHex, error: "Missing servers: Provide --servers or configure in .nsite/config.json." };
-    }
-    if (!options.relays && (!existingProjectData?.relays || existingProjectData.relays.length === 0)) {
-      return { projectData: existingProjectData, authKeyHex, error: "Missing relays: Provide --relays or configure in .nsite/config.json." };
-    }
-
-    if (!authKeyHex && !options.nbunksec && !options.bunker) {
-      if (!existingProjectData?.bunkerPubkey) {
-        return { projectData: existingProjectData, authKeyHex, error: "Missing signing key: For non-interactive mode, provide --privatekey, --nbunksec, --bunker, or ensure a bunker is configured in .nsite/config.json." };
-      } else {
-        log.info("No direct key/nsec on CLI. Will attempt to use configured bunker for non-interactive mode.");
-      }
-    }
-    
-    projectData = {
-      servers: options.servers ? options.servers.split(",") : existingProjectData?.servers || [],
-      relays: options.relays ? options.relays.split(",") : existingProjectData?.relays || [],
-      publishServerList: options.publishServerList !== undefined ? options.publishServerList : existingProjectData?.publishServerList || false,
-      publishRelayList: options.publishRelayList !== undefined ? options.publishRelayList : existingProjectData?.publishRelayList || false,
-      publishProfile: options.publishProfile !== undefined ? options.publishProfile : existingProjectData?.publishProfile || false,
-      profile: existingProjectData?.profile,
-      bunkerPubkey: existingProjectData?.bunkerPubkey, 
-      fallback: options.fallback || existingProjectData?.fallback,
-    };
-
-    } else {
-    log.debug("Resolving project context in interactive mode.");
-    const currentProjectData = readProjectFile();
-    let keyFromInteractiveSetup: string | undefined;
-
-    if (!currentProjectData) {
-      log.info("No .nsite/config.json found, running initial project setup.");
-      const setupResult = await setupProject(false); 
-      if (!setupResult.projectData) {
-        return { projectData: null, authKeyHex: undefined, error: "Project setup failed or was aborted." };
-      }
-      projectData = setupResult.projectData;
-      keyFromInteractiveSetup = setupResult.privateKey;
-    } else {
-      projectData = currentProjectData;
-      if (!options.privatekey && !options.nbunksec && !options.bunker && !projectData.bunkerPubkey) {
-        log.info("Project is configured but no signing method found (CLI key, CLI bunker, or configured bunker). Running key setup...");
-        const keySetupResult = await setupProject(false);
-        if (!keySetupResult.projectData) {
-          return { projectData, authKeyHex: undefined, error: "Key setup for existing project failed or was aborted." };
-        }
-        projectData = keySetupResult.projectData;
-        keyFromInteractiveSetup = keySetupResult.privateKey;
-      }
-    }
-    
-    if (options.privatekey) {
-        authKeyHex = options.privatekey;
-    } else if (keyFromInteractiveSetup) {
-        authKeyHex = keyFromInteractiveSetup;
-    }
-  }
-  
-  if (!projectData || !projectData.servers || projectData.servers.length === 0) {
-    return { projectData, authKeyHex, error: "Servers configuration is missing or empty." };
-  }
-  if (!projectData.relays || projectData.relays.length === 0) {
-    return { projectData, authKeyHex, error: "Relays configuration is missing or empty." };
-  }
-
-  return { projectData, authKeyHex };
-}
-
-async function initSigner(
-  options: UploadCommandOptions,
-  authKeyHex: string | null | undefined,
-  projectData: ProjectData | null
-): Promise<Signer | { error: string }> {
-  if (options.nbunksec) {
-    try {
-      log.info("Using NostrBunker (nbunksec from CLI) for signing...");
-        const bunkerSigner = await importFromNbunk(options.nbunksec);
-      await bunkerSigner.getPublicKey();
-      return bunkerSigner;
-    } catch (e: unknown) {
-      return { error: `Failed to import nbunksec from CLI: ${(e as Error).message}` };
-      }
-    } else if (options.bunker) {
-    try {
-      log.info(`Using NostrBunker (URL from CLI: ${options.bunker}) for signing...`);
-      const { client } = await createNip46ClientFromUrl(options.bunker);
-      return client;
-    } catch (e: unknown) {
-      return { error: `Failed to connect to bunker URL from CLI: ${(e as Error).message}` };
-    }
-  } else if (authKeyHex) {
-    log.info("Using private key for signing (from CLI or interactive setup)...");
-    try {
-      return new PrivateKeySigner(authKeyHex);
-    } catch (e: unknown) {
-      return { error: `Invalid private key provided: ${(e as Error).message}` };
-    }
-  } else if (projectData?.bunkerPubkey) {
-    log.info(`Attempting to use configured bunker (pubkey: ${projectData.bunkerPubkey.substring(0,8)}...) for signing...`);
-      const secretsManager = SecretsManager.getInstance();
-      const nbunkString = secretsManager.getNbunk(projectData.bunkerPubkey);
-      if (nbunkString) {
-        try {
-        log.info("Found stored nbunksec for configured bunker. Importing...");
-          const bunkerSigner = await importFromNbunk(nbunkString);
-        await bunkerSigner.getPublicKey();
-        return bunkerSigner;
-      } catch (e: unknown) {
-        const baseMsg = `Failed to use stored nbunksec for configured bunker ${projectData.bunkerPubkey.substring(0,8)}...: ${(e as Error).message}`;
-          if (options.nonInteractive) {
-          return { error: `${baseMsg} In non-interactive mode, cannot re-prompt. Please check bunker or provide key via CLI.` };
-        } else {
-          return { error: `${baseMsg} The stored secret may be invalid. Consider re-configuring the bunker connection.` };
-        }
-        }
-      } else {
-      const baseMsg = `No stored secret (nbunksec) found for configured bunker: ${projectData.bunkerPubkey.substring(0,8)}...`;
-        if (options.nonInteractive) {
-        return { error: `${baseMsg} In non-interactive mode, cannot prompt for new bunker details. Please run interactively or provide key/nbunksec via CLI.` };
-      } else {
-        return { error: `${baseMsg} Please re-configure the bunker connection or provide a key/nbunksec via CLI.` };
-      }
-    }
-  }
-  return { error: "No valid signing method could be initialized (private key, nbunksec, or bunker). Please check your configuration or CLI arguments." };
+export interface FilePreparationResult { 
+  toTransfer: FileEntry[]; 
+  existing: FileEntry[]; 
+  toDelete: FileEntry[] 
 }
 
 /**
@@ -337,41 +111,310 @@ export function registerUploadCommand(program: Command): void {
     });
 }
 
-export function displayConfig(publisherPubkey: string, resolvedRelays: string[], resolvedServers: string[], options: UploadCommandOptions, projectData: ProjectData){
+// ------------------------------------------------------------------------------------------------ //
+
+/**
+ * Implements the primary upload command functionality for nsyte
+ * 
+ * This function handles the entire upload workflow including:
+ * - Initializing state and configuration
+ * - Resolving project context and authentication
+ * - Setting up signing capabilities
+ * - Scanning local files
+ * - Fetching and comparing remote files
+ * - Processing file uploads/deletions
+ * - Publishing metadata
+ * - Displaying results
+ * 
+ * @param fileOrFolder: string - Path to the file or folder to upload, relative to current working directory
+ * @param options<UploadCommandOptions> - Upload command options
+ * 
+ * @returns Promise that resolves when upload completes, process exits with status code
+ */
+export async function uploadCommand( fileOrFolder: string, options_: UploadCommandOptions ): Promise<void> {
+
+  initState(options_);
+  log.debug("begin nstye upload");
+
+  try {
+    targetDir = join(currentWorkingDir, fileOrFolder);
+    context = await resolveContext(options);
+    
+    if (context.error) {
+      statusDisplay.error(context.error);
+      log.error(`Configuration error: ${context.error}`);
+      return Deno.exit(1);
+    }
+
+    const { authKeyHex } = context;
+    config = context.config;
+
+    if (!config) {
+      statusDisplay.error("Critical error: Project data could not be resolved.");
+      log.error("Critical error: Project data is null after context resolution without error (interactive mode).");
+      return Deno.exit(1);
+    }
+    
+    signer = (await initSigner(authKeyHex, config)) as Signer;
+    
+    if ("error" in signer) {
+      statusDisplay.error(`Signer: ${signer.error}`);
+      log.error(`Signer initialization failed: ${signer.error}`);
+      return Deno.exit(1);
+    }
+    
+    const publisherPubkey = await signer.getPublicKey();
+
+    resolvedServers = options.servers?.split(",") || config.servers || [];
+    resolvedRelays = options.relays?.split(",") || config.relays || [];
+    
+    displayConfig( publisherPubkey );
+
+    const includedFiles = await scanLocalFiles();
+    const remoteFileEntries = await fetchRemoteFiles(publisherPubkey)
+    const updatedRemoteFiles = await handlePurgeOperation(remoteFileEntries);
+    const { toTransfer, toDelete } = await compareAndPrepareFiles(includedFiles, updatedRemoteFiles)
+
+    await maybeProcessFiles(
+      toTransfer, 
+      toDelete
+    );
+    
+    await maybePublishMetadata();
+    
+    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 && 
+        !(options.publishProfile || options.publishRelayList || options.publishServerList)) {
+      log.info("No effective operations performed.");
+    }
+    
+    flushQueuedLogs();
+
+    displayGatewayUrl(publisherPubkey);
+    
+    return Deno.exit(0);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    statusDisplay.error(`Upload command failed: ${errorMessage}`);
+    log.error(`Upload command failed: ${errorMessage}`);
+    return Deno.exit(1);
+  }
+}
+
+function displayGatewayUrl(publisherPubkey: string) {
+  let nsiteUrl = `https://${publisherPubkey}.nsite.lol`;
+    try {
+      const npub = nip19.npubEncode(publisherPubkey);
+      nsiteUrl = `https://${npub}.nsite.lol`;
+    } catch (error) {
+      log.debug(`Failed to encode pubkey to npub: ${error}`);
+    }
+
+    console.log(colors.green(`\nThe website is now available on any nsite gateway, e.g.: ${nsiteUrl}`));
+}
+
+async function resolveContext(
+  options: UploadCommandOptions,
+): Promise<ProjectContext> {
+  let config: ProjectConfig | null = null;
+  let authKeyHex: string | null | undefined = options.privatekey || undefined;
+
+    if (options.nonInteractive) {
+    log.debug("Resolving project context in non-interactive mode.");
+      const existingProjectData = readProjectFile() || defaultConfig;
+
+    if (!options.servers && (!existingProjectData?.servers || existingProjectData.servers.length === 0)) {
+      return { config: existingProjectData, authKeyHex, error: "Missing servers: Provide --servers or configure in .nsite/config.json." };
+    }
+    if (!options.relays && (!existingProjectData?.relays || existingProjectData.relays.length === 0)) {
+      return { config: existingProjectData, authKeyHex, error: "Missing relays: Provide --relays or configure in .nsite/config.json." };
+    }
+
+    if (!authKeyHex && !options.nbunksec && !options.bunker) {
+      if (!existingProjectData?.bunkerPubkey) {
+        return { config: existingProjectData, authKeyHex, error: "Missing signing key: For non-interactive mode, provide --privatekey, --nbunksec, --bunker, or ensure a bunker is configured in .nsite/config.json." };
+      } else {
+        log.info("No direct key/nsec on CLI. Will attempt to use configured bunker for non-interactive mode.");
+      }
+    }
+    
+    config = {
+      servers: (options.servers ? options.servers.split(",") : existingProjectData?.servers) || [],
+      relays: (options.relays ? options.relays.split(",") : existingProjectData?.relays) || [],
+      publishServerList: options.publishServerList !== undefined ? options.publishServerList : existingProjectData?.publishServerList || false,
+      publishRelayList: options.publishRelayList !== undefined ? options.publishRelayList : existingProjectData?.publishRelayList || false,
+      publishProfile: options.publishProfile !== undefined ? options.publishProfile : existingProjectData?.publishProfile || false,
+      profile: existingProjectData?.profile,
+      bunkerPubkey: existingProjectData?.bunkerPubkey, 
+      fallback: options.fallback || existingProjectData?.fallback,
+    };
+
+    } else {
+    log.debug("Resolving project context in interactive mode.");
+    const currentProjectData = readProjectFile();
+    let keyFromInteractiveSetup: string | undefined;
+
+    if (!currentProjectData) {
+      log.info("No .nsite/config.json found, running initial project setup.");
+      const setupResult = await setupProject(false); 
+      if (!setupResult.config) {
+        return { config: defaultConfig, authKeyHex: undefined, error: "Project setup failed or was aborted." };
+      }
+      config = setupResult.config;
+      keyFromInteractiveSetup = setupResult.privateKey;
+    } else {
+      config = currentProjectData;
+      if (!options.privatekey && !options.nbunksec && !options.bunker && !config.bunkerPubkey) {
+        log.info("Project is configured but no signing method found (CLI key, CLI bunker, or configured bunker). Running key setup...");
+        const keySetupResult = await setupProject(false);
+        if (!keySetupResult.config) {
+          return { config, authKeyHex: undefined, error: "Key setup for existing project failed or was aborted." };
+        }
+        config = keySetupResult.config;
+        keyFromInteractiveSetup = keySetupResult.privateKey;
+      }
+    }
+    
+    if (options.privatekey) {
+        authKeyHex = options.privatekey;
+    } else if (keyFromInteractiveSetup) {
+        authKeyHex = keyFromInteractiveSetup;
+    }
+  }
+  
+  if (!config || !config.servers || config.servers.length === 0) {
+    return { config, authKeyHex, error: "Servers configuration is missing or empty." };
+  }
+  if (!config.relays || config.relays.length === 0) {
+    return { config, authKeyHex, error: "Relays configuration is missing or empty." };
+  }
+
+  return { config, authKeyHex };
+}
+
+/**
+ * Initializes a Signer instance based on provided authentication options and configuration.
+ * 
+ * This function attempts to create a Signer in the following priority order:
+ * 1. Using nbunksec from CLI options
+ * 2. Using bunker URL from CLI options
+ * 3. Using private key from CLI options or interactive setup
+ * 4. Using configured bunker from project config
+ * 
+ * For bunker-based signing, it will attempt to:
+ * - Import nbunksec directly if provided
+ * - Connect to bunker URL if provided
+ * - Load stored nbunksec for configured bunker pubkey
+ * 
+ * @param authKeyHex - Private key in hex format, if provided via CLI or interactive setup
+ * @param config - Project configuration containing bunker settings
+ * 
+ * @returns Promise resolving to either:
+ * - A Signer instance that can be used for signing events
+ * - An error object with details if signer initialization fails
+ * 
+ * @throws Will not throw directly, but returns error object on failure
+ */
+async function initSigner(
+  authKeyHex: string | null | undefined,
+  config: ProjectConfig | null
+): Promise<Signer | { error: string }> {
+  if (options.nbunksec) {
+    try {
+      log.info("Using NostrBunker (nbunksec from CLI) for signing...");
+      const bunkerSigner = await importFromNbunk(options.nbunksec);
+      await bunkerSigner.getPublicKey();
+      return bunkerSigner;
+    } catch (e: unknown) {
+      return { error: `Failed to import nbunksec from CLI: ${(e as Error).message}` };
+      }
+    } else if (options.bunker) {
+    try {
+      log.info(`Using NostrBunker (URL from CLI: ${options.bunker}) for signing...`);
+      const { client } = await createNip46ClientFromUrl(options.bunker);
+      return client;
+    } catch (e: unknown) {
+      return { error: `Failed to connect to bunker URL from CLI: ${(e as Error).message}` };
+    }
+  } else if (authKeyHex) {
+    log.info("Using private key for signing (from CLI or interactive setup)...");
+    try {
+      return new PrivateKeySigner(authKeyHex);
+    } catch (e: unknown) {
+      return { error: `Invalid private key provided: ${(e as Error).message}` };
+    }
+  } else if (config?.bunkerPubkey) {
+    log.info(`Attempting to use configured bunker (pubkey: ${config.bunkerPubkey.substring(0,8)}...) for signing...`);
+      const secretsManager = SecretsManager.getInstance();
+      const nbunkString = secretsManager.getNbunk(config.bunkerPubkey);
+      if (nbunkString) {
+        try {
+        log.info("Found stored nbunksec for configured bunker. Importing...");
+          const bunkerSigner = await importFromNbunk(nbunkString);
+        await bunkerSigner.getPublicKey();
+        return bunkerSigner;
+      } catch (e: unknown) {
+        const baseMsg = `Failed to use stored nbunksec for configured bunker ${config.bunkerPubkey.substring(0,8)}...: ${(e as Error).message}`;
+          if (options.nonInteractive) {
+          return { error: `${baseMsg} In non-interactive mode, cannot re-prompt. Please check bunker or provide key via CLI.` };
+        } else {
+          return { error: `${baseMsg} The stored secret may be invalid. Consider re-configuring the bunker connection.` };
+        }
+        }
+      } else {
+      const baseMsg = `No stored secret (nbunksec) found for configured bunker: ${config.bunkerPubkey.substring(0,8)}...`;
+        if (options.nonInteractive) {
+        return { error: `${baseMsg} In non-interactive mode, cannot prompt for new bunker details. Please run interactively or provide key/nbunksec via CLI.` };
+      } else {
+        return { error: `${baseMsg} Please re-configure the bunker connection or provide a key/nbunksec via CLI.` };
+      }
+    }
+  }
+  return { error: "No valid signing method could be initialized (private key, nbunksec, or bunker). Please check your configuration or CLI arguments." };
+}
+
+
+
+export function displayConfig(publisherPubkey: string){
+  console.log(colors.cyan("Resolved Relays:"));
+  console.log(resolvedRelays);
+  console.log(colors.cyan("Resolved Servers:"));
+  console.log(resolvedServers);
+  console.log(colors.cyan("Resolved Config:"));
+  console.log(config);
+  console.log(colors.cyan("Resolved Options:"));
+  console.log(options);
     if (displayManager.isInteractive()) {
       console.log(formatTitle("Upload Configuration"));
       console.log(formatConfigValue("User", publisherPubkey, false));
-    console.log(formatConfigValue("Relays", formatRelayList(resolvedRelays), !options.relays && !projectData.relays));
-    console.log(formatConfigValue("Servers", formatRelayList(resolvedServers), !options.servers && !projectData.servers));
+      console.log(formatConfigValue("Relays", formatRelayList(resolvedRelays), !options.relays && !config.relays));
+      console.log(formatConfigValue("Servers", formatRelayList(resolvedServers), !options.servers && !config.servers));
       console.log(formatConfigValue("Force Upload", options.force, options.force === false));
       console.log(formatConfigValue("Purge Old Files", options.purge, options.purge === false));
       console.log(formatConfigValue("Concurrency", options.concurrency, options.concurrency === 4));
-      console.log(formatConfigValue("404 Fallback", options.fallback || projectData.fallback || "none", !options.fallback && !projectData.fallback));
-      console.log(formatConfigValue("Publish Relay List (Kind 10002)", options.publishRelayList || projectData.publishRelayList || false, !options.publishRelayList && !projectData.publishRelayList));
-      console.log(formatConfigValue("Publish Server List (Kind 10063)", options.publishServerList || projectData.publishServerList || false, !options.publishServerList && !projectData.publishServerList));
-      console.log(formatConfigValue("Publish Profile (Kind 0)", options.publishProfile || !!projectData.profile, !options.publishProfile && !projectData.profile));
+      console.log(formatConfigValue("404 Fallback", options.fallback || config.fallback || "none", !options.fallback && !config.fallback));
+      console.log(formatConfigValue("Publish Relay List (Kind 10002)", options.publishRelayList || config.publishRelayList || false, !options.publishRelayList && !config.publishRelayList));
+      console.log(formatConfigValue("Publish Server List (Kind 10063)", options.publishServerList || config.publishServerList || false, !options.publishServerList && !config.publishServerList));
+      console.log(formatConfigValue("Publish Profile (Kind 0)", options.publishProfile || !!config.profile, !options.publishProfile && !config.profile));
       console.log("");
-  } else if (!options.nonInteractive) {
+    } else if (!options.nonInteractive) {
       console.log(colors.cyan(`User: ${publisherPubkey}`));
-    console.log(colors.cyan(`Relays: ${resolvedRelays.join(", ") || "none"}${!options.relays && !projectData.relays ? " (default)" : ""}`));
-    console.log(colors.cyan(`Servers: ${resolvedServers.join(", ") || "none"}${!options.servers && !projectData.servers ? " (default)" : ""}`));
+      console.log(colors.cyan(`Relays: ${resolvedRelays.join(", ") || "none"}${!options.relays && !config.relays ? " (default)" : ""}`));
+      console.log(colors.cyan(`Servers: ${resolvedServers.join(", ") || "none"}${!options.servers && !config.servers ? " (default)" : ""}`));
       console.log(colors.cyan(`Concurrency: ${options.concurrency}${options.concurrency === 4 ? " (default)" : ""}`));
       if (options.force) console.log(colors.yellow("Force Upload: true"));
       if (options.purge) console.log(colors.yellow("Purge Old Files: true"));
-      if (options.fallback || projectData.fallback) console.log(colors.cyan(`404 Fallback: ${options.fallback || projectData.fallback}${!options.fallback && !projectData.fallback ? " (default)" : ""}`));
-      if (options.publishRelayList || projectData.publishRelayList) console.log(colors.cyan(`Publish Relay List: true${!options.publishRelayList && !projectData.publishRelayList ? " (default)" : ""}`));
-      if (options.publishServerList || projectData.publishServerList) console.log(colors.cyan(`Publish Server List: true${!options.publishServerList && !projectData.publishServerList ? " (default)" : ""}`));
-      if (options.publishProfile && projectData.profile) console.log(colors.cyan(`Publish Profile: true${!options.publishProfile && !projectData.profile ? " (default)" : ""}`));
-  }
+      if (options.fallback || config.fallback) console.log(colors.cyan(`404 Fallback: ${options.fallback || config.fallback}${!options.fallback && !config.fallback ? " (default)" : ""}`));
+      if (options.publishRelayList || config.publishRelayList) console.log(colors.cyan(`Publish Relay List: true${!options.publishRelayList && !config.publishRelayList ? " (default)" : ""}`));
+      if (options.publishServerList || config.publishServerList) console.log(colors.cyan(`Publish Server List: true${!options.publishServerList && !config.publishServerList ? " (default)" : ""}`));
+      if (options.publishProfile && config.profile) console.log(colors.cyan(`Publish Profile: true${!options.publishProfile && !config.profile ? " (default)" : ""}`));
+    }
 }
 
 /**
  * Scan local files in the target directory
  */
-async function scanLocalFiles(
-  targetDir: string, 
-  options: UploadCommandOptions
-): Promise<FileEntry[]> {
+async function scanLocalFiles( _targetDir?: string ): Promise<FileEntry[]> {
+  targetDir = _targetDir || targetDir;
   statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
   const { includedFiles, ignoredFilePaths } = await getLocalFiles(targetDir);
 
@@ -384,10 +427,16 @@ async function scanLocalFiles(
     }
   }
 
+  // Check both command-line options AND config settings
+  const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
+  const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
+  const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+  const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList;
+
   if (includedFiles.length === 0) {
     const noFilesMsg = "No files to upload after ignore rules.";
     if (displayManager.isInteractive()) { statusDisplay.success(noFilesMsg); } else { console.log(colors.yellow(noFilesMsg)); }
-    if (options.purge || options.publishProfile || options.publishRelayList || options.publishServerList) {
+    if (options.purge || shouldPublishAny) {
         log.info("Proceeding with purge/publish operations as requested despite no files to upload.");
     } else {
         return Deno.exit(0);
@@ -407,17 +456,15 @@ async function scanLocalFiles(
  * Fetch remote file entries from relays
  */
 async function fetchRemoteFiles(
-  relays: string[],
-  publisherPubkey: string,
-  options: UploadCommandOptions
+  publisherPubkey: string
 ): Promise<FileEntry[]> {
   let remoteFileEntries: FileEntry[] = [];
   
   if (!options.force && !options.purge) {
-    if (relays.length > 0) {
+    if (resolvedRelays.length > 0) {
       statusDisplay.update("Checking for existing files on remote relays...");
       try {
-        remoteFileEntries = await listRemoteFiles(relays, publisherPubkey);
+        remoteFileEntries = await listRemoteFiles(resolvedRelays, publisherPubkey);
         const remoteFoundMsg = `Found ${remoteFileEntries.length} existing remote file entries.`;
         if (displayManager.isInteractive()) { statusDisplay.success(remoteFoundMsg); } else { console.log(colors.green(remoteFoundMsg)); }
       } catch (e: unknown) {
@@ -430,19 +477,16 @@ async function fetchRemoteFiles(
       if (displayManager.isInteractive()) { statusDisplay.update(colors.yellow(noRelayWarn)); } else { console.log(colors.yellow(noRelayWarn)); }
     }
   }
-  
   return remoteFileEntries;
 }
 
 /**
  * Handle purge operations for remote files
  */
-async function handlePurgeOperation(
-  shouldPurge: boolean,
-  relays: string[],
-  remoteEntries: FileEntry[],
-  options: UploadCommandOptions
-): Promise<FileEntry[]> {
+async function handlePurgeOperation( remoteEntries: FileEntry[] ): Promise<FileEntry[]> {
+
+  const shouldPurge = options.purge;
+
   if (!shouldPurge) {
     return remoteEntries;
   }
@@ -453,10 +497,15 @@ async function handlePurgeOperation(
   });
   
   if (confirmPurge) {
-    if (relays.length > 0) {
+    if (resolvedRelays.length > 0) {
       statusDisplay.update("Purging remote files...");
       try {
-        await purgeRemoteFiles(relays, remoteEntries, signer, messageCollector);
+        await purgeRemoteFiles(
+          resolvedRelays, 
+          remoteEntries, 
+          signer, 
+          messageCollector
+        );
         statusDisplay.success("Remote files purge command issued.");
         return [];
       } catch (e: unknown) {
@@ -482,11 +531,7 @@ async function handlePurgeOperation(
 /**
  * Compare local and remote files to determine what needs to be transferred
  */
-async function compareAndPrepareFiles(
-  localFiles: FileEntry[],
-  remoteFiles: FileEntry[],
-  options: UploadCommandOptions
-): Promise<{ toTransfer: FileEntry[]; existing: FileEntry[]; toDelete: FileEntry[] }> {
+async function compareAndPrepareFiles( localFiles: FileEntry[], remoteFiles: FileEntry[] ): Promise<FilePreparationResult> {
   statusDisplay.update("Comparing local and remote files...");
   const { toTransfer, existing, toDelete } = compareFiles(localFiles, remoteFiles);
   const compareMsg = formatFileSummary(toTransfer.length, existing.length, toDelete.length);
@@ -498,6 +543,12 @@ async function compareAndPrepareFiles(
   }
   
   log.info(`Comparison result: ${toTransfer.length} to upload, ${existing.length} unchanged, ${toDelete.length} to delete.`);
+  
+  // Check both command-line options AND config settings
+  const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
+  const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
+  const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+  const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList;
   
   if (toTransfer.length === 0 && !options.force && !options.purge) {
     log.info("No new files to upload.");
@@ -511,7 +562,7 @@ async function compareAndPrepareFiles(
       if (!forceUpload) {
         log.info("Upload cancelled by user.");
         
-        if (!(options.publishProfile || options.publishRelayList || options.publishServerList)) {
+        if (!shouldPublishAny) {
           await flushQueuedLogs();
           return Deno.exit(0);
         }
@@ -525,7 +576,7 @@ async function compareAndPrepareFiles(
       console.error(colors.red(errMsg));
       log.error(errMsg);
       
-      if (!(options.publishProfile || options.publishRelayList || options.publishServerList)) {
+      if (!shouldPublishAny) {
         await flushQueuedLogs();
         return Deno.exit(1);
       } else {
@@ -540,10 +591,7 @@ async function compareAndPrepareFiles(
 /**
  * Delete files marked for deletion
  */
-async function deleteRemovedFiles(
-  filesToDelete: FileEntry[],
-  relays: string[]
-): Promise<void> {
+async function deleteRemovedFiles( filesToDelete: FileEntry[] ): Promise<void> {
   if (filesToDelete.length === 0) {
     return;
   }
@@ -554,7 +602,7 @@ async function deleteRemovedFiles(
   
   try {
     const deletedCount = await purgeRemoteFiles(
-      relays, 
+      resolvedRelays, 
       filesToDelete,
       signer,
       messageCollector
@@ -575,15 +623,12 @@ async function deleteRemovedFiles(
 /**
  * Load and prepare files for upload
  */
-async function prepareFilesForUpload(
-  filesToTransfer: FileEntry[],
-  baseDir: string
-): Promise<FileEntry[]> {
+async function prepareFilesForUpload( filesToTransfer: FileEntry[] ): Promise<FileEntry[]> {
   const preparedFiles: FileEntry[] = [];
   
   for (const file of filesToTransfer) {
     try {
-      const fileWithData = await loadFileData(baseDir, file);
+      const fileWithData = await loadFileData(targetDir, file);
       preparedFiles.push(fileWithData);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -598,13 +643,7 @@ async function prepareFilesForUpload(
 /**
  * Upload prepared files to servers and publish to relays
  */
-async function uploadFiles(
-  preparedFiles: FileEntry[],
-  baseDir: string,
-  servers: string[],
-  relays: string[],
-  options: UploadCommandOptions
-): Promise<UploadResponse[]> {
+async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse[]> {
   if (preparedFiles.length === 0) {
     statusDisplay.error("No files could be loaded for upload.");
     return [];
@@ -613,19 +652,19 @@ async function uploadFiles(
   statusDisplay.update(`Uploading ${preparedFiles.length} files...`);
   
   setProgressMode(true);
-  const progressRenderer = new ProgressRenderer(preparedFiles.length);
+  progressRenderer = new ProgressRenderer(preparedFiles.length);
   progressRenderer.start();
   
-  if (servers.length === 0) {
+  if (resolvedServers.length === 0) {
     throw new Error("No servers configured for upload");
   }
   
   const uploadResponses = await processUploads(
     preparedFiles,
-    baseDir,
-    servers,
+    targetDir,
+    resolvedServers,
     signer,
-    relays,
+    resolvedRelays,
     options.concurrency,
     (progress) => {
       progressRenderer.update(progress);
@@ -706,7 +745,7 @@ async function uploadFiles(
     console.log(formatSectionHeader("Server Results"));
     const serverResults: Record<string, { success: number; total: number }> = {};
     
-    for (const server of servers) {
+    for (const server of resolvedServers) {
       serverResults[server] = { success: 0, total: 0 };
     }
     
@@ -744,12 +783,9 @@ async function uploadFiles(
 /**
  * Process and upload fallback file
  */
-async function processFallbackFile(
-  fallbackPath: string | undefined,
-  targetDir: string,
-  servers: string[],
-  relays: string[]
-): Promise<void> {
+async function processFallbackFile(): Promise<void> {
+  const fallbackPath = options.fallback || config.fallback;
+
   if (!fallbackPath) {
     return;
   }
@@ -773,11 +809,10 @@ async function processFallbackFile(
     const fallbackUploads = await processUploads(
       [fallbackFileData],
       targetDir,
-      servers,
+      resolvedServers,
       signer,
-      relays,
-      1,
-      (progress) => {}
+      resolvedRelays,
+      1
     );
     
     if (fallbackUploads[0]?.success) {
@@ -803,51 +838,65 @@ async function processFallbackFile(
 /**
  * Publish metadata to relays (profile, relay list, server list)
  */
-async function maybePublishMetadata(
-  options: UploadCommandOptions,
-  projectData: ProjectData,
-  relays: string[]
-): Promise<void> {
-  if (!(options.publishProfile || options.publishRelayList || options.publishServerList)) {
+async function maybePublishMetadata(): Promise<void> {
+  log.debug("maybePublishMetadata called"); 
+
+  // Check both command-line options AND config settings
+  const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
+  const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
+  const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+
+  log.debug(`Publish flags - from options: profile=${options.publishProfile}, relayList=${options.publishRelayList}, serverList=${options.publishServerList}`);
+  log.debug(`Publish flags - from config: profile=${config.publishProfile}, relayList=${config.publishRelayList}, serverList=${config.publishServerList}`);
+  log.debug(`Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}`);
+
+  if (!(shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList)) {
+    log.debug("No metadata events requested for publishing, returning early");
     return;
   }
   
   log.info(formatSectionHeader("Publishing Metadata"));
   
   try {
-    if (options.publishProfile && projectData.profile) {
+    if (shouldPublishProfile && config.profile) {
       statusDisplay.update("Publishing profile...");
       
       try {
-        const profileEvent = await createProfileEvent(signer, projectData.profile);
-        await publishEventsToRelays(relays, [profileEvent], signer, messageCollector);
-        statusDisplay.success(`Profile published for ${projectData.profile.name || await signer.getPublicKey()}`);
+        const profileEvent = await createProfileEvent(signer, config.profile);
+        log.debug(`Created profile event for publishing: ${JSON.stringify(profileEvent)}`);
+        await publishEventsToRelays(resolvedRelays, [profileEvent], signer, messageCollector);
+        statusDisplay.success(`Profile published for ${config.profile.name || await signer.getPublicKey()}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish profile: ${(e as Error).message}`);
+        log.error(`Profile publication error: ${(e as Error).message}`);
       }
     }
     
-    if (options.publishRelayList) {
+    if (shouldPublishRelayList) {
       statusDisplay.update("Publishing relay list...");
       
       try {
-        const relayListEvent = await createRelayListEvent(signer, relays);
-        await publishEventsToRelays(relays, [relayListEvent], signer, messageCollector);
-        statusDisplay.success(`Relay list published: ${formatRelayList(relays)}`);
+        const relayListEvent = await createRelayListEvent(signer, resolvedRelays);
+        log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
+        await publishEventsToRelays(resolvedRelays, [relayListEvent], signer, messageCollector);
+        statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish relay list: ${(e as Error).message}`);
+        log.error(`Relay list publication error: ${(e as Error).message}`);
       }
     }
     
-    if (options.publishServerList) {
+    if (shouldPublishServerList) {
       statusDisplay.update("Publishing server list...");
       
       try {
-        const serverListEvent = await createServerListEvent(signer, options.servers?.split(",") || projectData.servers || []);
-        await publishEventsToRelays(relays, [serverListEvent], signer, messageCollector);
+        const serverListEvent = await createServerListEvent(signer, options.servers?.split(",") || config.servers || []);
+        log.debug(`Created server list event: ${JSON.stringify(serverListEvent)}`);
+        await publishEventsToRelays(resolvedRelays, [serverListEvent], signer, messageCollector);
         statusDisplay.success(`Server list published`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish server list: ${(e as Error).message}`);
+        log.error(`Server list publication error: ${(e as Error).message}`);
       }
     }
   } catch (e: unknown) {
@@ -876,24 +925,24 @@ async function maybePublishMetadata(
     
     console.log(formatServerResults(relayResults));
   }
+  
+  log.debug("Metadata publishing completed");
 }
 
-export async function maybeProcessFiles(toTransfer: FileEntry[], toDelete: FileEntry[], targetDir: string, resolvedServers: string[], resolvedRelays: string[], options: UploadCommandOptions, projectData: ProjectData){
+export async function maybeProcessFiles(
+  toTransfer: FileEntry[], 
+  toDelete: FileEntry[]
+){
   if (toTransfer.length > 0) {
     log.info("Processing files for upload...");
     
     try {
       const preparedFiles = await prepareFilesForUpload(
-        toTransfer, 
-        targetDir
+        toTransfer
       );
       
       await uploadFiles(
-        preparedFiles,
-        targetDir, 
-        resolvedServers, 
-        resolvedRelays, 
-        options
+        preparedFiles
       );
 
 
@@ -906,22 +955,17 @@ export async function maybeProcessFiles(toTransfer: FileEntry[], toDelete: FileE
   
   if (toDelete.length > 0) {
     await deleteRemovedFiles(
-      toDelete, 
-      resolvedRelays
+      toDelete
     );
   }
 
-  if(projectData.fallback){
-    await processFallbackFile(
-      options.fallback || projectData.fallback, 
-      targetDir, 
-      resolvedServers, 
-      resolvedRelays
-    );
+  if(config.fallback){
+    await processFallbackFile();
   }
 }
 
-export function initState(options: UploadCommandOptions){
+export function initState(options_: UploadCommandOptions){
+  options = options_;
   displayManager = getDisplayManager();
   displayManager.configureFromOptions(options);
   messageCollector = new MessageCollector(displayManager.isInteractive());

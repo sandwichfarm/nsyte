@@ -7,7 +7,7 @@ import type { Signer } from "./upload.ts";
 
 const log = createLogger("nostr");
 
-export const NSITE_KIND = 34128;
+export const NSITE_KIND = 424242;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
@@ -500,6 +500,7 @@ export async function publishNsiteEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: NSITE_KIND,
+    pubkey: pubkey,
     created_at: Math.floor(Date.now() / 1000),
     tags: [
       ["d", normalizedPath],
