@@ -103,16 +103,16 @@ export function registerLsCommand(program: Command): void {
         } else {
           log.debug("No explicit key/pubkey provided, checking project config...")
           const projectContext = await setupProject();
-          const projectData = projectContext.projectData;
+          const config = projectContext.config;
 
           if (projectContext.privateKey) {
             signer = new PrivateKeySigner(projectContext.privateKey);
             pubkey = signer.getPublicKey();
             log.debug(`Using private key from project setup: ${pubkey.slice(0,8)}...`)
-          } else if (projectData.bunkerPubkey) {
-            log.debug(`Project configured with bunker pubkey: ${projectData.bunkerPubkey.slice(0,8)}...`)
+          } else if (config.bunkerPubkey) {
+            log.debug(`Project configured with bunker pubkey: ${config.bunkerPubkey.slice(0,8)}...`)
             const secretsManager = SecretsManager.getInstance();
-            const nbunkString = secretsManager.getNbunk(projectData.bunkerPubkey);
+            const nbunkString = secretsManager.getNbunk(config.bunkerPubkey);
 
             if (nbunkString) {
               try {
@@ -130,8 +130,8 @@ export function registerLsCommand(program: Command): void {
                   Deno.exit(1);
               }
             } else {
-              log.error(`Project configured for bunker ${projectData.bunkerPubkey} but no nbunksec found.`);
-              console.error(colors.red(`Stored connection info not found for bunker ${projectData.bunkerPubkey.slice(0,8)}...`));
+              log.error(`Project configured for bunker ${config.bunkerPubkey} but no nbunksec found.`);
+              console.error(colors.red(`Stored connection info not found for bunker ${config.bunkerPubkey.slice(0,8)}...`));
               console.log(colors.yellow("Please run 'nsyte bunker connect' or 'nsyte bunker import'."));
               Deno.exit(1);
             }
@@ -148,9 +148,9 @@ export function registerLsCommand(program: Command): void {
         if (options.relays) {
           relays = options.relays.split(",");
         } else {
-          const projectData = readProjectFile();
-          if (projectData && projectData.relays && projectData.relays.length > 0) {
-            relays = projectData.relays;
+          const config = readProjectFile();
+          if (config && config.relays && config.relays.length > 0) {
+            relays = config.relays;
           } else {
             log.info("No project relays configured, using default discovery relays.")
             relays = RELAY_DISCOVERY_RELAYS;

@@ -3,6 +3,7 @@
 .devdocs
 .nsite
 .test_secrets
+.coverage
 
 dist
 node_modules

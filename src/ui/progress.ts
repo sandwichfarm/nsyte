@@ -69,13 +69,34 @@ export class ProgressRenderer {
   private barLength = 30;
   private status: string | null = null;
   private isFirstRender = true;
+  private total: number;
 
-  constructor() {
+  constructor(total: number = 0) {
     this.startTime = Date.now();
     this.lastUpdate = this.startTime;
+    this.total = total;
   }
 
-  update(data: ProgressData): void {
+  start(): void {
+    this.startTime = Date.now();
+    this.lastUpdate = this.startTime;
+    this.isFirstRender = true;
+  }
+
+  /**
+   * Update progress with a current value and optional path
+   */
+  update(current: number, path?: string): void;
+  
+  /**
+   * Update progress with full progress data
+   */
+  update(data: ProgressData): void;
+  
+  /**
+   * Implementation of both update overloads
+   */
+  update(dataOrCurrent: number | ProgressData, path?: string): void {
     if (this.isFirstRender) {
       Deno.stdout.writeSync(new TextEncoder().encode("\n"));
       this.isFirstRender = false;
@@ -86,7 +107,33 @@ export class ProgressRenderer {
       this.intervalId = null;
     }
 
-    this.renderProgress(data);
+    // Handle the case where first parameter is a number (current progress)
+    if (typeof dataOrCurrent === 'number') {
+      this.renderProgress({
+        total: this.total,
+        completed: dataOrCurrent,
+        failed: 0,
+        inProgress: this.total - dataOrCurrent,
+        ...(path ? { serverStats: { [path]: { successCount: 1, totalServers: 1 } } } : {})
+      });
+    } 
+    // Handle the case where first parameter is a ProgressData object
+    else {
+      this.renderProgress(dataOrCurrent);
+    }
+  }
+
+  /**
+   * Stop the progress renderer and clear any timers
+   */
+  stop(): void {
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    
+    // Clear the current line
+    Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
   }
 
   complete(success: boolean, message: string): void {

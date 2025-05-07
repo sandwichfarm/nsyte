@@ -37,22 +37,22 @@ export function registerDownloadCommand(program: Command): void {
             pubkey = userPubkey;
           } else {
             const projectContext = await setupProject();
-            const projectData = projectContext.projectData;
+            const config = projectContext.config;
 
             if (projectContext.privateKey) {
               const signer = new PrivateKeySigner(projectContext.privateKey);
               pubkey = signer.getPublicKey();
-            } else if (projectData.bunkerPubkey) {
-              const bunkerInfo = getBunkerInfo(projectData.bunkerPubkey);
+            } else if (config.bunkerPubkey) {
+              const bunkerInfo = getBunkerInfo(config.bunkerPubkey);
               let bunkerUrl: string;
 
               if (bunkerInfo && bunkerInfo.bunkerUrl) {
                 bunkerUrl = bunkerInfo.bunkerUrl;
-                log.debug(`Using saved bunker connection info for ${projectData.bunkerPubkey.slice(0, 8)}...`);
+                log.debug(`Using saved bunker connection info for ${config.bunkerPubkey.slice(0, 8)}...`);
               } else {
                 log.warn("No saved bunker connection info found, using project relays");
-                const relayParams = projectData.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
-                bunkerUrl = `bunker://${projectData.bunkerPubkey}?${relayParams}`;
+                const relayParams = config.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+                bunkerUrl = `bunker://${config.bunkerPubkey}?${relayParams}`;
               }
 
               const { userPubkey } = await createNip46ClientFromUrl(bunkerUrl);
@@ -76,9 +76,9 @@ export function registerDownloadCommand(program: Command): void {
         if (options.relays) {
           relays = options.relays.split(",");
         } else {
-          const projectData = readProjectFile();
-          if (projectData && projectData.relays && projectData.relays.length > 0) {
-            relays = projectData.relays;
+          const config = readProjectFile();
+          if (config && config.relays && config.relays.length > 0) {
+            relays = config.relays;
           } else {
             relays = RELAY_DISCOVERY_RELAYS;
           }

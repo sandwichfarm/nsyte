@@ -12,7 +12,7 @@ export function formatTitle(text: string): string {
  * Format a section header
  */
 export function formatSectionHeader(text: string): string {
-  return colors.bold(text);
+  return colors.magenta.bold(text);
 }
 
 /**
