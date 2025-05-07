@@ -23,6 +23,15 @@ async function updateVersion() {
   const gitTagVersion = `v${version}`;
 
   try {
+    const versionFileContent = `export const version = "${version}";\n`;
+    await Deno.writeTextFile(srcVersionTsPath, versionFileContent);
+    console.log(`Successfully updated src/version.ts to version ${version}`);
+  } catch (error) {
+    console.error("Error updating src/version.ts:", error);
+    return;
+  }
+
+  try {
     const denoJsonContent = await Deno.readTextFile(denoJsonPath);
     const denoJson = JSON.parse(denoJsonContent);
     

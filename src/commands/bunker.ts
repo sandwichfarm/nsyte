@@ -137,6 +137,9 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker remove 3bf0c63...");
   console.log("  nsyte upload ./dist --nbunksec nbunksec1q...");
   console.log("");
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -148,6 +151,7 @@ export async function listBunkers(): Promise<void> {
 
   if (pubkeys.length === 0) {
     console.log(colors.yellow("No bunkers found in system storage."));
+    Deno.exit(0);
     return;
   }
 
@@ -172,6 +176,9 @@ export async function listBunkers(): Promise<void> {
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -230,6 +237,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
+      Deno.exit(0);
       return;
     }
 
@@ -248,18 +256,23 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
 
   if (!pubkey) {
     console.log(colors.red("No pubkey selected."));
+    Deno.exit(0);
     return;
   }
 
   const nbunkString = secretsManager.getNbunk(pubkey);
   if (!nbunkString) {
     console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+    Deno.exit(0);
     return;
   }
 
   console.log(colors.cyan("\nNbunk string for selected bunker:"));
   console.log(nbunkString);
   console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -404,6 +417,7 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
+      Deno.exit(0);
       return;
     }
 
@@ -422,18 +436,21 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
 
   if (!pubkey) {
     console.log(colors.red("No pubkey selected."));
+    Deno.exit(0);
     return;
   }
 
   const nbunkString = secretsManager.getNbunk(pubkey);
   if (!nbunkString) {
     console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+    Deno.exit(0);
     return;
   }
 
   const projectData = readProjectFile();
   if (!projectData) {
     console.log(colors.red("No project configuration found. Initialize a project first with 'nsyte init'."));
+    Deno.exit(0);
     return;
   }
 
@@ -441,6 +458,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   writeProjectFile(projectData);
 
   console.log(colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`));
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -454,6 +474,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
+      Deno.exit(0);
       return;
     }
 
@@ -472,6 +493,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
 
   if (!pubkey) {
     console.log(colors.red("No pubkey selected."));
+    Deno.exit(0);
     return;
   }
 
@@ -482,6 +504,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
 
   if (!confirm) {
     console.log(colors.yellow("Operation cancelled."));
+    Deno.exit(0);
     return;
   }
 
@@ -506,6 +529,9 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   } else {
     console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
   }
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 if (import.meta.main) {

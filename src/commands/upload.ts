@@ -964,6 +964,8 @@ export async function uploadCommand(
 
     console.log(colors.green(`\nThe website is now available on any nsite gateway, e.g.: ${nsiteUrl}`));
 
+    // Ensure command exits after completion
+    Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(colors.red(`Failed to upload: ${errorMessage}`));
