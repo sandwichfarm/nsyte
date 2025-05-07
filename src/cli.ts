@@ -48,49 +48,49 @@ const bunkerCommand = new Command()
   .name("bunker")
   .description("Manage nostr bunker connections and nbunks")
   .action(async () => {
-    showBunkerHelp();
+    await showBunkerHelp();
   });
 
 bunkerCommand
   .command("list", "List all stored bunkers in the system")
   .action(async () => {
-    listBunkers();
+    await listBunkers();
   });
 
 bunkerCommand
   .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
   .action(async (_: unknown, nbunksec: string | undefined) => {
-    importNbunk(nbunksec);
+    await importNbunk(nbunksec);
   });
 
 bunkerCommand
   .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
   .action(async (_: unknown, pubkey: string | undefined) => {
-    exportNbunk(pubkey);
+    await exportNbunk(pubkey);
   });
 
 bunkerCommand
   .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
   .action(async (_: unknown, url: string | undefined) => {
-    connectBunker(url);
+    await connectBunker(url);
   });
 
 bunkerCommand
   .command("use [pubkey:string]", "Configure current project to use a bunker")
   .action(async (_: unknown, pubkey: string | undefined) => {
-    useBunkerForProject(pubkey);
+    await useBunkerForProject(pubkey);
   });
 
 bunkerCommand
   .command("remove [pubkey:string]", "Remove a bunker from storage")
   .action(async (_: unknown, pubkey: string | undefined) => {
-    removeBunker(pubkey);
+    await removeBunker(pubkey);
   });
 
 bunkerCommand
   .command("help", "Show detailed help information")
   .action(async () => {
-    showBunkerHelp();
+    await showBunkerHelp();
   });
 
 nsite.command("bunker", bunkerCommand);
@@ -156,13 +156,6 @@ async function main() {
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
       await handleBunkerCommand(false);
       return;
-    }
-    
-    const isHelp = Deno.args.includes("-h") || Deno.args.includes("--help") || 
-                  Deno.args.includes("-V") || Deno.args.includes("--version");
-    
-    if (!isHelp) {
-      const { projectData, privateKey } = await setupProject(isHelp);
     }
     
     await nsite.parse(Deno.args);

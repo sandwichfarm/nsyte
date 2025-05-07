@@ -12,25 +12,22 @@ export class StatusDisplay {
   constructor() {
     this.isInteractive = getDisplayManager().isInteractive();
   }
-  
+
   /**
    * Update the status message
    */
   update(message: string): void {
     if (!this.isInteractive) {
-      // In non-interactive mode, just print the message
       console.log(colors.cyan(message));
       return;
     }
     
-    // Clear the current line
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
     
-    // Write the new message
     this.currentMessage = message;
     Deno.stdout.writeSync(new TextEncoder().encode(message));
   }
-  
+
   /**
    * Display a success message and clear the status
    */
@@ -53,7 +50,6 @@ export class StatusDisplay {
       return;
     }
     
-    // Clear the current line
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
     this.currentMessage = "";
   }
@@ -71,10 +67,8 @@ export class StatusDisplay {
       return;
     }
     
-    // Clear the current line
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
     
-    // Write the final message
     if (success) {
       console.log(colors.green(`✓ ${message}`));
     } else {

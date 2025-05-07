@@ -81,6 +81,7 @@ export async function uploadCommand(
   options: UploadCommandOptions
 ): Promise<void> {
   try {
+    // DEBUG: Log received options
     log.debug("Upload command started");
 
     const displayManager = getDisplayManager();
@@ -88,15 +89,55 @@ export async function uploadCommand(
 
     const messageCollector = new MessageCollector(displayManager.isInteractive());
 
+    let projectData: import("../lib/config.ts").ProjectData;
+    let privateKeyFromSetup: string | undefined;
 
-    const projectContext = options.nonInteractive
-      ? { projectData: readProjectFile() || { relays: [], servers: [], publishRelayList: false, publishServerList: false } }
-      : await setupProject();
+    if (options.nonInteractive) {
+      log.debug("Running in non-interactive mode.");
+      const existingProjectData = readProjectFile();
 
-    const projectData = projectContext.projectData;
+      // Start with empty or loaded config, then override with CLI options
+      const baseData: Partial<import("../lib/config.ts").ProjectData> = existingProjectData || {};
+      
+      projectData = {
+        servers: options.servers ? options.servers.split(",") : baseData.servers || [],
+        relays: options.relays ? options.relays.split(",") : baseData.relays || [],
+        publishServerList: options.publishServerList !== undefined ? options.publishServerList : baseData.publishServerList || false,
+        publishRelayList: options.publishRelayList !== undefined ? options.publishRelayList : baseData.publishRelayList || false,
+        publishProfile: options.publishProfile !== undefined ? options.publishProfile : baseData.publishProfile || false,
+        profile: baseData.profile, // Profile data is not directly settable via simple CLI flags here, rely on config
+        bunkerPubkey: baseData.bunkerPubkey, // Will be used later if no CLI key provided
+        fallback: options.fallback || baseData.fallback,
+      };
 
-    if (!projectData) {
-      console.error(colors.red("No project configuration found. Please run the interactive setup first."));
+      // Validate combined data for essential fields (excluding keys for now)
+      if (!projectData.servers || projectData.servers.length === 0) {
+        log.error("Missing servers. Provide --servers or configure in .nsite/config.json.");
+        console.error(colors.red("Missing servers configuration"));
+        Deno.exit(1);
+      }
+      if (!projectData.relays || projectData.relays.length === 0) {
+        log.error("Missing relays. Provide --relays or configure in .nsite/config.json.");
+        console.error(colors.red("Missing relays configuration"));
+        Deno.exit(1);
+      }
+      // Key validation will happen in the signer setup block later
+
+    } else {
+      // Interactive or config file based setup
+      log.debug("Running in interactive mode or using existing config for setup.");
+      const setupResult = await setupProject(false); // Pass false, setupProject handles its own skipInteractive if needed
+      if (!setupResult.projectData) {
+        console.error(colors.red("Project setup failed or was aborted."));
+        Deno.exit(1);
+      }
+      projectData = setupResult.projectData;
+      privateKeyFromSetup = setupResult.privateKey;
+      log.debug("Using project data from setupProject.");
+    }
+
+    if (!projectData) { // This check might be redundant now but kept for safety.
+      console.error(colors.red("No project configuration loaded. This should not happen."));
       Deno.exit(1);
     }
 
@@ -127,11 +168,11 @@ export async function uploadCommand(
       signer = client;
       publisherPubkey = userPubkey;
       log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
-    } else if (projectContext.privateKey) {
-      const privateKeySigner = new PrivateKeySigner(projectContext.privateKey);
+    } else if (privateKeyFromSetup) { // Check privateKey from setupProject
+      const privateKeySigner = new PrivateKeySigner(privateKeyFromSetup);
       signer = privateKeySigner;
       publisherPubkey = privateKeySigner.getPublicKey();
-      log.debug("Using private key from prompt");
+      log.debug("Using private key from prompt/setup");
     } else if (projectData.bunkerPubkey) {
       const secretsManager = SecretsManager.getInstance();
       const nbunkString = secretsManager.getNbunk(projectData.bunkerPubkey);
@@ -146,6 +187,12 @@ export async function uploadCommand(
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           log.warn(`Failed to use stored nbunksec: ${errorMessage}`);
+
+          if (options.nonInteractive) {
+            log.error(`Failed to use stored nbunksec for ${projectData.bunkerPubkey} in non-interactive mode. Please run interactively to re-configure or provide key via CLI.`);
+            console.error(colors.red(`Error with stored bunker for ${projectData.bunkerPubkey}. See logs.`));
+            Deno.exit(1);
+          }
 
           log.info("Need a fresh bunker URL with secret to connect");
 
@@ -164,6 +211,13 @@ export async function uploadCommand(
           log.debug(`Connected to bunker, user pubkey: ${userPubkey}`);
         }
       } else {
+        // nbunkString is not found for projectData.bunkerPubkey
+        if (options.nonInteractive) {
+          log.error(`No stored secret found for bunker ${projectData.bunkerPubkey} in non-interactive mode. Please run interactively to configure or provide key via CLI.`);
+          console.error(colors.red(`Missing secret for configured bunker ${projectData.bunkerPubkey.slice(0,10)}... See --help.`));
+          Deno.exit(1);
+        }
+
         log.info("Need a fresh bunker URL with secret to connect");
 
         const bunkerUrl = await Input.prompt({

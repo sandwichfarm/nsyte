@@ -165,6 +165,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
         publishRelayList: false,
         publishServerList: false
       };
+      log.debug("Running in non-interactive mode with no existing configuration");
       return { projectData, privateKey: undefined };
     }
 
@@ -175,7 +176,17 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
     writeProjectFile(projectData);
   }
 
-  if (!projectData.bunkerPubkey && !privateKey && !skipInteractive) {
+  // In non-interactive mode, don't proceed with key setup prompts
+  if (skipInteractive) {
+    if (!projectData.bunkerPubkey && !privateKey) {
+      log.error("No key configuration found and running in non-interactive mode. Please provide key configuration via CLI arguments.");
+      Deno.exit(1);
+    }
+    return { projectData, privateKey };
+  }
+
+  // Only proceed with interactive key setup if we're in interactive mode
+  if (!projectData.bunkerPubkey && !privateKey) {
     console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
     // Check if there are any existing bunkers
@@ -434,7 +445,9 @@ Generated and stored nbunksec string.`));
   };
 
   return { projectData, privateKey };
-}/**
+}
+
+/**
  * Prompt for URLs with suggestions
  */
 async function promptForUrls(message: string, suggestions: string[]): Promise<string[]> {
