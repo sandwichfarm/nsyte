@@ -88,7 +88,8 @@ export function registerDownloadCommand(program: Command): void {
         console.log(colors.cyan(`Would download files for ${pubkey} using relays: ${relays.join(", ")}`));
         console.log(colors.cyan(`Would save to directory: ${options.output}`));
 
-
+        // Ensure command exits after completion
+        Deno.exit(0);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(colors.red(`Error downloading files: ${errorMessage}`));

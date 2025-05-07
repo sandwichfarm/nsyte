@@ -207,6 +207,9 @@ export function registerLsCommand(program: Command): void {
               console.log(colors.yellow(`\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`));
           }
         }
+        
+        // Ensure command exits after completion
+        Deno.exit(0);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(colors.red(`\nError listing files: ${errorMessage}`));
