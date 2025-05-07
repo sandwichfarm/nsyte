@@ -45,6 +45,7 @@ export class DisplayManager {
           this.currentMode = DisplayMode.NON_INTERACTIVE;
           break;
         case "debug":
+          this.verbose = true;
           this.currentMode = DisplayMode.DEBUG;
           break;
       }
