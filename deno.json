@@ -5,7 +5,8 @@
   "exports": "./src/cli.ts",
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
-    "test": "deno test --allow-read --allow-write --allow-net --allow-env",
+    "test": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --no-check",
+    "coverage": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --coverage=cov_profile --no-check",
     "compile": "deno compile --allow-read --allow-write --allow-net --allow-env --output dist/nsyte src/cli.ts",
     "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:windows",
     "compile:linux": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
