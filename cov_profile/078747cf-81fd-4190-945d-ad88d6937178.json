@@ -1,0 +1,36 @@
+{
+  "scriptId": "496",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/nanoid/5.1.5/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1399, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "fillPool",
+      "ranges": [{ "startOffset": 233, "endOffset": 538, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "random",
+      "ranges": [{ "startOffset": 546, "endOffset": 652, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "customRandom",
+      "ranges": [{ "startOffset": 660, "endOffset": 1105, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "customAlphabet",
+      "ranges": [{ "startOffset": 1113, "endOffset": 1207, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nanoid",
+      "ranges": [{ "startOffset": 1215, "endOffset": 1398, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

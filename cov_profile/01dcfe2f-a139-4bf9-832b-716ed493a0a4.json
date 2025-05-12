@@ -1,0 +1,31 @@
+{
+  "scriptId": "883",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/observable/race.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1782, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1781, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1717, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "race",
+      "ranges": [{ "startOffset": 580, "endOffset": 890, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "raceInit",
+      "ranges": [{ "startOffset": 912, "endOffset": 1653, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

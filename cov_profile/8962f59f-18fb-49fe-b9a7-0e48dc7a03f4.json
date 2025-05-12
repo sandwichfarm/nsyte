@@ -1,0 +1,21 @@
+{
+  "scriptId": "575",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/user-status.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1067, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getStatusPointer",
+      "ranges": [{ "startOffset": 221, "endOffset": 855, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getUserStatusPointer",
+      "ranges": [{ "startOffset": 924, "endOffset": 1066, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

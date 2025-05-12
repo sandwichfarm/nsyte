@@ -1,0 +1,26 @@
+{
+  "scriptId": "949",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/fast-deep-equal/3.1.3/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1489, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1488, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1424, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "equal",
+      "ranges": [{ "startOffset": 335, "endOffset": 1420, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

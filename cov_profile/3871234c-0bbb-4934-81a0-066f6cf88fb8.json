@@ -1,0 +1,116 @@
+{
+  "scriptId": "506",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/ciphers/0.5.3/esm/_polyval.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 7825, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "mul2",
+      "ranges": [{ "startOffset": 917, "endOffset": 1170, "count": 256 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "swapLE",
+      "ranges": [{ "startOffset": 1187, "endOffset": 1320, "count": 1024 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "_toGHASHKey",
+      "ranges": [
+        { "startOffset": 1410, "endOffset": 1748, "count": 1 },
+        { "startOffset": 1555, "endOffset": 1650, "count": 16 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "estimateWindow",
+      "ranges": [
+        { "startOffset": 1772, "endOffset": 1885, "count": 2 },
+        { "startOffset": 1820, "endOffset": 1829, "count": 0 },
+        { "startOffset": 1860, "endOffset": 1869, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "GHASH",
+      "ranges": [
+        { "startOffset": 1973, "endOffset": 3871, "count": 2 },
+        { "startOffset": 2601, "endOffset": 2779, "count": 256 },
+        { "startOffset": 2889, "endOffset": 2959, "count": 0 },
+        { "startOffset": 3239, "endOffset": 3841, "count": 128 },
+        { "startOffset": 3342, "endOffset": 3831, "count": 512 },
+        { "startOffset": 3475, "endOffset": 3769, "count": 1024 },
+        { "startOffset": 3591, "endOffset": 3769, "count": 512 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "_updateBlock",
+      "ranges": [{ "startOffset": 3876, "endOffset": 4802, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "update",
+      "ranges": [{ "startOffset": 4807, "endOffset": 5407, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "destroy",
+      "ranges": [{ "startOffset": 5412, "endOffset": 5600, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digestInto",
+      "ranges": [{ "startOffset": 5605, "endOffset": 5884, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digest",
+      "ranges": [{ "startOffset": 5889, "endOffset": 6027, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Polyval",
+      "ranges": [{ "startOffset": 6064, "endOffset": 6241, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "update",
+      "ranges": [{ "startOffset": 6246, "endOffset": 6910, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digestInto",
+      "ranges": [{ "startOffset": 6915, "endOffset": 7229, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "wrapConstructorWithKey",
+      "ranges": [{ "startOffset": 7232, "endOffset": 7580, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hashC",
+      "ranges": [{ "startOffset": 7294, "endOffset": 7363, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hashC.create",
+      "ranges": [{ "startOffset": 7505, "endOffset": 7559, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 7625, "endOffset": 7680, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 7729, "endOffset": 7786, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

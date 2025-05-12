@@ -1,0 +1,41 @@
+{
+  "scriptId": "427",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.1/esm/_sha2.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 4369, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "setBigUint64",
+      "ranges": [{ "startOffset": 117, "endOffset": 591, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "SHA2",
+      "ranges": [{ "startOffset": 659, "endOffset": 1068, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "update",
+      "ranges": [{ "startOffset": 1073, "endOffset": 2011, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digestInto",
+      "ranges": [{ "startOffset": 2016, "endOffset": 3762, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digest",
+      "ranges": [{ "startOffset": 3767, "endOffset": 3952, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "_cloneInto",
+      "ranges": [{ "startOffset": 3957, "endOffset": 4333, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

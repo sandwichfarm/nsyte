@@ -1,0 +1,31 @@
+{
+  "scriptId": "526",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/queries/channels.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2375, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "ChannelHiddenQuery",
+      "ranges": [{ "startOffset": 267, "endOffset": 824, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ChannelMessagesQuery",
+      "ranges": [{ "startOffset": 886, "endOffset": 1025, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ChannelMetadataQuery",
+      "ranges": [{ "startOffset": 1088, "endOffset": 1747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ChannelMutedQuery",
+      "ranges": [{ "startOffset": 1824, "endOffset": 2374, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

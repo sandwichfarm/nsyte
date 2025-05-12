@@ -1,0 +1,36 @@
+{
+  "scriptId": "648",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/contacts.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2491, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getRelaysFromContactsEvent",
+      "ranges": [{ "startOffset": 486, "endOffset": 1225, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "mergeContacts",
+      "ranges": [{ "startOffset": 1294, "endOffset": 1687, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getContacts",
+      "ranges": [{ "startOffset": 1768, "endOffset": 1877, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicContacts",
+      "ranges": [{ "startOffset": 1952, "endOffset": 2148, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getHiddenContacts",
+      "ranges": [{ "startOffset": 2223, "endOffset": 2490, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

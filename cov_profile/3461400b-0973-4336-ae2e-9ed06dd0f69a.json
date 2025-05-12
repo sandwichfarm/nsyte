@@ -1,0 +1,26 @@
+{
+  "scriptId": "712",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/observable/timer.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1687, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1686, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1622, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "timer",
+      "ranges": [{ "startOffset": 530, "endOffset": 1563, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

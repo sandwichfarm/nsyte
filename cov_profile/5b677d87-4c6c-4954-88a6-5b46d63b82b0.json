@@ -1,0 +1,56 @@
+{
+  "scriptId": "492",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/signers/readonly-signer.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 991, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 116, "endOffset": 144, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "ReadonlySigner",
+      "ranges": [{ "startOffset": 150, "endOffset": 479, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicKey",
+      "ranges": [{ "startOffset": 484, "endOffset": 534, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getRelays",
+      "ranges": [{ "startOffset": 539, "endOffset": 577, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "signEvent",
+      "ranges": [{ "startOffset": 582, "endOffset": 660, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Encrypt",
+      "ranges": [{ "startOffset": 665, "endOffset": 742, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Decrypt",
+      "ranges": [{ "startOffset": 747, "endOffset": 824, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip44Encrypt",
+      "ranges": [{ "startOffset": 829, "endOffset": 906, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip44Decrypt",
+      "ranges": [{ "startOffset": 911, "endOffset": 988, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

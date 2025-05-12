@@ -1,0 +1,36 @@
+{
+  "scriptId": "907",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/concat.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1677, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1676, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1612, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__read",
+      "ranges": [{ "startOffset": 297, "endOffset": 747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__spreadArray",
+      "ranges": [{ "startOffset": 801, "endOffset": 935, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "concat",
+      "ranges": [{ "startOffset": 1187, "endOffset": 1550, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

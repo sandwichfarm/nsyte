@@ -1,0 +1,16 @@
+{
+  "scriptId": "659",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/observable/simple-timeout.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 239, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "simpleTimeout",
+      "ranges": [{ "startOffset": 95, "endOffset": 238, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

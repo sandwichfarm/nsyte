@@ -1,0 +1,51 @@
+{
+  "scriptId": "457",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.2/esm/hmac.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2795, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "HMAC",
+      "ranges": [{ "startOffset": 197, "endOffset": 1298, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "update",
+      "ranges": [{ "startOffset": 1303, "endOffset": 1403, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digestInto",
+      "ranges": [{ "startOffset": 1408, "endOffset": 1659, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "digest",
+      "ranges": [{ "startOffset": 1664, "endOffset": 1788, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "_cloneInto",
+      "ranges": [{ "startOffset": 1793, "endOffset": 2335, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "destroy",
+      "ranges": [{ "startOffset": 2340, "endOffset": 2448, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hmac",
+      "ranges": [{ "startOffset": 2643, "endOffset": 2711, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hmac.create",
+      "ranges": [{ "startOffset": 2727, "endOffset": 2761, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

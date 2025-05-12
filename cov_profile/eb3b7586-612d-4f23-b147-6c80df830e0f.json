@@ -1,0 +1,71 @@
+{
+  "scriptId": "437",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-relay/1.1.0/dist/pool.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2156, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 146, "endOffset": 442, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "get groups",
+      "ranges": [{ "startOffset": 205, "endOffset": 260, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get relays",
+      "ranges": [{ "startOffset": 311, "endOffset": 366, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "RelayPool",
+      "ranges": [{ "startOffset": 448, "endOffset": 508, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "filterBlacklist",
+      "ranges": [{ "startOffset": 513, "endOffset": 605, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "relay",
+      "ranges": [{ "startOffset": 658, "endOffset": 1015, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "group",
+      "ranges": [{ "startOffset": 1056, "endOffset": 1404, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "req",
+      "ranges": [{ "startOffset": 1483, "endOffset": 1567, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "event",
+      "ranges": [{ "startOffset": 1624, "endOffset": 1700, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "publish",
+      "ranges": [{ "startOffset": 1752, "endOffset": 1844, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "request",
+      "ranges": [{ "startOffset": 1896, "endOffset": 1992, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "subscription",
+      "ranges": [{ "startOffset": 2047, "endOffset": 2153, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

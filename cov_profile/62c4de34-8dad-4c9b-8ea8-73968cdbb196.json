@@ -1,0 +1,43 @@
+{
+  "scriptId": "332",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/tests/unit/config_test.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2083, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 784, "endOffset": 2080, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 803, "endOffset": 1067, "count": 2 },
+        { "startOffset": 1027, "endOffset": 1057, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 1082, "endOffset": 1335, "count": 2 },
+        { "startOffset": 1227, "endOffset": 1331, "count": 1 },
+        { "startOffset": 1295, "endOffset": 1325, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1381, "endOffset": 1933, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1993, "endOffset": 2076, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

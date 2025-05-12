@@ -1,0 +1,14 @@
+{
+  "scriptId": "458",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 8261, "count": 1 },
+        { "startOffset": 200, "endOffset": 349, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

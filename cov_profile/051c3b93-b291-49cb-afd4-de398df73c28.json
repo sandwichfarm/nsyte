@@ -1,0 +1,16 @@
+{
+  "scriptId": "573",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/time.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 114, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "unixNow",
+      "ranges": [{ "startOffset": 49, "endOffset": 113, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scriptId": "514",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/profile.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1307, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getProfileContent",
+      "ranges": [{ "startOffset": 226, "endOffset": 793, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidProfile",
+      "ranges": [{ "startOffset": 864, "endOffset": 1124, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getDisplayName",
+      "ranges": [{ "startOffset": 1191, "endOffset": 1306, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

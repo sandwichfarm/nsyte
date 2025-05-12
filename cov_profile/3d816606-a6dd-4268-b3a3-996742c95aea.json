@@ -1,0 +1,705 @@
+{
+  "scriptId": "547",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/secp256k1/1.7.2/lib/esm/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 41849, "count": 1 },
+        { "startOffset": 37446, "endOffset": 37465, "count": 0 },
+        { "startOffset": 37466, "endOffset": 37479, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "divNearest",
+      "ranges": [{ "startOffset": 774, "endOffset": 801, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "splitScalar",
+      "ranges": [{ "startOffset": 910, "endOffset": 1778, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "weierstrass",
+      "ranges": [{ "startOffset": 1941, "endOffset": 2083, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ShaError",
+      "ranges": [{ "startOffset": 2161, "endOffset": 2213, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "assertJacPoint",
+      "ranges": [{ "startOffset": 2216, "endOffset": 2348, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "JacobianPoint",
+      "ranges": [{ "startOffset": 2375, "endOffset": 2463, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "fromAffine",
+      "ranges": [{ "startOffset": 2475, "endOffset": 2742, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toAffineBatch",
+      "ranges": [{ "startOffset": 2754, "endOffset": 2901, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizeZ",
+      "ranges": [{ "startOffset": 2913, "endOffset": 3021, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "equals",
+      "ranges": [{ "startOffset": 3026, "endOffset": 3440, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "negate",
+      "ranges": [{ "startOffset": 3445, "endOffset": 3525, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "double",
+      "ranges": [{ "startOffset": 3530, "endOffset": 4001, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "add",
+      "ranges": [{ "startOffset": 4006, "endOffset": 5036, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "subtract",
+      "ranges": [{ "startOffset": 5041, "endOffset": 5105, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "multiplyUnsafe",
+      "ranges": [{ "startOffset": 5110, "endOffset": 6203, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "precomputeWindow",
+      "ranges": [{ "startOffset": 6208, "endOffset": 6690, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "wNAF",
+      "ranges": [{ "startOffset": 6695, "endOffset": 8385, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "multiply",
+      "ranges": [{ "startOffset": 8390, "endOffset": 9164, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toAffine",
+      "ranges": [{ "startOffset": 9169, "endOffset": 9698, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "constTimeNegate",
+      "ranges": [{ "startOffset": 9821, "endOffset": 9932, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Point",
+      "ranges": [{ "startOffset": 9998, "endOffset": 10063, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "_setWindowSize",
+      "ranges": [{ "startOffset": 10068, "endOffset": 10181, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hasEvenY",
+      "ranges": [{ "startOffset": 10186, "endOffset": 10241, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromCompressedHex",
+      "ranges": [{ "startOffset": 10253, "endOffset": 10930, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromUncompressedHex",
+      "ranges": [{ "startOffset": 10942, "endOffset": 11216, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromHex",
+      "ranges": [{ "startOffset": 11228, "endOffset": 11846, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromPrivateKey",
+      "ranges": [{ "startOffset": 11858, "endOffset": 11961, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromSignature",
+      "ranges": [{ "startOffset": 11973, "endOffset": 12770, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toRawBytes",
+      "ranges": [{ "startOffset": 12775, "endOffset": 12868, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toHex",
+      "ranges": [{ "startOffset": 12873, "endOffset": 13155, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toHexX",
+      "ranges": [{ "startOffset": 13160, "endOffset": 13218, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toRawX",
+      "ranges": [{ "startOffset": 13223, "endOffset": 13286, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "assertValidity",
+      "ranges": [{ "startOffset": 13291, "endOffset": 13642, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "equals",
+      "ranges": [{ "startOffset": 13647, "endOffset": 13725, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "negate",
+      "ranges": [{ "startOffset": 13730, "endOffset": 13794, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "double",
+      "ranges": [{ "startOffset": 13799, "endOffset": 13882, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "add",
+      "ranges": [{ "startOffset": 13887, "endOffset": 14000, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "subtract",
+      "ranges": [{ "startOffset": 14005, "endOffset": 14069, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "multiply",
+      "ranges": [{ "startOffset": 14074, "endOffset": 14179, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "multiplyAndAddUnsafe",
+      "ranges": [{ "startOffset": 14184, "endOffset": 14549, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sliceDER",
+      "ranges": [{ "startOffset": 14630, "endOffset": 14712, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseDERInt",
+      "ranges": [{ "startOffset": 14713, "endOffset": 15248, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseDERSignature",
+      "ranges": [{ "startOffset": 15249, "endOffset": 15804, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Signature",
+      "ranges": [{ "startOffset": 15834, "endOffset": 15930, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromCompact",
+      "ranges": [{ "startOffset": 15942, "endOffset": 16403, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromDER",
+      "ranges": [{ "startOffset": 16415, "endOffset": 16708, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromHex",
+      "ranges": [{ "startOffset": 16720, "endOffset": 16774, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "assertValidity",
+      "ranges": [{ "startOffset": 16779, "endOffset": 17048, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hasHighS",
+      "ranges": [{ "startOffset": 17053, "endOffset": 17138, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizeS",
+      "ranges": [{ "startOffset": 17143, "endOffset": 17249, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toDERRawBytes",
+      "ranges": [{ "startOffset": 17254, "endOffset": 17321, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toDERHex",
+      "ranges": [{ "startOffset": 17326, "endOffset": 17765, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toRawBytes",
+      "ranges": [{ "startOffset": 17770, "endOffset": 17827, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toHex",
+      "ranges": [{ "startOffset": 17832, "endOffset": 17879, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toCompactRawBytes",
+      "ranges": [{ "startOffset": 17884, "endOffset": 17959, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toCompactHex",
+      "ranges": [{ "startOffset": 17964, "endOffset": 18044, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isBytes",
+      "ranges": [{ "startOffset": 18047, "endOffset": 18172, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "abytes",
+      "ranges": [{ "startOffset": 18173, "endOffset": 18270, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "concatBytes",
+      "ranges": [{ "startOffset": 18271, "endOffset": 18663, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 18706, "endOffset": 18747, "count": 256 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "bytesToHex",
+      "ranges": [{ "startOffset": 18757, "endOffset": 18923, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "asciiToBase16",
+      "ranges": [{ "startOffset": 18988, "endOffset": 19263, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hexToBytes",
+      "ranges": [{ "startOffset": 19271, "endOffset": 20025, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numTo32bStr",
+      "ranges": [{ "startOffset": 20123, "endOffset": 20377, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numTo32b",
+      "ranges": [{ "startOffset": 20378, "endOffset": 20540, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numberToHexUnpadded",
+      "ranges": [{ "startOffset": 20541, "endOffset": 20657, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hexToNumber",
+      "ranges": [{ "startOffset": 20658, "endOffset": 20839, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bytesToNumber",
+      "ranges": [{ "startOffset": 20840, "endOffset": 20916, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ensureBytes",
+      "ranges": [{ "startOffset": 20917, "endOffset": 21012, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizeScalar",
+      "ranges": [{ "startOffset": 21013, "endOffset": 21307, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "mod",
+      "ranges": [{ "startOffset": 21308, "endOffset": 21414, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "pow2",
+      "ranges": [{ "startOffset": 21415, "endOffset": 21572, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sqrtMod",
+      "ranges": [{ "startOffset": 21573, "endOffset": 22487, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "invert",
+      "ranges": [{ "startOffset": 22488, "endOffset": 23079, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "invertBatch",
+      "ranges": [{ "startOffset": 23080, "endOffset": 23603, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bits2int_2",
+      "ranges": [{ "startOffset": 23604, "endOffset": 23774, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "truncateHash",
+      "ranges": [{ "startOffset": 23775, "endOffset": 23956, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "HmacDrbg",
+      "ranges": [{ "startOffset": 24016, "endOffset": 24475, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hmac",
+      "ranges": [{ "startOffset": 24480, "endOffset": 24555, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hmacSync",
+      "ranges": [{ "startOffset": 24560, "endOffset": 24638, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "checkSync",
+      "ranges": [{ "startOffset": 24643, "endOffset": 24779, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "incr",
+      "ranges": [{ "startOffset": 24784, "endOffset": 24941, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "reseed",
+      "ranges": [{ "startOffset": 24946, "endOffset": 25272, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "reseedSync",
+      "ranges": [{ "startOffset": 25277, "endOffset": 25619, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "generate",
+      "ranges": [{ "startOffset": 25624, "endOffset": 25943, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "generateSync",
+      "ranges": [{ "startOffset": 25948, "endOffset": 26289, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isWithinCurveOrder",
+      "ranges": [{ "startOffset": 26292, "endOffset": 26367, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidFieldElement",
+      "ranges": [{ "startOffset": 26368, "endOffset": 26444, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "kmdToSig",
+      "ranges": [{ "startOffset": 26445, "endOffset": 27046, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizePrivateKey",
+      "ranges": [{ "startOffset": 27047, "endOffset": 27813, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizePublicKey",
+      "ranges": [{ "startOffset": 27814, "endOffset": 28020, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalizeSignature",
+      "ranges": [{ "startOffset": 28021, "endOffset": 28309, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicKey",
+      "ranges": [{ "startOffset": 28317, "endOffset": 28446, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "recoverPublicKey",
+      "ranges": [{ "startOffset": 28454, "endOffset": 28622, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isProbPub",
+      "ranges": [{ "startOffset": 28623, "endOffset": 29003, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getSharedSecret",
+      "ranges": [{ "startOffset": 29011, "endOffset": 29442, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bits2int",
+      "ranges": [{ "startOffset": 29443, "endOffset": 29582, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bits2octets",
+      "ranges": [{ "startOffset": 29583, "endOffset": 29722, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "int2octets",
+      "ranges": [{ "startOffset": 29723, "endOffset": 29777, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "initSigArgs",
+      "ranges": [{ "startOffset": 29778, "endOffset": 30493, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "finalizeSig",
+      "ranges": [{ "startOffset": 30494, "endOffset": 30778, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sign",
+      "ranges": [{ "startOffset": 30779, "endOffset": 31139, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "signSync",
+      "ranges": [{ "startOffset": 31140, "endOffset": 31492, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "verify",
+      "ranges": [{ "startOffset": 31559, "endOffset": 32288, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrChallengeFinalize",
+      "ranges": [{ "startOffset": 32289, "endOffset": 32374, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "SchnorrSignature",
+      "ranges": [{ "startOffset": 32404, "endOffset": 32500, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fromHex",
+      "ranges": [{ "startOffset": 32512, "endOffset": 32862, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "assertValidity",
+      "ranges": [{ "startOffset": 32867, "endOffset": 33035, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toHex",
+      "ranges": [{ "startOffset": 33040, "endOffset": 33113, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toRawBytes",
+      "ranges": [{ "startOffset": 33118, "endOffset": 33179, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrGetPublicKey",
+      "ranges": [{ "startOffset": 33182, "endOffset": 33280, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "InternalSchnorrSignature",
+      "ranges": [{ "startOffset": 33318, "endOffset": 33822, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getScalar",
+      "ranges": [{ "startOffset": 33827, "endOffset": 34018, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "initNonce",
+      "ranges": [{ "startOffset": 34023, "endOffset": 34097, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "finalizeNonce",
+      "ranges": [{ "startOffset": 34102, "endOffset": 34379, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "finalizeSig",
+      "ranges": [{ "startOffset": 34384, "endOffset": 34495, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "error",
+      "ranges": [{ "startOffset": 34500, "endOffset": 34576, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "calc",
+      "ranges": [{ "startOffset": 34581, "endOffset": 35052, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "calcSync",
+      "ranges": [{ "startOffset": 35057, "endOffset": 35508, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrSign",
+      "ranges": [{ "startOffset": 35511, "endOffset": 35635, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrSignSync",
+      "ranges": [{ "startOffset": 35636, "endOffset": 35762, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "initSchnorrVerify",
+      "ranges": [{ "startOffset": 35763, "endOffset": 36104, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "finalizeSchnorrVerify",
+      "ranges": [{ "startOffset": 36105, "endOffset": 36324, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrVerify",
+      "ranges": [{ "startOffset": 36325, "endOffset": 36695, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "schnorrVerifySync",
+      "ranges": [{ "startOffset": 36696, "endOffset": 37126, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidPrivateKey",
+      "ranges": [{ "startOffset": 37732, "endOffset": 37923, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hashToPrivateKey",
+      "ranges": [{ "startOffset": 38026, "endOffset": 38363, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "randomBytes",
+      "ranges": [{ "startOffset": 38382, "endOffset": 38783, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "randomPrivateKey",
+      "ranges": [{ "startOffset": 38807, "endOffset": 38868, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "precompute",
+      "ranges": [{ "startOffset": 38874, "endOffset": 39107, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sha256",
+      "ranges": [{ "startOffset": 39121, "endOffset": 39669, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hmacSha256",
+      "ranges": [{ "startOffset": 39687, "endOffset": 40422, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "taggedHash",
+      "ranges": [{ "startOffset": 40498, "endOffset": 40852, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "taggedHashSync",
+      "ranges": [{ "startOffset": 40874, "endOffset": 41340, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get",
+      "ranges": [{ "startOffset": 41468, "endOffset": 41517, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "set",
+      "ranges": [{ "startOffset": 41527, "endOffset": 41612, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get",
+      "ranges": [{ "startOffset": 41680, "endOffset": 41733, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "set",
+      "ranges": [{ "startOffset": 41743, "endOffset": 41836, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

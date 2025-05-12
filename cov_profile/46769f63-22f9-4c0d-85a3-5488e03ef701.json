@@ -1,0 +1,26 @@
+{
+  "scriptId": "813",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/switchScan.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 974, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 973, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 909, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "switchScan",
+      "ranges": [{ "startOffset": 431, "endOffset": 835, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "scriptId": "676",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/light-bolt11-decoder/3.2.0/bolt11.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 683, "count": 1 },
+        { "startOffset": 200, "endOffset": 357, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "scriptId": "540",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/bookmarks.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3083, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "parseBookmarkTags",
+      "ranges": [{ "startOffset": 548, "endOffset": 1052, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "mergeBookmarks",
+      "ranges": [{ "startOffset": 1114, "endOffset": 2310, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getBookmarks",
+      "ranges": [{ "startOffset": 2364, "endOffset": 2587, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicBookmarks",
+      "ranges": [{ "startOffset": 2644, "endOffset": 2793, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getHiddenBookmarks",
+      "ranges": [{ "startOffset": 2859, "endOffset": 3082, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

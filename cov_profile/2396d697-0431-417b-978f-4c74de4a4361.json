@@ -1,0 +1,11 @@
+{
+  "scriptId": "382",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 112, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

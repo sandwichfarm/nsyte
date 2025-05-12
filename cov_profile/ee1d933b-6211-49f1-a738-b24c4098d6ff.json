@@ -1,0 +1,85 @@
+{
+  "scriptId": "766",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/ReplaySubject.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 4032, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 4031, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 3967, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 304, "endOffset": 1017, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [
+        { "startOffset": 342, "endOffset": 653, "count": 1 },
+        { "startOffset": 406, "endOffset": 497, "count": 0 },
+        { "startOffset": 498, "endOffset": 610, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 460, "endOffset": 496, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 513, "endOffset": 610, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__extends",
+      "ranges": [
+        { "startOffset": 666, "endOffset": 1014, "count": 1 },
+        { "startOffset": 720, "endOffset": 733, "count": 0 },
+        { "startOffset": 747, "endOffset": 837, "count": 0 },
+        { "startOffset": 948, "endOffset": 966, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__",
+      "ranges": [{ "startOffset": 875, "endOffset": 914, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1252, "endOffset": 3863, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "ReplaySubject",
+      "ranges": [{ "startOffset": 1314, "endOffset": 2079, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ReplaySubject.next",
+      "ranges": [{ "startOffset": 2115, "endOffset": 2566, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ReplaySubject._subscribe",
+      "ranges": [{ "startOffset": 2609, "endOffset": 3111, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ReplaySubject._trimBuffer",
+      "ranges": [{ "startOffset": 3155, "endOffset": 3834, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

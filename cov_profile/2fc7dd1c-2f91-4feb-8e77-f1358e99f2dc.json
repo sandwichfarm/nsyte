@@ -1,0 +1,46 @@
+{
+  "scriptId": "682",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.1/esm/scrypt.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 9785, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "rotl",
+      "ranges": [{ "startOffset": 229, "endOffset": 266, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "XorAndSalsa",
+      "ranges": [{ "startOffset": 405, "endOffset": 3220, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "BlockMix",
+      "ranges": [{ "startOffset": 3221, "endOffset": 3942, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "scryptInit",
+      "ranges": [{ "startOffset": 4000, "endOffset": 6658, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "scryptOutput",
+      "ranges": [{ "startOffset": 6659, "endOffset": 6837, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "scrypt",
+      "ranges": [{ "startOffset": 7507, "endOffset": 8578, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "scryptAsync",
+      "ranges": [{ "startOffset": 8623, "endOffset": 9750, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

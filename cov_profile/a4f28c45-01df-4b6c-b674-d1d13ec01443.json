@@ -1,0 +1,14 @@
+{
+  "scriptId": "710",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/hash-sum/2.0.0/hash-sum.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 575, "count": 1 },
+        { "startOffset": 200, "endOffset": 347, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "scriptId": "626",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/relays.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1387, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "addSeenRelay",
+      "ranges": [{ "startOffset": 154, "endOffset": 348, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getSeenRelays",
+      "ranges": [{ "startOffset": 412, "endOffset": 481, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isSafeRelayURL",
+      "ranges": [{ "startOffset": 696, "endOffset": 839, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "mergeRelaySets",
+      "ranges": [{ "startOffset": 929, "endOffset": 1386, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

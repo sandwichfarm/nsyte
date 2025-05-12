@@ -1,0 +1,41 @@
+{
+  "scriptId": "489",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/signers/extension-signer.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1224, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "get nip04",
+      "ranges": [{ "startOffset": 210, "endOffset": 265, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get nip44",
+      "ranges": [{ "startOffset": 270, "endOffset": 325, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 330, "endOffset": 348, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getPublicKey",
+      "ranges": [{ "startOffset": 354, "endOffset": 815, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getRelays",
+      "ranges": [{ "startOffset": 820, "endOffset": 1040, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "signEvent",
+      "ranges": [{ "startOffset": 1045, "endOffset": 1221, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

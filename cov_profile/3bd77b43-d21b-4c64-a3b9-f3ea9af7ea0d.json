@@ -1,0 +1,16 @@
+{
+  "scriptId": "634",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/observable/listen-latest-updates.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 420, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "listenLatestUpdates",
+      "ranges": [{ "startOffset": 113, "endOffset": 419, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

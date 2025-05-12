@@ -1,0 +1,56 @@
+{
+  "scriptId": "618",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/lists.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 4196, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getListTags",
+      "ranges": [{ "startOffset": 530, "endOffset": 818, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isEventPointerInList",
+      "ranges": [{ "startOffset": 1079, "endOffset": 1300, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isAddressPointerInList",
+      "ranges": [{ "startOffset": 1567, "endOffset": 1824, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isProfilePointerInList",
+      "ranges": [{ "startOffset": 2091, "endOffset": 2326, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventPointersFromList",
+      "ranges": [{ "startOffset": 2500, "endOffset": 2665, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getAddressPointersFromList",
+      "ranges": [{ "startOffset": 2843, "endOffset": 3006, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getProfilePointersFromList",
+      "ranges": [{ "startOffset": 3184, "endOffset": 3347, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getRelaysFromList",
+      "ranges": [{ "startOffset": 3533, "endOffset": 3686, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidList",
+      "ranges": [{ "startOffset": 3744, "endOffset": 4195, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

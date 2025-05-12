@@ -1,0 +1,26 @@
+{
+  "scriptId": "847",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/catchError.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1454, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1453, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1389, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "catchError",
+      "ranges": [{ "startOffset": 503, "endOffset": 1315, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

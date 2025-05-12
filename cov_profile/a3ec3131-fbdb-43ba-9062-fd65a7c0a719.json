@@ -1,0 +1,24 @@
+{
+  "scriptId": "945",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/debug/4.4.0/src/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 626, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 625, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 185, "endOffset": 561, "count": 1 },
+        { "startOffset": 463, "endOffset": 509, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

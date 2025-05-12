@@ -1,0 +1,26 @@
+{
+  "scriptId": "768",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/expand.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 920, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 919, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 855, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "expand",
+      "ranges": [{ "startOffset": 437, "endOffset": 793, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

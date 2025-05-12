@@ -1,0 +1,41 @@
+{
+  "scriptId": "721",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.2/esm/_assert.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1367, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "number",
+      "ranges": [{ "startOffset": 0, "endOffset": 122, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bool",
+      "ranges": [{ "startOffset": 123, "endOffset": 230, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bytes",
+      "ranges": [{ "startOffset": 231, "endOffset": 503, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hash",
+      "ranges": [{ "startOffset": 504, "endOffset": 731, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "exists",
+      "ranges": [{ "startOffset": 732, "endOffset": 982, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "output",
+      "ranges": [{ "startOffset": 983, "endOffset": 1192, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "scriptId": "332",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/tests/integration/secrets_test.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2900, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 401, "endOffset": 2897, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 723, "endOffset": 1183, "count": 2 },
+        { "startOffset": 890, "endOffset": 987, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1118, "endOffset": 1177, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 1198, "endOffset": 1470, "count": 2 },
+        { "startOffset": 1386, "endOffset": 1430, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1247, "endOffset": 1306, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1544, "endOffset": 2275, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2342, "endOffset": 2893, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

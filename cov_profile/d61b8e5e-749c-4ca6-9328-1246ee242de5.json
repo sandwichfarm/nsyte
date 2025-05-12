@@ -1,0 +1,121 @@
+{
+  "scriptId": "368",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.3/esm/utils.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 6958, "count": 1 },
+        { "startOffset": 1528, "endOffset": 1591, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "u8",
+      "ranges": [{ "startOffset": 594, "endOffset": 661, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "u32",
+      "ranges": [{ "startOffset": 682, "endOffset": 766, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isBytes",
+      "ranges": [
+        { "startOffset": 768, "endOffset": 916, "count": 4 },
+        { "startOffset": 826, "endOffset": 912, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "createView",
+      "ranges": [{ "startOffset": 965, "endOffset": 1030, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "rotr",
+      "ranges": [{ "startOffset": 1116, "endOffset": 1174, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1707, "endOffset": 1748, "count": 256 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "bytesToHex",
+      "ranges": [
+        { "startOffset": 1846, "endOffset": 2107, "count": 4 },
+        { "startOffset": 1908, "endOffset": 1947, "count": 0 },
+        { "startOffset": 2050, "endOffset": 2089, "count": 128 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "asciiToBase16",
+      "ranges": [{ "startOffset": 2242, "endOffset": 2543, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hexToBytes",
+      "ranges": [{ "startOffset": 2639, "endOffset": 3400, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nextTick",
+      "ranges": [{ "startOffset": 3635, "endOffset": 3650, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "asyncLoop",
+      "ranges": [{ "startOffset": 3721, "endOffset": 4098, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "utf8ToBytes",
+      "ranges": [{ "startOffset": 4177, "endOffset": 4401, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toBytes",
+      "ranges": [{ "startOffset": 4588, "endOffset": 4791, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "concatBytes",
+      "ranges": [{ "startOffset": 4847, "endOffset": 5275, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "clone",
+      "ranges": [{ "startOffset": 5398, "endOffset": 5447, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "checkOpts",
+      "ranges": [{ "startOffset": 5484, "endOffset": 5727, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "wrapConstructor",
+      "ranges": [{ "startOffset": 5735, "endOffset": 5997, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "wrapConstructorWithOpts",
+      "ranges": [{ "startOffset": 6005, "endOffset": 6295, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "wrapXOFConstructorWithOpts",
+      "ranges": [{ "startOffset": 6303, "endOffset": 6596, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "randomBytes",
+      "ranges": [{ "startOffset": 6679, "endOffset": 6924, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

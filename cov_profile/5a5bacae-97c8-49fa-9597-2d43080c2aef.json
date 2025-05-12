@@ -1,0 +1,26 @@
+{
+  "scriptId": "750",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/debounceTime.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2039, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 2038, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1974, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "debounceTime",
+      "ranges": [{ "startOffset": 496, "endOffset": 1894, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

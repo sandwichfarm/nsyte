@@ -1,0 +1,46 @@
+{
+  "scriptId": "703",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/hidden-tags.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 2148, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "canHaveHiddenTags",
+      "ranges": [{ "startOffset": 344, "endOffset": 419, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hasHiddenTags",
+      "ranges": [{ "startOffset": 469, "endOffset": 572, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getHiddenTags",
+      "ranges": [{ "startOffset": 645, "endOffset": 1153, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isHiddenTagsLocked",
+      "ranges": [{ "startOffset": 1205, "endOffset": 1284, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getHiddenTagsEncryptionMethods",
+      "ranges": [{ "startOffset": 1370, "endOffset": 1487, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "unlockHiddenTags",
+      "ranges": [{ "startOffset": 1704, "endOffset": 2022, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "lockHiddenTags",
+      "ranges": [{ "startOffset": 2030, "endOffset": 2147, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

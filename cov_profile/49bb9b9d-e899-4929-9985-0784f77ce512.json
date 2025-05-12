@@ -1,0 +1,41 @@
+{
+  "scriptId": "758",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/util/Immediate.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1203, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1202, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1138, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "findAndClearHandle",
+      "ranges": [{ "startOffset": 428, "endOffset": 585, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "setImmediate",
+      "ranges": [{ "startOffset": 626, "endOffset": 903, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "clearImmediate",
+      "ranges": [{ "startOffset": 925, "endOffset": 986, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "pending",
+      "ranges": [{ "startOffset": 1026, "endOffset": 1095, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

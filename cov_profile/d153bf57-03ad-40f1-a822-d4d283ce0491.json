@@ -1,0 +1,11 @@
+{
+  "scriptId": "338",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/secrets/mod.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 58, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

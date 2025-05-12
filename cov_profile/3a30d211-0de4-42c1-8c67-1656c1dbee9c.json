@@ -1,0 +1,26 @@
+{
+  "scriptId": "814",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/switchMap.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1726, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1725, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1661, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "switchMap",
+      "ranges": [{ "startOffset": 502, "endOffset": 1590, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

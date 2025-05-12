@@ -7,7 +7,7 @@ import type { Signer } from "./upload.ts";
 
 const log = createLogger("nostr");
 
-export const NSITE_KIND = 34128;
+export const NSITE_KIND = 424242;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
@@ -490,7 +490,7 @@ export async function listRemoteFiles(relays: string[], pubkey: string): Promise
 /**
  * Publish an nsite event to nostr
  */
-export async function publishNsiteEvent(
+export async function createpublishNsiteEvent(
   signer: Signer,
   pubkey: string,
   path: string,
@@ -500,6 +500,7 @@ export async function publishNsiteEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: NSITE_KIND,
+    pubkey: pubkey,
     created_at: Math.floor(Date.now() / 1000),
     tags: [
       ["d", normalizedPath],
@@ -510,4 +511,192 @@ export async function publishNsiteEvent(
   };
 
   return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a profile event (NIP-01)
+ */
+export async function createProfileEvent(
+  signer: Signer, 
+  profile: Profile
+): Promise<NostrEvent> {
+  const eventTemplate: NostrEventTemplate = {
+    kind: 0,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [["client", "nsyte"]],
+    content: JSON.stringify(profile),
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a relay list event (NIP-01, NIP-65)
+ */
+export async function createRelayListEvent(
+  signer: Signer,
+  relays: string[]
+): Promise<NostrEvent> {
+  const tags = relays.map(relay => ["r", relay, "read", "write"]);
+  tags.push(["client", "nsyte"]);
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 10002,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a server list event
+ */
+export async function createServerListEvent(
+  signer: Signer,
+  servers: string[]
+): Promise<NostrEvent> {
+  const tags = servers.map(server => ["server", server]);
+  tags.push(["client", "nsyte"]);
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: USER_BLOSSOM_SERVER_LIST_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a delete event (NIP-09)
+ */
+export async function createDeleteEvent(
+  signer: Signer,
+  eventIds: string[]
+): Promise<NostrEvent> {
+  const tags = eventIds.map(id => ["e", id]);
+  tags.push(["client", "nsyte"]);
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 5,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: "Deleted by nsyte-cli",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Publish events to relays
+ */
+export async function publishEventsToRelays(
+  relays: string[],
+  events: NostrEvent[],
+  signer: Signer,
+  messageCollector?: any
+): Promise<boolean> {
+  if (events.length === 0) {
+    log.warn("No events to publish");
+    return false;
+  }
+
+  if (relays.length === 0) {
+    log.error("No relays provided for publishing");
+    return false;
+  }
+
+  log.debug(`Publishing ${events.length} events to ${relays.length} relays`);
+  
+  try {
+    const results = await Promise.allSettled(
+      relays.map(async (relay) => {
+        return await connectToRelay(
+          relay,
+          async (socket) => {
+            let success = false;
+            
+            try {
+              for (const event of events) {
+                const message = JSON.stringify(["EVENT", event]);
+                socket.send(message);
+                log.debug(`Published event ${event.id.substring(0, 8)}... to ${relay}`);
+              }
+              success = true;
+            } catch (error: unknown) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              log.error(`Failed to publish to relay ${relay}: ${errorMessage}`);
+              
+              if (messageCollector) {
+                messageCollector.addRelayMessage("error", relay, `Failed to publish: ${errorMessage}`);
+              }
+            }
+            
+            return success;
+          },
+          { timeout: 15000, retries: 1 }
+        );
+      })
+    );
+
+    const successCount = results.filter(
+      r => r.status === "fulfilled" && r.value === true
+    ).length;
+
+    if (successCount > 0) {
+      log.info(`Successfully published to ${successCount}/${relays.length} relays`);
+      return true;
+    } else {
+      log.error(`Failed to publish to any of the ${relays.length} relays`);
+      return false;
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error publishing events: ${errorMessage}`);
+    return false;
+  }
+}
+
+/**
+ * Delete remote files by creating and publishing delete events
+ */
+export async function purgeRemoteFiles(
+  relays: string[],
+  files: FileEntry[],
+  signer: Signer,
+  messageCollector?: any
+): Promise<number> {
+  if (files.length === 0) {
+    return 0;
+  }
+
+  const eventsToDelete: string[] = [];
+
+  for (const file of files) {
+    if (file.event?.id) {
+      eventsToDelete.push(file.event.id);
+    }
+  }
+
+  if (eventsToDelete.length === 0) {
+    return 0;
+  }
+
+  try {
+    const deleteEvent = await createDeleteEvent(signer, eventsToDelete);
+    const success = await publishEventsToRelays([...relays], [deleteEvent], signer, messageCollector);
+
+    if (success) {
+      return eventsToDelete.length;
+    } else {
+      return 0;
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error purging remote files: ${errorMessage}`);
+    return 0;
+  }
 }

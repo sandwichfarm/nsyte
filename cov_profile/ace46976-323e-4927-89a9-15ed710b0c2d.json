@@ -1,0 +1,26 @@
+{
+  "scriptId": "683",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/blossom.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 841, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "areBlossomServersEqual",
+      "ranges": [{ "startOffset": 152, "endOffset": 329, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isSha256",
+      "ranges": [{ "startOffset": 380, "endOffset": 448, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getBlossomServersFromList",
+      "ranges": [{ "startOffset": 536, "endOffset": 840, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scriptId": "862",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/count.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 662, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 661, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 597, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "count",
+      "ranges": [{ "startOffset": 382, "endOffset": 538, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

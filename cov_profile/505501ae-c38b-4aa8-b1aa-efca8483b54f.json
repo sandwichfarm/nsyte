@@ -1,0 +1,36 @@
+{
+  "scriptId": "925",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/endWith.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1505, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1504, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1440, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__read",
+      "ranges": [{ "startOffset": 297, "endOffset": 747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__spreadArray",
+      "ranges": [{ "startOffset": 801, "endOffset": 935, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "endWith",
+      "ranges": [{ "startOffset": 1114, "endOffset": 1375, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

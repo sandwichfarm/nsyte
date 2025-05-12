@@ -1,0 +1,26 @@
+{
+  "scriptId": "775",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/last.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1173, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1172, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1108, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "last",
+      "ranges": [{ "startOffset": 617, "endOffset": 1052, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

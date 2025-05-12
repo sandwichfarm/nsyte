@@ -1,0 +1,86 @@
+{
+  "scriptId": "458",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/signers/serial-port-signer.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 9799, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "sleep",
+      "ranges": [{ "startOffset": 364, "endOffset": 409, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "xOnlyToXY",
+      "ranges": [{ "startOffset": 411, "endOffset": 486, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 711, "endOffset": 1069, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "callMethodOnDevice",
+      "ranges": [{ "startOffset": 1075, "endOffset": 1886, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "connectToDevice",
+      "ranges": [{ "startOffset": 1891, "endOffset": 5044, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sendCommand",
+      "ranges": [{ "startOffset": 5049, "endOffset": 5299, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "readFromSerialPort",
+      "ranges": [{ "startOffset": 5304, "endOffset": 6557, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseResponse",
+      "ranges": [{ "startOffset": 6562, "endOffset": 6727, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Encrypt",
+      "ranges": [{ "startOffset": 6746, "endOffset": 7450, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Decrypt",
+      "ranges": [{ "startOffset": 7455, "endOffset": 8100, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicKey",
+      "ranges": [{ "startOffset": 8153, "endOffset": 8328, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "restore",
+      "ranges": [{ "startOffset": 8383, "endOffset": 8512, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "signEvent",
+      "ranges": [{ "startOffset": 8565, "endOffset": 9076, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ping",
+      "ranges": [{ "startOffset": 9141, "endOffset": 9235, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "<static_initializer>",
+      "ranges": [{ "startOffset": 9260, "endOffset": 9795, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

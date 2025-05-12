@@ -1,0 +1,131 @@
+{
+  "scriptId": "706",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/event-store/database.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 10911, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 471, "endOffset": 1186, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getKindIndex",
+      "ranges": [{ "startOffset": 1224, "endOffset": 1367, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getAuthorsIndex",
+      "ranges": [{ "startOffset": 1372, "endOffset": 1532, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getTagIndex",
+      "ranges": [{ "startOffset": 1537, "endOffset": 2174, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "touch",
+      "ranges": [{ "startOffset": 2233, "endOffset": 2295, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hasEvent",
+      "ranges": [{ "startOffset": 2372, "endOffset": 2428, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEvent",
+      "ranges": [{ "startOffset": 2476, "endOffset": 2532, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hasReplaceable",
+      "ranges": [{ "startOffset": 2620, "endOffset": 2793, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getReplaceable",
+      "ranges": [{ "startOffset": 2845, "endOffset": 2964, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "addEvent",
+      "ranges": [{ "startOffset": 3046, "endOffset": 4185, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "updateEvent",
+      "ranges": [{ "startOffset": 4295, "endOffset": 4430, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "removeEvent",
+      "ranges": [{ "startOffset": 4512, "endOffset": 5801, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "claimEvent",
+      "ranges": [{ "startOffset": 5860, "endOffset": 6041, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isClaimed",
+      "ranges": [{ "startOffset": 6099, "endOffset": 6162, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "removeClaim",
+      "ranges": [{ "startOffset": 6208, "endOffset": 6359, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "clearClaim",
+      "ranges": [{ "startOffset": 6406, "endOffset": 6466, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "iterateAuthors",
+      "ranges": [{ "startOffset": 6471, "endOffset": 6723, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "iterateTag",
+      "ranges": [{ "startOffset": 6728, "endOffset": 6989, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "iterateKinds",
+      "ranges": [{ "startOffset": 6994, "endOffset": 7234, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "iterateTime",
+      "ranges": [{ "startOffset": 7239, "endOffset": 7898, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "iterateIds",
+      "ranges": [{ "startOffset": 7903, "endOffset": 8049, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventsForFilter",
+      "ranges": [{ "startOffset": 8106, "endOffset": 10070, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventsForFilters",
+      "ranges": [{ "startOffset": 10075, "endOffset": 10432, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "prune",
+      "ranges": [{ "startOffset": 10494, "endOffset": 10908, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

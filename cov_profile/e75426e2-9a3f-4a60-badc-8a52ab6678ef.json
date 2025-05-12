@@ -1,0 +1,66 @@
+{
+  "scriptId": "497",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/hashes/1.3.2/esm/sha256.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 5003, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Chi",
+      "ranges": [{ "startOffset": 244, "endOffset": 275, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Maj",
+      "ranges": [{ "startOffset": 342, "endOffset": 382, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "SHA256",
+      "ranges": [{ "startOffset": 1839, "endOffset": 2257, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "get",
+      "ranges": [{ "startOffset": 2262, "endOffset": 2365, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "set",
+      "ranges": [{ "startOffset": 2393, "endOffset": 2620, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "process",
+      "ranges": [{ "startOffset": 2625, "endOffset": 4147, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "roundClean",
+      "ranges": [{ "startOffset": 4152, "endOffset": 4198, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "destroy",
+      "ranges": [{ "startOffset": 4203, "endOffset": 4291, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "SHA224",
+      "ranges": [{ "startOffset": 4405, "endOffset": 4736, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4873, "endOffset": 4891, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4948, "endOffset": 4966, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

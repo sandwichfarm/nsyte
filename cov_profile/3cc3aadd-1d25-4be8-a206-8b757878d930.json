@@ -1,0 +1,81 @@
+{
+  "scriptId": "566",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/pointers.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 5891, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "parseCoordinate",
+      "ranges": [{ "startOffset": 330, "endOffset": 1065, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPubkeyFromDecodeResult",
+      "ranges": [{ "startOffset": 1127, "endOffset": 1492, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeDecodeResult",
+      "ranges": [{ "startOffset": 1542, "endOffset": 2033, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventPointerFromETag",
+      "ranges": [{ "startOffset": 2106, "endOffset": 2347, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventPointerFromQTag",
+      "ranges": [{ "startOffset": 2413, "endOffset": 2727, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getAddressPointerFromATag",
+      "ranges": [{ "startOffset": 2795, "endOffset": 3064, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getProfilePointerFromPTag",
+      "ranges": [{ "startOffset": 3131, "endOffset": 3378, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPointerFromTag",
+      "ranges": [{ "startOffset": 3443, "endOffset": 4068, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isAddressPointer",
+      "ranges": [{ "startOffset": 4076, "endOffset": 4284, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isEventPointer",
+      "ranges": [{ "startOffset": 4292, "endOffset": 4398, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getCoordinateFromAddressPointer",
+      "ranges": [{ "startOffset": 4465, "endOffset": 4593, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getAddressPointerForEvent",
+      "ranges": [{ "startOffset": 4673, "endOffset": 5006, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getEventPointerForEvent",
+      "ranges": [{ "startOffset": 5073, "endOffset": 5238, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPointerForEvent",
+      "ranges": [{ "startOffset": 5289, "endOffset": 5890, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

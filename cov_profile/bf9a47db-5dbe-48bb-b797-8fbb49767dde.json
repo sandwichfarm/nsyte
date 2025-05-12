@@ -1,0 +1,51 @@
+{
+  "scriptId": "998",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/hash-sum/2.0.0/hash-sum.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1854, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1853, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1789, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "pad",
+      "ranges": [{ "startOffset": 260, "endOffset": 360, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fold",
+      "ranges": [{ "startOffset": 362, "endOffset": 646, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "foldObject",
+      "ranges": [{ "startOffset": 648, "endOffset": 825, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "foldValue",
+      "ranges": [{ "startOffset": 827, "endOffset": 1615, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "toString",
+      "ranges": [{ "startOffset": 1617, "endOffset": 1686, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "sum",
+      "ranges": [{ "startOffset": 1688, "endOffset": 1763, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

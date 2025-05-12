@@ -1,0 +1,26 @@
+{
+  "scriptId": "674",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/string.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 417, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isHex",
+      "ranges": [{ "startOffset": 39, "endOffset": 137, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isHexKey",
+      "ranges": [{ "startOffset": 196, "endOffset": 314, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "stripInvisibleChar",
+      "ranges": [{ "startOffset": 322, "endOffset": 416, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

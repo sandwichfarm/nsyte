@@ -1,0 +1,51 @@
+{
+  "scriptId": "571",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/tags.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1541, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isNameValueTag",
+      "ranges": [{ "startOffset": 93, "endOffset": 223, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isETag",
+      "ranges": [{ "startOffset": 293, "endOffset": 354, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isPTag",
+      "ranges": [{ "startOffset": 424, "endOffset": 485, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isRTag",
+      "ranges": [{ "startOffset": 555, "endOffset": 616, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isDTag",
+      "ranges": [{ "startOffset": 686, "endOffset": 747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isATag",
+      "ranges": [{ "startOffset": 817, "endOffset": 878, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isTTag",
+      "ranges": [{ "startOffset": 948, "endOffset": 1009, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "processTags",
+      "ranges": [{ "startOffset": 1070, "endOffset": 1539, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

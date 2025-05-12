@@ -1,0 +1,56 @@
+{
+  "scriptId": "634",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/zap.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3255, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getZapSender",
+      "ranges": [{ "startOffset": 666, "endOffset": 759, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapRecipient",
+      "ranges": [{ "startOffset": 815, "endOffset": 981, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapPayment",
+      "ranges": [{ "startOffset": 1030, "endOffset": 1243, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapAddressPointer",
+      "ranges": [{ "startOffset": 1298, "endOffset": 1514, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapEventPointer",
+      "ranges": [{ "startOffset": 1567, "endOffset": 1777, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapPreimage",
+      "ranges": [{ "startOffset": 1833, "endOffset": 1906, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapRequest",
+      "ranges": [{ "startOffset": 1989, "endOffset": 2393, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidZap",
+      "ranges": [{ "startOffset": 2474, "endOffset": 2735, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getZapSplits",
+      "ranges": [{ "startOffset": 2786, "endOffset": 3254, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

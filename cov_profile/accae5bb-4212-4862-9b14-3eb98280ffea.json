@@ -1,0 +1,31 @@
+{
+  "scriptId": "825",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/windowToggle.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3704, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 3703, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 3639, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__values",
+      "ranges": [{ "startOffset": 301, "endOffset": 718, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "windowToggle",
+      "ranges": [{ "startOffset": 1140, "endOffset": 3559, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

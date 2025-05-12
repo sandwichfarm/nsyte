@@ -1,0 +1,46 @@
+{
+  "scriptId": "837",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/ms/2.1.3/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3336, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 3335, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 3271, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "module.exports",
+      "ranges": [{ "startOffset": 667, "endOffset": 1037, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parse",
+      "ranges": [{ "startOffset": 1161, "endOffset": 2244, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fmtShort",
+      "ranges": [{ "startOffset": 2342, "endOffset": 2659, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fmtLong",
+      "ranges": [{ "startOffset": 2756, "endOffset": 3092, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "plural",
+      "ranges": [{ "startOffset": 3128, "endOffset": 3268, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

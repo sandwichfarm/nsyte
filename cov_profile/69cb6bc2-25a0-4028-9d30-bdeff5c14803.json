@@ -1,0 +1,41 @@
+{
+  "scriptId": "393",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/ciphers/0.5.3/esm/chacha.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 11301, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "chachaCore",
+      "ranges": [{ "startOffset": 503, "endOffset": 3835, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hchacha",
+      "ranges": [{ "startOffset": 4082, "endOffset": 6640, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "updatePadded",
+      "ranges": [{ "startOffset": 8076, "endOffset": 8200, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "computeTag",
+      "ranges": [{ "startOffset": 8254, "endOffset": 8730, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "_poly1305_aead",
+      "ranges": [{ "startOffset": 9185, "endOffset": 10658, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 9200, "endOffset": 10658, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

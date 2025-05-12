@@ -1,0 +1,61 @@
+{
+  "scriptId": "401",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/secrets/manager.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3341, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<static_initializer>",
+      "ranges": [{ "startOffset": 327, "endOffset": 342, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 346, "endOffset": 403, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "SecretsManager",
+      "ranges": [{ "startOffset": 407, "endOffset": 422, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getInstance",
+      "ranges": [{ "startOffset": 474, "endOffset": 625, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "initialize",
+      "ranges": [{ "startOffset": 770, "endOffset": 1758, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "storeNbunk",
+      "ranges": [{ "startOffset": 1813, "endOffset": 2241, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getNbunk",
+      "ranges": [{ "startOffset": 2299, "endOffset": 2403, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getAllPubkeys",
+      "ranges": [{ "startOffset": 2444, "endOffset": 2542, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "deleteNbunk",
+      "ranges": [{ "startOffset": 2591, "endOffset": 2859, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "save",
+      "ranges": [{ "startOffset": 2913, "endOffset": 3338, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

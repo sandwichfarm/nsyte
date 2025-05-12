@@ -1,0 +1,16 @@
+{
+  "scriptId": "496",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/helpers/encryption.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 384, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isNIP04",
+      "ranges": [{ "startOffset": 153, "endOffset": 383, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

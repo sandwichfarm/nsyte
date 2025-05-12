@@ -1,0 +1,26 @@
+{
+  "scriptId": "716",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/util/argsOrArgArray.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 635, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 634, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 570, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "argsOrArgArray",
+      "ranges": [{ "startOffset": 384, "endOffset": 484, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

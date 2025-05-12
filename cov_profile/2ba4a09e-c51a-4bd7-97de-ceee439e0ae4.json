@@ -1,0 +1,31 @@
+{
+  "scriptId": "415",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/secrets/utils.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1979, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getHomeDir",
+      "ranges": [{ "startOffset": 246, "endOffset": 412, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getSystemConfigDir",
+      "ranges": [{ "startOffset": 641, "endOffset": 1210, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ensureSystemConfigDir",
+      "ranges": [{ "startOffset": 1272, "endOffset": 1711, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fileExists",
+      "ranges": [{ "startOffset": 1753, "endOffset": 1978, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

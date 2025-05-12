@@ -1,0 +1,281 @@
+{
+  "scriptId": "480",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@scure/base/1.1.1/lib/esm/index.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 16911, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "assertNumber",
+      "ranges": [
+        { "startOffset": 76, "endOffset": 186, "count": 16 },
+        { "startOffset": 145, "endOffset": 184, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "chain",
+      "ranges": [{ "startOffset": 187, "endOffset": 518, "count": 11 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "wrap",
+      "ranges": [{ "startOffset": 230, "endOffset": 254, "count": 54 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 240, "endOffset": 254, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 327, "endOffset": 377, "count": 38 },
+        { "startOffset": 344, "endOffset": 365, "count": 27 },
+        { "startOffset": 366, "endOffset": 376, "count": 11 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 422, "endOffset": 472, "count": 38 },
+        { "startOffset": 439, "endOffset": 460, "count": 27 },
+        { "startOffset": 461, "endOffset": 471, "count": 11 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "alphabet",
+      "ranges": [{ "startOffset": 519, "endOffset": 1689, "count": 11 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 578, "endOffset": 1062, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 1080, "endOffset": 1679, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "join",
+      "ranges": [
+        { "startOffset": 1690, "endOffset": 2427, "count": 11 },
+        { "startOffset": 1769, "endOffset": 1820, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 1850, "endOffset": 2229, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 2247, "endOffset": 2417, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "padding",
+      "ranges": [
+        { "startOffset": 2428, "endOffset": 3833, "count": 4 },
+        { "startOffset": 2529, "endOffset": 2577, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 2599, "endOffset": 3048, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 3058, "endOffset": 3823, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "normalize",
+      "ranges": [
+        { "startOffset": 3834, "endOffset": 4017, "count": 2 },
+        { "startOffset": 3901, "endOffset": 3952, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 3974, "endOffset": 3988, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 3998, "endOffset": 4012, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "convertRadix",
+      "ranges": [{ "startOffset": 4018, "endOffset": 5649, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "gcd",
+      "ranges": [
+        { "startOffset": 5662, "endOffset": 5696, "count": 79 },
+        { "startOffset": 5676, "endOffset": 5679, "count": 18 },
+        { "startOffset": 5680, "endOffset": 5695, "count": 61 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "radix2carry",
+      "ranges": [{ "startOffset": 5718, "endOffset": 5759, "count": 18 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "convertRadix2",
+      "ranges": [{ "startOffset": 5761, "endOffset": 7077, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "radix",
+      "ranges": [{ "startOffset": 7078, "endOffset": 7659, "count": 3 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 7152, "endOffset": 7363, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 7381, "endOffset": 7649, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "radix2",
+      "ranges": [
+        { "startOffset": 7660, "endOffset": 8494, "count": 9 },
+        { "startOffset": 7768, "endOffset": 7821, "count": 0 },
+        { "startOffset": 7894, "endOffset": 7936, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 7966, "endOffset": 8188, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 8206, "endOffset": 8484, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "unsafeWrapper",
+      "ranges": [
+        { "startOffset": 8495, "endOffset": 8749, "count": 4 },
+        { "startOffset": 8566, "endOffset": 8621, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 8633, "endOffset": 8746, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "checksum",
+      "ranges": [{ "startOffset": 8750, "endOffset": 9785, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 10281, "endOffset": 10344, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "genBase58",
+      "ranges": [{ "startOffset": 10649, "endOffset": 10699, "count": 3 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 11079, "endOffset": 11337, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 11343, "endOffset": 11903, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "base58check",
+      "ranges": [{ "startOffset": 11935, "endOffset": 12005, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bech32Polymod",
+      "ranges": [{ "startOffset": 12181, "endOffset": 12431, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bechChecksum",
+      "ranges": [{ "startOffset": 12432, "endOffset": 13120, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "genBech32",
+      "ranges": [
+        { "startOffset": 13121, "endOffset": 15584, "count": 2 },
+        { "startOffset": 13201, "endOffset": 13204, "count": 1 },
+        { "startOffset": 13205, "endOffset": 13217, "count": 1 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 13379, "endOffset": 14088, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 14093, "endOffset": 15284, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decodeToBytes",
+      "ranges": [{ "startOffset": 15337, "endOffset": 15485, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encode",
+      "ranges": [{ "startOffset": 15707, "endOffset": 15747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 15761, "endOffset": 15799, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 15890, "endOffset": 16076, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bytesToString",
+      "ranges": [{ "startOffset": 16297, "endOffset": 16574, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "stringToBytes",
+      "ranges": [{ "startOffset": 16639, "endOffset": 16873, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "scriptId": "994",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/debug/4.4.0/src/node.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 5040, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 5039, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 185, "endOffset": 4975, "count": 1 },
+        { "startOffset": 1036, "endOffset": 1089, "count": 0 },
+        { "startOffset": 1091, "endOffset": 1696, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 579, "endOffset": 587, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2024, "endOffset": 2064, "count": 48 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2073, "endOffset": 2531, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "useColors",
+      "ranges": [
+        { "startOffset": 2607, "endOffset": 2746, "count": 2 },
+        { "startOffset": 2670, "endOffset": 2709, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "formatArgs",
+      "ranges": [{ "startOffset": 2819, "endOffset": 3253, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getDate",
+      "ranges": [{ "startOffset": 3255, "endOffset": 3370, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "log",
+      "ranges": [{ "startOffset": 3470, "endOffset": 3586, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "save",
+      "ranges": [
+        { "startOffset": 3667, "endOffset": 3924, "count": 1 },
+        { "startOffset": 3712, "endOffset": 3750, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "load",
+      "ranges": [{ "startOffset": 4041, "endOffset": 4087, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "init",
+      "ranges": [
+        { "startOffset": 4252, "endOffset": 4455, "count": 2 },
+        { "startOffset": 4388, "endOffset": 4453, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "formatters.o",
+      "ranges": [{ "startOffset": 4620, "endOffset": 4776, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "formatters.O",
+      "ranges": [{ "startOffset": 4869, "endOffset": 4971, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

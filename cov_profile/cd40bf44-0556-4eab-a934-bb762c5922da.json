@@ -1,0 +1,51 @@
+{
+  "scriptId": "582",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/nostr-tools/2.12.0/lib/esm/kinds.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 5054, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isRecord",
+      "ranges": [{ "startOffset": 67, "endOffset": 97, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "validateEvent",
+      "ranges": [{ "startOffset": 99, "endOffset": 778, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isRegularKind",
+      "ranges": [{ "startOffset": 792, "endOffset": 924, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isReplaceableKind",
+      "ranges": [{ "startOffset": 925, "endOffset": 1022, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isEphemeralKind",
+      "ranges": [{ "startOffset": 1023, "endOffset": 1093, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isAddressableKind",
+      "ranges": [{ "startOffset": 1094, "endOffset": 1166, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "classifyKind",
+      "ranges": [{ "startOffset": 1223, "endOffset": 1492, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isKind",
+      "ranges": [{ "startOffset": 1493, "endOffset": 1662, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

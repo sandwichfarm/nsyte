@@ -1,0 +1,31 @@
+{
+  "scriptId": "848",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/util/ArgumentOutOfRangeError.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 808, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 807, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 743, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 490, "endOffset": 687, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "ArgumentOutOfRangeErrorImpl",
+      "ranges": [{ "startOffset": 521, "endOffset": 684, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

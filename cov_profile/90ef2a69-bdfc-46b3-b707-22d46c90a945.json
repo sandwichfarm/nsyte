@@ -1,0 +1,39 @@
+{
+  "scriptId": "602",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/nostr-tools/2.12.0/lib/esm/nip05.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 1433, "count": 1 },
+        { "startOffset": 167, "endOffset": 188, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isNip05",
+      "ranges": [{ "startOffset": 87, "endOffset": 127, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "useFetchImplementation",
+      "ranges": [{ "startOffset": 189, "endOffset": 277, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "searchDomain",
+      "ranges": [{ "startOffset": 278, "endOffset": 641, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "queryProfile",
+      "ranges": [{ "startOffset": 642, "endOffset": 1197, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValid",
+      "ranges": [{ "startOffset": 1198, "endOffset": 1326, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

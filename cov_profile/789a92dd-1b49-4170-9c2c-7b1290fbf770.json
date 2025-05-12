@@ -1,0 +1,21 @@
+{
+  "scriptId": "546",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/delete.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 266, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getDeleteIds",
+      "ranges": [{ "startOffset": 51, "endOffset": 150, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getDeleteCoordinates",
+      "ranges": [{ "startOffset": 158, "endOffset": 265, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "scriptId": "405",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/nostr.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 12856, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "generateKeyPair",
+      "ranges": [{ "startOffset": 509, "endOffset": 834, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseBunkerUrl",
+      "ranges": [{ "startOffset": 892, "endOffset": 1536, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createNip46ClientFromUrl",
+      "ranges": [{ "startOffset": 1596, "endOffset": 2211, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getTagValue",
+      "ranges": [{ "startOffset": 2264, "endOffset": 2437, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "connectToRelay",
+      "ranges": [{ "startOffset": 2506, "endOffset": 3171, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "connectToRelayOnce",
+      "ranges": [{ "startOffset": 3226, "endOffset": 5328, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fetchFileEvents",
+      "ranges": [{ "startOffset": 5383, "endOffset": 10469, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "listRemoteFiles",
+      "ranges": [{ "startOffset": 10526, "endOffset": 12340, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createpublishNsiteEvent",
+      "ranges": [{ "startOffset": 12391, "endOffset": 12855, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

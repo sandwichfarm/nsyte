@@ -1,0 +1,31 @@
+{
+  "scriptId": "835",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/observable/connectable.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1493, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1492, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1428, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "connector",
+      "ranges": [{ "startOffset": 508, "endOffset": 555, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "connectable",
+      "ranges": [{ "startOffset": 589, "endOffset": 1351, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

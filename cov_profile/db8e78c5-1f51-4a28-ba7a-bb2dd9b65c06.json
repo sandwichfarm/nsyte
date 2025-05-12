@@ -1,0 +1,39 @@
+{
+  "scriptId": "809",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/Scheduler.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1080, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1079, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1015, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 443, "endOffset": 940, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Scheduler",
+      "ranges": [
+        { "startOffset": 461, "endOffset": 646, "count": 4 },
+        { "startOffset": 536, "endOffset": 560, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Scheduler.schedule",
+      "ranges": [{ "startOffset": 682, "endOffset": 844, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

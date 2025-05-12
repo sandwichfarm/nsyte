@@ -1,0 +1,212 @@
+{
+  "scriptId": "332",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/tests/unit/bunker_command_test.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 7615, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "captureConsoleOutput",
+      "ranges": [
+        { "startOffset": 472, "endOffset": 1256, "count": 5 },
+        { "startOffset": 998, "endOffset": 1133, "count": 0 },
+        { "startOffset": 1138, "endOffset": 1254, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "console.log",
+      "ranges": [{ "startOffset": 631, "endOffset": 684, "count": 37 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "console.error",
+      "ranges": [{ "startOffset": 704, "endOffset": 769, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 866, "endOffset": 990, "count": 5 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<static_initializer>",
+      "ranges": [{ "startOffset": 1339, "endOffset": 1358, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 1362, "endOffset": 1374, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "MockSecretsManager",
+      "ranges": [{ "startOffset": 1378, "endOffset": 1393, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getMockInstance",
+      "ranges": [{ "startOffset": 1403, "endOffset": 1586, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "storeNbunk",
+      "ranges": [{ "startOffset": 1589, "endOffset": 1677, "count": 3 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getNbunk",
+      "ranges": [
+        { "startOffset": 1680, "endOffset": 1743, "count": 4 },
+        { "startOffset": 1731, "endOffset": 1738, "count": 2 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getAllPubkeys",
+      "ranges": [{ "startOffset": 1746, "endOffset": 1805, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "deleteNbunk",
+      "ranges": [
+        { "startOffset": 1808, "endOffset": 1946, "count": 1 },
+        { "startOffset": 1865, "endOffset": 1892, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "resetMock",
+      "ranges": [{ "startOffset": 1949, "endOffset": 1989, "count": 6 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2208, "endOffset": 7612, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2275, "endOffset": 2793, "count": 6 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "SecretsManager.getInstance",
+      "ranges": [{ "startOffset": 2409, "endOffset": 2424, "count": 4 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Deno.exit",
+      "ranges": [{ "startOffset": 2558, "endOffset": 2626, "count": 4 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Confirm.prompt",
+      "ranges": [{ "startOffset": 2762, "endOffset": 2788, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2808, "endOffset": 3031, "count": 6 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3063, "endOffset": 3533, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3108, "endOffset": 3527, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3168, "endOffset": 3188, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3562, "endOffset": 5334, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3616, "endOffset": 4653, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Deno.exit",
+      "ranges": [
+        { "startOffset": 4207, "endOffset": 4280, "count": 1 },
+        { "startOffset": 4241, "endOffset": 4245, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4704, "endOffset": 5328, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Deno.exit",
+      "ranges": [
+        { "startOffset": 4967, "endOffset": 5040, "count": 1 },
+        { "startOffset": 5001, "endOffset": 5005, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5104, "endOffset": 5133, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5363, "endOffset": 6375, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5411, "endOffset": 6053, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5891, "endOffset": 5923, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 6100, "endOffset": 6369, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 6260, "endOffset": 6294, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 6405, "endOffset": 7608, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 6451, "endOffset": 7602, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Confirm.prompt",
+      "ranges": [{ "startOffset": 7065, "endOffset": 7090, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 7154, "endOffset": 7187, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

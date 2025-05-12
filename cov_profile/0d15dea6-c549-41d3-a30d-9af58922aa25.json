@@ -1,0 +1,36 @@
+{
+  "scriptId": "819",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/observable/empty.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 908, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 907, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 843, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 451, "endOffset": 506, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "empty",
+      "ranges": [{ "startOffset": 509, "endOffset": 604, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "emptyScheduled",
+      "ranges": [{ "startOffset": 628, "endOffset": 807, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

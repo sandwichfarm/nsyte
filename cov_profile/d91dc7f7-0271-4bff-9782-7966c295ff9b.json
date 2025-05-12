@@ -1,0 +1,110 @@
+{
+  "scriptId": "655",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/scheduler/VirtualTimeScheduler.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 4894, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 4893, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 4829, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 304, "endOffset": 1017, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [
+        { "startOffset": 342, "endOffset": 653, "count": 1 },
+        { "startOffset": 406, "endOffset": 497, "count": 0 },
+        { "startOffset": 498, "endOffset": 610, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 460, "endOffset": 496, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 513, "endOffset": 610, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__extends",
+      "ranges": [
+        { "startOffset": 666, "endOffset": 1014, "count": 2 },
+        { "startOffset": 720, "endOffset": 733, "count": 0 },
+        { "startOffset": 747, "endOffset": 837, "count": 0 },
+        { "startOffset": 948, "endOffset": 966, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__",
+      "ranges": [{ "startOffset": 875, "endOffset": 914, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1323, "endOffset": 2490, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "VirtualTimeScheduler",
+      "ranges": [{ "startOffset": 1392, "endOffset": 1821, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualTimeScheduler.flush",
+      "ranges": [{ "startOffset": 1865, "endOffset": 2407, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 2600, "endOffset": 4710, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "VirtualAction",
+      "ranges": [{ "startOffset": 2662, "endOffset": 3037, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualAction.schedule",
+      "ranges": [{ "startOffset": 3077, "endOffset": 3581, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualAction.requestAsyncId",
+      "ranges": [{ "startOffset": 3628, "endOffset": 3894, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualAction.recycleAsyncId",
+      "ranges": [{ "startOffset": 3941, "endOffset": 4051, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualAction._execute",
+      "ranges": [{ "startOffset": 4092, "endOffset": 4240, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "VirtualAction.sortActions",
+      "ranges": [{ "startOffset": 4274, "endOffset": 4681, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

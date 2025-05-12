@@ -1,0 +1,46 @@
+{
+  "scriptId": "367",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/config.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 14364, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "sanitizeBunkerUrl",
+      "ranges": [{ "startOffset": 985, "endOffset": 1824, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "writeProjectFile",
+      "ranges": [{ "startOffset": 1879, "endOffset": 2680, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "readProjectFile",
+      "ranges": [{ "startOffset": 2736, "endOffset": 3241, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "fileExists",
+      "ranges": [{ "startOffset": 3276, "endOffset": 3501, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "setupProject",
+      "ranges": [{ "startOffset": 3635, "endOffset": 8914, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "interactiveSetup",
+      "ranges": [{ "startOffset": 8952, "endOffset": 13811, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "promptForUrls",
+      "ranges": [{ "startOffset": 13856, "endOffset": 14363, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "scriptId": "599",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/curves/1.3.0/esm/abstract/hash-to-curve.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 6799, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "validateDST",
+      "ranges": [{ "startOffset": 133, "endOffset": 327, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "i2osp",
+      "ranges": [{ "startOffset": 498, "endOffset": 847, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "strxor",
+      "ranges": [{ "startOffset": 848, "endOffset": 1008, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "abytes",
+      "ranges": [{ "startOffset": 1009, "endOffset": 1106, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNum",
+      "ranges": [{ "startOffset": 1107, "endOffset": 1212, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "expand_message_xmd",
+      "ranges": [{ "startOffset": 1377, "endOffset": 2418, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "expand_message_xof",
+      "ranges": [{ "startOffset": 2764, "endOffset": 3555, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hash_to_field",
+      "ranges": [{ "startOffset": 4007, "endOffset": 5274, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isogenyMap",
+      "ranges": [{ "startOffset": 5282, "endOffset": 5703, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5376, "endOffset": 5406, "count": 4 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 5420, "endOffset": 5700, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createHasher",
+      "ranges": [
+        { "startOffset": 5711, "endOffset": 6757, "count": 1 },
+        { "startOffset": 5809, "endOffset": 5857, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hashToCurve",
+      "ranges": [{ "startOffset": 6008, "endOffset": 6350, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeToCurve",
+      "ranges": [{ "startOffset": 6491, "endOffset": 6747, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

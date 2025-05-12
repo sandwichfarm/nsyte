@@ -1,0 +1,31 @@
+{
+  "scriptId": "449",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/nostr-tools/2.12.0/lib/esm/nip49.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1941, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "encodeBech32",
+      "ranges": [{ "startOffset": 349, "endOffset": 478, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeBytes",
+      "ranges": [{ "startOffset": 479, "endOffset": 556, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encrypt",
+      "ranges": [{ "startOffset": 619, "endOffset": 1107, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decrypt",
+      "ranges": [{ "startOffset": 1108, "endOffset": 1907, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "scriptId": "893",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/operators/throwIfEmpty.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1206, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1205, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1141, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "throwIfEmpty",
+      "ranges": [{ "startOffset": 501, "endOffset": 984, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "defaultErrorFactory",
+      "ranges": [{ "startOffset": 1022, "endOffset": 1098, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

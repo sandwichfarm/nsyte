@@ -1,0 +1,111 @@
+{
+  "scriptId": "455",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-signers/1.0.0/dist/signers/nostr-connect-signer.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 13636, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isErrorResponse",
+      "ranges": [{ "startOffset": 395, "endOffset": 462, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 487, "endOffset": 806, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 874, "endOffset": 1357, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "defaultHandleAuth",
+      "ranges": [{ "startOffset": 1409, "endOffset": 1561, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 1671, "endOffset": 8690, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<static_initializer>",
+      "ranges": [{ "startOffset": 2551, "endOffset": 2724, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "waitForSigner",
+      "ranges": [{ "startOffset": 8743, "endOffset": 8936, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createAccount",
+      "ranges": [{ "startOffset": 9002, "endOffset": 9691, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "requireConnection",
+      "ranges": [{ "startOffset": 9759, "endOffset": 9857, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicKey",
+      "ranges": [{ "startOffset": 9894, "endOffset": 10089, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "signEvent",
+      "ranges": [{ "startOffset": 10130, "endOffset": 10466, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Encrypt",
+      "ranges": [{ "startOffset": 10485, "endOffset": 10657, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip04Decrypt",
+      "ranges": [{ "startOffset": 10662, "endOffset": 11104, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip44Encrypt",
+      "ranges": [{ "startOffset": 11123, "endOffset": 11295, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nip44Decrypt",
+      "ranges": [{ "startOffset": 11300, "endOffset": 11742, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getNostrConnectURI",
+      "ranges": [{ "startOffset": 11806, "endOffset": 12472, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseBunkerURI",
+      "ranges": [{ "startOffset": 12518, "endOffset": 13056, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "buildSigningPermissions",
+      "ranges": [{ "startOffset": 13134, "endOffset": 13267, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 13221, "endOffset": 13258, "count": 4 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "fromBunkerURI",
+      "ranges": [{ "startOffset": 13347, "endOffset": 13633, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "scriptId": "724",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/observable/zip.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3255, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 3254, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 3190, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__read",
+      "ranges": [{ "startOffset": 297, "endOffset": 747, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__spreadArray",
+      "ranges": [{ "startOffset": 801, "endOffset": 935, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "zip",
+      "ranges": [{ "startOffset": 1310, "endOffset": 3137, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

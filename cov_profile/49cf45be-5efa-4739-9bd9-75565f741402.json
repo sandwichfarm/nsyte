@@ -1,0 +1,95 @@
+{
+  "scriptId": "336",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/commands/bunker.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 0, "endOffset": 16276, "count": 1 },
+        { "startOffset": 16137, "endOffset": 16275, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "registerBunkerCommand",
+      "ranges": [{ "startOffset": 540, "endOffset": 1737, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bunkerCommand",
+      "ranges": [{ "startOffset": 1794, "endOffset": 2409, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "showBunkerHelp",
+      "ranges": [{ "startOffset": 2473, "endOffset": 4732, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "listBunkers",
+      "ranges": [{ "startOffset": 4775, "endOffset": 5898, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "importNbunk",
+      "ranges": [
+        { "startOffset": 5957, "endOffset": 7129, "count": 2 },
+        { "startOffset": 6029, "endOffset": 6294, "count": 0 },
+        { "startOffset": 6317, "endOffset": 6413, "count": 0 },
+        { "startOffset": 6834, "endOffset": 6858, "count": 1 },
+        { "startOffset": 6858, "endOffset": 6911, "count": 0 },
+        { "startOffset": 6911, "endOffset": 7127, "count": 1 },
+        { "startOffset": 7014, "endOffset": 7029, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "validate",
+      "ranges": [{ "startOffset": 6147, "endOffset": 6278, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "exportNbunk",
+      "ranges": [
+        { "startOffset": 7186, "endOffset": 8298, "count": 2 },
+        { "startOffset": 7293, "endOffset": 7751, "count": 0 },
+        { "startOffset": 7767, "endOffset": 7854, "count": 0 },
+        { "startOffset": 7930, "endOffset": 8297, "count": 1 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 7524, "endOffset": 7616, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "connectBunker",
+      "ranges": [{ "startOffset": 8363, "endOffset": 12926, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "useBunkerForProject",
+      "ranges": [{ "startOffset": 13000, "endOffset": 14326, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "removeBunker",
+      "ranges": [
+        { "startOffset": 14374, "endOffset": 16114, "count": 1 },
+        { "startOffset": 14482, "endOffset": 14940, "count": 0 },
+        { "startOffset": 14956, "endOffset": 15043, "count": 0 },
+        { "startOffset": 15207, "endOffset": 15298, "count": 0 },
+        { "startOffset": 15527, "endOffset": 15541, "count": 0 },
+        { "startOffset": 15554, "endOffset": 15950, "count": 0 },
+        { "startOffset": 15954, "endOffset": 16053, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 14713, "endOffset": 14805, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

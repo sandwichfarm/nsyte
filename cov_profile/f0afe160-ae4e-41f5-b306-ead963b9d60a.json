@@ -1,0 +1,21 @@
+{
+  "scriptId": "510",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/mailboxes.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1572, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getInboxes",
+      "ranges": [{ "startOffset": 408, "endOffset": 923, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getOutboxes",
+      "ranges": [{ "startOffset": 1049, "endOffset": 1571, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

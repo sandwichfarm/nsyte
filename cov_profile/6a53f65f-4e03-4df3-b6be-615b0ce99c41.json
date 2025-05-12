@@ -1,0 +1,111 @@
+{
+  "scriptId": "604",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/nostr-tools/2.12.0/lib/esm/nip19.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 5864, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isNProfile",
+      "ranges": [{ "startOffset": 269, "endOffset": 319, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNEvent",
+      "ranges": [{ "startOffset": 333, "endOffset": 381, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNAddr",
+      "ranges": [{ "startOffset": 394, "endOffset": 441, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNSec",
+      "ranges": [{ "startOffset": 453, "endOffset": 502, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNPub",
+      "ranges": [{ "startOffset": 514, "endOffset": 563, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNote",
+      "ranges": [{ "startOffset": 575, "endOffset": 621, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isNcryptsec",
+      "ranges": [{ "startOffset": 638, "endOffset": 689, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "integerToUint8Array",
+      "ranges": [{ "startOffset": 797, "endOffset": 1043, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decodeNostrURI",
+      "ranges": [{ "startOffset": 1044, "endOffset": 1269, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "decode",
+      "ranges": [{ "startOffset": 1270, "endOffset": 3557, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "parseTLV",
+      "ranges": [{ "startOffset": 3558, "endOffset": 3918, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nsecEncode",
+      "ranges": [{ "startOffset": 3919, "endOffset": 3982, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "npubEncode",
+      "ranges": [{ "startOffset": 3983, "endOffset": 4058, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "noteEncode",
+      "ranges": [{ "startOffset": 4059, "endOffset": 4134, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeBech32",
+      "ranges": [{ "startOffset": 4135, "endOffset": 4264, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeBytes",
+      "ranges": [{ "startOffset": 4265, "endOffset": 4342, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "nprofileEncode",
+      "ranges": [{ "startOffset": 4343, "endOffset": 4556, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "neventEncode",
+      "ranges": [{ "startOffset": 4557, "endOffset": 4965, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "naddrEncode",
+      "ranges": [{ "startOffset": 4966, "endOffset": 5327, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeTLV",
+      "ranges": [{ "startOffset": 5328, "endOffset": 5667, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

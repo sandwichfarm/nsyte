@@ -1,0 +1,170 @@
+{
+  "scriptId": "635",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/Subject.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 7894, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 7893, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 7829, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 304, "endOffset": 1017, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [
+        { "startOffset": 342, "endOffset": 653, "count": 1 },
+        { "startOffset": 406, "endOffset": 497, "count": 0 },
+        { "startOffset": 498, "endOffset": 610, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 460, "endOffset": 496, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "extendStatics",
+      "ranges": [{ "startOffset": 513, "endOffset": 610, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "__extends",
+      "ranges": [
+        { "startOffset": 666, "endOffset": 1014, "count": 2 },
+        { "startOffset": 720, "endOffset": 733, "count": 0 },
+        { "startOffset": 747, "endOffset": 837, "count": 0 },
+        { "startOffset": 948, "endOffset": 966, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__",
+      "ranges": [{ "startOffset": 875, "endOffset": 914, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "__values",
+      "ranges": [{ "startOffset": 1064, "endOffset": 1481, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1881, "endOffset": 6430, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Subject",
+      "ranges": [{ "startOffset": 1937, "endOffset": 2230, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "Subject.lift",
+      "ranges": [{ "startOffset": 2260, "endOffset": 2404, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject._throwIfClosed",
+      "ranges": [{ "startOffset": 2445, "endOffset": 2576, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.next",
+      "ranges": [{ "startOffset": 2607, "endOffset": 3523, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.error",
+      "ranges": [{ "startOffset": 3555, "endOffset": 4009, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.complete",
+      "ranges": [{ "startOffset": 4044, "endOffset": 4437, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.unsubscribe",
+      "ranges": [{ "startOffset": 4475, "endOffset": 4594, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get",
+      "ranges": [{ "startOffset": 4668, "endOffset": 4806, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject._trySubscribe",
+      "ranges": [{ "startOffset": 4908, "endOffset": 5038, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject._subscribe",
+      "ranges": [{ "startOffset": 5075, "endOffset": 5234, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject._innerSubscribe",
+      "ranges": [{ "startOffset": 5276, "endOffset": 5779, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject._checkFinalizedStatuses",
+      "ranges": [{ "startOffset": 5829, "endOffset": 6113, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.asObservable",
+      "ranges": [{ "startOffset": 6152, "endOffset": 6288, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "Subject.create",
+      "ranges": [{ "startOffset": 6311, "endOffset": 6407, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 6509, "endOffset": 7735, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "AnonymousSubject",
+      "ranges": [{ "startOffset": 6574, "endOffset": 6769, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "AnonymousSubject.next",
+      "ranges": [{ "startOffset": 6808, "endOffset": 6993, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "AnonymousSubject.error",
+      "ranges": [{ "startOffset": 7034, "endOffset": 7216, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "AnonymousSubject.complete",
+      "ranges": [{ "startOffset": 7260, "endOffset": 7437, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "AnonymousSubject._subscribe",
+      "ranges": [{ "startOffset": 7483, "endOffset": 7703, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

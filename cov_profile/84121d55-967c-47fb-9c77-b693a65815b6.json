@@ -1,0 +1,11 @@
+{
+  "scriptId": "727",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/event-store/common.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 130, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scriptId": "814",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/lastValueFrom.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1281, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 1280, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 1216, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "lastValueFrom",
+      "ranges": [{ "startOffset": 403, "endOffset": 1133, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scriptId": "488",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/cache.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 518, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getCachedValue",
+      "ranges": [{ "startOffset": 7, "endOffset": 88, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "setCachedValue",
+      "ranges": [{ "startOffset": 96, "endOffset": 184, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getOrComputeCachedValue",
+      "ranges": [{ "startOffset": 255, "endOffset": 517, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

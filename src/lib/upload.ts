@@ -134,7 +134,7 @@ async function uploadToServer(
 /**
  * Publish an nsite event to nostr
  */
-async function publishNsiteEvent(signer: Signer, pubkey: string, path: string, sha256: string): Promise<NostrEvent> {
+async function createpublishNsiteEvent(signer: Signer, pubkey: string, path: string, sha256: string): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   const eventTemplate: NostrEventTemplate = {
@@ -453,7 +453,7 @@ async function uploadFile(
     let eventPublished = false;
 
     try {
-      signedEvent = await publishNsiteEvent(signer, userPubkey, file.path, file.sha256);
+      signedEvent = await createpublishNsiteEvent(signer, userPubkey, file.path, file.sha256);
 
       if (!relays || relays.length === 0) {
         throw new Error("No relays provided for publishing events");

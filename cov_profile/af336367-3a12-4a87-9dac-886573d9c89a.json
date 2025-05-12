@@ -1,0 +1,31 @@
+{
+  "scriptId": "600",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/curves/1.3.0/esm/_shortw_utils.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 663, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getHash",
+      "ranges": [{ "startOffset": 283, "endOffset": 435, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hmac",
+      "ranges": [{ "startOffset": 349, "endOffset": 404, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createCurve",
+      "ranges": [{ "startOffset": 443, "endOffset": 621, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "create",
+      "ranges": [{ "startOffset": 504, "endOffset": 560, "count": 1 }],
+      "isBlockCoverage": true
+    }
+  ]
+}

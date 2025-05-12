@@ -1,0 +1,92 @@
+{
+  "scriptId": "363",
+  "url": "file:///Users/sandwich/Develop/nsite-cli/src/lib/secrets/manager.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3341, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<static_initializer>",
+      "ranges": [{ "startOffset": 327, "endOffset": 342, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 346, "endOffset": 403, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "SecretsManager",
+      "ranges": [{ "startOffset": 407, "endOffset": 422, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getInstance",
+      "ranges": [
+        { "startOffset": 474, "endOffset": 625, "count": 4 },
+        { "startOffset": 524, "endOffset": 585, "count": 2 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "initialize",
+      "ranges": [
+        { "startOffset": 770, "endOffset": 1758, "count": 11 },
+        { "startOffset": 811, "endOffset": 823, "count": 9 },
+        { "startOffset": 823, "endOffset": 891, "count": 2 },
+        { "startOffset": 891, "endOffset": 997, "count": 0 },
+        { "startOffset": 997, "endOffset": 1595, "count": 2 },
+        { "startOffset": 1384, "endOffset": 1589, "count": 0 },
+        { "startOffset": 1595, "endOffset": 1708, "count": 0 },
+        { "startOffset": 1708, "endOffset": 1757, "count": 2 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "storeNbunk",
+      "ranges": [
+        { "startOffset": 1813, "endOffset": 2241, "count": 2 },
+        { "startOffset": 1872, "endOffset": 1885, "count": 0 },
+        { "startOffset": 2051, "endOffset": 2237, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getNbunk",
+      "ranges": [
+        { "startOffset": 2299, "endOffset": 2403, "count": 2 },
+        { "startOffset": 2346, "endOffset": 2358, "count": 0 },
+        { "startOffset": 2391, "endOffset": 2398, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getAllPubkeys",
+      "ranges": [
+        { "startOffset": 2444, "endOffset": 2542, "count": 5 },
+        { "startOffset": 2490, "endOffset": 2500, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "deleteNbunk",
+      "ranges": [
+        { "startOffset": 2591, "endOffset": 2859, "count": 2 },
+        { "startOffset": 2641, "endOffset": 2654, "count": 0 },
+        { "startOffset": 2690, "endOffset": 2717, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "save",
+      "ranges": [
+        { "startOffset": 2913, "endOffset": 3338, "count": 4 },
+        { "startOffset": 2949, "endOffset": 3024, "count": 0 },
+        { "startOffset": 3170, "endOffset": 3334, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

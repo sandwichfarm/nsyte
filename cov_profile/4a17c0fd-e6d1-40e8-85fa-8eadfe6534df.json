@@ -1,0 +1,16 @@
+{
+  "scriptId": "662",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/bolt11.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 648, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "parseBolt11",
+      "ranges": [{ "startOffset": 88, "endOffset": 647, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

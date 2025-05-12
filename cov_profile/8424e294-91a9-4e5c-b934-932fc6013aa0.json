@@ -1,0 +1,31 @@
+{
+  "scriptId": "616",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/rxjs/7.8.2/dist/cjs/internal/util/UnsubscriptionError.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 985, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1, "endOffset": 984, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 185, "endOffset": 920, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 482, "endOffset": 868, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "UnsubscriptionErrorImpl",
+      "ranges": [{ "startOffset": 513, "endOffset": 865, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

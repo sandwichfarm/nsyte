@@ -1,0 +1,192 @@
+{
+  "scriptId": "467",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/@noble/curves/1.3.0/esm/abstract/utils.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 10474, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isBytes",
+      "ranges": [{ "startOffset": 405, "endOffset": 553, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 669, "endOffset": 710, "count": 256 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "bytesToHex",
+      "ranges": [{ "startOffset": 808, "endOffset": 1069, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numberToHexUnpadded",
+      "ranges": [{ "startOffset": 1077, "endOffset": 1193, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hexToNumber",
+      "ranges": [{ "startOffset": 1201, "endOffset": 1398, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "asciiToBase16",
+      "ranges": [{ "startOffset": 1533, "endOffset": 1834, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "hexToBytes",
+      "ranges": [{ "startOffset": 1930, "endOffset": 2691, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bytesToNumberBE",
+      "ranges": [{ "startOffset": 2736, "endOffset": 2814, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bytesToNumberLE",
+      "ranges": [{ "startOffset": 2822, "endOffset": 3000, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numberToBytesBE",
+      "ranges": [{ "startOffset": 3008, "endOffset": 3106, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numberToBytesLE",
+      "ranges": [{ "startOffset": 3114, "endOffset": 3196, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "numberToVarBytesBE",
+      "ranges": [{ "startOffset": 3229, "endOffset": 3310, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "ensureBytes",
+      "ranges": [{ "startOffset": 3640, "endOffset": 4437, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "concatBytes",
+      "ranges": [{ "startOffset": 4493, "endOffset": 4927, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "equalBytes",
+      "ranges": [{ "startOffset": 4978, "endOffset": 5169, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "utf8ToBytes",
+      "ranges": [{ "startOffset": 5248, "endOffset": 5472, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bitLen",
+      "ranges": [{ "startOffset": 5582, "endOffset": 5691, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bitGet",
+      "ranges": [{ "startOffset": 5846, "endOffset": 5910, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bitSet",
+      "ranges": [{ "startOffset": 5973, "endOffset": 6048, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bitMask",
+      "ranges": [{ "startOffset": 6224, "endOffset": 6259, "count": 2 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "u8n",
+      "ranges": [{ "startOffset": 6281, "endOffset": 6311, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "u8fr",
+      "ranges": [{ "startOffset": 6348, "endOffset": 6377, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "createHmacDrbg",
+      "ranges": [{ "startOffset": 6691, "endOffset": 8548, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "bigint",
+      "ranges": [{ "startOffset": 8616, "endOffset": 8648, "count": 10 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "function",
+      "ranges": [{ "startOffset": 8664, "endOffset": 8698, "count": 55 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "boolean",
+      "ranges": [{ "startOffset": 8713, "endOffset": 8746, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "string",
+      "ranges": [{ "startOffset": 8760, "endOffset": 8792, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "stringOrUint8Array",
+      "ranges": [{ "startOffset": 8818, "endOffset": 8866, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isSafeInteger",
+      "ranges": [{ "startOffset": 8887, "endOffset": 8921, "count": 8 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "array",
+      "ranges": [{ "startOffset": 8934, "endOffset": 8961, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "field",
+      "ranges": [{ "startOffset": 8974, "endOffset": 9013, "count": 6 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hash",
+      "ranges": [{ "startOffset": 9025, "endOffset": 9098, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "validateObject",
+      "ranges": [
+        { "startOffset": 9183, "endOffset": 9980, "count": 7 },
+        { "startOffset": 9814, "endOffset": 9849, "count": 76 },
+        { "startOffset": 9925, "endOffset": 9959, "count": 14 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "checkField",
+      "ranges": [
+        { "startOffset": 9272, "endOffset": 9740, "count": 90 },
+        { "startOffset": 9408, "endOffset": 9474, "count": 0 },
+        { "startOffset": 9537, "endOffset": 9557, "count": 14 },
+        { "startOffset": 9571, "endOffset": 9578, "count": 9 },
+        { "startOffset": 9578, "endOffset": 9615, "count": 81 },
+        { "startOffset": 9615, "endOffset": 9734, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

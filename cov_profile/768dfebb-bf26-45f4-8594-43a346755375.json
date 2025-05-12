@@ -1,0 +1,71 @@
+{
+  "scriptId": "620",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/lru.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 4063, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "<instance_members_initializer>",
+      "ranges": [{ "startOffset": 159, "endOffset": 263, "count": 0 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "LRU",
+      "ranges": [{ "startOffset": 269, "endOffset": 524, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "clear",
+      "ranges": [{ "startOffset": 529, "endOffset": 683, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "delete",
+      "ranges": [{ "startOffset": 688, "endOffset": 1246, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "entries",
+      "ranges": [{ "startOffset": 1251, "endOffset": 1342, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "evict",
+      "ranges": [{ "startOffset": 1347, "endOffset": 1757, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "expiresAt",
+      "ranges": [{ "startOffset": 1762, "endOffset": 1911, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "get",
+      "ranges": [{ "startOffset": 1916, "endOffset": 2280, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "has",
+      "ranges": [{ "startOffset": 2285, "endOffset": 2335, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "keys",
+      "ranges": [{ "startOffset": 2340, "endOffset": 2527, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "set",
+      "ranges": [{ "startOffset": 2532, "endOffset": 3972, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "values",
+      "ranges": [{ "startOffset": 3977, "endOffset": 4060, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

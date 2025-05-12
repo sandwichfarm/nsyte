@@ -1,0 +1,36 @@
+{
+  "scriptId": "700",
+  "url": "file:///Users/sandwich/Library/Caches/deno/npm/registry.npmjs.org/applesauce-core/1.0.0/dist/helpers/groups.js",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 1658, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "decodeGroupPointer",
+      "ranges": [{ "startOffset": 305, "endOffset": 490, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "encodeGroupPointer",
+      "ranges": [{ "startOffset": 554, "endOffset": 734, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getGroupPointerFromGroupTag",
+      "ranges": [{ "startOffset": 922, "endOffset": 1037, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getPublicGroups",
+      "ranges": [{ "startOffset": 1102, "endOffset": 1301, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getHiddenGroups",
+      "ranges": [{ "startOffset": 1366, "endOffset": 1657, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}
