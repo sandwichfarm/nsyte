@@ -3,7 +3,7 @@ import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { readProjectFile, writeProjectFile } from "../../src/lib/config.ts";
 import { join } from "std/path/mod.ts";
 
-// Test data matching ProjectData interface
+// Test data matching ProjectConfig interface
 const TEST_PROJECT_DATA = {
   relays: ["wss://test-relay1", "wss://test-relay2"],
   servers: ["https://test-server1", "https://test-server2"],
@@ -21,7 +21,7 @@ const CONFIG_DIR = ".nsite";
 const PROJECT_FILE = "config.json";
 const PROJECT_PATH = join(Deno.cwd(), CONFIG_DIR, PROJECT_FILE);
 
-describe("Config Module", () => {
+describe("ProjectConfig Module", () => {
   beforeEach(() => {
     // Clean up any existing config directory
     try {

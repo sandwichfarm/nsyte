@@ -20,7 +20,7 @@ export interface Profile {
   banner?: string;
 }
 
-export interface ProjectData {
+export type ProjectConfig = {
   bunkerPubkey?: string;  // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
@@ -29,11 +29,14 @@ export interface ProjectData {
   publishRelayList: boolean;
   publishProfile?: boolean;
   fallback?: string;
+  gatewayHostnames?: string[];
 }
 
 export interface ProjectContext {
-  projectData: ProjectData;
+  config: ProjectConfig;
+  authKeyHex?: string | null;
   privateKey?: string;
+  error?: string;
 }
 
 const configDir = ".nsite";
@@ -55,6 +58,16 @@ export const popularBlossomServers = [
   "https://cdn.satellite.earth",
   "https://nostr.download",
 ];
+
+export const defaultConfig: ProjectConfig = {
+  relays: [],
+  servers: [],
+  publishServerList: false,
+  publishRelayList: false,
+  gatewayHostnames: [ 
+    'nsite.lol',
+  ]
+}
 
 /**
  * Sanitize a bunker URL for storage by removing the secret parameter
@@ -89,14 +102,14 @@ function sanitizeBunkerUrl(url: string): string {
 /**
  * Write project configuration to file
  */
-export function writeProjectFile(projectData: ProjectData): void {
+export function writeProjectFile(config: ProjectConfig): void {
   const projectPath = join(Deno.cwd(), configDir, projectFile);
 
   try {
     ensureDirSync(dirname(projectPath));
 
     // Clone the data to avoid modifying the original
-    const sanitizedData = { ...projectData };
+    const sanitizedData = { ...config };
 
     // Sanitize bunker URL if present to remove secrets
     if (sanitizedData.bunkerPubkey) {
@@ -115,7 +128,7 @@ export function writeProjectFile(projectData: ProjectData): void {
 /**
  * Read project configuration from file
  */
-export function readProjectFile(): ProjectData | null {
+export function readProjectFile(): ProjectConfig | null {
   const projectPath = join(Deno.cwd(), configDir, projectFile);
 
   try {
@@ -125,7 +138,7 @@ export function readProjectFile(): ProjectData | null {
     }
 
     const fileContent = Deno.readTextFileSync(projectPath);
-    return JSON.parse(fileContent) as ProjectData;
+    return JSON.parse(fileContent) as ProjectConfig;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);
@@ -153,40 +166,40 @@ function fileExists(filePath: string): boolean {
  * @param skipInteractive If true, will return a basic configuration without prompting
  */
 export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
-  let projectData = readProjectFile();
+  let config = readProjectFile();
   let privateKey: string | undefined;
 
-  if (!projectData) {
+  if (!config) {
     if (skipInteractive) {
       // Return a basic configuration without prompting
-      projectData = {
+      config = {
         relays: [],
         servers: [],
         publishRelayList: false,
         publishServerList: false
       };
       log.debug("Running in non-interactive mode with no existing configuration");
-      return { projectData, privateKey: undefined };
+      return { config, privateKey: undefined };
     }
 
     console.log(colors.cyan("No existing project configuration found. Setting up a new one:"));
     const setupResult = await interactiveSetup();
-    projectData = setupResult.projectData;
+    config = setupResult.config;
     privateKey = setupResult.privateKey;
-    writeProjectFile(projectData);
+    writeProjectFile(config);
   }
 
   // In non-interactive mode, don't proceed with key setup prompts
   if (skipInteractive) {
-    if (!projectData.bunkerPubkey && !privateKey) {
+    if (!config.bunkerPubkey && !privateKey) {
       log.error("No key configuration found and running in non-interactive mode. Please provide key configuration via CLI arguments.");
       Deno.exit(1);
     }
-    return { projectData, privateKey };
+    return { config, privateKey };
   }
 
   // Only proceed with interactive key setup if we're in interactive mode
-  if (!projectData.bunkerPubkey && !privateKey) {
+  if (!config.bunkerPubkey && !privateKey) {
     console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
     // Check if there are any existing bunkers
@@ -249,9 +262,9 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
         signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
 
         // Get the pubkey from the successful connection
-        projectData.bunkerPubkey = await signer.getPublicKey();
+        config.bunkerPubkey = await signer.getPublicKey();
 
-        console.log(colors.green(`Successfully connected to bunker ${projectData.bunkerPubkey.slice(0, 8)}...
+        console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}...
 Generated and stored nbunksec string.`));
       } catch (error) {
         log.error(`Failed to connect to bunker: ${error}`);
@@ -283,15 +296,15 @@ Generated and stored nbunksec string.`));
         options: bunkerOptions,
       });
 
-      projectData.bunkerPubkey = selectedPubkey;
+      config.bunkerPubkey = selectedPubkey;
       console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
     }
 
-    writeProjectFile(projectData);
+    writeProjectFile(config);
     console.log(colors.green("Key configuration set up successfully!"));
   }
 
-  return { projectData, privateKey };
+  return { config, privateKey };
 }
 
 /**
@@ -430,7 +443,7 @@ Generated and stored nbunksec string.`));
     default: true,
   });
 
-  const projectData: ProjectData = {
+  const config: ProjectConfig = {
     bunkerPubkey,
     relays,
     servers,
@@ -441,10 +454,10 @@ Generated and stored nbunksec string.`));
     },
     publishProfile,
     publishRelayList,
-    publishServerList,
+    publishServerList
   };
 
-  return { projectData, privateKey };
+  return { config, privateKey };
 }
 
 /**
