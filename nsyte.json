@@ -1,7 +1,0 @@
-{
-  "relays": ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"],
-  "servers": ["https://cdn.nsec.app", "https://cdn.nostr.build"],
-  "publishRelayList": true,
-  "publishServerList": true,
-  "bunkerPubkey": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
-} 
