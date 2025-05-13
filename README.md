@@ -237,7 +237,7 @@ nsyte upload ./dist --fallback=/index.html
 
 ### Prerequisites
 
-- Deno 1.40.5 or higher
+- Deno 2^ 
 
 ### Tasks
 
