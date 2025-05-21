@@ -1,6 +1,7 @@
 site_name: nsyte
 site_description: Documentation for nsyte - publish your site to nostr and blossom servers
 site_author: sandwichfarm
+site_dir: ./dist/site
 repo_url: https://github.com/sandwichfarm/nsyte
 repo_name: sandwichfarm/nsyte
 
