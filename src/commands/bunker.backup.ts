@@ -1,112 +1,100 @@
-/**
- * Direct bunker command implementation
- * 
- * This is a direct command handler that bypasses the Cliffy command framework.
- * It was created because the bunker command requires complex URL parsing and
- * argument handling that is difficult to implement with Cliffy's command framework.
- * 
- * Specifically:
- * 1. Complex URL parsing for bunker:// URLs with query parameters
- * 2. Interactive prompts for connection details
- * 3. Special handling of shell escaping for URLs with ? and & characters
- * 4. Direct control over command exit timing
- * 
- * The command is registered in cli.ts and intercepts all bunker commands
- * before they reach the Cliffy command framework.
- */
-
 import { colors } from "@cliffy/ansi/colors";
+import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { decodeBunkerInfo, getNbunkString, initiateNostrConnect, parseBunkerUrl } from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { NostrConnectSigner } from "npm:applesauce-signers@^1.0.0";
+import { NostrConnectSigner } from "applesauce-signers";
 
-const log = createLogger("bunker-direct");
+const log = createLogger("bunker-cmd");
 
 /**
- * Handle bunker commands directly without going through setupProject
+ * Register the bunker command with the CLI
  */
-export async function handleBunkerCommand(showHeader = true): Promise<void> {
-  try {
-    if (Deno.args.length === 1 || Deno.args.includes("-h") || Deno.args.includes("--help")) {
+export function registerBunkerCommand(program: Command): void {
+  program
+    .command("bunker")
+    .description("Manage nostr bunker connections and nbunks")
+    .action(() => {
+      showBunkerHelp();
+    })
+    .command("list", "List all stored bunkers in the system")
+    .action(() => {
+      listBunkers();
+    })
+    .reset()
+    .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
+    .action((_: unknown, nbunksec: string | undefined) => {
+      if (nbunksec !== undefined) {
+        importNbunk(nbunksec);
+      } else {
+        importNbunk();
+      }
+    })
+    .reset()
+    .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
+    .action((_: unknown, pubkey: string | undefined) => {
+      exportNbunk(pubkey);
+    })
+    .reset()
+    .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
+    .action((_: unknown, url: string | undefined) => {
+      if (url !== undefined) {
+        connectBunker(url);
+      } else {
+        connectBunker();
+      }
+    })
+    .reset()
+    .command("use [pubkey:string]", "Configure current project to use a bunker")
+    .action((_: unknown, pubkey: string | undefined) => {
+      useBunkerForProject(pubkey);
+    })
+    .reset()
+    .command("remove [pubkey:string]", "Remove a bunker from storage")
+    .action((_: unknown, pubkey: string | undefined) => {
+      removeBunker(pubkey);
+    })
+    .reset()
+    .command("help", "Show detailed help information")
+    .action(() => {
+      showBunkerHelp();
+    });
+}
+
+/**
+ * Command handler for bunker subcommand
+ */
+export async function bunkerCommand(action: string | undefined, ...args: string[]): Promise<void> {
+  if (!action) {
+    await showBunkerHelp();
+    return;
+  }
+
+  switch (action.toLowerCase()) {
+    case "list":
+      await listBunkers();
+      break;
+    case "import":
+      await importNbunk(args[0]);
+      break;
+    case "export":
+      await exportNbunk(args[0]);
+      break;
+    case "connect":
+      await connectBunker(args[0]);
+      break;
+    case "use":
+      await useBunkerForProject(args[0]);
+      break;
+    case "remove":
+      await removeBunker(args[0]);
+      break;
+    case "help":
+    default:
       await showBunkerHelp();
-      Deno.exit(0);
-      return;
-    }
-    
-    const subcommand = Deno.args[1];
-    const args = Deno.args.slice(2);
-    
-    switch (subcommand) {
-      case "list":
-        await listBunkers();
-        Deno.exit(0);
-        break;
-      case "import":
-        await importNbunk(args[0]);
-        break;
-      case "export":
-        await exportNbunk(args[0]);
-        Deno.exit(0);
-        break;
-      case "connect":
-        if (args.length > 0 && !args[0].startsWith("-")) {
-          await connectBunker(args[0]);
-        } else {
-          let pubkey = "";
-          let relay = "";
-          let secret = "";
-          
-          for (let i = 0; i < args.length; i++) {
-            if (args[i] === "--pubkey" && i + 1 < args.length) {
-              pubkey = args[i + 1];
-              i++;
-            } else if (args[i] === "--relay" && i + 1 < args.length) {
-              relay = args[i + 1];
-              i++;
-            } else if (args[i] === "--secret" && i + 1 < args.length) {
-              secret = args[i + 1];
-              i++;
-            }
-          }
-          
-          if (pubkey && relay) {
-            const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${secret ? `&secret=${secret}` : ''}`;
-            await connectBunker(url);
-          } else {
-            await connectBunker();
-          }
-        }
-        break;
-      case "use":
-        await useBunkerForProject(args[0]);
-        Deno.exit(0);
-        break;
-      case "remove":
-        await removeBunker(args[0]);
-        Deno.exit(0);
-        break;
-      case "help":
-        showBunkerHelp();
-        Deno.exit(0);
-        break;
-      default:
-        console.log(colors.red(`Unknown bunker subcommand: ${subcommand}`));
-        showBunkerHelp();
-        Deno.exit(1);
-        break;
-    }
-    
-    setTimeout(() => {
-      Deno.exit(0);
-    }, 500);
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.error(`Error in bunker command: ${errorMessage}`);
-    console.error(colors.red(`Error: ${errorMessage}`));
-    Deno.exit(1);
+      break;
   }
 }
 
@@ -123,7 +111,7 @@ export async function showBunkerHelp(): Promise<void> {
 
   console.log(colors.cyan("Available actions:"));
   console.log("  list                     List all stored bunkers in the system");
-  console.log("  import <nbunksec>        Import a bunker from an nbunksec string");
+  console.log("  import <nbunksec>           Import a bunker from an nbunksec string");
   console.log("  export <pubkey>          Export a bunker as an nbunksec string");
   console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
   console.log("  connect --pubkey <key> --relay <url> [--secret <secret>]");
@@ -149,6 +137,9 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker remove 3bf0c63...");
   console.log("  nsyte upload ./dist --nbunksec nbunksec1q...");
   console.log("");
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -185,6 +176,9 @@ export async function listBunkers(): Promise<void> {
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -223,6 +217,8 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
     if (useForProject) {
       await useBunkerForProject(info.pubkey);
     }
+
+    Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.log(colors.red(`Failed to import nbunksec: ${errorMessage}`));
@@ -274,12 +270,15 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
   console.log(colors.cyan("\nNbunk string for selected bunker:"));
   console.log(nbunkString);
   console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
  * Connect to a bunker URL and store credentials
  */
-export async function connectBunker(bunkerUrl?: string, skipProjectInteraction = false): Promise<void> {
+export async function connectBunker(bunkerUrl?: string): Promise<void> {
   let signer: NostrConnectSigner | null = null;
   let bunkerPubkey: string | null = null;
   let operationError: Error | null = null;
@@ -307,7 +306,7 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r: string) => r.trim()).filter((r: string) => r.length > 0);
+          chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
         }
 
         if (chosenRelays.length === 0) {
@@ -372,15 +371,13 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
     console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
 Generated and stored nbunksec string.`));
 
-    if (!skipProjectInteraction) {
-      const useForProject = await Confirm.prompt({
-        message: "Would you like to use this bunker for the current project?",
-        default: true,
-      });
+    const useForProject = await Confirm.prompt({
+      message: "Would you like to use this bunker for the current project?",
+      default: true,
+    });
 
-      if (useForProject) {
-        await useBunkerForProject(bunkerPubkey);
-      }
+    if (useForProject) {
+      await useBunkerForProject(bunkerPubkey);
     }
   } catch (error: unknown) {
     operationError = error instanceof Error ? error : new Error(String(error));
@@ -399,6 +396,11 @@ Generated and stored nbunksec string.`));
         console.log(colors.green("Disconnected from bunker."));
       } catch (err) {
         console.error(colors.red(`Error during disconnect: ${err}`));
+      }
+
+      if (!operationError) {
+         Deno.exit(0);
+      } else {
       }
     }
   }
@@ -456,6 +458,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   writeProjectFile(config);
 
   console.log(colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`));
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
 }
 
 /**
@@ -524,4 +529,15 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   } else {
     console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
   }
-} 
+  
+  // Ensure command exits after completion
+  Deno.exit(0);
+}
+
+if (import.meta.main) {
+  if (Deno.args.length > 0) {
+    await bunkerCommand(Deno.args[0], ...Deno.args.slice(1));
+  } else {
+    await showBunkerHelp();
+  }
+}
