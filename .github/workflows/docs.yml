@@ -19,7 +19,7 @@ jobs:
           configfile: 'mkdocs.yml' # option
           site_dir: './dist/site'
       - name: deploy nsite
-        uses: sandwichfarm/nsite-action@v0.1.3
+        uses: sandwichfarm/nsite-action@v0.1.5
         id: nsite_deploy
         with:
           directory: "./dist/site"
