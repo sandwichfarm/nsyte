@@ -1,0 +1,30 @@
+name: Deploy Docs
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Build
+        uses: Tiryoh/actions-mkdocs@v0
+        with:
+          mkdocs_version: 'latest'
+          requirements: 'requirements-docs.txt'
+          configfile: 'mkdocs.yml' # option
+      - name: Deploy to nsite
+        uses: sandwichfarm/nsite-action@v0.1.3
+        id: nsite_deploy
+        with:
+          directory: "./dist/site"
+          nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
+          relays:  |
+            ["wss://relay.nostr.band", "wss://relay.damus.io", "wss://relay.snort.social", "wss://relay.fractal.institute", "wss://relay.nostr.bg", "wss://relay.nostr.mom"]
+          servers: |
+            ["https://cdn.hzrd149.com/", "https://cdn.sovbit.host/"]
+          purge: true
