@@ -1,0 +1,86 @@
+site_name: nsyte
+site_description: Documentation for nsyte - publish your site to nostr and blossom servers
+site_author: sandwichfarm
+repo_url: https://github.com/sandwichfarm/nsyte
+repo_name: sandwichfarm/nsyte
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.mark
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      type: datetime
+  - minify:
+      minify_html: true
+
+nav:
+  - Docs:
+      - Welcome: index.md
+      - Getting Started:
+          - Installation: installation.md
+          - Basic Usage: usage/index.md
+      - Configuration: usage/configuration.md
+      - Deployment: guides/deployment.md
+      - Security: guides/security.md
+      - Monitoring: guides/monitoring.md
+  - Commands:
+      - upload: usage/commands/upload.md
+      - ls: usage/commands/ls.md
+      - download: usage/commands/download.md
+      - ci: usage/commands/ci.md
+      - bunker: usage/commands/bunker.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sandwichfarm/nsyte
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js 

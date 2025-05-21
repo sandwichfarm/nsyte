@@ -6,6 +6,7 @@ import { colors } from "@cliffy/ansi/colors";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 import { NostrConnectSigner } from "applesauce-signers";
+import { initiateNostrConnect, getNbunkString } from "./nip46.ts";
 
 const log = createLogger("config");
 
@@ -245,33 +246,68 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
       });
 
     } else if (keyChoice === "new_bunker") {
-      const bunkerUrl = await Input.prompt({
-        message: "Enter your NSEC bunker URL (bunker://...):",
-        validate: (input: string) => {
-          return input.trim().startsWith("bunker://") ||
-                "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-        }
+      const choice = await Select.prompt<string>({
+        message: "How would you like to connect to the bunker?",
+        options: [
+          { name: "Scan QR Code (Nostr Connect)", value: "qr" },
+          { name: "Enter Bunker URL manually", value: "url" },
+        ],
       });
 
       let signer: NostrConnectSigner | null = null;
 
       try {
-        console.log(colors.cyan("Connecting to bunker..."));
+        if (choice === "qr") {
+          const appName = "nsyte";
+          const defaultRelays = ["wss://relay.nsec.app"];
 
-        // Attempt to connect immediately, like bunker.connect does
-        signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+          const relayInput = await Input.prompt({
+            message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+            default: defaultRelays.join(", "),
+          });
 
-        // Get the pubkey from the successful connection
+          let chosenRelays: string[];
+          if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+            chosenRelays = defaultRelays;
+          } else {
+            chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+          }
+
+          if (chosenRelays.length === 0) {
+            console.log(colors.yellow("No relays provided. Using default relays."));
+            chosenRelays = defaultRelays;
+          }
+
+          console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+          signer = await initiateNostrConnect(appName, chosenRelays);
+        } else {
+          const bunkerUrl = await Input.prompt({
+            message: "Enter the bunker URL (bunker://...):",
+            validate: (input: string) => {
+              return input.trim().startsWith("bunker://") ||
+                    "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+            }
+          });
+
+          console.log(colors.cyan("Connecting to bunker via URL..."));
+          signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+        }
+
+        if (!signer) {
+          throw new Error("Failed to establish signer connection");
+        }
+
         config.bunkerPubkey = await signer.getPublicKey();
+        const nbunkString = getNbunkString(signer);
+        secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
 
         console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}...
 Generated and stored nbunksec string.`));
       } catch (error) {
         log.error(`Failed to connect to bunker: ${error}`);
         console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
-        Deno.exit(1); // Exit if connection fails
+        Deno.exit(1);
       } finally {
-        // Make sure to clean up and disconnect properly
         if (signer) {
           try {
             console.log(colors.cyan("Disconnecting from bunker..."));
@@ -359,33 +395,68 @@ async function interactiveSetup(): Promise<ProjectContext> {
     });
 
   } else if (keyChoice === "new_bunker") {
-    const bunkerUrl = await Input.prompt({
-      message: "Enter your NSEC bunker URL (bunker://...):",
-      validate: (input: string) => {
-        return input.trim().startsWith("bunker://") ||
-               "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-      }
+    const choice = await Select.prompt<string>({
+      message: "How would you like to connect to the bunker?",
+      options: [
+        { name: "Scan QR Code (Nostr Connect)", value: "qr" },
+        { name: "Enter Bunker URL manually", value: "url" },
+      ],
     });
 
     let signer: NostrConnectSigner | null = null;
 
     try {
-      console.log(colors.cyan("Connecting to bunker..."));
+      if (choice === "qr") {
+        const appName = "nsyte";
+        const defaultRelays = ["wss://relay.nsec.app"];
 
-      // Attempt to connect immediately, like bunker.connect does
-      signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+        const relayInput = await Input.prompt({
+          message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+          default: defaultRelays.join(", "),
+        });
 
-      // Get the pubkey from the successful connection
+        let chosenRelays: string[];
+        if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+          chosenRelays = defaultRelays;
+        } else {
+          chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+        }
+
+        if (chosenRelays.length === 0) {
+          console.log(colors.yellow("No relays provided. Using default relays."));
+          chosenRelays = defaultRelays;
+        }
+
+        console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+        signer = await initiateNostrConnect(appName, chosenRelays);
+      } else {
+        const bunkerUrl = await Input.prompt({
+          message: "Enter the bunker URL (bunker://...):",
+          validate: (input: string) => {
+            return input.trim().startsWith("bunker://") ||
+                  "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+          }
+        });
+
+        console.log(colors.cyan("Connecting to bunker via URL..."));
+        signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+      }
+
+      if (!signer) {
+        throw new Error("Failed to establish signer connection");
+      }
+
       bunkerPubkey = await signer.getPublicKey();
+      const nbunkString = getNbunkString(signer);
+      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
 
       console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
 Generated and stored nbunksec string.`));
     } catch (error) {
       log.error(`Failed to connect to bunker: ${error}`);
       console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
-      Deno.exit(1); // Exit if connection fails
+      Deno.exit(1);
     } finally {
-      // Make sure to clean up and disconnect properly
       if (signer) {
         try {
           console.log(colors.cyan("Disconnecting from bunker..."));
@@ -411,7 +482,7 @@ Generated and stored nbunksec string.`));
     });
 
     bunkerPubkey = selectedPubkey;
-    console.log(colors.green(`Using existing bunker with pubkey: ${bunkerPubkey.slice(0, 8)}...`));
+    console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
   }
 
   const projectName = await Input.prompt({

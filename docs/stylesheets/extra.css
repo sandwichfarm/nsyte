@@ -1,0 +1,144 @@
+/* Custom styles for nsyte documentation */
+
+/* Make code blocks more readable */
+.md-typeset pre > code {
+  padding: 1em;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+/* Style command examples */
+.md-typeset code {
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+/* Style command options */
+.md-typeset code:not(.md-typeset pre > code) {
+  background-color: var(--md-code-bg-color);
+  color: var(--md-code-fg-color);
+}
+
+/* Style command blocks */
+.md-typeset .md-typeset__table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Style tables */
+.md-typeset table:not([class]) {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color--light);
+  color: var(--md-primary-bg-color);
+  font-weight: bold;
+}
+
+/* Style admonitions */
+.md-typeset .admonition {
+  font-size: 0.85em;
+  margin: 1.5em 0;
+  padding: 0 0.6rem;
+  border-radius: 0.2rem;
+}
+
+/* Style navigation */
+.md-nav__item .md-nav__link--active {
+  color: var(--md-primary-fg-color);
+  font-weight: bold;
+}
+
+/* Style search */
+.md-search__input {
+  background-color: var(--md-primary-fg-color--light);
+}
+
+/* Style version selector */
+.md-version {
+  color: var(--md-primary-fg-color);
+}
+
+/* Style footer */
+.md-footer {
+  margin-top: 2em;
+}
+
+/* Style social links */
+.md-social__link {
+  padding: 0.3em;
+}
+
+/* Style code copy button */
+.md-clipboard {
+  color: var(--md-primary-fg-color);
+}
+
+/* Style command examples with options */
+.cmd-example {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  padding: 1em;
+  margin: 1em 0;
+}
+
+.cmd-example pre {
+  margin: 0;
+  padding: 0;
+}
+
+/* Style screenshots */
+.screenshot {
+  border: 1px solid var(--md-primary-fg-color--light);
+  border-radius: 0.2rem;
+  margin: 1em 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Style terminal output */
+.terminal {
+  background-color: #1e1e1e;
+  color: #f8f8f8;
+  padding: 1em;
+  border-radius: 0.2rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* Style warning boxes */
+.warning-box {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  padding: 1em;
+  border-radius: 0.2rem;
+  margin: 1em 0;
+}
+
+/* Style note boxes */
+.note-box {
+  background-color: #e7f5ff;
+  border: 1px solid #b8daff;
+  color: #004085;
+  padding: 1em;
+  border-radius: 0.2rem;
+  margin: 1em 0;
+}
+
+/* Style tip boxes */
+.tip-box {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+  padding: 1em;
+  border-radius: 0.2rem;
+  margin: 1em 0;
+} 

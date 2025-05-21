@@ -317,8 +317,21 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
 
         console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
         signer = await initiateNostrConnect(appName, chosenRelays);
+        log.debug("connectBunker: initiateNostrConnect returned, attempting signer.getPublicKey()");
 
-        bunkerPubkey = await signer.getPublicKey();
+        const getPubkeyPromise = signer.getPublicKey();
+        const pubkeyTimeoutMs = 30000; // 30 seconds
+        const pubkeyTimeoutPromise = new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error(`signer.getPublicKey() timed out after ${pubkeyTimeoutMs / 1000} seconds`)), pubkeyTimeoutMs)
+        );
+
+        try {
+          bunkerPubkey = await Promise.race([getPubkeyPromise, pubkeyTimeoutPromise]);
+          log.debug(`connectBunker: signer.getPublicKey() returned: ${bunkerPubkey}`);
+        } catch (e) {
+          log.error(`connectBunker: Error or timeout during signer.getPublicKey(): ${e}`);
+          throw e; // Re-throw to be caught by the outer try/catch in connectBunker
+        }
       } else if (choice === "url") {
         bunkerUrl = await Input.prompt({
           message: "Enter the bunker URL (bunker://...):",
@@ -365,12 +378,13 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
     }
 
     const nbunkString = getNbunkString(signer);
+    log.debug("connectBunker: nbunkString generated");
 
     const secretsManager = SecretsManager.getInstance();
     secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+    log.debug("connectBunker: nbunkString stored");
 
-    console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
-Generated and stored nbunksec string.`));
+    console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...\nGenerated and stored nbunksec string.`));
 
     if (!skipProjectInteraction) {
       const useForProject = await Confirm.prompt({
@@ -394,10 +408,13 @@ Generated and stored nbunksec string.`));
   } finally {
     if (signer) {
       try {
+        log.debug("connectBunker: In finally block, attempting signer.close()");
         console.log(colors.cyan("Disconnecting from bunker..."));
         await signer.close();
+        log.debug("connectBunker: signer.close() completed");
         console.log(colors.green("Disconnected from bunker."));
       } catch (err) {
+        log.error(`connectBunker: Error during signer.close(): ${err}`);
         console.error(colors.red(`Error during disconnect: ${err}`));
       }
     }

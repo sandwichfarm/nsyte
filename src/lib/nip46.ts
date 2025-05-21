@@ -351,15 +351,20 @@ export async function initiateNostrConnect(
   appRelays: string[],
   connectTimeoutMs = 120000 // 2 minutes
 ): Promise<NostrConnectSigner> {
+  const isDebug = Deno.env.get("LOG_LEVEL") === "debug";
+  log.debug(`Initiating Nostr Connect with app name: ${appName}, relays: ${appRelays.join(', ')}`);
+  
   const signer = new NostrConnectSigner({relays: appRelays});
 
   const nostrConnectUri = signer.getNostrConnectURI({name: appName, permissions: PERMISSIONS});
+  log.debug(`Generated Nostr Connect URI: ${nostrConnectUri}`);
 
   log.info("Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):");
   let qrLines = 0;
   try {
     const qrArray: boolean[][] | undefined = await generateQrCodeForTerminal(nostrConnectUri, { output: "array" });
     qrLines = _renderQrArrayWithQuietZone(qrArray, 2);
+    log.debug(`QR code rendered with ${qrLines} lines`);
   } catch (qrError) {
     log.error(`Failed to generate QR code: ${qrError}. Please copy the URI manually.`);
     qrLines = -1;
@@ -367,22 +372,53 @@ export async function initiateNostrConnect(
   log.info(`Or copy-paste this URI: ${nostrConnectUri}`);
   log.info(`Waiting for Signer to connect (timeout in ${connectTimeoutMs / 1000}s)...`);
 
-  const linesToClearAfterScanOrTimeout = qrLines >= 0 ? qrLines + 3 : 3; // +3 for scan, uri, waiting msgs
+  const linesToClearAfterScanOrTimeout = qrLines >= 0 ? qrLines + 3 : 3;
 
   const clearConsoleMessages = (lines: number) => {
+    if (Deno.env.get("LOG_LEVEL") === "debug") {
+      return;
+    }
     if (lines > 0 && Deno.stdout.isTerminal()) {
       const encoder = new TextEncoder();
-      // Move cursor to the line of the first message we want to clear
       Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`));
       for (let i = 0; i < lines; i++) {
-        Deno.stdout.writeSync(encoder.encode('\x1b[2K\x1b[B')); // Clear line, then move down
+        Deno.stdout.writeSync(encoder.encode('\x1b[2K\x1b[B'));
       }
-      // After clearing, move cursor back up to the start of the cleared block
       Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`));
     }
   };
 
-  return signer.waitForSigner()
-    .then(() => signer)
-    .finally(() => clearConsoleMessages(linesToClearAfterScanOrTimeout));
+  let timeoutHandle: number | undefined = undefined;
+
+  const signerPromise = signer.waitForSigner()
+    .then(() => {
+      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+      log.debug("Signer connected successfully via waitForSigner. Returning the signer instance.");
+      return signer;
+    })
+    .catch((error) => {
+      if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+      log.error(`Error in signer.waitForSigner(): ${error}`);
+      throw error;
+    });
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      log.error(`Connection explicitly timed out after ${connectTimeoutMs / 1000} seconds`);
+      reject(new Error(`Connection timed out after ${connectTimeoutMs / 1000} seconds`));
+    }, connectTimeoutMs);
+  });
+
+  try {
+    log.debug("Racing signerPromise against timeoutPromise...");
+    const resultSigner = await Promise.race([signerPromise, timeoutPromise]);
+    log.debug("Promise.race settled. Clearing messages and returning signer.");
+    clearConsoleMessages(linesToClearAfterScanOrTimeout);
+    return resultSigner;
+  } catch (error) {
+    log.error(`Failed to connect to signer (outer catch): ${error}`);
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle); 
+    clearConsoleMessages(linesToClearAfterScanOrTimeout);
+    throw error;
+  }
 }

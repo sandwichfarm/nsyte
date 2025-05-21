@@ -18,6 +18,7 @@ import { registerUploadCommand } from "./commands/upload.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
+import { registerInitCommand } from "./commands/init.ts";
 import { setupProject } from "./lib/config.ts";
 import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
@@ -71,6 +72,7 @@ const nsite = new Command()
   });
 
 // Register all commands
+registerInitCommand(nsite);
 registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
