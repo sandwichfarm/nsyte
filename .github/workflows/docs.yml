@@ -18,7 +18,7 @@ jobs:
           requirements: 'requirements-docs.txt'
           configfile: 'mkdocs.yml' # optional, default is mkdocs.yml
       - name: deploy nsite
-        uses: sandwichfarm/nsite-action@v0.1.6
+        uses: sandwichfarm/nsite-action@v0.2.0
         id: nsite_deploy
         with:
           directory: "./dist/site"
@@ -33,4 +33,7 @@ jobs:
           servers: |
             https://cdn.hzrd149.com/
             https://cdn.sovbit.host/
+          publish_server_list: 'true'
+          publish_relay_list: 'true'
+          publish_profile: 'true'
           purge: true
