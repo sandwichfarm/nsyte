@@ -26,10 +26,9 @@ jobs:
           relays: |
             wss://relay.nostr.band
             wss://relay.damus.io
-            wss://relay.snort.social
-            wss://relay.fractal.institute
-            wss://relay.nostr.bg
-            wss://relay.nostr.mom
+            wss://nos.lol
+            wss://nostrue.com
+            wss://nostr.mom
           servers: |
             https://cdn.hzrd149.com/
             https://cdn.sovbit.host/
