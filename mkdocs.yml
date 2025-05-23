@@ -8,8 +8,8 @@ repo_name: sandwichfarm/nsyte
 theme:
   name: material
   font:
-    text: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif
-    code: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace
+    text: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    code: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace'
   features:
     - navigation.tabs
     - navigation.sections
