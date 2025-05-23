@@ -10,8 +10,9 @@ This guide will help you set up nsyte for local development and testing. We'll c
 ## Prerequisites
 
 - [Deno](https://deno.land/) 2.0 or later
-- A code editor (VS Code recommended)
-- Git
+- `git` 
+- `nak`
+- A bunker signer (such as [Amber]())
 
 ## Development Environment Setup
 
@@ -21,9 +22,19 @@ git clone https://github.com/sandwichfarm/nsyte.git
 cd nsyte
 ```
 
-2. Install development dependencies:
+2. Install dependencies
 ```bash
+deno install
+```
+
+3. Development server
+```bash 
 deno task dev
+```
+
+4. Compile
+```bash 
+deno task compile
 ```
 
 This will:
@@ -31,25 +42,22 @@ This will:
 - Set up the necessary permissions
 - Make the `nsyte` command available in your terminal
 
-## Local Relay Setup
+## Local Relay and Bunker
 
-For local development, you'll want to set up a local relay. This allows you to test your setup without publishing to public relays.
+For local development, you'll want to set up a local relay and a bunker. This allows you to test your setup without publishing to public relays or dealing with production Bunker idiosychrocies.
 
-### Using nostr-rs-relay
+### Using nak
 
-[nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay) is a good choice for local development.
+This guide will use [nak](https://github.com/wtf-nzb/nak), please reference nak docs to install.
 
-1. Install using Docker:
+Start a local memory relay
 ```bash
-docker run -d -p 8080:8080 scsibug/nostr-rs-relay:latest
+nak relay 
 ```
 
-2. Or build from source:
-```bash
-git clone https://github.com/scsibug/nostr-rs-relay.git
-cd nostr-rs-relay
-cargo build --release
-./target/release/nostr-rs-relay
+Start a local bunker (for testing Bunker functionality)
+```bash 
+nak bunker wss://relay.nsec.app
 ```
 
 Your local relay will be available at `ws://localhost:8080`.
@@ -64,7 +72,7 @@ nsyte init
 ```
 
 When prompted:
-- Choose "Generated Private Key" for testing
+- Choose "NIP-49 Bunker" for testing
 - Add `ws://localhost:8080` as your relay
 - Skip server configuration for now
 

@@ -157,6 +157,8 @@ Before deploying:
    - Verify relay status
    - Review file permissions
    - Check authentication
+   - Ensure you are allowed to publish to provided relays
+   - Ensure that provided relays are not rate-limited.
 
 2. **Missing Files**
    - Review ignore patterns
