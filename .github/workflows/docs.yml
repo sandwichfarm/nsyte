@@ -23,6 +23,7 @@ jobs:
         with:
           directory: "./dist/site"
           nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
+          fallback: "404.html"
           relays: |
             wss://relay.nostr.band
             wss://relay.damus.io
