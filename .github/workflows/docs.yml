@@ -16,9 +16,9 @@ jobs:
         with:
           mkdocs_version: 'latest'
           requirements: 'requirements-docs.txt'
-          configfile: 'mkdocs.yml' # optional, default is mkdocs.yml
+          configfile: 'mkdocs.yml' # optional,   default is mkdocs.yml
       - name: deploy nsite
-        uses: sandwichfarm/nsite-action@v0.2.0
+        uses: sandwichfarm/nsite-action@v0.2.1
         id: nsite_deploy
         with:
           directory: "./dist/site"
