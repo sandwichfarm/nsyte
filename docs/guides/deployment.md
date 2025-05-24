@@ -154,22 +154,21 @@ Before deploying:
 
 1. **Upload Failures**
    - Check network connectivity
-   - Verify relay status
-   - Review file permissions
-   - Check authentication
+   - Verify relay liveness
    - Ensure you are allowed to publish to provided relays
    - Ensure that provided relays are not rate-limited.
+   - Check authentication
+
 
 2. **Missing Files**
    - Review ignore patterns
    - Check file paths
    - Verify build output
-   - Check file permissions
 
 3. **Authentication Errors**
    - Verify keys
    - Check bunker connection
-   - Review permissions
+   - Review bunker permissions
    - Check configuration
 
 ### Getting Help

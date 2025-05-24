@@ -59,7 +59,7 @@ jobs:
           deno-version: '2.3.1'
         
       - name: Install nsyte
-        run: deno install -A -f -n nsyte https://github.com/sandwichfarm/nsyte/raw/main/src/cli.ts
+        run: deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
         
       - name: Deploy
         if: github.ref == 'refs/heads/main'

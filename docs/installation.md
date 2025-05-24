@@ -12,7 +12,7 @@ nsyte can be installed in several ways depending on your needs and platform. Cho
 If you have [Deno](https://deno.land/) installed (version 2.0 or later), you can install nsyte using the following command:
 
 ```bash
-deno install -A -f -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 ```
 
 This will:

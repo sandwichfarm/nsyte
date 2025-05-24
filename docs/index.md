@@ -15,7 +15,7 @@ nsyte is a command-line tool for publishing websites to nostr and Blossom server
 
 ```bash
 # Install
-deno install -A -f -n nsyte https://github.com/sandwichfarm/nsyte/raw/main/src/cli.ts
+deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 
 # Initialize project (interactive setup)
 nsyte init

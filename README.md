@@ -12,7 +12,7 @@ A command-line tool for publishing websites to nostr and Blossom servers. Enable
 
 ```bash
 # Install
-deno install -A -f -n nsyte https://github.com/sandwichfarm/nsyte/raw/main/src/cli.ts
+deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 # Or use pre-built binary from releases
 
 # Initialize project (interactive setup)
@@ -38,7 +38,8 @@ nsyte upload ./dist
 ### Using Deno
 
 ```bash
-deno install -A -f -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+
 ```
 
 ### Pre-built Binaries
