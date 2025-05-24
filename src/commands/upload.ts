@@ -165,8 +165,8 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
     
     const publisherPubkey = await signer.getPublicKey();
 
-    resolvedServers = options.servers?.split(",") || config.servers || [];
-    resolvedRelays = options.relays?.split(",") || config.relays || [];
+    resolvedServers = options.servers?.split(",").filter(s => s.trim()) || config.servers || [];
+    resolvedRelays = options.relays?.split(",").filter(r => r.trim()) || config.relays || [];
     
     displayConfig( publisherPubkey );
 
@@ -241,8 +241,8 @@ async function resolveContext(
     }
     
     config = {
-      servers: (options.servers ? options.servers.split(",") : existingProjectData?.servers) || [],
-      relays: (options.relays ? options.relays.split(",") : existingProjectData?.relays) || [],
+      servers: (options.servers ? options.servers.split(",").filter(s => s.trim()) : existingProjectData?.servers) || [],
+      relays: (options.relays ? options.relays.split(",").filter(r => r.trim()) : existingProjectData?.relays) || [],
       publishServerList: options.publishServerList !== undefined ? options.publishServerList : existingProjectData?.publishServerList || false,
       publishRelayList: options.publishRelayList !== undefined ? options.publishRelayList : existingProjectData?.publishRelayList || false,
       publishProfile: options.publishProfile !== undefined ? options.publishProfile : existingProjectData?.publishProfile || false,
