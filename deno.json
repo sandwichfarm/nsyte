@@ -13,7 +13,9 @@
     "compile:macos": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-apple-darwin --output dist/nsyte-macos src/cli.ts",
     "compile:windows": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts",
     "tag": "deno run --allow-read --allow-write --allow-run=git scripts/tag.ts",
-    "release": "deno run --allow-read --allow-run=git --allow-net scripts/release.ts"
+    "release": "deno run --allow-read --allow-run=git --allow-net scripts/release.ts",
+    "docs:build": "./scripts/build-docs.sh",
+    "docs:serve": "./scripts/serve-docs.sh"
   },
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.7",
