@@ -7,7 +7,7 @@ repo_name: sandwichfarm/nsyte
 
 theme:
   name: material
-  font: false  # Disable Google Fonts completely
+  font: false
   features:
     - navigation.tabs
     - navigation.sections
