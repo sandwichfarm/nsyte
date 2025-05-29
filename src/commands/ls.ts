@@ -4,12 +4,14 @@ import type { NostrConnectSigner } from "applesauce-signers";
 import { globToRegExp } from "jsr:@std/path/glob-to-regexp"; // Use correct JSR import
 import { existsSync } from "std/fs/exists.ts";
 import { join } from "std/path/mod.ts";
-import { readProjectFile, setupProject } from "../lib/config.ts";
+import { readProjectFile, setupProject, defaultConfig } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
-import { listRemoteFiles, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
+import { listRemoteFiles, NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
+import { Select } from "@cliffy/prompt";
+import { generateKeyPair } from "../lib/nostr.ts";
 
 const log = createLogger("ls");
 
@@ -86,134 +88,182 @@ export function registerLsCommand(program: Command): void {
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-p, --pubkey <npub:string>", "The public key to list files for (if not using private key).")
-    .action(async (options) => {
-      try {
+    .action(command);
+}
 
-        let pubkey: string | undefined;
-        let signer: PrivateKeySigner | NostrConnectSigner | undefined;
+export async function getPubkey(options: any){
+  let pubkey: string | undefined;
+  let signer: PrivateKeySigner | NostrConnectSigner | undefined;
 
-        if (options.pubkey) {
-          pubkey = options.pubkey;
-          log.debug(`Using explicit pubkey: ${pubkey}`)
-        }
-        else if (options.privatekey) {
-          signer = new PrivateKeySigner(options.privatekey);
-          pubkey = signer.getPublicKey();
-          log.debug(`Using private key from args: ${pubkey.slice(0,8)}...`)
-        } else {
-          log.debug("No explicit key/pubkey provided, checking project config...")
-          const projectContext = await setupProject();
-          const config = projectContext.config;
+  if (options.pubkey) {
+    log.debug(`Using explicit pubkey: ${options.pubkey}`);
+    return options.pubkey;
+  } else if (options.privatekey) {
+    signer = new PrivateKeySigner(options.privatekey);
+    pubkey = await signer.getPublicKey();
+    log.debug(`Using private key from args: ${pubkey.slice(0,8)}...`);
+    return pubkey;
+  } else {
+    log.debug("No explicit key/pubkey provided, checking project config...");
+    const config = readProjectFile() || defaultConfig;
 
-          if (projectContext.privateKey) {
-            signer = new PrivateKeySigner(projectContext.privateKey);
-            pubkey = signer.getPublicKey();
-            log.debug(`Using private key from project setup: ${pubkey.slice(0,8)}...`)
-          } else if (config.bunkerPubkey) {
-            log.debug(`Project configured with bunker pubkey: ${config.bunkerPubkey.slice(0,8)}...`)
-            const secretsManager = SecretsManager.getInstance();
-            const nbunkString = secretsManager.getNbunk(config.bunkerPubkey);
+    if (config.bunkerPubkey) return config.bunkerPubkey;
 
-            if (nbunkString) {
-              try {
-                log.info("Attempting connection using stored nbunksec...");
-                signer = await importFromNbunk(nbunkString);
-                pubkey = await signer.getPublicKey();
-                log.info(`Session established with bunker, user pubkey: ${pubkey.slice(0,8)}...`);
-                await signer.close();
-                log.debug("Disconnected bunker signer after getting pubkey.")
-              } catch (error) {
-                  const errorMsg = error instanceof Error ? error.message : String(error);
-                  log.error(`Failed to connect using stored nbunksec: ${errorMsg}`);
-                  console.error(colors.red(`Error connecting to configured bunker: ${errorMsg}`));
-                  console.log(colors.yellow("Try running 'nsyte bunker connect' again."));
-                  Deno.exit(1);
-              }
-            } else {
-              log.error(`Project configured for bunker ${config.bunkerPubkey} but no nbunksec found.`);
-              console.error(colors.red(`Stored connection info not found for bunker ${config.bunkerPubkey.slice(0,8)}...`));
-              console.log(colors.yellow("Please run 'nsyte bunker connect' or 'nsyte bunker import'."));
-              Deno.exit(1);
-            }
-          }
-        }
+    const secretsManager = SecretsManager.getInstance();
+    const existingBunkers = secretsManager.getAllPubkeys();
+    const hasBunkers = existingBunkers.length > 0;
+    
+    const keyOptions = [
+      { name: "Generate a new private key", value: "generate" },
+      { name: "Use an existing private key", value: "existing" }
+    ];
 
-        if (!pubkey) {
-          console.error(colors.red("Could not determine public key. Use --pubkey, --privatekey, or configure a project key."));
+    if (hasBunkers) {
+      keyOptions.push(
+        { name: "Use an existing NSEC bunker", value: "existing_bunker" },
+        { name: "Connect to a new NSEC bunker", value: "new_bunker" }
+      );
+    } else {
+      keyOptions.push({ name: "Connect to an NSEC bunker", value: "new_bunker" });
+    }
+
+    type KeyChoice = "generate" | "existing" | "new_bunker" | "existing_bunker";
+
+    const keyChoice = await Select.prompt<KeyChoice>({
+      message: "How would you like to manage your nostr key?",
+      options: keyOptions,
+    });
+
+    if (keyChoice === "generate") {
+      const keyPair = generateKeyPair();
+      signer = new PrivateKeySigner(keyPair.privateKey);
+      pubkey = await signer.getPublicKey();
+      console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+      console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
+      console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
+    } else if (keyChoice === "existing_bunker") {
+      const bunkerOptions = existingBunkers.map((pubkey: string) => {
+        return {
+          name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+          value: pubkey
+        };
+      });
+
+      const selectedPubkey = await Select.prompt<string>({
+        message: "Select an existing bunker:",
+        options: bunkerOptions,
+      });
+
+      const nbunkString = secretsManager.getNbunk(selectedPubkey);
+      if (nbunkString) {
+        try {
+          log.info("Attempting connection using stored nbunksec...");
+          signer = await importFromNbunk(nbunkString);
+          pubkey = await signer.getPublicKey();
+          log.info(`Session established with bunker, user pubkey: ${pubkey.slice(0,8)}...`);
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          log.error(`Failed to connect using stored nbunksec: ${errorMsg}`);
+          console.error(colors.red(`Error connecting to configured bunker: ${errorMsg}`));
+          console.log(colors.yellow("Try running 'nsyte bunker connect' again."));
           Deno.exit(1);
         }
-
-        let relays: string[] = [];
-
-        if (options.relays) {
-          relays = options.relays.split(",");
-        } else {
-          const config = readProjectFile();
-          if (config && config.relays && config.relays.length > 0) {
-            relays = config.relays;
-          } else {
-            log.info("No project relays configured, using default discovery relays.")
-            relays = RELAY_DISCOVERY_RELAYS;
-          }
-        }
-
-        console.log(colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`));
-
-        // --- Load .nsite-ignore rules ---
-        const cwd = Deno.cwd();
-        const ignoreFilePath = join(cwd, ".nsite-ignore");
-        let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
-        let ignoredFileCount = 0;
-
-        if (existsSync(ignoreFilePath)) {
-          try {
-            const ignoreContent = await Deno.readTextFile(ignoreFilePath);
-            const customPatterns = ignoreContent.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith("#"));
-            ignoreRules = parseIgnorePatterns([...DEFAULT_IGNORE_PATTERNS, ...customPatterns]);
-            log.info(`Loaded .nsite-ignore rules.`);
-          } catch (error) {
-            log.warn(`Failed to read .nsite-ignore file: ${error}. Using default ignore patterns.`);
-          }
-        } else {
-          log.debug("No .nsite-ignore file found, using default patterns.");
-        }
-        // --- End ignore rule loading ---
-
-        const files = await listRemoteFiles(relays, pubkey);
-
-        if (files.length === 0) {
-          console.log(colors.yellow("\nNo files found for this user."));
-        } else {
-          console.log(colors.green(`\nFound ${files.length} files:`));
-
-          files.sort((a, b) => a.path.localeCompare(b.path));
-
-          files.forEach(file => {
-            // Remove leading slash for local ignore check
-            const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
-            // isIgnored expects isDirectory hint, assume false for ls output
-            const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
-
-            if (shouldBeIgnored) {
-              console.log(colors.red(file.path) + colors.gray(" (ignored locally)"));
-              ignoredFileCount++;
-            } else {
-              // Use white for standard files
-              console.log(colors.white(file.path));
-            }
-          });
-
-          if (ignoredFileCount > 0) {
-              console.log(colors.yellow(`\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`));
-          }
-        }
-        
-        // Ensure command exits after completion
-        Deno.exit(0);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(colors.red(`\nError listing files: ${errorMessage}`));
-        Deno.exit(1);
       }
-    });
+    } else {
+      Deno.exit(1);
+    }
+  }
+}
+
+export function getRelays(options: any): string[] {
+  let relays: string[] = [];
+
+  if (options.relays) {
+    relays = options.relays.split(",");
+  } else {
+    const config = readProjectFile();
+    if (config && config.relays && config.relays.length > 0) {
+      relays = config.relays;
+    } else {
+      log.info("No project relays configured, using default discovery relays.");
+      relays = NSYTE_BROADCAST_RELAYS;
+    }
+  }
+
+  return relays;
+}
+
+export async function command (options: any): Promise<void> {
+  try {
+    const cwd = Deno.cwd();
+    const ignoreFilePath = join(cwd, ".nsite-ignore");
+
+    const pubkey: string | undefined = await getPubkey(options);
+    const relays = getRelays(options);
+
+    let signer: PrivateKeySigner | NostrConnectSigner | undefined;
+    let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
+    let ignoredFileCount = 0;
+
+    if (!pubkey) {
+      console.error(colors.red("Could not determine public key. Use --pubkey, or configure a project key in your project's .nsite/config.json file."));
+      Deno.exit(1);
+    }
+
+    console.log(colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`));
+
+    if (existsSync(ignoreFilePath)) {
+      try {
+        const ignoreContent = await Deno.readTextFile(ignoreFilePath);
+        const customPatterns = ignoreContent.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+        ignoreRules = parseIgnorePatterns([...DEFAULT_IGNORE_PATTERNS, ...customPatterns]);
+        log.info(`Loaded .nsite-ignore rules.`);
+      } catch (error) {
+        log.warn(`Failed to read .nsite-ignore file: ${error}. Using default ignore patterns.`);
+      }
+    } else {
+      log.debug("No .nsite-ignore file found, using default patterns.");
+    }
+
+    const files = await listRemoteFiles(relays, pubkey);
+
+    if (files.length === 0) {
+      console.log(colors.yellow("\nNo files found for this user."));
+    } else {
+      console.log(colors.green(`\nFound ${files.length} files:`));
+
+      files.sort((a, b) => a.path.localeCompare(b.path));
+
+      files.forEach(file => {
+        const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
+        const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
+
+        if (shouldBeIgnored) {
+          console.log(colors.red(file.path) + colors.gray(" (ignored locally)"));
+          ignoredFileCount++;
+        } else {
+          console.log(colors.white(file.path));
+        }
+      });
+
+      if (ignoredFileCount > 0) {
+        console.log(colors.yellow(`\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`));
+      }
+    }
+
+    if (signer && 'close' in signer) {
+      try {
+        await signer.close();
+        log.debug("Closed bunker connection.");
+      } catch (err) {
+        log.warn(`Error closing bunker connection: ${err}`);
+      }
+    }
+
+    Deno.exit(0);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(colors.red(`\nError listing files: ${errorMessage}`));
+    Deno.exit(1);
+  }
 }
