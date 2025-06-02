@@ -1,43 +1,56 @@
 ---
-title: nsyte Documentation
-description: Documentation for nsyte - publish your site to nostr and blossom servers
+title: Documentation
+description: Complete documentation for nsyte - publish your site to nostr and blossom servers
 ---
 
 # nsyte Documentation
 
 > ⚠️ nsyte is alpha. use at your own risk.
 
-nsyte is a command-line tool for publishing websites to nostr and Blossom servers. It enables decentralized, censorship-resistant website hosting.
-
-![nsyte screen demo](../static/nsyte.gif)
+Welcome to the nsyte documentation! nsyte is a command-line tool for publishing websites to nostr and Blossom servers, enabling decentralized, censorship-resistant website hosting.
 
 ## Quick Start
 
 ```bash
-# Install
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+# Install nsyte (see installation guide for your platform)
+brew install sandwichfarm/tap/nsyte
 
-# Initialize project (interactive setup)
+# Initialize your project
 nsyte init
 
-# Upload website
+# Upload your website
 nsyte upload ./dist
 ```
 
 ## Documentation Sections
 
-- [Installation](./installation.md) - How to install nsyte
-- [Basic Usage](./usage/index.md) - Getting started with nsyte
-- [Command Reference](./usage/commands.md) - Detailed command documentation
-- [Configuration](./usage/configuration.md) - Configuration options and settings
+### Getting Started
+- [**Installation**](installation.md) - Install nsyte on your platform
+- [**Basic Usage**](usage/index.md) - Learn the fundamentals
 
-## Guides
+### Core Features
+- [**Configuration**](usage/configuration.md) - Configure nsyte for your needs
+- [**Commands**](usage/commands/upload.md) - Complete command reference
 
-- [Local Development Setup](./guides/local-setup.md) - Setting up your development environment
-- [Deployment](./guides/deployment.md) - Deploying your site
-- [CI/CD Integration](./guides/ci-cd.md) - Setting up continuous deployment
-- [Security Best Practices](./guides/security.md) - Security considerations and recommendations
+### Advanced Topics
+- [**CI/CD Integration**](guides/ci-cd.md) - Automated deployments
+- [**Security Best Practices**](guides/security.md) - Keep your deployments secure
+- [**Local Development**](guides/local-setup.md) - Development environment setup
 
-## About
+## Key Features
 
-nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This fork has been ported to deno and rewritten in the process. Some behaviors in this fork are slightly different. 
+- **🌐 Decentralized Hosting** - Publish to multiple Blossom servers and nostr relays
+- **🔐 Secure by Design** - NIP-46 bunker support for key security
+- **⚡ Fast & Efficient** - Concurrent uploads and smart diffing
+- **🚀 CI/CD Ready** - Perfect for automated deployments
+
+## Need Help?
+
+- Check the [Installation Guide](installation.md) if you're having trouble getting started
+- Review [Basic Usage](usage/index.md) for common workflows
+- See [Security Guide](guides/security.md) for best practices
+- Browse [Command Reference](usage/commands/upload.md) for detailed options
+
+## About nsyte
+
+nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an), ported to Deno with enhanced features and improved performance.

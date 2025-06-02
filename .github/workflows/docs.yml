@@ -11,17 +11,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Build
-        uses: Tiryoh/actions-mkdocs@v0
-        with:
-          mkdocs_version: 'latest'
-          requirements: 'requirements-docs.txt'
-          configfile: 'mkdocs.yml' # optional,   default is mkdocs.yml
+      - name: Build Site
+        run: |
+          # Set up Python virtual environment for docs
+          python3 -m venv .venv/docs
+          .venv/docs/bin/pip install -r requirements-docs.txt
+          
+          # Build the complete site (splash + docs)
+          ./scripts/build-site.sh
+          
       - name: deploy nsite
         uses: sandwichfarm/nsite-action@v0.2.1
         id: nsite_deploy
         with:
-          directory: "./dist/site"
+          directory: "./dist"
           nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
           fallback: "404.html"
           relays: |
@@ -37,3 +40,18 @@ jobs:
           publish_relay_list: 'true'
           publish_profile: 'true'
           purge: true
+      
+      - name: Deploy to Bunny.net CDN
+        uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
+        with:
+          source: "./dist"
+          destination: "/"
+          storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
+          storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          
+      - name: Purge Bunny.net CDN Cache
+        run: |
+          curl -X POST "https://api.bunny.net/pullzone/${{ secrets.BUNNY_PULLZONE_ID }}/purgeCache" \
+            -H "AccessKey: ${{ secrets.BUNNY_ACCESS_KEY }}" \
+            -H "Content-Type: application/json"

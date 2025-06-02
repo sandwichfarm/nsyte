@@ -15,7 +15,9 @@
     "tag": "deno run --allow-read --allow-write --allow-run=git scripts/tag.ts",
     "release": "deno run --allow-read --allow-run=git --allow-net scripts/release.ts",
     "docs:build": "./scripts/build-docs.sh",
-    "docs:serve": "./scripts/serve-docs.sh"
+    "docs:serve": "./scripts/serve-docs.sh",
+    "site:build": "./scripts/build-site.sh",
+    "site:serve": "./scripts/serve-site.sh"
   },
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.7",

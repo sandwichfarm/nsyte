@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nsyte - Publish to the Decentralized Web</title>
+    <meta name="description" content="A command-line tool for publishing websites to nostr and Blossom servers. Decentralized, censorship-resistant website hosting.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <style>
+        /* Cypherpunk theme variables - lower contrast */
+        :root {
+            --cyber-bg: #0f0f1a;
+            --cyber-surface: #1a1a2e;
+            --cyber-surface-variant: #242444;
+            --cyber-border: #3a3a5a;
+            --cyber-text: #d4d4d8;
+            --cyber-text-secondary: #a1a1aa;
+            --cyber-text-muted: #71717a;
+            --cyber-accent: #34d399;
+            --cyber-accent-bright: #6ee7b7;
+            --cyber-accent-dim: #10b981;
+            --cyber-purple: #8b5cf6;
+            --cyber-blue: #3b82f6;
+            --cyber-warning: #f59e0b;
+            --cyber-error: #ef4444;
+            --cyber-font-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            --cyber-font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--cyber-font-sans);
+            background: var(--cyber-bg);
+            color: var(--cyber-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* Hero Section with animated background */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            background: linear-gradient(135deg, var(--cyber-bg) 0%, var(--cyber-surface) 50%, var(--cyber-bg) 100%);
+            overflow: hidden;
+            border-bottom: 1px solid var(--cyber-border);
+        }
+
+        /* Animated geometric background */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(52, 211, 153, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+            animation: float-gradient 12s ease-in-out infinite;
+        }
+
+        /* Animated grid overlay */
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(52, 211, 153, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(52, 211, 153, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px;
+            animation: grid-move 20s linear infinite;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        @keyframes float-gradient {
+            0%, 100% { 
+                transform: translate(0, 0) scale(1);
+                opacity: 0.6;
+            }
+            33% { 
+                transform: translate(-20px, -10px) scale(1.1);
+                opacity: 0.8;
+            }
+            66% { 
+                transform: translate(10px, -20px) scale(0.9);
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes grid-move {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        /* Floating particles */
+        .hero-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--cyber-accent);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: float-particle linear infinite;
+        }
+
+        .particle:nth-child(odd) {
+            background: var(--cyber-purple);
+            opacity: 0.3;
+        }
+
+        .particle:nth-child(3n) {
+            background: var(--cyber-blue);
+            opacity: 0.2;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.4;
+            }
+            90% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            text-align: center;
+            color: var(--cyber-text);
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 700;
+            margin: 0 0 1.5rem 0;
+            color: var(--cyber-text);
+            font-family: var(--cyber-font-sans);
+            letter-spacing: -1px;
+            line-height: 1.1;
+            position: relative;
+        }
+
+        .hero-title::before {
+            content: '> ';
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            font-size: 0.8em;
+            animation: cursor-blink 1.5s infinite;
+        }
+
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .hero-tagline {
+            font-size: clamp(1.25rem, 4vw, 2rem);
+            font-weight: 400;
+            margin: 0 0 1.5rem 0;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            opacity: 0.9;
+            letter-spacing: 1px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-description {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            line-height: 1.7;
+            margin: 0 0 3rem 0;
+            color: var(--cyber-text-secondary);
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            font-family: var(--cyber-font-sans);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 4rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-family: var(--cyber-font-sans);
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+            min-width: 180px;
+            justify-content: center;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--cyber-accent);
+            color: var(--cyber-bg);
+            border-color: var(--cyber-accent);
+            text-shadow: none;
+            box-shadow: 0 4px 12px rgba(52, 211, 153, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: var(--cyber-accent-bright);
+            border-color: var(--cyber-accent-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 211, 153, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--cyber-accent);
+            border-color: var(--cyber-accent);
+            box-shadow: 0 2px 8px rgba(52, 211, 153, 0.15);
+        }
+
+        .btn-secondary:hover {
+            background: var(--cyber-surface-variant);
+            border-color: var(--cyber-accent-bright);
+            color: var(--cyber-accent-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 211, 153, 0.2);
+        }
+
+        /* Demo placeholder */
+        .demo-container {
+            margin: 3rem 0;
+        }
+
+        .demo-placeholder {
+            background: var(--cyber-surface);
+            border: 2px dashed var(--cyber-border);
+            border-radius: 12px;
+            padding: 4rem 2rem;
+            margin: 0 auto;
+            max-width: 500px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .demo-placeholder:hover {
+            border-color: var(--cyber-accent);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .demo-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .demo-text {
+            font-size: 1.8rem;
+            margin-bottom: 0.8rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            font-weight: 500;
+        }
+
+        .demo-subtitle {
+            font-size: 1rem;
+            color: var(--cyber-text-secondary);
+            font-family: var(--cyber-font-sans);
+        }
+
+        /* Installation Section */
+        .installation {
+            padding: 5rem 0;
+            background: var(--cyber-surface);
+            position: relative;
+            border-top: 1px solid var(--cyber-border);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-sans);
+        }
+
+        .platform-tabs {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            margin: 3rem 0;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .platform-tabs::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue), var(--cyber-accent));
+        }
+
+        .tab-nav {
+            display: flex;
+            background: var(--cyber-surface-variant);
+            border-bottom: 1px solid var(--cyber-border);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .tab-nav::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--cyber-accent);
+            opacity: 0.3;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 16px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--cyber-text-secondary);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            position: relative;
+            font-family: var(--cyber-font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tab-button::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--cyber-accent);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .tab-button:hover {
+            background: rgba(0, 255, 65, 0.05);
+            color: var(--cyber-accent);
+        }
+
+        .tab-button:hover::before {
+            transform: scaleX(1);
+        }
+
+        .tab-button.active {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--cyber-accent);
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2);
+        }
+
+        .tab-button.active::before {
+            transform: scaleX(1);
+        }
+
+        .tab-content {
+            padding: 2rem;
+            background: var(--cyber-surface);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .install-method {
+            margin-bottom: 2rem;
+        }
+
+        .install-method:last-child {
+            margin-bottom: 0;
+        }
+
+        .install-method h4 {
+            margin: 0 0 1rem 0;
+            color: var(--cyber-accent);
+            font-size: 1.1rem;
+            font-family: var(--cyber-font-mono);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .recommended-badge {
+            background: var(--cyber-warning);
+            color: var(--cyber-bg);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .code-container {
+            position: relative;
+            background: var(--cyber-bg);
+            border: 1px solid var(--cyber-border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 
+                0 10px 25px rgba(0, 255, 65, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .code-block {
+            padding: 1.5rem;
+            font-family: var(--cyber-font-mono);
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--cyber-accent-bright);
+            overflow-x: auto;
+            margin: 1rem 0;
+            background: var(--cyber-bg);
+            position: relative;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple));
+            border-radius: 8px 8px 0 0;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--cyber-surface);
+            color: var(--cyber-accent);
+            border: 1px solid var(--cyber-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: var(--cyber-font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+            background: var(--cyber-accent);
+            color: var(--cyber-bg);
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: var(--cyber-blue);
+            border-color: var(--cyber-blue);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 5rem 0;
+            background: var(--cyber-bg);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .feature-card {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+            border-color: var(--cyber-accent);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .feature-title {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.4rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-sans);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-description {
+            margin: 0;
+            color: var(--cyber-text-secondary);
+            line-height: 1.6;
+            font-family: var(--cyber-font-sans);
+        }
+
+        /* Remove theme toggle - pure cypherpunk theme */
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-content {
+                padding: 0 1rem;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .tab-nav {
+                flex-wrap: wrap;
+            }
+
+            .tab-button {
+                flex: 1;
+                min-width: 120px;
+            }
+
+            .code-block {
+                font-size: 0.875rem;
+            }
+
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-content > * {
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        .hero-content > *:nth-child(2) { animation-delay: 0.1s; }
+        .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
+        .hero-content > *:nth-child(4) { animation-delay: 0.3s; }
+        .hero-content > *:nth-child(5) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <!-- Animated particles background -->
+        <div class="hero-particles" id="particles"></div>
+        
+        <div class="hero-content">
+            <h1 class="hero-title">nsyte</h1>
+            <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
+            <p class="hero-description">
+                Deploy your site across decentralized infrastructure. No gatekeepers, no censorship, no single points of failure. 
+                Your content, your keys, your network.
+            </p>
+            
+            <div class="demo-container">
+                <div class="demo-placeholder">
+                    <div class="demo-icon">⚡</div>
+                    <div class="demo-text">Live Deploy Demo</div>
+                    <div class="demo-subtitle">Watch real-time deployment across decentralized nodes</div>
+                </div>
+            </div>
+
+            <div class="cta-buttons">
+                <a href="#installation" class="btn btn-primary">
+                    <span>🚀</span>
+                    Get Started
+                </a>
+                <a href="./docs/" class="btn btn-secondary">
+                    <span>📚</span>
+                    View Docs
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section class="installation" id="installation">
+        <div class="container">
+            <h2 class="section-title">Quick Installation</h2>
+            
+            <div class="platform-tabs">
+                <div class="tab-nav" role="tablist">
+                    <button class="tab-button active" data-tab="macos" role="tab">macOS</button>
+                    <button class="tab-button" data-tab="windows" role="tab">Windows</button>
+                    <button class="tab-button" data-tab="arch" role="tab">Arch Linux</button>
+                    <button class="tab-button" data-tab="debian" role="tab">Debian/Ubuntu</button>
+                    <button class="tab-button" data-tab="flatpak" role="tab">Flatpak</button>
+                    <button class="tab-button" data-tab="snap" role="tab">Snap</button>
+                    <button class="tab-button" data-tab="deno" role="tab">Universal</button>
+                </div>
+
+                <div class="tab-content">
+                    <div class="tab-pane active" data-tab="macos" role="tabpanel">
+                        <div class="install-method">
+                            <h4>
+                                Homebrew 
+                                <span class="recommended-badge">Recommended</span>
+                            </h4>
+                            <div class="code-container">
+                                <div class="code-block">brew install sandwichfarm/tap/nsyte</div>
+                                <button class="copy-btn" data-copy="brew install sandwichfarm/tap/nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="windows" role="tabpanel">
+                        <div class="install-method">
+                            <h4>
+                                Scoop 
+                                <span class="recommended-badge">Recommended</span>
+                            </h4>
+                            <div class="code-container">
+                                <div class="code-block">scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte</div>
+                                <button class="copy-btn" data-copy="scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte">Copy</button>
+                            </div>
+                        </div>
+                        <div class="install-method">
+                            <h4>Chocolatey</h4>
+                            <div class="code-container">
+                                <div class="code-block">choco install nsyte</div>
+                                <button class="copy-btn" data-copy="choco install nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="arch" role="tabpanel">
+                        <div class="install-method">
+                            <h4>AUR</h4>
+                            <div class="code-container">
+                                <div class="code-block">yay -S nsyte</div>
+                                <button class="copy-btn" data-copy="yay -S nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="debian" role="tabpanel">
+                        <div class="install-method">
+                            <h4>.deb Package</h4>
+                            <div class="code-container">
+                                <div class="code-block">curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb</div>
+                                <button class="copy-btn" data-copy="curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="flatpak" role="tabpanel">
+                        <div class="install-method">
+                            <h4>Flatpak</h4>
+                            <div class="code-container">
+                                <div class="code-block">flatpak install flathub org.github.sandwichfarm.nsyte</div>
+                                <button class="copy-btn" data-copy="flatpak install flathub org.github.sandwichfarm.nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="snap" role="tabpanel">
+                        <div class="install-method">
+                            <h4>Snap Store</h4>
+                            <div class="code-container">
+                                <div class="code-block">sudo snap install nsyte</div>
+                                <button class="copy-btn" data-copy="sudo snap install nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" data-tab="deno" role="tabpanel">
+                        <div class="install-method">
+                            <h4>Deno (All Platforms)</h4>
+                            <div class="code-container">
+                                <div class="code-block">deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts</div>
+                                <button class="copy-btn" data-copy="deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <p style="color: var(--cyber-text-secondary); font-size: 1.1rem;">
+                    After installation, run <code style="background: var(--cyber-surface-variant); color: var(--cyber-accent); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--cyber-font-mono); border: 1px solid var(--cyber-border);">nsyte init</code> to get started
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Built for Digital Sovereignty</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Censorship Resistant</h3>
+                    <p class="feature-description">
+                        Distribute across multiple nodes and relays. No single entity can silence your voice or take down your content.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔑</div>
+                    <h3 class="feature-title">Self-Sovereign Identity</h3>
+                    <p class="feature-description">
+                        Your cryptographic keys, your identity. NIP-46 bunker support for secure, remote key management.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🕸️</div>
+                    <h3 class="feature-title">Mesh Network Ready</h3>
+                    <p class="feature-description">
+                        Built on nostr and Blossom protocols. Resilient, peer-to-peer infrastructure that routes around damage.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3 class="feature-title">Privacy First</h3>
+                    <p class="feature-description">
+                        Zero tracking, zero data collection. Your publishing habits and content remain private and yours alone.
+                    </p>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 4rem;">
+                <a href="./docs/" class="btn btn-primary" style="color: var(--cyber-bg); background: var(--cyber-accent); border-color: var(--cyber-accent);">
+                    <span>📖</span>
+                    Explore Documentation
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript -->
+    <script>
+        // Platform detection
+        function detectPlatform() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const platform = navigator.platform.toLowerCase();
+            
+            if (platform.includes('mac') || userAgent.includes('macintosh')) {
+                return 'macos';
+            }
+            
+            if (platform.includes('win') || userAgent.includes('windows')) {
+                return 'windows';
+            }
+            
+            if (userAgent.includes('arch')) {
+                return 'arch';
+            }
+            
+            if (userAgent.includes('ubuntu') || userAgent.includes('debian')) {
+                return 'debian';
+            }
+            
+            if (platform.includes('linux') || userAgent.includes('linux')) {
+                return 'flatpak';
+            }
+            
+            return 'deno';
+        }
+
+        // Tab functionality
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+            
+            // Detect platform and set active tab
+            const detectedPlatform = detectPlatform();
+            const platformTab = document.querySelector(`[data-tab="${detectedPlatform}"]`);
+            
+            if (platformTab) {
+                setActiveTab(detectedPlatform);
+            }
+
+            // Add click event listeners
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab');
+                    setActiveTab(tabId);
+                });
+            });
+
+            function setActiveTab(tabId) {
+                // Remove active class from all
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+                
+                // Add active class to selected
+                const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
+                const activePane = document.querySelector(`.tab-pane[data-tab="${tabId}"]`);
+                
+                if (activeButton && activePane) {
+                    activeButton.classList.add('active');
+                    activePane.classList.add('active');
+                }
+            }
+        }
+
+        // Copy functionality
+        function initializeCopyButtons() {
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            
+            copyButtons.forEach(button => {
+                button.addEventListener('click', async () => {
+                    const textToCopy = button.getAttribute('data-copy');
+                    
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        showCopySuccess(button);
+                    } catch (err) {
+                        // Fallback for older browsers
+                        const textArea = document.createElement('textarea');
+                        textArea.value = textToCopy;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        showCopySuccess(button);
+                    }
+                });
+            });
+
+            function showCopySuccess(button) {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }
+        }
+
+
+        // Smooth scrolling
+        function initializeSmoothScrolling() {
+            const links = document.querySelectorAll('a[href^="#"]');
+            
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetId = link.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    
+                    if (targetElement) {
+                        e.preventDefault();
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        }
+
+        // Animated particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random horizontal position
+                particle.style.left = Math.random() * 100 + '%';
+                
+                // Random animation duration and delay
+                const duration = Math.random() * 20 + 10; // 10-30 seconds
+                const delay = Math.random() * 10; // 0-10 seconds delay
+                
+                particle.style.animationDuration = duration + 's';
+                particle.style.animationDelay = delay + 's';
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTabs();
+            initializeCopyButtons();
+            initializeSmoothScrolling();
+            createParticles();
+            
+            // Log detected platform for debugging
+            console.log('Detected platform:', detectPlatform());
+        });
+    </script>
+</body>
+</html>
