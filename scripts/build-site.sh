@@ -10,11 +10,11 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp index.html dist/
 
-# Copy install script as text file to avoid CDN restrictions
-echo "📦 Copying install script..."
-cp install.sh dist/install.txt
-# Also copy with .sh extension for compatibility
+# Copy install script only for nsyte deployment
+echo "📦 Preparing install script..."
+# For nsyte deployment, copy the actual script
 cp install.sh dist/install.sh
+cp install.sh dist/install.txt
 
 # Build documentation with MkDocs
 echo "📚 Building documentation..."

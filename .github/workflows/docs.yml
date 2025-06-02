@@ -20,6 +20,30 @@ jobs:
           # Build the complete site (splash + docs)
           ./scripts/build-site.sh
           
+          # Debug: List files to be deployed
+          echo "Files to be deployed:"
+          ls -la dist/
+          
+          # Remove executable permissions from shell scripts to avoid potential issues
+          chmod 644 dist/install.sh dist/install.txt || true
+          
+      - name: Deploy to Bunny.net CDN
+        uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
+        with:
+          source: "./dist"
+          destination: ""
+          storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
+          accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
+          storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          upload: "true"
+          purgePullZone: "true"
+          
+      - name: Purge Bunny.net CDN Cache
+        run: |
+          curl -X POST "https://api.bunny.net/pullzone/${{ secrets.BUNNY_PULLZONE_ID }}/purgeCache" \
+            -H "AccessKey: ${{ secrets.BUNNY_ACCESS_KEY }}" \
+            -H "Content-Type: application/json"
+      
       - name: deploy nsite
         uses: sandwichfarm/nsite-action@v0.2.1
         id: nsite_deploy
@@ -40,20 +64,3 @@ jobs:
           publish_relay_list: 'true'
           publish_profile: 'true'
           purge: true
-      
-      - name: Deploy to Bunny.net CDN
-        uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
-        with:
-          source: "./dist"
-          destination: "/"
-          storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
-          accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
-          storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          upload: "true"
-          purgePullZone: "true"
-          
-      - name: Purge Bunny.net CDN Cache
-        run: |
-          curl -X POST "https://api.bunny.net/pullzone/${{ secrets.BUNNY_PULLZONE_ID }}/purgeCache" \
-            -H "AccessKey: ${{ secrets.BUNNY_ACCESS_KEY }}" \
-            -H "Content-Type: application/json"
