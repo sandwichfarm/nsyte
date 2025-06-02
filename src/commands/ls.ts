@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import type { NostrConnectSigner } from "applesauce-signers";
-import { globToRegExp } from "jsr:@std/path/glob-to-regexp"; // Use correct JSR import
+import { globToRegExp } from "jsr:@std/path/glob-to-regexp";
 import { existsSync } from "std/fs/exists.ts";
 import { join } from "std/path/mod.ts";
 import { readProjectFile, setupProject, defaultConfig } from "../lib/config.ts";
@@ -10,7 +10,7 @@ import { importFromNbunk } from "../lib/nip46.ts";
 import { listRemoteFiles, NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
-import { Select } from "@cliffy/prompt";
+import { Select, Secret } from "@cliffy/prompt";
 import { generateKeyPair } from "../lib/nostr.ts";
 
 const log = createLogger("ls");
@@ -76,7 +76,6 @@ function isIgnored(relativePath: string, rules: IgnoreRule[], isDirectory: boole
   }
   return ignored;
 }
-// --- End Copied/Adapted ---
 
 /**
  * Register the ls command
@@ -91,7 +90,7 @@ export function registerLsCommand(program: Command): void {
     .action(command);
 }
 
-export async function getPubkey(options: any){
+export async function getPubkey(options: any): Promise<string> {
   let pubkey: string | undefined;
   let signer: PrivateKeySigner | NostrConnectSigner | undefined;
 
@@ -141,6 +140,7 @@ export async function getPubkey(options: any){
       console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
       console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
       console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
+      return pubkey;
     } else if (keyChoice === "existing_bunker") {
       const bunkerOptions = existingBunkers.map((pubkey: string) => {
         return {
@@ -161,6 +161,7 @@ export async function getPubkey(options: any){
           signer = await importFromNbunk(nbunkString);
           pubkey = await signer.getPublicKey();
           log.info(`Session established with bunker, user pubkey: ${pubkey.slice(0,8)}...`);
+          return pubkey;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           log.error(`Failed to connect using stored nbunksec: ${errorMsg}`);
@@ -169,10 +170,22 @@ export async function getPubkey(options: any){
           Deno.exit(1);
         }
       }
+    } else if (keyChoice === "existing") {
+      const nsec = await Secret.prompt({
+        message: "Enter your private key (nsec/hex):",
+      });
+      signer = new PrivateKeySigner(nsec);
+      pubkey = await signer.getPublicKey();
+      return pubkey;
+    } else if (keyChoice === "new_bunker") {
+      console.error(colors.yellow("Please use 'nsyte bunker connect' to connect to a new bunker."));
+      Deno.exit(1);
     } else {
       Deno.exit(1);
     }
   }
+  
+  throw new Error("Could not determine public key");
 }
 
 export function getRelays(options: any): string[] {
@@ -198,17 +211,11 @@ export async function command (options: any): Promise<void> {
     const cwd = Deno.cwd();
     const ignoreFilePath = join(cwd, ".nsite-ignore");
 
-    const pubkey: string | undefined = await getPubkey(options);
+    const pubkey = await getPubkey(options);
     const relays = getRelays(options);
 
-    let signer: PrivateKeySigner | NostrConnectSigner | undefined;
     let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
     let ignoredFileCount = 0;
-
-    if (!pubkey) {
-      console.error(colors.red("Could not determine public key. Use --pubkey, or configure a project key in your project's .nsite/config.json file."));
-      Deno.exit(1);
-    }
 
     console.log(colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`));
 
@@ -248,15 +255,6 @@ export async function command (options: any): Promise<void> {
 
       if (ignoredFileCount > 0) {
         console.log(colors.yellow(`\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`));
-      }
-    }
-
-    if (signer && 'close' in signer) {
-      try {
-        await signer.close();
-        log.debug("Closed bunker connection.");
-      } catch (err) {
-        log.warn(`Error closing bunker connection: ${err}`);
       }
     }
 
