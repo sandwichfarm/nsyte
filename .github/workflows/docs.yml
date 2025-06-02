@@ -23,9 +23,17 @@ jobs:
           # Debug: List files to be deployed
           echo "Files to be deployed:"
           ls -la dist/
+          echo "Contents of dist/get:"
+          ls -la dist/get/
           
-          # Remove executable permissions from shell scripts only (not directories)
-          chmod 644 dist/install.sh dist/install.txt dist/get/install.sh dist/get/install.txt || true
+          # Test: Try creating a simple text file at root to see if it uploads
+          echo "test" > dist/test.txt
+          
+          # Remove root-level .sh file - Bunny.net blocks shell scripts at root
+          rm -f dist/install.sh
+          
+          # Remove executable permissions from remaining files
+          chmod 644 dist/install.txt dist/get/install.sh dist/get/install.txt || true
           
       - name: Deploy to Bunny.net CDN
         uses: ayeressian/bunnycdn-storage-deploy@v2.2.2

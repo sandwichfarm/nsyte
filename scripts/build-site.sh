@@ -15,9 +15,10 @@ echo "📦 Preparing install script..."
 mkdir -p dist/get
 cp install.sh dist/get/install.sh
 cp install.sh dist/get/install.txt
-# Also keep copies at root for backward compatibility
-cp install.sh dist/install.sh
+# Copy install.txt at root (Bunny.net blocks .sh files at root)
 cp install.sh dist/install.txt
+# Add redirect for legacy install URL
+cp install-redirect.html dist/install.html
 
 # Build documentation with MkDocs
 echo "📚 Building documentation..."
