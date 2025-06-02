@@ -1,0 +1,66 @@
+#!/bin/bash
+set -e
+
+echo "🚀 Starting nsyte website development server..."
+
+# Function to cleanup background processes
+cleanup() {
+    echo "🛑 Shutting down servers..."
+    kill $MKDOCS_PID $FILE_WATCHER_PID $HTTP_SERVER_PID 2>/dev/null || true
+    exit 0
+}
+
+# Trap cleanup on script exit
+trap cleanup EXIT INT TERM
+
+# Build initial site
+echo "📦 Building initial site..."
+./scripts/build-site.sh
+
+# Start MkDocs serve for docs hot reloading in background
+echo "📚 Starting MkDocs server for docs..."
+.venv/docs/bin/mkdocs serve --dev-addr 127.0.0.1:8001 --config-file mkdocs.yml &
+MKDOCS_PID=$!
+
+# Start simple HTTP server for the splash page
+echo "🌐 Starting HTTP server for splash page..."
+cd dist
+python3 -m http.server 8000 > /dev/null 2>&1 &
+HTTP_SERVER_PID=$!
+cd ..
+
+# File watcher for splash page changes using fswatch (macOS) or inotify (Linux)
+echo "👀 Starting file watcher for splash page..."
+if command -v fswatch >/dev/null 2>&1; then
+    # macOS
+    fswatch -o index.html | while read f; do
+        echo "🔄 Splash page changed, rebuilding..."
+        cp index.html dist/
+        echo "✅ Splash page updated"
+    done &
+elif command -v inotifywait >/dev/null 2>&1; then
+    # Linux
+    while inotifywait -e modify index.html; do
+        echo "🔄 Splash page changed, rebuilding..."
+        cp index.html dist/
+        echo "✅ Splash page updated"
+    done &
+else
+    echo "⚠️  File watching not available (install fswatch on macOS or inotify-tools on Linux)"
+    echo "   You'll need to manually run 'deno task site:build' after changes"
+fi
+FILE_WATCHER_PID=$!
+
+echo ""
+echo "🎉 Development servers running:"
+echo "   📱 Splash page: http://localhost:8000"
+echo "   📚 Documentation: http://localhost:8000/docs"
+echo "   🔧 MkDocs dev server: http://localhost:8001 (for docs-only editing)"
+echo ""
+echo "✨ Changes to index.html will auto-rebuild the splash page"
+echo "✨ Changes to docs/ will auto-rebuild via MkDocs"
+echo ""
+echo "Press Ctrl+C to stop all servers"
+
+# Wait for all background processes
+wait

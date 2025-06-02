@@ -5,176 +5,179 @@ description: Setting up nsyte for local development and testing
 
 # Local Development Setup
 
-This guide will help you set up nsyte for local development and testing. We'll cover setting up a development environment, configuring local relays, and testing your setup.
+This guide covers setting up nsyte for local development and testing your sites before deployment.
 
 ## Prerequisites
 
 - [Deno](https://deno.land/) 2.0 or later
-- `git` 
-- `nak`
-- A bunker signer (such as [Amber]())
+- Git
+- A bunker-compatible signer (Amber, Alby, etc.)
 
-## Development Environment Setup
+## Development Installation
 
-1. Clone the repository:
+### Option 1: Install from Source
+
 ```bash
 git clone https://github.com/sandwichfarm/nsyte.git
 cd nsyte
-```
-
-2. Install dependencies
-```bash
-deno install
-```
-
-3. Development server
-```bash 
-deno task dev
-```
-
-4. Compile
-```bash 
 deno task compile
 ```
 
-This will:
-- Install the development version of nsyte
-- Set up the necessary permissions
-- Make the `nsyte` command available in your terminal
+### Option 2: Development Build
 
-## Local Relay and Bunker
-
-For local development, you'll want to set up a local relay and a bunker. This allows you to test your setup without publishing to public relays or dealing with production Bunker idiosychrocies.
-
-### Using nak
-
-This guide will use [nak](https://github.com/wtf-nzb/nak), please reference nak docs to install.
-
-Start a local memory relay
 ```bash
-nak relay 
+git clone https://github.com/sandwichfarm/nsyte.git
+cd nsyte
+deno install -A -f -g -n nsyte src/cli.ts
 ```
-
-Start a local bunker (for testing Bunker functionality)
-```bash 
-nak bunker wss://relay.nsec.app
-```
-
-Your local relay will be available at `ws://localhost:8080`.
 
 ## Testing Your Setup
 
-1. Initialize a test project:
+### Initialize a Test Project
+
 ```bash
 mkdir test-site
 cd test-site
 nsyte init
 ```
 
-When prompted:
-- Choose "NIP-49 Bunker" for testing
-- Add `ws://localhost:8080` as your relay
-- Skip server configuration for now
+During initialization:
+- Connect your bunker signer when prompted
+- Configure at least one relay for testing
+- Optionally configure blossom servers
 
-2. Create a test site:
+### Create Test Content
+
 ```bash
 echo "<html><body><h1>Test Site</h1></body></html>" > index.html
+echo "# Test" > README.md
 ```
 
-3. Upload to your local relay:
+### Test Upload
+
 ```bash
 nsyte upload .
 ```
 
-4. Verify the upload:
+### Verify Deployment
+
 ```bash
 nsyte ls
 ```
 
-## Development Workflow
+## Local Development Workflow
 
-### Running Tests
+### Building Your Site
+
+Build your static site using your preferred tools:
 
 ```bash
-# Run all tests
-deno task test
+# React/Next.js
+npm run build
 
-# Run tests with coverage
-deno task coverage
+# Jekyll
+bundle exec jekyll build
+
+# Hugo
+hugo
+
+# Or any other static site generator
 ```
 
-### Building
+### Testing Before Deploy
+
+Test locally before uploading:
+
+```bash
+# Serve locally first
+python -m http.server 8000
+# or
+npx serve dist/
+```
+
+### Deploy to Test Environment
+
+```bash
+# Upload to staging relays first
+nsyte upload ./dist --relays "wss://test-relay.example.com"
+```
+
+## Development Commands
+
+### Build Commands
 
 ```bash
 # Build for current platform
 deno task compile
 
-# Build for all platforms
+# Build for all platforms  
 deno task compile:all
+
+# Run tests
+deno task test
 ```
 
-### Debugging
+### Debug Mode
 
-For debugging, you can use the `--verbose` flag with any command:
+Use verbose output for debugging:
 
 ```bash
 nsyte upload . --verbose
 ```
 
-## Common Development Tasks
+## Configuration Tips
 
-### Adding New Commands
+### Multiple Environments
 
-1. Create a new command file in `src/commands/`
-2. Add the command to `src/cli.ts`
-3. Add tests in `tests/commands/`
-4. Update documentation
+Create different configurations for different environments:
 
-### Modifying Configuration
+```bash
+# Development
+nsyte init --config .nsyte-dev.json
 
-The configuration schema is defined in `src/config.ts`. When modifying:
+# Production  
+nsyte init --config .nsyte-prod.json
+```
 
-1. Update the schema
-2. Add migration code if needed
-3. Update documentation
-4. Add tests
+### Ignore Files
 
-### Testing Bunker Integration
+Create `.nsyteignore` to exclude development files:
 
-For testing bunker integration:
-
-1. Set up a test bunker (e.g., using [nostr-bunker](https://github.com/fiatjaf/nostr-bunker))
-2. Connect using the test bunker's URL
-3. Test bunker commands
-4. Verify authentication
+```
+node_modules/
+.git/
+*.log
+.env
+.nsyte-dev.json
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Permission Denied**
-   - Check Deno permissions
-   - Verify file permissions
-   - Check relay access
+**Permission Errors**
+- Ensure Deno has necessary permissions
+- Check file system permissions
+- Verify bunker connection
 
-2. **Connection Issues**
-   - Verify relay is running
-   - Check network connectivity
-   - Verify relay URL format
+**Connection Issues**
+- Test relay connectivity manually
+- Check network/firewall settings
+- Verify relay URLs are correct
 
-3. **Authentication Errors**
-   - Check key format
-   - Verify bunker connection
-   - Check configuration
+**Authentication Problems**
+- Reconnect bunker signer
+- Check bunker permissions
+- Generate new CI token if needed
 
 ### Getting Help
 
-- Check the [GitHub Issues](https://github.com/sandwichfarm/nsyte/issues)
-- Join the [Nostr channel](https://njump.me/npub1...)
-- Review the [Security Guide](./security.md)
+- [GitHub Issues](https://github.com/sandwichfarm/nsyte/issues)
+- [Deployment Guide](./deployment.md)
+- [Security Guide](./security.md)
 
 ## Next Steps
 
-- Set up [CI/CD integration](./ci-cd.md)
-- Learn about [deployment options](./deployment.md)
-- Review [security best practices](./security.md) 
+- [Set up CI/CD automation](./ci-cd.md)
+- [Configure production deployment](./deployment.md)
+- [Review security practices](./security.md) 

@@ -1,7 +1,7 @@
 site_name: nsyte
 site_description: Documentation for nsyte - publish your site to nostr and blossom servers
 site_author: sandwichfarm
-site_dir: ./dist/site
+site_dir: ./dist/docs
 repo_url: https://github.com/sandwichfarm/nsyte
 repo_name: sandwichfarm/nsyte
 
@@ -13,24 +13,17 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tracking
     - search.highlight
     - search.share
     - search.suggest
+    - toc.integrate
+    - navigation.instant
+  custom_dir: docs/overrides
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
+    scheme: slate
+    primary: green
+    accent: green
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -62,21 +55,22 @@ plugins:
       minify_html: true
 
 nav:
-  - Docs:
-      - Welcome: index.md
-      - Getting Started:
-          - Installation: installation.md
-          - Basic Usage: usage/index.md
-      - Configuration: usage/configuration.md
-      - Deployment: guides/deployment.md
-      - Security: guides/security.md
-      - Monitoring: guides/monitoring.md
+  - Documentation: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Basic Usage: usage/index.md
+  - Configuration: usage/configuration.md
   - Commands:
       - upload: usage/commands/upload.md
       - ls: usage/commands/ls.md
       - download: usage/commands/download.md
       - ci: usage/commands/ci.md
       - bunker: usage/commands/bunker.md
+  - Guides:
+      - Deployment: guides/deployment.md
+      - Security: guides/security.md
+      - CI/CD: guides/ci-cd.md
+      - Local Setup: guides/local-setup.md
 
 extra:
   social:

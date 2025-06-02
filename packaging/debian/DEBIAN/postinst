@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+# Make nsyte executable
+chmod +x /usr/bin/nsyte
+
+# Update the command database
+if command -v update-command-not-found >/dev/null 2>&1; then
+    update-command-not-found || true
+fi
+
+exit 0
