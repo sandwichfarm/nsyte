@@ -6,6 +6,8 @@ import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { bech32 } from "@scure/base";
 
+export type { Signer };
+
 const log = createLogger("signer");
 
 /**

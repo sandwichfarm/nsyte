@@ -2,12 +2,13 @@ import { schnorr } from "@noble/curves/secp256k1";
 import { encodeHex } from "std/encoding/hex.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { createLogger } from "./logger.ts";
+import { getErrorMessage } from "./error-utils.ts";
 import { NostrConnectSigner } from "applesauce-signers";
 import type { Signer } from "./upload.ts";
 
 const log = createLogger("nostr");
 
-export const NSITE_KIND = 424242;
+export const NSITE_KIND = 34128;
 export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
@@ -123,7 +124,7 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
     log.info(`Connected to bunker, user pubkey: ${userPubkey}`);
     return { client: bunkerSigner, userPubkey };
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     log.error(`Failed to connect to bunker: ${errorMessage}`);
     throw new Error(`Failed to connect to bunker: ${errorMessage}`);
   }
@@ -219,7 +220,7 @@ async function connectToRelayOnce<T>(
             }
           }
         } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage = getErrorMessage(error);
           log.error(`Error performing operation on relay ${relay}: ${errorMessage}`);
           clearTimeout(timeoutId);
           if (!resolved) {
@@ -230,7 +231,7 @@ async function connectToRelayOnce<T>(
       };
 
       socket.onerror = (error: Event) => {
-        log.debug(`WebSocket error with relay ${relay}: ${String(error)}`);
+        log.debug(`WebSocket error with relay ${relay}: ${getErrorMessage(error)}`);
         clearTimeout(timeoutId);
         if (!resolved) {
           resolved = true;
@@ -247,7 +248,7 @@ async function connectToRelayOnce<T>(
         }
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       log.error(`Failed to connect to relay ${relay}: ${errorMessage}`);
       clearTimeout(timeoutId);
       if (!resolved) {
@@ -313,15 +314,16 @@ export async function fetchFileEvents(
                     }
                   }
                 } catch (err) {
-                  log.error(`Error processing message from relay ${relay}: ${String(err)}`);
+                  log.error(`Error processing message from relay ${relay}: ${getErrorMessage(err)}`);
                 }
               };
             };
 
-            socket.onerror = (error) => {
+            socket.onerror = (error: Event) => {
               clearTimeout(timeout);
-              log.error(`WebSocket error with relay ${relay}: ${String(error)}`);
-              reject(error);
+              const errorMsg = getErrorMessage(error instanceof ErrorEvent ? error : new Error('Connection failed'));
+              log.error(`WebSocket error with relay ${relay}: ${errorMsg}`);
+              reject(new Error(errorMsg));
             };
 
             socket.onclose = () => {
@@ -332,7 +334,8 @@ export async function fetchFileEvents(
 
           await eventsPromise;
         } catch (error) {
-          log.error(`Failed to fetch events from relay ${relay}: ${String(error)}`);
+          const errorMsg = getErrorMessage(error);
+          log.error(`Failed to fetch events from relay ${relay}: ${errorMsg}`);
         }
       })
     );
@@ -383,15 +386,16 @@ export async function fetchFileEvents(
                     }
                   }
                 } catch (err) {
-                  log.error(`Error processing message from relay ${relay}: ${String(err)}`);
+                  log.error(`Error processing message from relay ${relay}: ${getErrorMessage(err)}`);
                 }
               };
             };
 
-            socket.onerror = (error) => {
+            socket.onerror = (error: Event) => {
               clearTimeout(timeout);
-              log.error(`WebSocket error with relay ${relay}: ${String(error)}`);
-              reject(error);
+              const errorMsg = getErrorMessage(error instanceof ErrorEvent ? error : new Error('Connection failed'));
+              log.error(`WebSocket error with relay ${relay}: ${errorMsg}`);
+              reject(new Error(errorMsg));
             };
 
             socket.onclose = () => {
@@ -407,7 +411,8 @@ export async function fetchFileEvents(
             break;
           }
         } catch (error) {
-          log.error(`Failed to fetch events from relay ${relay} (sequential): ${String(error)}`);
+          const errorMsg = getErrorMessage(error);
+          log.error(`Failed to fetch events from relay ${relay} (sequential): ${errorMsg}`);
         }
       }
     }
@@ -415,7 +420,7 @@ export async function fetchFileEvents(
     log.debug(`Fetched ${events.length} events from ${successfulRelays} successful relays out of ${attemptedRelays.size} attempted`);
     return events;
   } catch (error) {
-    log.error(`Error fetching events: ${String(error)}`);
+    log.error(`Error fetching events: ${getErrorMessage(error)}`);
     return [];
   }
 }
@@ -627,7 +632,7 @@ export async function publishEventsToRelays(
               }
               success = true;
             } catch (error: unknown) {
-              const errorMessage = error instanceof Error ? error.message : String(error);
+              const errorMessage = getErrorMessage(error);
               log.error(`Failed to publish to relay ${relay}: ${errorMessage}`);
               
               if (messageCollector) {
@@ -654,7 +659,7 @@ export async function publishEventsToRelays(
       return false;
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     log.error(`Error publishing events: ${errorMessage}`);
     return false;
   }
@@ -695,7 +700,7 @@ export async function purgeRemoteFiles(
       return 0;
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     log.error(`Error purging remote files: ${errorMessage}`);
     return 0;
   }

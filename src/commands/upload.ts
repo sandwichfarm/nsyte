@@ -27,6 +27,7 @@ import {
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
+import { getErrorMessage, logError, handleError } from "../lib/error-utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -189,7 +190,7 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
     
     return Deno.exit(0);
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
     statusDisplay.error(`Upload command failed: ${errorMessage}`);
     log.error(`Upload command failed: ${errorMessage}`);
     return Deno.exit(1);
@@ -307,7 +308,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       await bunkerSigner.getPublicKey();
       return bunkerSigner;
     } catch (e: unknown) {
-      return { error: `Failed to import nbunksec from CLI: ${(e as Error).message}` };
+      return { error: `Failed to import nbunksec from CLI: ${getErrorMessage(e)}` };
       }
     } else if (options.bunker) {
     try {
@@ -315,14 +316,14 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       const { client } = await createNip46ClientFromUrl(options.bunker);
       return client;
     } catch (e: unknown) {
-      return { error: `Failed to connect to bunker URL from CLI: ${(e as Error).message}` };
+      return { error: `Failed to connect to bunker URL from CLI: ${getErrorMessage(e)}` };
     }
   } else if (authKeyHex) {
     log.info("Using private key for signing (from CLI or interactive setup)...");
     try {
       return new PrivateKeySigner(authKeyHex);
     } catch (e: unknown) {
-      return { error: `Invalid private key provided: ${(e as Error).message}` };
+      return { error: `Invalid private key provided: ${getErrorMessage(e)}` };
     }
   } else if (config?.bunkerPubkey) {
     log.info(`Attempting to use configured bunker (pubkey: ${config.bunkerPubkey.substring(0,8)}...) for signing...`);
@@ -335,7 +336,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
         await bunkerSigner.getPublicKey();
         return bunkerSigner;
       } catch (e: unknown) {
-        const baseMsg = `Failed to use stored nbunksec for configured bunker ${config.bunkerPubkey.substring(0,8)}...: ${(e as Error).message}`;
+        const baseMsg = `Failed to use stored nbunksec for configured bunker ${config.bunkerPubkey.substring(0,8)}...: ${getErrorMessage(e)}`;
           if (options.nonInteractive) {
           return { error: `${baseMsg} In non-interactive mode, cannot re-prompt. Please check bunker or provide key via CLI.` };
         } else {
@@ -442,7 +443,7 @@ async function fetchRemoteFiles(
         const remoteFoundMsg = `Found ${remoteFileEntries.length} existing remote file entries.`;
         if (displayManager.isInteractive()) { statusDisplay.success(remoteFoundMsg); } else { console.log(colors.green(remoteFoundMsg)); }
       } catch (e: unknown) {
-        const errMsg = `Could not fetch remote file list: ${(e as Error).message}. Proceeding as if no files exist remotely.`;
+        const errMsg = `Could not fetch remote file list: ${getErrorMessage(e)}. Proceeding as if no files exist remotely.`;
         if (displayManager.isInteractive()) { statusDisplay.update(colors.yellow(errMsg)); } else { console.log(colors.yellow(errMsg)); }
         log.warn(errMsg);
       }
@@ -482,7 +483,7 @@ async function handlePurgeOperation( remoteEntries: FileEntry[] ): Promise<FileE
       statusDisplay.success("Remote files purge command issued.");
       return [];
     } catch (e: unknown) {
-      const errMsg = `Error during purge operation: ${(e as Error).message}`;
+      const errMsg = `Error during purge operation: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
       log.error(errMsg);
     }
@@ -589,7 +590,7 @@ async function deleteRemovedFiles( filesToDelete: FileEntry[] ): Promise<void> {
       statusDisplay.error("Failed to delete any files");
     }
   } catch (e: unknown) {
-    const errMsg = `Error during file deletion: ${(e as Error).message}`;
+    const errMsg = `Error during file deletion: ${getErrorMessage(e)}`;
     statusDisplay.error(errMsg);
     log.error(errMsg);
   }
@@ -606,7 +607,7 @@ async function prepareFilesForUpload( filesToTransfer: FileEntry[] ): Promise<Fi
       const fileWithData = await loadFileData(targetDir, file);
       preparedFiles.push(fileWithData);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       console.error(colors.red(`Failed to load file ${file.path}: ${errorMessage}`));
       messageCollector.addFileError(file.path, errorMessage);
     }
@@ -633,7 +634,7 @@ export async function maybeProcessFiles(
 
 
     } catch (e: unknown) {
-      const errMsg = `Error during upload process: ${(e as Error).message}`;
+      const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
       log.error(errMsg);
     }
@@ -843,7 +844,7 @@ async function processFallbackFile(): Promise<void> {
       }
     }
   } catch (e: unknown) {
-    const errMsg = `Error processing fallback file: ${(e as Error).message}`;
+    const errMsg = `Error processing fallback file: ${getErrorMessage(e)}`;
     if (displayManager.isInteractive()) {
       statusDisplay.error(errMsg);
     } else {
@@ -885,8 +886,8 @@ async function maybePublishMetadata(): Promise<void> {
         await publishEventsToRelays(resolvedRelays, [profileEvent], signer, messageCollector);
         statusDisplay.success(`Profile published for ${config.profile.name || await signer.getPublicKey()}`);
       } catch (e: unknown) {
-        statusDisplay.error(`Failed to publish profile: ${(e as Error).message}`);
-        log.error(`Profile publication error: ${(e as Error).message}`);
+        statusDisplay.error(`Failed to publish profile: ${getErrorMessage(e)}`);
+        log.error(`Profile publication error: ${getErrorMessage(e)}`);
       }
     }
     
@@ -898,8 +899,8 @@ async function maybePublishMetadata(): Promise<void> {
         await publishEventsToRelays(resolvedRelays, [relayListEvent], signer, messageCollector);
         statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
-        statusDisplay.error(`Failed to publish relay list: ${(e as Error).message}`);
-        log.error(`Relay list publication error: ${(e as Error).message}`);
+        statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);
+        log.error(`Relay list publication error: ${getErrorMessage(e)}`);
       }
     }
     
@@ -912,12 +913,12 @@ async function maybePublishMetadata(): Promise<void> {
         await publishEventsToRelays(resolvedRelays, [serverListEvent], signer, messageCollector);
         statusDisplay.success(`Server list published`);
       } catch (e: unknown) {
-        statusDisplay.error(`Failed to publish server list: ${(e as Error).message}`);
-        log.error(`Server list publication error: ${(e as Error).message}`);
+        statusDisplay.error(`Failed to publish server list: ${getErrorMessage(e)}`);
+        log.error(`Server list publication error: ${getErrorMessage(e)}`);
       }
     }
   } catch (e: unknown) {
-    const errMsg = `Error during metadata publishing: ${(e as Error).message}`;
+    const errMsg = `Error during metadata publishing: ${getErrorMessage(e)}`;
     statusDisplay.error(errMsg);
     log.error(errMsg);
   }

@@ -2,8 +2,9 @@ import { assertEquals, assert, assertStringIncludes } from "std/assert/mod.ts";
 import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
 import { stub, assertSpyCall, assertSpyCalls, type Stub, type Spy } from "jsr:@std/testing/mock";
 import { Signer as LibSigner, UploadResponse, UploadProgress } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
-import { FileEntry, NostrEvent, NostrEventTemplate, NostrConnectSigner } from "applesauce-signers"; // Assuming this is the right import now
-import { uploadCommand } from "../../src/commands/upload.ts";
+import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
+import type { NostrConnectSigner } from "applesauce-signers";
+import { uploadCommand, type UploadCommandOptions } from "../../src/commands/upload.ts";
 
 // Import the modules whose functions we will NOT stub directly in uploadCommand tests,
 // but whose behavior we might control via other means (e.g. file system, or fetch stubs for their dependencies)
@@ -89,9 +90,7 @@ describe("uploadCommand", () => {
     } as NostrEvent));
 
     // Stub global fetch (used by processUploads, which is called by uploadCommand)
-    fetchStub = stub(globalThis, "fetch", () => Promise.resolve(new Response("OK", { status: 200 })));
-    // Default fetch stub: simulate successful uploads, or HEAD 404 for existence checks
-    fetchStub.callsFake((input: URL | RequestInfo, init?: RequestInit) => {
+    fetchStub = stub(globalThis, "fetch", (input: URL | RequestInfo, init?: RequestInit) => {
         const url = typeof input === 'string' ? input : input.toString();
         const method = init?.method || "GET";
         if (method === "HEAD") { // Simulate file not found for existence checks, forcing upload
@@ -164,7 +163,7 @@ describe("uploadCommand", () => {
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 0, "Should exit cleanly");
       // Verify PrivateKeySigner was used by checking its prototype stubs
-      assert(pksGetPublicKeyStub?.calls.length > 0, "PrivateKeySigner.getPublicKey should have been called");
+      assert((pksGetPublicKeyStub?.calls?.length ?? 0) > 0, "PrivateKeySigner.getPublicKey should have been called");
     });
     
     it("should exit with error if --servers is missing", async () => {
@@ -336,7 +335,7 @@ describe("Upload Module", () => {
     const signerPublicKey = await signer.getPublicKey(); 
     assertEquals(signerPublicKey, "mock-pubkey");
     assert(signer.callCount >= testFiles.length);
-    assertEquals(progressUpdates.length > 0);
+    assert(progressUpdates.length > 0);
     assertEquals(progressUpdates[progressUpdates.length - 1].completed, testFiles.length);
     assertEquals(progressUpdates[progressUpdates.length - 1].failed, 0);
   });
