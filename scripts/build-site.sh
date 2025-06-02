@@ -10,9 +10,12 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp index.html dist/
 
-# Copy install script only for nsyte deployment
+# Copy install script to a subdirectory to avoid root-level restrictions
 echo "📦 Preparing install script..."
-# For nsyte deployment, copy the actual script
+mkdir -p dist/get
+cp install.sh dist/get/install.sh
+cp install.sh dist/get/install.txt
+# Also keep copies at root for backward compatibility
 cp install.sh dist/install.sh
 cp install.sh dist/install.txt
 

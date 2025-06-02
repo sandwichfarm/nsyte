@@ -25,7 +25,7 @@ jobs:
           ls -la dist/
           
           # Remove executable permissions from shell scripts to avoid potential issues
-          chmod 644 dist/install.sh dist/install.txt || true
+          chmod -R 644 dist/install.sh dist/install.txt dist/get/ || true
           
       - name: Deploy to Bunny.net CDN
         uses: ayeressian/bunnycdn-storage-deploy@v2.2.2

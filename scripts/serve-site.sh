@@ -36,6 +36,9 @@ if command -v fswatch >/dev/null 2>&1; then
     fswatch -o index.html install.sh | while read f; do
         echo "🔄 Files changed, rebuilding..."
         cp index.html dist/
+        mkdir -p dist/get
+        cp install.sh dist/get/install.sh
+        cp install.sh dist/get/install.txt
         cp install.sh dist/install.txt
         cp install.sh dist/install.sh
         echo "✅ Files updated"
@@ -45,6 +48,9 @@ elif command -v inotifywait >/dev/null 2>&1; then
     while inotifywait -e modify index.html install.sh; do
         echo "🔄 Files changed, rebuilding..."
         cp index.html dist/
+        mkdir -p dist/get
+        cp install.sh dist/get/install.sh
+        cp install.sh dist/get/install.txt
         cp install.sh dist/install.txt
         cp install.sh dist/install.sh
         echo "✅ Files updated"
