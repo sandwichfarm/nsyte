@@ -29,21 +29,23 @@ python3 -m http.server 8000 > /dev/null 2>&1 &
 HTTP_SERVER_PID=$!
 cd ..
 
-# File watcher for splash page changes using fswatch (macOS) or inotify (Linux)
-echo "👀 Starting file watcher for splash page..."
+# File watcher for splash page and install script changes using fswatch (macOS) or inotify (Linux)
+echo "👀 Starting file watcher for splash page and install script..."
 if command -v fswatch >/dev/null 2>&1; then
     # macOS
-    fswatch -o index.html | while read f; do
-        echo "🔄 Splash page changed, rebuilding..."
+    fswatch -o index.html install.sh | while read f; do
+        echo "🔄 Files changed, rebuilding..."
         cp index.html dist/
-        echo "✅ Splash page updated"
+        cp install.sh dist/install
+        echo "✅ Files updated"
     done &
 elif command -v inotifywait >/dev/null 2>&1; then
     # Linux
-    while inotifywait -e modify index.html; do
-        echo "🔄 Splash page changed, rebuilding..."
+    while inotifywait -e modify index.html install.sh; do
+        echo "🔄 Files changed, rebuilding..."
         cp index.html dist/
-        echo "✅ Splash page updated"
+        cp install.sh dist/install
+        echo "✅ Files updated"
     done &
 else
     echo "⚠️  File watching not available (install fswatch on macOS or inotify-tools on Linux)"
@@ -58,6 +60,7 @@ echo "   📚 Documentation: http://localhost:8000/docs"
 echo "   🔧 MkDocs dev server: http://localhost:8001 (for docs-only editing)"
 echo ""
 echo "✨ Changes to index.html will auto-rebuild the splash page"
+echo "✨ Changes to install.sh will auto-rebuild the install script"
 echo "✨ Changes to docs/ will auto-rebuild via MkDocs"
 echo ""
 echo "Press Ctrl+C to stop all servers"
