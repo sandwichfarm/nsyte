@@ -10,9 +10,9 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp index.html dist/
 
-# Copy install script to root (without .sh extension for clean URL)
+# Copy install script to root (with .sh extension for compatibility)
 echo "📦 Copying install script..."
-cp install.sh dist/install
+cp install.sh dist/install.sh
 
 # Build documentation with MkDocs
 echo "📚 Building documentation..."
@@ -23,7 +23,7 @@ echo ""
 echo "Structure:"
 echo "  dist/"
 echo "  ├── index.html          (splash page)"
-echo "  ├── install              (install script)"
+echo "  ├── install.sh           (install script)"
 echo "  └── docs/               (documentation)"
 echo ""
 echo "🌐 Open dist/index.html to view the site"
