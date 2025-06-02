@@ -1,0 +1,6 @@
+#!/bin/bash
+set -e
+
+# This script is run before the package is removed
+
+exit 0

@@ -1,0 +1,20 @@
+Package: nsyte
+Version: 0.7.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: sandwichfarm <noreply@github.com>
+Description: Command-line tool for publishing websites to nostr and Blossom servers
+ nsyte is a command-line tool for publishing websites to nostr and Blossom servers.
+ It enables decentralized, censorship-resistant website hosting.
+ .
+ Features:
+  - Upload websites to multiple Blossom servers
+  - Publish metadata to nostr relays
+  - Support for NIP-46 bunkers for secure key management
+  - CI/CD integration support
+  - File ignore patterns (.nsite-ignore)
+  - Interactive and non-interactive modes
+Homepage: https://github.com/sandwichfarm/nsyte
+Depends: libc6 (>= 2.28)
+Installed-Size: 50000

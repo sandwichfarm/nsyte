@@ -1,0 +1,23 @@
+app-id: org.github.sandwichfarm.nsyte
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: nsyte
+
+finish-args:
+  - --share=network
+  - --filesystem=home
+  - --filesystem=/media
+  - --filesystem=/mnt
+  - --filesystem=/run/media
+
+modules:
+  - name: nsyte
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 nsyte-linux /app/bin/nsyte
+    sources:
+      - type: file
+        url: https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte-linux
+        sha256: PLACEHOLDER_SHA256
+        dest-filename: nsyte-linux

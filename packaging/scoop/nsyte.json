@@ -1,0 +1,23 @@
+{
+  "version": "0.7.0",
+  "description": "Command-line tool for publishing websites to nostr and Blossom servers",
+  "homepage": "https://github.com/sandwichfarm/nsyte",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte-windows.exe",
+      "hash": "PLACEHOLDER_SHA256"
+    }
+  },
+  "bin": "nsyte-windows.exe",
+  "checkver": {
+    "github": "https://github.com/sandwichfarm/nsyte"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/sandwichfarm/nsyte/releases/download/v$version/nsyte-windows.exe"
+      }
+    }
+  }
+}

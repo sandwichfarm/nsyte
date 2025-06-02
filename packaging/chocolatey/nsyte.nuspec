@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>nsyte</id>
+    <version>0.7.0</version>
+    <packageSourceUrl>https://github.com/sandwichfarm/nsyte</packageSourceUrl>
+    <owners>sandwichfarm</owners>
+    <title>nsyte</title>
+    <authors>sandwichfarm</authors>
+    <projectUrl>https://github.com/sandwichfarm/nsyte</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/sandwichfarm/nsyte/main/static/icon.ico</iconUrl>
+    <copyright>2024 sandwichfarm</copyright>
+    <licenseUrl>https://github.com/sandwichfarm/nsyte/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <docsUrl>https://github.com/sandwichfarm/nsyte/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/sandwichfarm/nsyte/issues</bugTrackerUrl>
+    <tags>nostr blossom website hosting decentralized cli</tags>
+    <summary>Command-line tool for publishing websites to nostr and Blossom servers</summary>
+    <description><![CDATA[
+nsyte is a command-line tool for publishing websites to nostr and Blossom servers. 
+It enables decentralized, censorship-resistant website hosting.
+
+Features:
+- Upload websites to multiple Blossom servers
+- Publish metadata to nostr relays
+- Support for NIP-46 bunkers for secure key management
+- CI/CD integration support
+- File ignore patterns (.nsite-ignore)
+- Interactive and non-interactive modes
+]]></description>
+    <releaseNotes>https://github.com/sandwichfarm/nsyte/releases/tag/v0.7.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
