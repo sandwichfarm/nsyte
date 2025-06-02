@@ -358,17 +358,19 @@
             font-family: var(--cyber-font-sans);
         }
 
-        .platform-tabs {
+        .install-container {
             background: var(--cyber-surface);
             border: 1px solid var(--cyber-border);
             border-radius: 12px;
-            margin: 3rem 0;
+            margin: 3rem auto;
             overflow: hidden;
             position: relative;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            padding: 2rem;
         }
 
-        .platform-tabs::before {
+        .install-container::before {
             content: '';
             position: absolute;
             top: 0;
@@ -376,85 +378,6 @@
             right: 0;
             height: 1px;
             background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue), var(--cyber-accent));
-        }
-
-        .tab-nav {
-            display: flex;
-            background: var(--cyber-surface-variant);
-            border-bottom: 1px solid var(--cyber-border);
-            overflow-x: auto;
-            position: relative;
-        }
-
-        .tab-nav::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: var(--cyber-accent);
-            opacity: 0.3;
-        }
-
-        .tab-button {
-            background: none;
-            border: none;
-            padding: 16px 24px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--cyber-text-secondary);
-            transition: all 0.3s ease;
-            white-space: nowrap;
-            position: relative;
-            font-family: var(--cyber-font-mono);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .tab-button::before {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: var(--cyber-accent);
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
-        }
-
-        .tab-button:hover {
-            background: rgba(0, 255, 65, 0.05);
-            color: var(--cyber-accent);
-        }
-
-        .tab-button:hover::before {
-            transform: scaleX(1);
-        }
-
-        .tab-button.active {
-            background: rgba(0, 255, 65, 0.1);
-            color: var(--cyber-accent);
-            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.2);
-        }
-
-        .tab-button.active::before {
-            transform: scaleX(1);
-        }
-
-        .tab-content {
-            padding: 2rem;
-            background: var(--cyber-surface);
-        }
-
-        .tab-pane {
-            display: none;
-        }
-
-        .tab-pane.active {
-            display: block;
         }
 
         .install-method {
@@ -716,99 +639,26 @@
         <div class="container">
             <h2 class="section-title">Quick Installation</h2>
             
-            <div class="platform-tabs">
-                <div class="tab-nav" role="tablist">
-                    <button class="tab-button active" data-tab="macos" role="tab">macOS</button>
-                    <button class="tab-button" data-tab="windows" role="tab">Windows</button>
-                    <button class="tab-button" data-tab="arch" role="tab">Arch Linux</button>
-                    <button class="tab-button" data-tab="debian" role="tab">Debian/Ubuntu</button>
-                    <button class="tab-button" data-tab="flatpak" role="tab">Flatpak</button>
-                    <button class="tab-button" data-tab="snap" role="tab">Snap</button>
-                    <button class="tab-button" data-tab="deno" role="tab">Universal</button>
-                </div>
-
-                <div class="tab-content">
-                    <div class="tab-pane active" data-tab="macos" role="tabpanel">
-                        <div class="install-method">
-                            <h4>
-                                Homebrew 
-                                <span class="recommended-badge">Recommended</span>
-                            </h4>
-                            <div class="code-container">
-                                <div class="code-block">brew install sandwichfarm/tap/nsyte</div>
-                                <button class="copy-btn" data-copy="brew install sandwichfarm/tap/nsyte">Copy</button>
-                            </div>
-                        </div>
+            <div class="install-container">
+                <div class="install-method">
+                    <h4>Universal Install Script <span class="recommended-badge">All Platforms</span></h4>
+                    <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem; text-align: center;">
+                        Automatically detects your system and installs using the best available method
+                    </p>
+                    <div class="code-container">
+                        <div class="code-block">curl -fsSL https://nsyte.run/install | bash</div>
+                        <button class="copy-btn" data-copy="curl -fsSL https://nsyte.run/install | bash">Copy</button>
                     </div>
-
-                    <div class="tab-pane" data-tab="windows" role="tabpanel">
-                        <div class="install-method">
-                            <h4>
-                                Scoop 
-                                <span class="recommended-badge">Recommended</span>
-                            </h4>
-                            <div class="code-container">
-                                <div class="code-block">scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte</div>
-                                <button class="copy-btn" data-copy="scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte">Copy</button>
-                            </div>
-                        </div>
-                        <div class="install-method">
-                            <h4>Chocolatey</h4>
-                            <div class="code-container">
-                                <div class="code-block">choco install nsyte</div>
-                                <button class="copy-btn" data-copy="choco install nsyte">Copy</button>
-                            </div>
-                        </div>
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <p style="color: var(--cyber-text-secondary); font-size: 0.9rem;">
+                            Or with wget: <code style="background: var(--cyber-surface-variant); color: var(--cyber-accent); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--cyber-font-mono); border: 1px solid var(--cyber-border);">wget -qO- https://nsyte.run/install | bash</code>
+                        </p>
                     </div>
-
-                    <div class="tab-pane" data-tab="arch" role="tabpanel">
-                        <div class="install-method">
-                            <h4>AUR</h4>
-                            <div class="code-container">
-                                <div class="code-block">yay -S nsyte</div>
-                                <button class="copy-btn" data-copy="yay -S nsyte">Copy</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane" data-tab="debian" role="tabpanel">
-                        <div class="install-method">
-                            <h4>.deb Package</h4>
-                            <div class="code-container">
-                                <div class="code-block">curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb</div>
-                                <button class="copy-btn" data-copy="curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb">Copy</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane" data-tab="flatpak" role="tabpanel">
-                        <div class="install-method">
-                            <h4>Flatpak</h4>
-                            <div class="code-container">
-                                <div class="code-block">flatpak install flathub org.github.sandwichfarm.nsyte</div>
-                                <button class="copy-btn" data-copy="flatpak install flathub org.github.sandwichfarm.nsyte">Copy</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane" data-tab="snap" role="tabpanel">
-                        <div class="install-method">
-                            <h4>Snap Store</h4>
-                            <div class="code-container">
-                                <div class="code-block">sudo snap install nsyte</div>
-                                <button class="copy-btn" data-copy="sudo snap install nsyte">Copy</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane" data-tab="deno" role="tabpanel">
-                        <div class="install-method">
-                            <h4>Deno (All Platforms)</h4>
-                            <div class="code-container">
-                                <div class="code-block">deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts</div>
-                                <button class="copy-btn" data-copy="deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts">Copy</button>
-                            </div>
-                        </div>
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <a href="./docs/installation.html" class="btn btn-secondary" style="display: inline-block;">
+                            <span>🔧</span>
+                            Manual Installation Options
+                        </a>
                     </div>
                 </div>
             </div>
@@ -871,71 +721,6 @@
 
     <!-- JavaScript -->
     <script>
-        // Platform detection
-        function detectPlatform() {
-            const userAgent = navigator.userAgent.toLowerCase();
-            const platform = navigator.platform.toLowerCase();
-            
-            if (platform.includes('mac') || userAgent.includes('macintosh')) {
-                return 'macos';
-            }
-            
-            if (platform.includes('win') || userAgent.includes('windows')) {
-                return 'windows';
-            }
-            
-            if (userAgent.includes('arch')) {
-                return 'arch';
-            }
-            
-            if (userAgent.includes('ubuntu') || userAgent.includes('debian')) {
-                return 'debian';
-            }
-            
-            if (platform.includes('linux') || userAgent.includes('linux')) {
-                return 'flatpak';
-            }
-            
-            return 'deno';
-        }
-
-        // Tab functionality
-        function initializeTabs() {
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabPanes = document.querySelectorAll('.tab-pane');
-            
-            // Detect platform and set active tab
-            const detectedPlatform = detectPlatform();
-            const platformTab = document.querySelector(`[data-tab="${detectedPlatform}"]`);
-            
-            if (platformTab) {
-                setActiveTab(detectedPlatform);
-            }
-
-            // Add click event listeners
-            tabButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const tabId = button.getAttribute('data-tab');
-                    setActiveTab(tabId);
-                });
-            });
-
-            function setActiveTab(tabId) {
-                // Remove active class from all
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                tabPanes.forEach(pane => pane.classList.remove('active'));
-                
-                // Add active class to selected
-                const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
-                const activePane = document.querySelector(`.tab-pane[data-tab="${tabId}"]`);
-                
-                if (activeButton && activePane) {
-                    activeButton.classList.add('active');
-                    activePane.classList.add('active');
-                }
-            }
-        }
-
         // Copy functionality
         function initializeCopyButtons() {
             const copyButtons = document.querySelectorAll('.copy-btn');
@@ -1018,13 +803,9 @@
 
         // Initialize everything when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            initializeTabs();
             initializeCopyButtons();
             initializeSmoothScrolling();
             createParticles();
-            
-            // Log detected platform for debugging
-            console.log('Detected platform:', detectPlatform());
         });
     </script>
 </body>
