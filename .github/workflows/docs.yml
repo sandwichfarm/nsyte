@@ -49,6 +49,8 @@ jobs:
           storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
           accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
           storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          upload: "true"
+          purgePullZone: "true"
           
       - name: Purge Bunny.net CDN Cache
         run: |
