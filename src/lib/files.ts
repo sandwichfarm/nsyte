@@ -9,7 +9,7 @@ import { globToRegExp } from "jsr:@std/path/glob-to-regexp";
 
 const log = createLogger("files");
 
-const DEFAULT_IGNORE_PATTERNS = [
+export const DEFAULT_IGNORE_PATTERNS = [
   ".git/**",
   ".DS_Store",
   "node_modules/**",
@@ -122,7 +122,7 @@ export async function getLocalFiles(dirPath: string): Promise<{ includedFiles: F
 }
 
 
-interface IgnoreRule {
+export interface IgnoreRule {
   pattern: string;
   regex: RegExp;
   negates: boolean;
@@ -132,7 +132,7 @@ interface IgnoreRule {
 /**
  * Parses raw ignore patterns into structured rules with regex
  */
-function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
+export function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
   const rules: IgnoreRule[] = [];
   for (let pattern of patterns) {
     let negates = false;
@@ -167,7 +167,7 @@ function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
  * Rules are processed in order. The last matching rule determines the outcome.
  * Negation rules (`!pattern`) override previous ignore rules.
  */
-function isIgnored(relativePath: string, rules: IgnoreRule[], isDirectory: boolean): boolean {
+export function isIgnored(relativePath: string, rules: IgnoreRule[], isDirectory: boolean): boolean {
   let lastMatchStatus: { ignored: boolean } | null = null;
 
   const normalizedPath = relativePath.replace(/\\/g, '/');

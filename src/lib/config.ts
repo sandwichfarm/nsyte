@@ -201,145 +201,169 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
 
   // Only proceed with interactive key setup if we're in interactive mode
   if (!config.bunkerPubkey && !privateKey) {
-    console.log(colors.yellow("No key configuration found. Let's set that up:"));
-
-    // Check if there are any existing bunkers
-    const secretsManager = SecretsManager.getInstance();
-    const existingBunkers = secretsManager.getAllPubkeys();
-    const hasBunkers = existingBunkers.length > 0;
-
-    // Prepare options based on whether bunkers exist
-    const keyOptions = [
-      { name: "Generate a new private key", value: "generate" },
-      { name: "Use an existing private key", value: "existing" }
-    ];
-
-    if (hasBunkers) {
-      // Add options to use existing or connect to new when bunkers exist
-      keyOptions.push(
-        { name: "Use existing NSEC bunker (NIP-46)", value: "existing_bunker" },
-        { name: "Connect to NSEC bunker (NIP-46)", value: "new_bunker" }
-      );
-    } else {
-      // Just one bunker option when no bunkers exist
-      keyOptions.push({ name: "Use an NSEC bunker (NIP-46)", value: "new_bunker" });
-    }
-
-    // Define the type for the key choice to avoid type errors
-    type KeyChoice = "generate" | "existing" | "new_bunker" | "existing_bunker";
-
-    const keyChoice = await Select.prompt<KeyChoice>({
-      message: "How would you like to manage your nostr key?",
-      options: keyOptions,
-    });
-
-    if (keyChoice === "generate") {
-      const keyPair = generateKeyPair();
-      privateKey = keyPair.privateKey;
-      console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
-      console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
-      console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
-
-    } else if (keyChoice === "existing") {
-      privateKey = await Secret.prompt({
-        message: "Enter your nostr private key (nsec/hex):",
-      });
-
-    } else if (keyChoice === "new_bunker") {
-      const choice = await Select.prompt<string>({
-        message: "How would you like to connect to the bunker?",
-        options: [
-          { name: "Scan QR Code (Nostr Connect)", value: "qr" },
-          { name: "Enter Bunker URL manually", value: "url" },
-        ],
-      });
-
-      let signer: NostrConnectSigner | null = null;
-
-      try {
-        if (choice === "qr") {
-          const appName = "nsyte";
-          const defaultRelays = ["wss://relay.nsec.app"];
-
-          const relayInput = await Input.prompt({
-            message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
-            default: defaultRelays.join(", "),
-          });
-
-          let chosenRelays: string[];
-          if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
-            chosenRelays = defaultRelays;
-          } else {
-            chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
-          }
-
-          if (chosenRelays.length === 0) {
-            console.log(colors.yellow("No relays provided. Using default relays."));
-            chosenRelays = defaultRelays;
-          }
-
-          console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
-          signer = await initiateNostrConnect(appName, chosenRelays);
-        } else {
-          const bunkerUrl = await Input.prompt({
-            message: "Enter the bunker URL (bunker://...):",
-            validate: (input: string) => {
-              return input.trim().startsWith("bunker://") ||
-                    "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-            }
-          });
-
-          console.log(colors.cyan("Connecting to bunker via URL..."));
-          signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
-        }
-
-        if (!signer) {
-          throw new Error("Failed to establish signer connection");
-        }
-
-        config.bunkerPubkey = await signer.getPublicKey();
-        const nbunkString = getNbunkString(signer);
-        secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
-
-        console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}...
-Generated and stored nbunksec string.`));
-      } catch (error) {
-        log.error(`Failed to connect to bunker: ${error}`);
-        console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
-        Deno.exit(1);
-      } finally {
-        if (signer) {
-          try {
-            console.log(colors.cyan("Disconnecting from bunker..."));
-            await signer.close();
-            console.log(colors.green("Disconnected from bunker."));
-          } catch (err) {
-            console.error(colors.red(`Error during disconnect: ${err}`));
-          }
-        }
-      }
-    } else if (keyChoice === "existing_bunker") {
-      // Present a list of existing bunkers to choose from
-      const bunkerOptions = existingBunkers.map((pubkey: string) => {
-        return {
-          name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
-          value: pubkey
-        };
-      });
-
-      const selectedPubkey = await Select.prompt<string>({
-        message: "Select an existing bunker:",
-        options: bunkerOptions,
-      });
-
-      config.bunkerPubkey = selectedPubkey;
-      console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
-    }
-
-    writeProjectFile(config);
-    console.log(colors.green("Key configuration set up successfully!"));
+    const keyResult = await selectKeySource();
+    config = keyResult.config;
+    privateKey = keyResult.privateKey;
   }
 
+  return { config, privateKey };
+}
+
+async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
+  const appName = "nsyte";
+  const defaultRelays = ["wss://relay.nsec.app"];
+
+  const relayInput = await Input.prompt({
+    message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+    default: defaultRelays.join(", "),
+  });
+
+  let chosenRelays: string[];
+  if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+    chosenRelays = defaultRelays;
+  } else {
+    chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+  }
+
+  if (chosenRelays.length === 0) {
+    console.log(colors.yellow("No relays provided. Using default relays."));
+    chosenRelays = defaultRelays;
+  }
+
+  console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+  return initiateNostrConnect(appName, chosenRelays);
+}
+
+async function connectToBunkerWithURI(): Promise<NostrConnectSigner> {
+  const bunkerUrl = await Input.prompt({
+    message: "Enter the bunker URL (bunker://...):",
+    validate: (input: string) => {
+      return input.trim().startsWith("bunker://") ||
+            "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+    }
+  });
+
+  console.log(colors.cyan("Connecting to bunker via URL..."));
+  return NostrConnectSigner.fromBunkerURI(bunkerUrl);
+}
+
+async function newBunker(config: ProjectConfig, secretsManager: SecretsManager): Promise<NostrConnectSigner | undefined>{
+  let signer: NostrConnectSigner | null = null;
+
+  const choice = await Select.prompt<string>({
+    message: "How would you like to connect to the bunker?",
+    options: [
+      { name: "Scan QR Code (Nostr Connect)", value: "qr" },
+      { name: "Enter Bunker URL manually", value: "url" },
+    ],
+  });
+
+  try {
+    
+    signer = choice === "qr" 
+      ? await connectToBunkerWithQR()
+      : await connectToBunkerWithURI();
+
+    if (!signer) {
+      throw new Error("Failed to establish signer connection");
+    }
+
+    return signer;
+  } catch (error) {
+    log.error(`Failed to connect to bunker: ${error}`);
+    console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
+    Deno.exit(1);
+  } finally {
+    if (signer) {
+      try {
+        console.log(colors.cyan("Disconnecting from bunker..."));
+        await signer.close();
+        console.log(colors.green("Disconnected from bunker."));
+      } catch (err) {
+        console.error(colors.red(`Error during disconnect: ${err}`));
+      }
+    }
+  }
+    
+}
+
+async function selectKeySource(): Promise<{config: ProjectConfig, privateKey?: string}>{
+  console.log(colors.yellow("No key configuration found. Let's set that up:"));
+
+  let privateKey: string | undefined;
+  const config: ProjectConfig = structuredClone(defaultConfig);
+
+  // Check if there are any existing bunkers
+  const secretsManager = SecretsManager.getInstance();
+  const existingBunkers = secretsManager.getAllPubkeys();
+  const hasBunkers = existingBunkers.length > 0;
+
+  let nbunkString: string | undefined;
+
+  // Prepare options based on whether bunkers exist
+  const keyOptions = [
+    { name: "Generate a new private key", value: "generate" },
+    { name: "Use an existing private key", value: "existing" }
+  ];
+
+  if (hasBunkers) {
+    keyOptions.push(
+      { name: "Use an existing NSEC bunker", value: "existing_bunker" },
+      { name: "Connect to a new NSEC bunker", value: "new_bunker" }
+    );
+  } else {
+    keyOptions.push({ name: "Connect to an NSEC bunker", value: "new_bunker" });
+  }
+
+  // Define the type for the key choice to avoid type errors
+  type KeyChoice = "generate" | "existing" | "new_bunker" | "existing_bunker";
+
+  const keyChoice = await Select.prompt<KeyChoice>({
+    message: "How would you like to manage your nostr key?",
+    options: keyOptions,
+  });
+
+  if (keyChoice === "generate") {
+    const keyPair = generateKeyPair();
+    privateKey = keyPair.privateKey;
+    console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+    console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
+    console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
+  } 
+  else if (keyChoice === "existing") {
+    privateKey = await Secret.prompt({
+      message: "Enter your nostr private key (nsec/hex):",
+    });
+  } 
+  else if (keyChoice === "new_bunker") {
+    const signer = await newBunker(config, secretsManager);
+    if (signer) {
+      config.bunkerPubkey = await signer.getPublicKey();
+      const nbunkString = getNbunkString(signer);
+      secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
+      console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}... \nGenerated and stored nbunksec string.`));
+    }
+  } 
+  else if (keyChoice === "existing_bunker") {
+    // Present a list of existing bunkers to choose from
+    const bunkerOptions = existingBunkers.map((pubkey: string) => {
+      return {
+        name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+        value: pubkey
+      };
+    });
+
+    const selectedPubkey = await Select.prompt<string>({
+      message: "Select an existing bunker:",
+      options: bunkerOptions,
+    });
+
+    config.bunkerPubkey = selectedPubkey;
+    console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
+  }
+
+  writeProjectFile(config);
+  console.log(colors.green("Key configuration set up successfully!"));
   return { config, privateKey };
 }
 
@@ -361,14 +385,12 @@ async function interactiveSetup(): Promise<ProjectContext> {
   ];
 
   if (hasBunkers) {
-    // Add options to use existing or connect to new when bunkers exist
     keyOptions.push(
-      { name: "Use existing NSEC bunker (NIP-46)", value: "existing_bunker" },
-      { name: "Connect to NSEC bunker (NIP-46)", value: "new_bunker" }
+      { name: "Use an existing NSEC bunker", value: "existing_bunker" },
+      { name: "Connect to a new NSEC bunker", value: "new_bunker" }
     );
   } else {
-    // Just one bunker option when no bunkers exist
-    keyOptions.push({ name: "Use an NSEC bunker (NIP-46)", value: "new_bunker" });
+    keyOptions.push({ name: "Connect to an NSEC bunker", value: "new_bunker" });
   }
 
   // Define the type for the key choice to avoid type errors
