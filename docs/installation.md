@@ -12,12 +12,12 @@ nsyte can be installed in several ways depending on your platform and preference
 The easiest way to install nsyte is using our universal install script that automatically detects your system and uses the best available method:
 
 ```bash
-curl -fsSL https://nsyte.run/install.sh | bash
+curl -fsSL https://nsyte.run/install.txt | bash
 ```
 
 Or with wget:
 ```bash
-wget -qO- https://nsyte.run/install.sh | bash
+wget -qO- https://nsyte.run/install.txt | bash
 ```
 
 The script will automatically:

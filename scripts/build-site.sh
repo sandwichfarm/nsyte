@@ -10,8 +10,10 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp index.html dist/
 
-# Copy install script to root (with .sh extension for compatibility)
+# Copy install script as text file to avoid CDN restrictions
 echo "📦 Copying install script..."
+cp install.sh dist/install.txt
+# Also copy with .sh extension for compatibility
 cp install.sh dist/install.sh
 
 # Build documentation with MkDocs
