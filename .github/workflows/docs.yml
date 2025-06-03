@@ -34,17 +34,30 @@ jobs:
           
           # Remove executable permissions from remaining files
           chmod 644 dist/install.txt dist/get/install.sh dist/get/install.txt || true
-          
-      - name: Deploy to Bunny.net CDN
-        uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
+      - name: Deploy to Bunny
+        uses: R-J-dev/bunny-deploy@v2.0.3 
         with:
-          source: "./dist"
-          destination: ""
-          storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
-          accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
-          storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          upload: "true"
-          purgePullZone: "true"
+          access-key: ${{ secrets.BUNNY_ACCESS_KEY }}
+          directory-to-upload: "./dist"
+          storage-endpoint: "https://storage.bunnycdn.com"
+          storage-zone-name: "nsyte"
+          storage-zone-password: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          concurrency: "50"
+          enable-delete-action: true
+          enable-purge-pull-zone: true
+          pull-zone-id: ${{ secrets.BUNNY_PULLZONE_ID }}
+          replication-timeout: "15000"
+          
+      # - name: Deploy to Bunny.net CDN
+      #   uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
+      #   with:
+      #     source: "./dist"
+      #     destination: ""
+      #     storageZoneName: ${{ secrets.BUNNY_STORAGE_ZONE }}
+      #     accessKey: ${{ secrets.BUNNY_ACCESS_KEY }}
+      #     storagePassword: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+      #     upload: "true"
+      #     purgePullZone: "true"
           
       - name: Purge Bunny.net CDN Cache
         run: |
