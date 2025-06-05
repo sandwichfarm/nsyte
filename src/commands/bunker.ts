@@ -53,11 +53,14 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
         break;
       case "connect":
         if (args.length > 0 && !args[0].startsWith("-")) {
-          await connectBunker(args[0]);
+          // Check if --no-persist is in remaining args
+          const noPersist = args.includes("--no-persist");
+          await connectBunker(args[0], false, noPersist);
         } else {
           let pubkey = "";
           let relay = "";
           let secret = "";
+          let noPersist = false;
           
           for (let i = 0; i < args.length; i++) {
             if (args[i] === "--pubkey" && i + 1 < args.length) {
@@ -69,14 +72,16 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
             } else if (args[i] === "--secret" && i + 1 < args.length) {
               secret = args[i + 1];
               i++;
+            } else if (args[i] === "--no-persist") {
+              noPersist = true;
             }
           }
           
           if (pubkey && relay) {
             const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${secret ? `&secret=${secret}` : ''}`;
-            await connectBunker(url);
+            await connectBunker(url, false, noPersist);
           } else {
-            await connectBunker();
+            await connectBunker(undefined, false, noPersist);
           }
         }
         break;
@@ -126,15 +131,17 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  import <nbunksec>        Import a bunker from an nbunksec string");
   console.log("  export <pubkey>          Export a bunker as an nbunksec string");
   console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
-  console.log("  connect --pubkey <key> --relay <url> [--secret <secret>]");
+  console.log("  connect --pubkey <key> --relay <url> [--secret <secret>] [--no-persist]");
   console.log("                           Connect using separate parameters (avoids shell escaping issues)");
+  console.log("                           --no-persist: Display nbunksec without storing it");
   console.log("  use <pubkey>             Configure current project to use a bunker");
   console.log("  remove <pubkey>          Remove a bunker from storage");
   console.log("  help                     Show this help information\n");
 
   console.log(colors.cyan("Connection examples:"));
   console.log("  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'");
-  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --secret xxx\n");
+  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --secret xxx");
+  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --no-persist\n");
 
   console.log(colors.cyan("CI/CD Usage:"));
   console.log("  1. Use 'nsyte bunker export' to get an nbunksec string");
@@ -279,7 +286,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
 /**
  * Connect to a bunker URL and store credentials
  */
-export async function connectBunker(bunkerUrl?: string, skipProjectInteraction = false): Promise<void> {
+export async function connectBunker(bunkerUrl?: string, skipProjectInteraction = false, noPersist = false): Promise<void> {
   let signer: NostrConnectSigner | null = null;
   let bunkerPubkey: string | null = null;
   let operationError: Error | null = null;
@@ -380,20 +387,31 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
     const nbunkString = getNbunkString(signer);
     log.debug("connectBunker: nbunkString generated");
 
-    const secretsManager = SecretsManager.getInstance();
-    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
-    log.debug("connectBunker: nbunkString stored");
+    if (noPersist) {
+      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...`));
+      console.log(colors.yellow("\n⚠️  --no-persist flag used. The nbunksec will NOT be stored.\n"));
+      console.log(colors.cyan("Your nbunksec string (copy it now, it won't be shown again):"));
+      console.log(colors.bold(nbunkString));
+      console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
+      
+      // Skip project interaction when using --no-persist
+      log.debug("connectBunker: nbunkString displayed but not stored due to --no-persist flag");
+    } else {
+      const secretsManager = SecretsManager.getInstance();
+      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+      log.debug("connectBunker: nbunkString stored");
 
-    console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...\nGenerated and stored nbunksec string.`));
+      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...\nGenerated and stored nbunksec string.`));
 
-    if (!skipProjectInteraction) {
-      const useForProject = await Confirm.prompt({
-        message: "Would you like to use this bunker for the current project?",
-        default: true,
-      });
+      if (!skipProjectInteraction) {
+        const useForProject = await Confirm.prompt({
+          message: "Would you like to use this bunker for the current project?",
+          default: true,
+        });
 
-      if (useForProject) {
-        await useBunkerForProject(bunkerPubkey);
+        if (useForProject) {
+          await useBunkerForProject(bunkerPubkey);
+        }
       }
     }
   } catch (error: unknown) {
