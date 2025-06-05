@@ -138,6 +138,7 @@ show_output "$(printf '\033[36mDisconnecting from bunker...\033[0m')"
 show_output "$(printf '\033[32mDisconnected from bunker.\033[0m')"
 show_output "$(printf '\033[32mSuccessfully connected to bunker a8c7d3f2...\033[0m')"
 show_output "Generated and stored nbunksec string."
+show_output "$(printf '\033[90mnbunksec1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqqqqqqqqqx9h7mz5\033[0m')"
 show_output ""
 sleep 3.0
 
