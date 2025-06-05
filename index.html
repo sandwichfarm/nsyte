@@ -654,6 +654,10 @@
                         <span>📚</span>
                         View Docs
                     </a>
+                    <a href="https://github.com/sandwichfarm/nsyte" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                        <span>🔗</span>
+                        GitHub
+                    </a>
                 </div>
             </div>
             
@@ -827,6 +831,49 @@
                     <span>📖</span>
                     Explore Documentation
                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CI/CD Section -->
+    <section class="cicd" style="padding: 5rem 0; background: var(--cyber-surface);">
+        <div class="container">
+            <h2 class="section-title">CI/CD? We've Got You Covered</h2>
+            
+            <div style="max-width: 900px; margin: 0 auto;">
+                <p style="text-align: center; color: var(--cyber-text-secondary); font-size: 1.2rem; margin-bottom: 2.5rem;">
+                    Deploy automatically with revocable keys. Perfect for secure CI/CD pipelines.
+                </p>
+                
+                <div class="code-container" style="position: relative; overflow: hidden;">
+                    <div class="code-block" style="padding: 2rem; line-height: 1.8;">
+                        <pre style="margin: 0; font-family: var(--cyber-font-mono); white-space: pre-wrap;"><span style="color: #5c6370;">      # ... build steps ...</span>
+      
+      - <span style="color: #e06c75;">name</span>: <span style="color: #98c379;">Deploy to Nostr/Blossom</span>
+        <span style="color: #e06c75;">uses</span>: <span style="color: #98c379;">sandwichfarm/nsite-action@v1</span>
+        <span style="color: #e06c75;">with</span>:
+          <span style="color: #e06c75;">nbunksec</span>: <span style="color: #d19a66;">${{ secrets.NBUNKSEC }}</span>
+          <span style="color: #e06c75;">directory</span>: <span style="color: #98c379;">'./dist'</span>
+          <span style="color: #e06c75;">relays</span>: |
+            <span style="color: #98c379;">wss://relay.damus.io</span>
+            <span style="color: #98c379;">wss://relay.snort.social</span>
+          <span style="color: #e06c75;">servers</span>: |
+            <span style="color: #98c379;">wss://some.blossom.server.com</span>
+          <span style="color: #e06c75;">force</span>: <span style="color: #d19a66;">false</span>
+          <span style="color: #e06c75;">verbose</span>: <span style="color: #d19a66;">true</span></pre>
+                    </div>
+                    <!-- Gradient overlay at the top -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to top, transparent 0%, rgba(15, 15, 26, 0.5) 40%, rgba(15, 15, 26, 0.8) 70%, var(--cyber-bg) 100%); pointer-events: none;"></div>
+                    <!-- Gradient overlay at the bottom -->
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 100px; background: linear-gradient(to bottom, transparent 0%, rgba(15, 15, 26, 0.7) 30%, rgba(15, 15, 26, 0.9) 60%, var(--cyber-bg) 100%); pointer-events: none;"></div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="https://github.com/sandwichfarm/nsite-action" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                        <span>🔗</span>
+                        View GitHub Action
+                    </a>
+                </div>
             </div>
         </div>
     </section>
