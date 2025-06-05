@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>nsyte Demo</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0f0f1a;
+            color: #d4d4d8;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #34d399;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        #demo {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        
+        .description {
+            text-align: center;
+            margin: 2rem 0;
+            color: #a1a1aa;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 2rem;
+        }
+        
+        .controls button {
+            background: #34d399;
+            color: #0f0f1a;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .controls button:hover {
+            background: #6ee7b7;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 nsyte Demo</h1>
+        <p class="description">
+            Watch how easy it is to deploy a website to the decentralized web using nsyte.
+            No servers, no hosting fees, just pure peer-to-peer distribution.
+        </p>
+        
+        <div id="demo"></div>
+        
+        <div class="controls">
+            <button onclick="player.play()">▶️ Play</button>
+            <button onclick="player.pause()">⏸️ Pause</button>
+            <button onclick="player.seek(0)">⏮️ Restart</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.min.js"></script>
+    <script>
+        const player = AsciinemaPlayer.create(
+            'nsyte-demo.cast',
+            document.getElementById('demo'),
+            {
+                cols: 80,
+                rows: 24,
+                autoPlay: true,
+                preload: true,
+                loop: true,
+                speed: 1.0,
+                theme: 'monokai',
+                fit: 'width'
+            }
+        );
+    </script>
+</body>
+</html>

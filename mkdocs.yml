@@ -10,14 +10,9 @@ theme:
   font: false
   features:
     - navigation.tabs
-    - navigation.sections
-    - navigation.expand
     - navigation.top
-    - navigation.tracking
     - search.highlight
-    - search.share
     - search.suggest
-    - toc.integrate
     - navigation.instant
   custom_dir: docs/overrides
   palette:
@@ -49,10 +44,6 @@ markdown_extensions:
 
 plugins:
   - search
-  - git-revision-date-localized:
-      type: datetime
-  - minify:
-      minify_html: true
 
 nav:
   - Documentation: index.md

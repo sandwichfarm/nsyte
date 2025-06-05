@@ -7,7 +7,7 @@
  * The command:
  * 1. Only allows new bunker connections (via QR or URL)
  * 2. Never interacts with project configuration
- * 3. Always cleans up after generating the nbunksec
+ * 3. Uses --no-persist to keep nbunksec in memory only
  * 4. Has only one interaction point (the initial connection)
  */
 
@@ -15,8 +15,6 @@ import { colors } from "@cliffy/ansi/colors";
 import { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { connectBunker } from "./bunker.ts";
-import { parseBunkerUrl } from "../lib/nip46.ts";
-import { SecretsManager } from "../lib/secrets/mod.ts";
 
 const log = createLogger("ci");
 
@@ -25,57 +23,15 @@ const log = createLogger("ci");
  * This command is designed for automation and avoids project interactions
  */
 export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
-  let bunkerPubkey: string | null = null;
-  let nbunksec: string | null = null;
-  const secretsManager = SecretsManager.getInstance();
-
   try {
-    // Step 1: Connect to bunker (only new connections allowed)
-    console.log(colors.cyan("\nStep 1: Connecting to bunker..."));
+    console.log(colors.cyan("\nConnecting to bunker for CI/CD use..."));
+    console.log(colors.yellow("This will generate an nbunksec that is never stored to disk.\n"));
     
-    // Override the default connectBunker behavior to skip project interaction
-    const originalConnectBunker = connectBunker;
-    const connectBunkerForCI = async (url?: string) => {
-      // Call the original function but skip the project interaction
-      await originalConnectBunker(url, true); // Pass true to skip project interaction
-      // Get the bunker pubkey from the URL or last connected bunker
-      if (url) {
-        const parsedPointer = parseBunkerUrl(url);
-        return parsedPointer.pubkey;
-      } else {
-        const pubkeys = secretsManager.getAllPubkeys();
-        return pubkeys.length > 0 ? pubkeys[pubkeys.length - 1] : null;
-      }
-    };
-
-    bunkerPubkey = await connectBunkerForCI(bunkerUrl);
-
-    if (!bunkerPubkey) {
-      console.log(colors.red("Failed to determine bunker pubkey."));
-      Deno.exit(1);
-      return;
-    }
-
-    // Step 2: Get the nbunksec
-    console.log(colors.cyan("\nStep 2: Getting nbunksec..."));
-    nbunksec = secretsManager.getNbunk(bunkerPubkey);
+    // Use the --no-persist flag to keep nbunksec in memory only
+    await connectBunker(bunkerUrl, true, true); // skipProjectInteraction=true, noPersist=true
     
-    if (!nbunksec) {
-      console.log(colors.red("Failed to get nbunksec."));
-      Deno.exit(1);
-      return;
-    }
-
-    // Step 3: Clean up (always remove without confirmation)
-    console.log(colors.cyan("\nStep 3: Cleaning up..."));
-    secretsManager.deleteNbunk(bunkerPubkey);
-    console.log(colors.green(`Bunker ${bunkerPubkey.slice(0, 8)}... removed from system storage.`));
-
-    // Step 4: Output the nbunksec
-    console.log(colors.cyan("\nStep 4: Your nbunksec for CI/CD:"));
-    console.log(colors.yellow("\nIMPORTANT: Store this securely. It contains sensitive key material."));
-    console.log(colors.cyan("\nAdd this to your CI/CD secrets:"));
-    console.log(nbunksec);
+    // The connectBunker function with noPersist=true will display the nbunksec
+    // and additional usage instructions
     console.log(colors.cyan("\nUsage in CI/CD:"));
     console.log("  nsyte upload ./dist --nbunksec ${NBUNK_SECRET}");
 
@@ -98,7 +54,7 @@ export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
 export function registerCICommand(program: Command): void {
   program
     .command("ci")
-    .description("Create an nbunksec string for CI/CD use (creates a new bunker connection)")
+    .description("Create an nbunksec string for CI/CD use (ephemeral, never stored to disk)")
     .arguments("[url:string]")
     .action(async (_: unknown, url?: string) => {
       await createNbunksecForCI(url);

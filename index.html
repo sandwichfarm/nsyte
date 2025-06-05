@@ -14,6 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Asciinema Player -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.css" />
+    
     <!-- CSS -->
     <style>
         /* Cypherpunk theme variables - lower contrast */
@@ -60,6 +63,7 @@
             background: linear-gradient(135deg, var(--cyber-bg) 0%, var(--cyber-surface) 50%, var(--cyber-bg) 100%);
             overflow: hidden;
             border-bottom: 1px solid var(--cyber-border);
+            padding: 4rem 0;
         }
 
         /* Animated geometric background */
@@ -165,15 +169,25 @@
         .hero-content {
             position: relative;
             z-index: 10;
-            max-width: 900px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 0 2rem;
-            text-align: center;
-            color: var(--cyber-text);
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+        
+        .hero-text {
+            text-align: left;
+        }
+        
+        .hero-demo {
+            width: 100%;
         }
 
         .hero-title {
-            font-size: clamp(3rem, 8vw, 6rem);
+            font-size: clamp(2.5rem, 6vw, 5rem);
             font-weight: 700;
             margin: 0 0 1.5rem 0;
             color: var(--cyber-text);
@@ -197,16 +211,13 @@
         }
 
         .hero-tagline {
-            font-size: clamp(1.25rem, 4vw, 2rem);
+            font-size: clamp(1.25rem, 3vw, 1.75rem);
             font-weight: 400;
             margin: 0 0 1.5rem 0;
             color: var(--cyber-accent);
             font-family: var(--cyber-font-mono);
             opacity: 0.9;
             letter-spacing: 1px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
         }
 
         .hero-description {
@@ -214,18 +225,13 @@
             line-height: 1.7;
             margin: 0 0 3rem 0;
             color: var(--cyber-text-secondary);
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
             font-family: var(--cyber-font-sans);
         }
 
         .cta-buttons {
             display: flex;
             gap: 1.5rem;
-            justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 4rem;
         }
 
         .btn {
@@ -291,48 +297,57 @@
             box-shadow: 0 6px 16px rgba(52, 211, 153, 0.2);
         }
 
-        /* Demo placeholder */
+        /* Demo container */
         .demo-container {
-            margin: 3rem 0;
+            width: 100%;
         }
 
         .demo-placeholder {
             background: var(--cyber-surface);
-            border: 2px dashed var(--cyber-border);
+            border: 1px solid var(--cyber-border);
             border-radius: 12px;
-            padding: 4rem 2rem;
-            margin: 0 auto;
-            max-width: 500px;
             position: relative;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
 
-        .demo-placeholder:hover {
-            border-color: var(--cyber-accent);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-            transform: translateY(-4px);
+        /* Asciinema player customization */
+        #demo-player .asciinema-player-wrapper {
+            font-family: var(--cyber-font-mono) !important;
+        }
+
+        #demo-player .asciinema-terminal {
+            background: var(--cyber-bg) !important;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .demo-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            min-height: 400px;
         }
 
         .demo-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
             opacity: 0.8;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
         }
 
         .demo-text {
-            font-size: 1.8rem;
-            margin-bottom: 0.8rem;
+            font-size: 1.2rem;
             color: var(--cyber-accent);
             font-family: var(--cyber-font-mono);
             font-weight: 500;
-        }
-
-        .demo-subtitle {
-            font-size: 1rem;
-            color: var(--cyber-text-secondary);
-            font-family: var(--cyber-font-sans);
         }
 
         /* Installation Section */
@@ -546,9 +561,25 @@
         /* Remove theme toggle - pure cypherpunk theme */
 
         /* Responsive Design */
-        @media (max-width: 768px) {
+        @media (max-width: 968px) {
+            .hero {
+                min-height: 100vh;
+                height: auto;
+            }
+            
             .hero-content {
-                padding: 0 1rem;
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                padding: 2rem 1rem;
+                text-align: center;
+            }
+            
+            .hero-text {
+                text-align: center;
+            }
+            
+            .cta-buttons {
+                justify-content: center;
             }
 
             .cta-buttons {
@@ -606,30 +637,30 @@
         <div class="hero-particles" id="particles"></div>
         
         <div class="hero-content">
-            <h1 class="hero-title">nsyte</h1>
-            <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
-            <p class="hero-description">
-                Deploy your site across decentralized infrastructure. No gatekeepers, no censorship, no single points of failure. 
-                Your content, your keys, your network.
-            </p>
-            
-            <div class="demo-container">
-                <div class="demo-placeholder">
-                    <div class="demo-icon">⚡</div>
-                    <div class="demo-text">Live Deploy Demo</div>
-                    <div class="demo-subtitle">Watch real-time deployment across decentralized nodes</div>
+            <div class="hero-text">
+                <h1 class="hero-title">nsyte</h1>
+                <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
+                <p class="hero-description">
+                    Deploy your site across decentralized infrastructure. No gatekeepers, no censorship, no single points of failure. 
+                    Your content, your keys, your network.
+                </p>
+                
+                <div class="cta-buttons">
+                    <a href="#installation" class="btn btn-primary">
+                        <span>🚀</span>
+                        Get Started
+                    </a>
+                    <a href="./docs/" class="btn btn-secondary">
+                        <span>📚</span>
+                        View Docs
+                    </a>
                 </div>
             </div>
-
-            <div class="cta-buttons">
-                <a href="#installation" class="btn btn-primary">
-                    <span>🚀</span>
-                    Get Started
-                </a>
-                <a href="./docs/" class="btn btn-secondary">
-                    <span>📚</span>
-                    View Docs
-                </a>
+            
+            <div class="hero-demo">
+                <div class="demo-container">
+                    <div id="demo-player" class="demo-placeholder"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -645,20 +676,85 @@
                     <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem; text-align: center;">
                         Automatically detects your system and installs using the best available method
                     </p>
-                    <div class="code-container">
-                        <div class="code-block">curl -fsSL https://nsyte.run/get/install.sh | bash</div>
-                        <button class="copy-btn" data-copy="curl -fsSL https://nsyte.run/get/install.sh | bash">Copy</button>
+                    
+                    <!-- Installation method buttons -->
+                    <div class="install-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center; flex-wrap: wrap;">
+                        <button class="install-tab-btn active" data-method="script" style="padding: 0.5rem 1.5rem; background: var(--cyber-accent); color: var(--cyber-bg); border: 1px solid var(--cyber-accent); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Script</button>
+                        <button class="install-tab-btn" data-method="packages" style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Packages</button>
+                        <button class="install-tab-btn" data-method="manual" style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Manual</button>
                     </div>
-                    <div style="text-align: center; margin-top: 1rem;">
-                        <p style="color: var(--cyber-text-secondary); font-size: 0.9rem;">
-                            Or with wget: <code style="background: var(--cyber-surface-variant); color: var(--cyber-accent); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--cyber-font-mono); border: 1px solid var(--cyber-border);">wget -qO- https://nsyte.run/get/install.sh | bash</code>
-                        </p>
+                    
+                    <!-- Script tab content -->
+                    <div class="install-tab-content" data-content="script">
+                        <!-- Command tabs -->
+                        <div class="command-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button class="cmd-tab-btn active" data-cmd="curl" style="padding: 0.5rem 1rem; background: var(--cyber-surface-variant); color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease;">curl</button>
+                            <button class="cmd-tab-btn" data-cmd="wget" style="padding: 0.5rem 1rem; background: transparent; color: var(--cyber-text-secondary); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease;">wget</button>
+                        </div>
+                        
+                        <div class="code-container" data-cmd-content="curl">
+                            <div class="code-block">curl -fsSL https://nsyte.run/get/install.sh | bash</div>
+                            <button class="copy-btn" data-copy="curl -fsSL https://nsyte.run/get/install.sh | bash">Copy</button>
+                        </div>
+                        
+                        <div class="code-container" data-cmd-content="wget" style="display: none;">
+                            <div class="code-block">wget -qO- https://nsyte.run/get/install.sh | bash</div>
+                            <button class="copy-btn" data-copy="wget -qO- https://nsyte.run/get/install.sh | bash">Copy</button>
+                        </div>
                     </div>
-                    <div style="text-align: center; margin-top: 2rem;">
-                        <a href="./docs/installation.html" class="btn btn-secondary" style="display: inline-block;">
-                            <span>🔧</span>
-                            Manual Installation Options
-                        </a>
+                    
+                    <!-- Packages tab content -->
+                    <div class="install-tab-content" data-content="packages" style="display: none;">
+                        <div style="display: grid; gap: 1rem;">
+                            <div class="code-container">
+                                <div class="code-block" style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="color: var(--cyber-text-secondary); min-width: 100px;">Homebrew:</span>
+                                    <span>brew install nsyte</span>
+                                </div>
+                                <button class="copy-btn" data-copy="brew install nsyte">Copy</button>
+                            </div>
+                            <div class="code-container">
+                                <div class="code-block" style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="color: var(--cyber-text-secondary); min-width: 100px;">Snap:</span>
+                                    <span>snap install nsyte</span>
+                                </div>
+                                <button class="copy-btn" data-copy="snap install nsyte">Copy</button>
+                            </div>
+                            <div class="code-container">
+                                <div class="code-block" style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="color: var(--cyber-text-secondary); min-width: 100px;">Flatpak:</span>
+                                    <span>flatpak install flathub io.nsyte.nsyte</span>
+                                </div>
+                                <button class="copy-btn" data-copy="flatpak install flathub io.nsyte.nsyte">Copy</button>
+                            </div>
+                            <div class="code-container">
+                                <div class="code-block" style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="color: var(--cyber-text-secondary); min-width: 100px;">AUR:</span>
+                                    <span>yay -S nsyte</span>
+                                </div>
+                                <button class="copy-btn" data-copy="yay -S nsyte">Copy</button>
+                            </div>
+                            <div class="code-container">
+                                <div class="code-block" style="display: flex; align-items: center; gap: 1rem;">
+                                    <span style="color: var(--cyber-text-secondary); min-width: 100px;">Chocolatey:</span>
+                                    <span>choco install nsyte</span>
+                                </div>
+                                <button class="copy-btn" data-copy="choco install nsyte">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual tab content -->
+                    <div class="install-tab-content" data-content="manual" style="display: none;">
+                        <div style="text-align: center; padding: 2rem;">
+                            <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem;">
+                                For detailed installation instructions including building from source, Docker, and platform-specific guides:
+                            </p>
+                            <a href="./docs/installation.html" class="btn btn-primary" style="display: inline-block;">
+                                <span>📖</span>
+                                View Complete Installation Guide
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -690,6 +786,22 @@
                     <h3 class="feature-title">Self-Sovereign Identity</h3>
                     <p class="feature-description">
                         Your cryptographic keys, your identity. NIP-46 bunker support for secure, remote key management.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">✍️</div>
+                    <h3 class="feature-title">Secure Signing</h3>
+                    <p class="feature-description">
+                        Sign deployments with bunkers like Amber. Keep your keys safe while maintaining full control over your content.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3 class="feature-title">Revocable CI/CD Keys</h3>
+                    <p class="feature-description">
+                        Generate ephemeral keys for automated deployments. Revoke access instantly when needed. Perfect for secure CI/CD pipelines.
                     </p>
                 </div>
 
@@ -801,11 +913,129 @@
             }
         }
 
+        // Tab switching functionality
+        function initializeTabSwitching() {
+            // Installation method tabs
+            const installTabs = document.querySelectorAll('.install-tab-btn');
+            const installContents = document.querySelectorAll('.install-tab-content');
+            
+            installTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const method = tab.getAttribute('data-method');
+                    
+                    // Update active tab
+                    installTabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.style.background = 'transparent';
+                        t.style.color = 'var(--cyber-accent)';
+                        t.style.borderColor = 'var(--cyber-border)';
+                    });
+                    tab.classList.add('active');
+                    tab.style.background = 'var(--cyber-accent)';
+                    tab.style.color = 'var(--cyber-bg)';
+                    tab.style.borderColor = 'var(--cyber-accent)';
+                    
+                    // Show corresponding content
+                    installContents.forEach(content => {
+                        if (content.getAttribute('data-content') === method) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+            
+            // Command tabs (curl/wget)
+            const cmdTabs = document.querySelectorAll('.cmd-tab-btn');
+            const cmdContents = document.querySelectorAll('.code-container[data-cmd-content]');
+            
+            cmdTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const cmd = tab.getAttribute('data-cmd');
+                    
+                    // Update active tab
+                    cmdTabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.style.background = 'transparent';
+                        t.style.color = 'var(--cyber-text-secondary)';
+                    });
+                    tab.classList.add('active');
+                    tab.style.background = 'var(--cyber-surface-variant)';
+                    tab.style.color = 'var(--cyber-accent)';
+                    
+                    // Show corresponding content
+                    cmdContents.forEach(content => {
+                        if (content.getAttribute('data-cmd-content') === cmd) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        }
+
         // Initialize everything when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             initializeCopyButtons();
             initializeSmoothScrolling();
             createParticles();
+            initializeTabSwitching();
+        });
+    </script>
+    
+    <!-- Asciinema Player Script -->
+    <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.min.js"></script>
+    <script>
+        // Initialize Asciinema player when DOM is ready
+        function initializeDemo() {
+            const demoContainer = document.getElementById('demo-player');
+            
+            // Show loading state
+            demoContainer.innerHTML = `
+                <div class="demo-loading">
+                    <div class="demo-icon">⚡</div>
+                    <div class="demo-text">Loading demo...</div>
+                </div>
+            `;
+            
+            // Load the asciinema player
+            try {
+                // Clear the loading state
+                demoContainer.innerHTML = '';
+                
+                // Create the player directly with the cast file URL
+                AsciinemaPlayer.create(
+                    '/demo-recording/nsyte-demo-final.cast',
+                    demoContainer,
+                    {
+                        cols: 80,
+                        rows: 24,
+                        autoPlay: true,
+                        preload: true,
+                        loop: true,
+                        speed: 1.0,
+                        theme: 'monokai',
+                        fit: 'width',
+                        fontSize: 'small'
+                    }
+                );
+                
+            } catch (error) {
+                console.error('Error loading demo:', error);
+                demoContainer.innerHTML = `
+                    <div class="demo-loading">
+                        <div class="demo-icon">📺</div>
+                        <div class="demo-text">Demo coming soon...</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Initialize demo when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initializeDemo, 500); // Small delay to ensure everything is loaded
         });
     </script>
 </body>
