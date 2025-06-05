@@ -54,9 +54,9 @@ export const popularRelays = [
 ];
 
 export const popularBlossomServers = [
-  "https://blossom.primal.net",
+  "https://cdn.hzrd149.com",
+  "https://cdn.sovbit.host",
   "https://cdn.nostrcheck.me",
-  "https://cdn.satellite.earth",
   "https://nostr.download",
 ];
 
