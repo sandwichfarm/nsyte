@@ -18,22 +18,29 @@ dP    dP `88888P' `8888P88   dP   `88888P'
 EOF
 printf "\033[0m\n\n"
 
-# Helper functions with ultra-fast timing
+# Helper functions with balanced timing
 type_command() {
     printf "$ "
-    printf "%s" "$1"
+    for (( i=0; i<${#1}; i++ )); do
+        printf "${1:$i:1}"
+        sleep 0.05
+    done
     printf "\n"
-    sleep 0.3
+    sleep 0.5
 }
 
 type_input() {
-    printf "%s" "$1"
+    for (( i=0; i<${#1}; i++ )); do
+        printf "${1:$i:1}"
+        sleep 0.03
+    done
     printf "\n"
-    sleep 0.1
+    sleep 0.2
 }
 
 show_output() {
     printf "%s\n" "$1"
+    sleep 0.1
 }
 
 # Start demo with init command
@@ -114,17 +121,15 @@ cat << 'EOF'
 EOF
 
 show_output ""
-show_output "Or copy-paste this URI: nostr+walletconnect://b22f..."
+show_output "Or copy-paste this URI: bunker://b22f..."
 show_output "Waiting for Signer to connect (timeout in 120s)..."
 
-# Brief countdown
-sleep 2
-printf "\rWaiting for connection... 3s    "
-sleep 0.3
-printf "\rWaiting for connection... 2s    "
-sleep 0.3
-printf "\rWaiting for connection... 1s    "
-sleep 0.3
+# Countdown for better timing (8 seconds total for QR display)
+sleep 3
+for i in {5..1}; do
+    printf "\rWaiting for connection... ${i}s    "
+    sleep 1
+done
 printf "\r                                      \r"
 
 # Connection success
