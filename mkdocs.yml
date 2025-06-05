@@ -46,6 +46,7 @@ plugins:
   - search
 
 nav:
+  - Home: https://nsyte.run/
   - Documentation: index.md
   - Getting Started:
       - Installation: installation.md
