@@ -308,4 +308,4 @@ show_output "  nsyte ls               # List published files"
 show_output "  nsyte bunker connect   # Connect to bunker"
 show_output ""
 
-sleep 6
+sleep 3
