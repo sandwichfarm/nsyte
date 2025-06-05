@@ -8,6 +8,8 @@ repo_name: sandwichfarm/nsyte
 theme:
   name: material
   font: false
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
   features:
     - navigation.tabs
     - navigation.top
@@ -60,7 +62,10 @@ nav:
       - bunker: usage/commands/bunker.md
   - Guides:
       - Deployment: guides/deployment.md
-      - Security: guides/security.md
+      - Security: 
+          - Overview: guides/security.md
+          - Platform Details: guides/security-platforms.md
+          - Troubleshooting: guides/security-troubleshooting.md
       - CI/CD: guides/ci-cd.md
       - Local Setup: guides/local-setup.md
 

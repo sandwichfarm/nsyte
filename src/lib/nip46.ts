@@ -226,10 +226,10 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
 /**
  * Bunker management functions for secrets storage
  */
-export function getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null {
+export async function getBunkerInfo(bunkerPubkey: string): Promise<{ clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null> {
   try {
     const secretsManager = SecretsManager.getInstance();
-    const nbunkString = secretsManager.getNbunk(bunkerPubkey);
+    const nbunkString = await secretsManager.getNbunk(bunkerPubkey);
 
     if (!nbunkString) {
       return null;
@@ -258,7 +258,7 @@ export function getBunkerInfo(bunkerPubkey: string): { clientKey: Uint8Array; bu
 /**
  * Store bunker information
  */
-export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunkerUrl: string): void {
+export async function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunkerUrl: string): Promise<void> {
   try {
     const bunkerInfo: BunkerInfo = {
       pubkey: bunkerPubkey,
@@ -269,7 +269,7 @@ export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunk
     const nbunkString = encodeBunkerInfo(bunkerInfo);
 
     const secretsManager = SecretsManager.getInstance();
-    secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+    await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
 
     log.debug(`Saved bunker info for ${bunkerPubkey.slice(0, 8)}...`);
   } catch (error) {
@@ -281,11 +281,11 @@ export function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunk
  * Store a bunker URL in the secrets system
  * This function is used by the config system
  */
-export function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): void {
+export async function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): Promise<void> {
   try {
     const tempClientKey = nostrTools.generateSecretKey();
 
-    saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
+    await saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
 
     log.debug(`Created nbunksec for bunker ${bunkerPubkey.slice(0, 8)}...`);
   } catch (error) {
@@ -309,7 +309,7 @@ export async function importFromNbunk(nbunkString: string): Promise<NostrConnect
       log.info("Session established from nbunksec");
 
       const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
-      saveBunkerInfo(info.pubkey, clientKey, dummyUrl);
+      await saveBunkerInfo(info.pubkey, clientKey, dummyUrl);
 
       return signer;
     } catch (error: unknown) {

@@ -1,0 +1,7 @@
+<svg width="200" height="50" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+  <!-- Green chevron -->
+  <path d="M 10 15 L 25 25 L 10 35" stroke="#34d399" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- nsyte text -->
+  <text x="40" y="35" font-family="Space Grotesk, -apple-system, BlinkMacSystemFont, sans-serif" font-size="32" font-weight="600" fill="#ffffff">nsyte</text>
+</svg>

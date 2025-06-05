@@ -7,6 +7,8 @@
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
     "test": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --no-check",
     "coverage": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --coverage=.coverage --no-check",
+    "coverage:badge": "deno run --allow-read --allow-write --allow-run scripts/generate-coverage-badge.ts",
+    "coverage:report": "deno task coverage && deno task coverage:badge",
     "compile": "deno compile --allow-read --allow-write --allow-net --allow-env --output dist/nsyte src/cli.ts",
     "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:windows",
     "compile:linux": "deno compile --allow-read --allow-write --allow-net --allow-env --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
@@ -17,7 +19,9 @@
     "docs:build": "./scripts/build-docs.sh",
     "docs:serve": "./scripts/serve-docs.sh",
     "site:build": "./scripts/build-site.sh",
-    "site:serve": "./scripts/serve-site.sh"
+    "site:serve": "./scripts/serve-site.sh",
+    "serve": "deno run --allow-net --allow-read https://deno.land/std@0.220.0/http/file_server.ts --port=8000 .",
+    "serve:dist": "deno run --allow-net --allow-read https://deno.land/std@0.220.0/http/file_server.ts --port=8000 ./dist"
   },
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.7",

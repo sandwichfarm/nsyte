@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block header %}
+  {% include "partials/header.html" %}
+{% endblock %}
+
 {% block extrahead %}
   {{ super() }}
   {% if page.title == "nsyte - Decentralized Website Publishing" %}

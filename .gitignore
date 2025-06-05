@@ -4,6 +4,7 @@
 .nsite
 .test_secrets
 .coverage
+.claude
 
 dist
 node_modules

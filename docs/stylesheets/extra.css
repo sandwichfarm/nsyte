@@ -832,10 +832,10 @@ code, pre, .highlight, .md-typeset code {
 
 /* Header improvements - cleaner, more consistent styling */
 .md-header {
-  background: var(--cyber-bg);
+  background: #1a1a2e;
   border-bottom: 1px solid var(--cyber-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  min-height: 3rem;
+  min-height: 4rem;
   position: sticky;
   top: 0;
   z-index: 4;
@@ -845,6 +845,9 @@ code, pre, .highlight, .md-typeset code {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  min-height: 4rem;
 }
 
 .md-header__button {
@@ -853,19 +856,50 @@ code, pre, .highlight, .md-typeset code {
   padding: 0.5rem;
 }
 
+/* Hide the default title text when logo is present */
 .md-header__title {
-  font-family: var(--cyber-font-mono);
-  font-weight: 600;
-  color: var(--cyber-accent);
-  font-size: 1.2rem;
-  letter-spacing: 0.5px;
-  text-transform: lowercase;
+  display: none;
 }
 
-.md-header__title::before {
-  content: '$ ';
-  color: var(--cyber-accent);
-  opacity: 0.8;
+/* Style the logo */
+.md-logo {
+  height: 2.5rem;
+  width: auto;
+  margin-right: 1rem;
+}
+
+.md-logo img, .md-logo svg {
+  height: 2.5rem;
+  width: auto;
+  display: block;
+}
+
+/* Custom logo styling for nsyte */
+.md-header__button.md-logo {
+  padding: 0.5rem 0;
+  margin-right: 1rem;
+}
+
+/* Ensure header has dark background like in screenshot */
+.md-header {
+  background: #1a1a2e !important;
+}
+
+/* Flex spacer to push search and repo to the right */
+.md-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.md-header__title {
+  flex: 1;
+}
+
+/* Ensure search and source are aligned right */
+.md-search,
+.md-header__source {
+  margin-left: auto;
 }
 
 .md-header__source {

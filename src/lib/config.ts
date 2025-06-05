@@ -295,7 +295,7 @@ async function selectKeySource(): Promise<{config: ProjectConfig, privateKey?: s
 
   // Check if there are any existing bunkers
   const secretsManager = SecretsManager.getInstance();
-  const existingBunkers = secretsManager.getAllPubkeys();
+  const existingBunkers = await secretsManager.getAllPubkeys();
   const hasBunkers = existingBunkers.length > 0;
 
   let nbunkString: string | undefined;
@@ -340,7 +340,7 @@ async function selectKeySource(): Promise<{config: ProjectConfig, privateKey?: s
     if (signer) {
       config.bunkerPubkey = await signer.getPublicKey();
       const nbunkString = getNbunkString(signer);
-      secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
+      await secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
       console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}... \nGenerated and stored nbunksec string.`));
     }
   } 
@@ -375,7 +375,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
 
   // Check if there are any existing bunkers
   const secretsManager = SecretsManager.getInstance();
-  const existingBunkers = secretsManager.getAllPubkeys();
+  const existingBunkers = await secretsManager.getAllPubkeys();
   const hasBunkers = existingBunkers.length > 0;
 
   // Prepare options based on whether bunkers exist
@@ -470,7 +470,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
 
       bunkerPubkey = await signer.getPublicKey();
       const nbunkString = getNbunkString(signer);
-      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+      await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
 
       console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
 Generated and stored nbunksec string.`));

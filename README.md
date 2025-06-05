@@ -2,6 +2,8 @@
 
 # nsyte
 
+![Coverage](./static/coverage-badge.svg)
+
 A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized, censorship-resistant website hosting.
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This fork has been ported to deno and rewritten in the process. Some behaviors in this fork are slightly different.
@@ -140,17 +142,38 @@ nsyte bunker list
 
 **Private Keys**: Never exposed to servers, stored in project configuration.
 
+**Secure Credential Storage**: 
+- nsyte uses a multi-tier security approach for storing sensitive bunker connection data
+- **Tier 1 (Best)**: Native OS keychain services:
+  - macOS: Keychain Services (security command)
+  - Windows: Credential Manager (cmdkey/PowerShell)
+  - Linux: Secret Service API (libsecret/secret-tool)
+- **Tier 2 (Good)**: AES-256-GCM encrypted file storage when native keychain unavailable
+- **Tier 3 (Fallback)**: Plain JSON storage with security warnings
+
+**Storage Locations**:
+- Secure storage: Platform-specific keychain or encrypted files
+- Config directories:
+  - Linux: `~/.config/nsyte`
+  - macOS: `~/Library/Application Support/nsyte`
+  - Windows: `%APPDATA%\nsyte`
+
 **Bunker Connections**: 
 - Uses NIP-46 protocol for remote signing
-- Connection secrets stored in system-specific locations:
-  - Linux: `~/.config/nsite`
-  - macOS: `~/Library/Application Support/nsite`
-  - Windows: `%APPDATA%\nsite`
+- Connection secrets automatically encrypted and stored securely
+- Legacy plain-text storage automatically migrated to secure storage
 
 **nbunksec Strings**: 
 - Contain sensitive key material
+- Automatically stored in most secure available backend
 - Must be stored securely in CI/CD environments
 - Should be rotated periodically
+
+**Security Features**:
+- Automatic migration from legacy plain-text storage
+- Platform-specific encryption key derivation
+- Graceful fallback when secure storage unavailable
+- Comprehensive error handling and logging
 
 ## CI/CD Integration
 

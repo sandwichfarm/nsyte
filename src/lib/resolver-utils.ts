@@ -118,7 +118,7 @@ export async function resolvePubkey(
  */
 async function interactiveKeySelection(): Promise<string | undefined> {
   const secretsManager = SecretsManager.getInstance();
-  const existingBunkers = secretsManager.getAllPubkeys();
+  const existingBunkers = await secretsManager.getAllPubkeys();
   const hasBunkers = existingBunkers.length > 0;
   
   const keyOptions = [
@@ -177,7 +177,7 @@ async function interactiveKeySelection(): Promise<string | undefined> {
         options: bunkerOptions,
       });
       
-      const nbunkString = secretsManager.getNbunk(selectedPubkey);
+      const nbunkString = await secretsManager.getNbunk(selectedPubkey);
       if (nbunkString) {
         try {
           log.info("Attempting connection using stored nbunksec...");
@@ -242,7 +242,7 @@ export async function createSigner(
   const projectConfig = config || readProjectFile();
   if (projectConfig?.bunkerPubkey) {
     const secretsManager = SecretsManager.getInstance();
-    const nbunkString = secretsManager.getNbunk(projectConfig.bunkerPubkey);
+    const nbunkString = await secretsManager.getNbunk(projectConfig.bunkerPubkey);
     if (nbunkString) {
       log.info("Using configured bunker from project...");
       return await importFromNbunk(nbunkString);

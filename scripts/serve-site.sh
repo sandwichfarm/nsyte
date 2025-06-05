@@ -22,12 +22,10 @@ echo "📚 Starting MkDocs server for docs..."
 .venv/docs/bin/mkdocs serve --dev-addr 127.0.0.1:8001 --config-file mkdocs.yml &
 MKDOCS_PID=$!
 
-# Start simple HTTP server for the splash page
+# Start simple HTTP server for the splash page using Deno
 echo "🌐 Starting HTTP server for splash page..."
-cd dist
-python3 -m http.server 8000 > /dev/null 2>&1 &
+deno run --allow-net --allow-read https://deno.land/std@0.220.0/http/file_server.ts --port=8000 ./dist > /dev/null 2>&1 &
 HTTP_SERVER_PID=$!
-cd ..
 
 # File watcher for splash page and install script changes using fswatch (macOS) or inotify (Linux)
 echo "👀 Starting file watcher for splash page and install script..."

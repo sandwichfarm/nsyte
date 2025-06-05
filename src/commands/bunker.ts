@@ -163,7 +163,7 @@ export async function showBunkerHelp(): Promise<void> {
  */
 export async function listBunkers(): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
-  const pubkeys = secretsManager.getAllPubkeys();
+  const pubkeys = await secretsManager.getAllPubkeys();
 
   if (pubkeys.length === 0) {
     console.log(colors.yellow("No bunkers found in system storage."));
@@ -173,7 +173,7 @@ export async function listBunkers(): Promise<void> {
 
   console.log(colors.cyan("\nStored Bunkers:"));
   for (const pubkey of pubkeys) {
-    const nbunkString = secretsManager.getNbunk(pubkey);
+    const nbunkString = await secretsManager.getNbunk(pubkey);
     if (!nbunkString) continue;
 
     try {
@@ -218,7 +218,7 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
     const info = decodeBunkerInfo(nbunkString);
 
     const secretsManager = SecretsManager.getInstance();
-    secretsManager.storeNbunk(info.pubkey, nbunkString);
+    await secretsManager.storeNbunk(info.pubkey, nbunkString);
 
     console.log(colors.green(`Successfully imported bunker with pubkey ${info.pubkey.slice(0, 8)}...`));
 
@@ -244,7 +244,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
 
   if (!pubkey) {
-    const pubkeys = secretsManager.getAllPubkeys();
+    const pubkeys = await secretsManager.getAllPubkeys();
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
@@ -271,7 +271,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
     return;
   }
 
-  const nbunkString = secretsManager.getNbunk(pubkey);
+  const nbunkString = await secretsManager.getNbunk(pubkey);
   if (!nbunkString) {
     console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
     Deno.exit(0);
@@ -398,7 +398,7 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
       log.debug("connectBunker: nbunkString displayed but not stored due to --no-persist flag");
     } else {
       const secretsManager = SecretsManager.getInstance();
-      secretsManager.storeNbunk(bunkerPubkey, nbunkString);
+      await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
       log.debug("connectBunker: nbunkString stored");
 
       console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...\nGenerated and stored nbunksec string.`));
@@ -446,7 +446,7 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
 
   if (!pubkey) {
-    const pubkeys = secretsManager.getAllPubkeys();
+    const pubkeys = await secretsManager.getAllPubkeys();
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
@@ -473,7 +473,7 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
     return;
   }
 
-  const nbunkString = secretsManager.getNbunk(pubkey);
+  const nbunkString = await secretsManager.getNbunk(pubkey);
   if (!nbunkString) {
     console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
     Deno.exit(0);
@@ -500,7 +500,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
 
   if (!pubkey) {
-    const pubkeys = secretsManager.getAllPubkeys();
+    const pubkeys = await secretsManager.getAllPubkeys();
 
     if (pubkeys.length === 0) {
       console.log(colors.yellow("No bunkers found in system storage."));
@@ -538,7 +538,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     return;
   }
 
-  const deleted = secretsManager.deleteNbunk(pubkey);
+  const deleted = await secretsManager.deleteNbunk(pubkey);
 
   if (deleted) {
     console.log(colors.green(`Bunker ${pubkey.slice(0, 8)}... removed from system storage.`));

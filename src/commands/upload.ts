@@ -328,7 +328,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
   } else if (config?.bunkerPubkey) {
     log.info(`Attempting to use configured bunker (pubkey: ${config.bunkerPubkey.substring(0,8)}...) for signing...`);
       const secretsManager = SecretsManager.getInstance();
-      const nbunkString = secretsManager.getNbunk(config.bunkerPubkey);
+      const nbunkString = await secretsManager.getNbunk(config.bunkerPubkey);
       if (nbunkString) {
         try {
         log.info("Found stored nbunksec for configured bunker. Importing...");

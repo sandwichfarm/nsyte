@@ -1,11 +1,48 @@
 ---
 title: Security Guide
-description: Security best practices for nsyte deployments
+description: Comprehensive security guide for nsyte credential storage and deployment
 ---
 
 # Security Guide
 
-This guide covers security best practices for deploying and managing nsyte sites.
+This guide covers nsyte's secure credential storage system and deployment security best practices.
+
+## Credential Storage Security
+
+nsyte uses a multi-tier security approach for storing sensitive bunker connection data:
+
+### Storage Tiers
+
+**Tier 1 (Best): Native OS Keychain**
+- **macOS**: Keychain Services with hardware-backed encryption
+- **Windows**: Credential Manager with DPAPI protection  
+- **Linux**: Secret Service API (libsecret) with desktop keyring
+
+**Tier 2 (Good): Encrypted File Storage**
+- AES-256-GCM encryption when native keychain unavailable
+- PBKDF2 key derivation from system attributes
+- Platform-specific storage locations
+
+**Tier 3 (Fallback): Legacy Plain Text**
+- Emergency fallback with security warnings
+- Automatic migration to secure storage when available
+
+### Storage Locations
+
+**Secure Storage**: Platform-specific keychain or encrypted files
+
+**Config Directories**:
+- Linux: `~/.config/nsyte`
+- macOS: `~/Library/Application Support/nsyte`  
+- Windows: `%APPDATA%\nsyte`
+
+### Automatic Migration
+
+Legacy plain-text storage is automatically migrated to secure storage:
+- Reads existing `secrets.json` file
+- Stores secrets using most secure available backend
+- Removes legacy file after successful migration
+- Process logged for audit purposes
 
 ## Key Management
 
@@ -14,18 +51,21 @@ This guide covers security best practices for deploying and managing nsyte sites
 Your bunker key is your primary authentication method. Keep it secure:
 
 **Storage**
+- Automatically stored using most secure available backend
 - Never commit keys to version control
-- Use environment variables or secure secret management
-- Store keys encrypted at rest
+- Use environment variables or secure secret management for CI/CD
 - Use different keys for different environments
 
 **Example secure usage:**
 ```bash
-# Export as environment variable
-export NSYTE_BUNKER_KEY="nsec1..."
+# Local storage (automatically secure)
+nsyte bunker connect bunker://...
+
+# Export for CI/CD
+nsyte bunker export <pubkey>
 
 # Use in CI/CD with secrets
-NSYTE_BUNKER_KEY: ${{ secrets.NSYTE_BUNKER_KEY }}
+NBUNK_SECRET: ${{ secrets.NBUNK_SECRET }}
 ```
 
 ### Key Rotation
@@ -135,8 +175,38 @@ jobs:
 - Review file permissions
 - Monitor for rate limiting
 
+## Testing Security Features
+
+### Test Storage Backend
+
+You can test which storage backend nsyte is using:
+
+```bash
+# Run the built-in security test
+deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
+```
+
+This will show:
+- Which keychain provider is available
+- Whether encrypted storage works
+- Storage and retrieval functionality
+- Migration capabilities
+
+### Verify Bunker Storage
+
+```bash
+# List stored bunkers
+nsyte bunker list
+
+# Test bunker export/import
+nsyte bunker export <pubkey>
+nsyte bunker import <nbunksec>
+```
+
 ## Getting Help
 
+- [Platform-Specific Details](./security-platforms.md) for implementation specifics
+- [Security Troubleshooting](./security-troubleshooting.md) for common issues
 - [GitHub Issues](https://github.com/sandwichfarm/nsyte/issues) for bug reports
 - [Deployment Guide](./deployment.md) for deployment help
 - [CI/CD Guide](./ci-cd.md) for automation setup 

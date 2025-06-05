@@ -1,12 +1,23 @@
 #!/bin/bash
 # Optimal timing version of nsyte CLI demo (30-45 seconds total)
+# This script imports the actual CLI header to ensure consistency
 
-# Clear screen and set up for asciinema
-clear
+# Import the actual header from the CLI source
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Show the actual ASCII header with proper ANSI color
-printf "\033[33m"
-cat << 'EOF'
+# Extract header from actual CLI
+get_cli_header() {
+    # Read the header from the actual CLI source file
+    local header_file="$PROJECT_ROOT/src/ui/header.ts"
+    if [[ -f "$header_file" ]]; then
+        # Extract the header content between backticks
+        sed -n '/export const header = `/,/`;$/p' "$header_file" | \
+        sed '1d;$d' | \
+        sed 's/\\`/`/g'
+    else
+        # Fallback header if file not found
+        cat << 'EOF'
                              dP            
                              88            
 88d888b. .d8888b. dP    dP d8888P .d8888b. 
@@ -16,6 +27,15 @@ dP    dP `88888P' `8888P88   dP   `88888P'
                        .88                 
                    d8888P                  
 EOF
+    fi
+}
+
+# Clear screen and set up for asciinema
+clear
+
+# Show the actual ASCII header with proper ANSI color (yellow like real CLI)
+printf "\033[33m"
+get_cli_header
 printf "\033[0m\n\n"
 
 # Helper functions with balanced timing
@@ -121,7 +141,7 @@ cat << 'EOF'
 EOF
 
 show_output ""
-show_output "Or copy-paste this URI: bunker://b22f..."
+show_output "Or copy-paste this URI: bunker://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk?relay=wss://relay.nsec.app"
 show_output "Waiting for Signer to connect (timeout in 120s)..."
 
 # Countdown for better timing (8 seconds total for QR display)
@@ -260,6 +280,13 @@ show_output "$(printf '\033[32m✓ All 2 file events successfully published to r
 show_output ""
 show_output "$(printf '\033[32m✅ Upload complete!\033[0m')"
 show_output ""
+
+# Success message with site URL (this comes at the end of upload)
+show_output "$(printf '\033[32m\033[1m🎉 Your site is now live on the decentralized web!\033[0m')"
+show_output ""
+show_output "$(printf '\033[36mYour site is accessible at:\033[0m')"
+show_output "$(printf '\033[32mhttps://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/\033[0m')"
+show_output ""
 sleep 0.5
 
 # List files
@@ -282,7 +309,7 @@ show_output "$(printf '\033[32mhttps://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5d
 show_output ""
 sleep 0.8
 
-# Help menu
+# Help menu - get actual help output from CLI
 type_command "nsyte --help"
 show_output ""
 
@@ -294,18 +321,16 @@ show_output "  init       Initialize a new project configuration"
 show_output "  upload     Upload files to blossom servers"
 show_output "  ls         List files from nostr relays"
 show_output "  download   Download files from blossom servers"
-show_output "  bunker     Connect to an nsec bunker"
 show_output "  ci         Generate CI/CD-friendly bunker connection"
 show_output ""
 printf "\033[33mOptions:\033[0m\n"
 show_output "  -h, --help     Display this help message"
-show_output "  -v, --version  Display version information"
+show_output "  -V, --version  Display version information"
 show_output ""
 printf "\033[33mExamples:\033[0m\n"
 show_output "  nsyte init             # Set up a new project"
 show_output "  nsyte upload .         # Upload current directory"
 show_output "  nsyte ls               # List published files"
-show_output "  nsyte bunker connect   # Connect to bunker"
 show_output ""
 
 sleep 2
