@@ -299,12 +299,7 @@ show_output "Found 2 files:"
 show_output "/index.html"
 show_output "/style.css"
 show_output ""
-sleep 0.5
-
-# Success message with nsite resolver URL
-show_output "$(printf '\033[32m\033[1m🎉 Your site is now live on the decentralized web!\033[0m')"
-show_output ""
-show_output "$(printf '\033[36mYour site is accessible at:\033[0m')"
+show_output "$(printf '\033[36mAccess your site at:\033[0m')"
 show_output "$(printf '\033[32mhttps://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/\033[0m')"
 show_output ""
 sleep 0.8
