@@ -10,6 +10,10 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp index.html dist/
 
+# Copy demo recording files
+echo "🎬 Copying demo files..."
+cp -r demo-recording dist/
+
 # Copy install script to a subdirectory to avoid root-level restrictions
 echo "📦 Preparing install script..."
 mkdir -p dist/get
@@ -29,6 +33,7 @@ echo ""
 echo "Structure:"
 echo "  dist/"
 echo "  ├── index.html          (splash page)"
+echo "  ├── demo-recording/     (asciinema demos)"
 echo "  ├── install.sh           (install script)"
 echo "  └── docs/               (documentation)"
 echo ""
