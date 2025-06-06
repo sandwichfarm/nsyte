@@ -75,6 +75,9 @@ jobs:
             nsyte-windows-${{ env.VERSION }}.exe
             ```
           files: |
+            dist/nsyte-linux
+            dist/nsyte-macos
+            dist/nsyte-windows.exe
             dist/nsyte-linux-${{ env.VERSION }}
             dist/nsyte-macos-${{ env.VERSION }}
             dist/nsyte-windows-${{ env.VERSION }}.exe

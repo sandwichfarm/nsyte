@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
-import { nip19 } from "npm:nostr-tools";
+import { npubEncode } from "../lib/utils.ts";
 import { copy } from "std/fs/copy.ts";
 import { join, normalize, dirname } from "std/path/mod.ts";
 import { defaultConfig, readProjectFile, setupProject, type ProjectConfig, type ProjectContext } from "../lib/config.ts";
@@ -198,7 +198,7 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
 }
 
 function displayGatewayUrl(publisherPubkey: string) {
-  const npub = nip19.npubEncode(publisherPubkey);
+  const npub = npubEncode(publisherPubkey);
   const { gatewayHostnames } = config;
   console.log(colors.green(`\nThe website is now available on any nsite gateway, for example:`));
   for (const gatewayHostname of gatewayHostnames || []) {

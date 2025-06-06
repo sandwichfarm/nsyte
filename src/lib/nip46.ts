@@ -7,7 +7,7 @@ import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { qrcode as generateQrCodeForTerminal } from "jsr:@libs/qrcode";
 import { bytesToHex, hexToBytes } from "npm:@noble/hashes/utils";
 import { bech32 } from "npm:@scure/base";
-import * as nostrTools from "npm:nostr-tools";
+import { randomBytes } from "@noble/hashes/utils";
 import { lastValueFrom } from "rxjs";
 import { createLogger } from "./logger.ts";
 import { SecretsManager } from "./secrets/mod.ts";
@@ -283,7 +283,7 @@ export async function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array
  */
 export async function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): Promise<void> {
   try {
-    const tempClientKey = nostrTools.generateSecretKey();
+    const tempClientKey = randomBytes(32);
 
     await saveBunkerInfo(bunkerPubkey, tempClientKey, bunkerUrl);
 

@@ -1,6 +1,5 @@
 import { assertEquals, assertNotEquals } from "std/testing/asserts.ts";
 import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
-import * as nostrTools from "npm:nostr-tools";
 import * as path from "std/path/mod.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { 
