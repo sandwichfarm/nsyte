@@ -6,7 +6,7 @@
 
 import { join } from "https://deno.land/std@0.208.0/path/mod.ts";
 
-const demoScript = join(Deno.cwd(), "demo-recording", "nsyte-demo-optimal.sh");
+const demoScript = join(Deno.cwd(), "scripts", "demo-recording", "nsyte-demo-optimal.sh");
 const outputCast = join(Deno.cwd(), "demo", "nsyte-demo.cast");
 
 console.log("🎬 Generating asciinema recording...");

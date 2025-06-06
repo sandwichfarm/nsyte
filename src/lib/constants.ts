@@ -16,4 +16,15 @@ export const NSYTE_BROADCAST_RELAYS = [
   "wss://nos.lol",
   "wss://nostr.wine",
   "wss://relay.snort.social",
+];
+
+/**
+ * Default blossom servers for file storage
+ */
+export const DEFAULT_BLOSSOM_SERVERS = [
+  "https://blossom.primal.net",
+  "https://cdn.hzrd149.com",
+  "https://cdn.sovbit.host",
+  "https://cdn.nostrcheck.me",
+  "https://nostr.download",
 ]; 

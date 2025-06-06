@@ -1,158 +1,169 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "https://jsr.io/@std/testing/1.0.12/bdd.ts";
 import { join } from "std/path/mod.ts";
 import { ensureDir } from "std/fs/mod.ts";
 import {
   ProjectConfig,
-  readProjectConfig,
-  writeProjectConfig,
-  getProjectBunker,
-  setProjectBunker,
-  clearProjectBunker,
-  getDefaultRelays,
-  setDefaultRelays,
-  clearDefaultRelays,
-  getConfig
+  readProjectFile,
+  writeProjectFile,
+  defaultConfig
 } from "../../src/lib/config.ts";
 
-describe("lib/config", () => {
+Deno.test("lib/config", async (t) => {
   const testDir = join(Deno.cwd(), ".test_lib_config");
-  const testConfigPath = join(testDir, ".nsite");
+  const originalCwd = Deno.cwd();
 
-  beforeEach(async () => {
+  const setupTest = async () => {
     await ensureDir(testDir);
-  });
+    Deno.chdir(testDir);
+  };
 
-  afterEach(async () => {
+  const cleanupTest = async () => {
+    Deno.chdir(originalCwd);
     try {
       await Deno.remove(testDir, { recursive: true });
     } catch {
       // Ignore
     }
-  });
+  };
 
-  describe("readProjectConfig", () => {
-    it("should return null when config doesn't exist", async () => {
-      const config = await readProjectConfig(testConfigPath);
+  await t.step("readProjectFile", async (t) => {
+    await t.step("should return null when config doesn't exist", async () => {
+      await setupTest();
+      const config = readProjectFile();
       assertEquals(config, null);
+      await cleanupTest();
     });
 
-    it("should read valid config", async () => {
+    await t.step("should read valid config", async () => {
+      await setupTest();
       const testConfig: ProjectConfig = {
-        version: "1.0",
-        bunker: "test-bunker",
-        relays: ["wss://relay1.test", "wss://relay2.test"]
+        relays: ["wss://relay1.test", "wss://relay2.test"],
+        servers: ["https://server1.test"],
+        publishServerList: true,
+        publishRelayList: true
       };
       
-      await Deno.writeTextFile(testConfigPath, JSON.stringify(testConfig, null, 2));
+      // Create .nsite directory and config.json
+      await ensureDir(".nsite");
+      await Deno.writeTextFile(".nsite/config.json", JSON.stringify(testConfig, null, 2));
       
-      const config = await readProjectConfig(testConfigPath);
+      const config = readProjectFile();
       assertExists(config);
-      assertEquals(config.version, "1.0");
-      assertEquals(config.bunker, "test-bunker");
       assertEquals(config.relays, ["wss://relay1.test", "wss://relay2.test"]);
+      assertEquals(config.servers, ["https://server1.test"]);
+      await cleanupTest();
     });
 
-    it("should handle invalid JSON", async () => {
-      await Deno.writeTextFile(testConfigPath, "invalid json");
-      const config = await readProjectConfig(testConfigPath);
+    await t.step("should handle invalid JSON", async () => {
+      await setupTest();
+      await ensureDir(".nsite");
+      await Deno.writeTextFile(".nsite/config.json", "invalid json");
+      const config = readProjectFile();
       assertEquals(config, null);
+      await cleanupTest();
     });
   });
 
-  describe("writeProjectConfig", () => {
-    it("should write config", async () => {
+  await t.step("writeProjectFile", async (t) => {
+    await t.step("should write config", async () => {
+      await setupTest();
       const testConfig: ProjectConfig = {
-        version: "1.0",
-        bunker: "test-bunker"
+        relays: ["wss://test.relay"],
+        servers: ["https://test.server"],
+        publishServerList: true,
+        publishRelayList: true
       };
       
-      await writeProjectConfig(testConfigPath, testConfig);
+      writeProjectFile(testConfig);
       
-      const content = await Deno.readTextFile(testConfigPath);
+      const content = await Deno.readTextFile(".nsite/config.json");
       const parsed = JSON.parse(content);
-      assertEquals(parsed.version, "1.0");
-      assertEquals(parsed.bunker, "test-bunker");
+      assertEquals(parsed.relays, ["wss://test.relay"]);
+      assertEquals(parsed.servers, ["https://test.server"]);
+      await cleanupTest();
     });
 
-    it("should create directory if needed", async () => {
-      const nestedPath = join(testDir, "nested", ".nsite");
+    await t.step("should create directory if needed", async () => {
+      await setupTest();
       const testConfig: ProjectConfig = {
-        version: "1.0"
+        relays: ["wss://test.relay"],
+        servers: [],
+        publishServerList: true,
+        publishRelayList: true
       };
       
-      await writeProjectConfig(nestedPath, testConfig);
+      writeProjectFile(testConfig);
       
-      const exists = await Deno.stat(nestedPath).then(() => true).catch(() => false);
+      const exists = await Deno.stat(".nsite/config.json").then(() => true).catch(() => false);
       assertEquals(exists, true);
+      await cleanupTest();
     });
   });
 
-  describe("Project Bunker functions", () => {
-    it("should get/set/clear project bunker", async () => {
-      // Initially should be null
-      let bunker = await getProjectBunker(testConfigPath);
-      assertEquals(bunker, null);
-      
-      // Set bunker
-      await setProjectBunker(testConfigPath, "test-bunker-123");
-      
-      // Get bunker
-      bunker = await getProjectBunker(testConfigPath);
-      assertEquals(bunker, "test-bunker-123");
-      
-      // Clear bunker
-      await clearProjectBunker(testConfigPath);
-      
-      // Should be null again
-      bunker = await getProjectBunker(testConfigPath);
-      assertEquals(bunker, null);
+  await t.step("defaultConfig", async (t) => {
+    await t.step("should have expected default values", async () => {
+      await setupTest();
+      assertEquals(Array.isArray(defaultConfig.relays), true);
+      assertEquals(Array.isArray(defaultConfig.servers), true);
+      assertEquals(typeof defaultConfig.publishServerList, "boolean");
+      assertEquals(typeof defaultConfig.publishRelayList, "boolean");
+      await cleanupTest();
     });
   });
 
-  describe("Default Relays functions", () => {
-    it("should get/set/clear default relays", async () => {
-      // Initially should be null
-      let relays = await getDefaultRelays(testConfigPath);
-      assertEquals(relays, null);
-      
-      // Set relays
-      const testRelays = ["wss://relay1.test", "wss://relay2.test"];
-      await setDefaultRelays(testConfigPath, testRelays);
-      
-      // Get relays
-      relays = await getDefaultRelays(testConfigPath);
-      assertEquals(relays, testRelays);
-      
-      // Clear relays
-      await clearDefaultRelays(testConfigPath);
-      
-      // Should be null again
-      relays = await getDefaultRelays(testConfigPath);
-      assertEquals(relays, null);
-    });
-  });
-
-  describe("getConfig", () => {
-    it("should return full config object", async () => {
+  await t.step("Config validation", async (t) => {
+    await t.step("should handle config with all required fields", async () => {
+      await setupTest();
       const testConfig: ProjectConfig = {
-        version: "1.0",
-        bunker: "test-bunker",
-        relays: ["wss://relay.test"]
+        relays: ["wss://relay1.test", "wss://relay2.test"],
+        servers: ["https://server1.test"],
+        publishServerList: true,
+        publishRelayList: true,
+        bunkerPubkey: "test-pubkey",
+        profile: {
+          name: "Test User",
+          about: "Test description"
+        }
       };
       
-      await writeProjectConfig(testConfigPath, testConfig);
+      writeProjectFile(testConfig);
+      const readConfig = readProjectFile();
       
-      const config = await getConfig(testConfigPath);
+      assertExists(readConfig);
+      assertEquals(readConfig.relays, testConfig.relays);
+      assertEquals(readConfig.servers, testConfig.servers);
+      assertEquals(readConfig.bunkerPubkey, testConfig.bunkerPubkey);
+      assertEquals(readConfig.profile?.name, "Test User");
+      await cleanupTest();
+    });
+  });
+
+  await t.step("Config persistence", async (t) => {
+    await t.step("should persist and read back config correctly", async () => {
+      await setupTest();
+      const testConfig: ProjectConfig = {
+        relays: ["wss://relay.test"],
+        servers: ["https://server.test"],
+        publishServerList: false,
+        publishRelayList: true
+      };
+      
+      writeProjectFile(testConfig);
+      const config = readProjectFile();
+      
       assertExists(config);
-      assertEquals(config.version, "1.0");
-      assertEquals(config.bunker, "test-bunker");
       assertEquals(config.relays, ["wss://relay.test"]);
+      assertEquals(config.servers, ["https://server.test"]);
+      assertEquals(config.publishServerList, false);
+      assertEquals(config.publishRelayList, true);
+      await cleanupTest();
     });
 
-    it("should return null when no config exists", async () => {
-      const config = await getConfig(testConfigPath);
+    await t.step("should return null when no config exists", async () => {
+      await setupTest();
+      const config = readProjectFile();
       assertEquals(config, null);
+      await cleanupTest();
     });
   });
 });
