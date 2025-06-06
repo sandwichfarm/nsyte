@@ -949,7 +949,7 @@ code, pre, .highlight, .md-typeset code {
 .md-tabs__link {
   color: var(--cyber-text-secondary);
   font-family: var(--cyber-font-mono);
-  text-transform: lowercase;
+  text-transform: lowercase !important;
   letter-spacing: 0.5px;
   font-size: 0.9rem;
   font-weight: 500;
@@ -975,6 +975,13 @@ code, pre, .highlight, .md-typeset code {
 /* Remove unnecessary visual elements */
 .md-tabs__link::before {
   display: none;
+}
+
+/* Ensure all tab navigation is lowercase */
+.md-tabs__link,
+.md-tabs__item .md-tabs__link,
+.md-nav--primary .md-nav__item .md-nav__link {
+  text-transform: lowercase !important;
 }
 
 /* Clean up repository link */
