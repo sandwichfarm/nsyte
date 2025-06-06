@@ -201,7 +201,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
 
   // Only proceed with interactive key setup if we're in interactive mode
   if (!config.bunkerPubkey && !privateKey) {
-    const keyResult = await selectKeySource();
+    const keyResult = await selectKeySource(config);
     config = keyResult.config;
     privateKey = keyResult.privateKey;
   }
@@ -287,11 +287,11 @@ async function newBunker(config: ProjectConfig, secretsManager: SecretsManager):
     
 }
 
-async function selectKeySource(): Promise<{config: ProjectConfig, privateKey?: string}>{
+async function selectKeySource(existingConfig?: ProjectConfig): Promise<{config: ProjectConfig, privateKey?: string}>{
   console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
   let privateKey: string | undefined;
-  const config: ProjectConfig = structuredClone(defaultConfig);
+  const config: ProjectConfig = existingConfig ? structuredClone(existingConfig) : structuredClone(defaultConfig);
 
   // Check if there are any existing bunkers
   const secretsManager = SecretsManager.getInstance();
