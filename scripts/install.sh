@@ -77,7 +77,18 @@ command_exists() {
 # Install using Homebrew (macOS)
 install_homebrew() {
     print_info "Installing nsyte using Homebrew..."
-    if brew install https://raw.githubusercontent.com/sandwichfarm/homebrew-tap/main/Formula/nsyte.rb; then
+    
+    # Add the tap if it doesn't exist
+    if ! brew tap | grep -q "sandwichfarm/tap"; then
+        print_info "Adding sandwichfarm/tap..."
+        if ! brew tap sandwichfarm/tap; then
+            print_warning "Failed to add tap, falling back to binary installation"
+            return 1
+        fi
+    fi
+    
+    # Install nsyte from the tap
+    if brew install sandwichfarm/tap/nsyte; then
         print_success "nsyte installed successfully via Homebrew!"
         return 0
     else
@@ -132,11 +143,28 @@ install_aur() {
 # Install using Deno
 install_deno() {
     print_info "Installing nsyte using Deno..."
-    if deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts; then
-        print_success "nsyte installed successfully via Deno!"
-        return 0
+    
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    
+    print_info "Cloning repository..."
+    if git clone https://github.com/sandwichfarm/nsyte.git "$TEMP_DIR" >/dev/null 2>&1; then
+        cd "$TEMP_DIR"
+        print_info "Installing from local repository..."
+        if deno install -A -f -g -n nsyte src/cli.ts; then
+            cd - >/dev/null
+            rm -rf "$TEMP_DIR"
+            print_success "nsyte installed successfully via Deno!"
+            return 0
+        else
+            cd - >/dev/null
+            rm -rf "$TEMP_DIR"
+            print_warning "Deno installation failed, falling back to binary installation"
+            return 1
+        fi
     else
-        print_warning "Deno installation failed, falling back to binary installation"
+        rm -rf "$TEMP_DIR"
+        print_warning "Failed to clone repository, falling back to binary installation"
         return 1
     fi
 }
