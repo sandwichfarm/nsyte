@@ -113,6 +113,20 @@ Export a bunker connection as an nbunksec string.
 nsyte bunker export <pubkey>
 ```
 
+### `nsyte ci`
+
+Generate CI/CD credentials by creating a dedicated nbunksec string for use in automated environments.
+
+```bash
+nsyte ci
+```
+
+This command:
+- Guides you through bunker connection
+- Generates a dedicated nbunksec for CI/CD
+- Displays the nbunksec (shown only once!)
+- Use the generated nbunksec with `--nbunksec` in your CI/CD pipeline
+
 ### `nsyte bunker use`
 
 Configure the project to use a specific bunker.

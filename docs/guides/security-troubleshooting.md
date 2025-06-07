@@ -186,8 +186,11 @@ rm ~/.config/nsyte/secrets.json
 **Solutions**:
 
 ```bash
+# Generate CI/CD credentials properly
+nsyte ci  # Follow interactive prompts
+
 # Verify nbunksec format
-echo $NBUNK_SECRET | head -c 50  # Should start with "nbunk1"
+echo $NBUNK_SECRET | head -c 50  # Should start with "nbunksec1"
 
 # Test locally first
 nsyte upload ./dist --nbunksec $NBUNK_SECRET
@@ -195,6 +198,11 @@ nsyte upload ./dist --nbunksec $NBUNK_SECRET
 # Check secret configuration in CI/CD platform
 # GitHub Actions: Repository Settings > Secrets
 # GitLab CI: Project Settings > CI/CD > Variables
+
+# Common fixes:
+# - Ensure no extra spaces or newlines in secret
+# - Use proper secret syntax: ${{ secrets.NBUNK_SECRET }}
+# - Check secret is available to the workflow/job
 ```
 
 ### 7. Permission Denied Errors

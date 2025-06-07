@@ -61,11 +61,12 @@ Your bunker key is your primary authentication method. Keep it secure:
 # Local storage (automatically secure)
 nsyte bunker connect bunker://...
 
-# Export for CI/CD
-nsyte bunker export <pubkey>
+# Generate CI/CD credentials
+nsyte ci
+# This creates a dedicated nbunksec for CI/CD use
 
 # Use in CI/CD with secrets
-NBUNK_SECRET: ${{ secrets.NBUNK_SECRET }}
+nsyte upload ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ### Key Rotation

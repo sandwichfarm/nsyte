@@ -182,21 +182,27 @@ nsyte bunker list
 
 ## CI/CD Integration
 
-Use nbunksec string to authenticate in CI/CD pipelines:
+Generate secure credentials for CI/CD environments:
 
 ```bash
-# ON LOCAL SYSYEM
-nsyte bunker connect bunker://...
-nsyte bunker export # copy the nbunksec...
-nsyte bunker remove 
+# Generate CI/CD credentials (interactive)
+nsyte ci
 
-# IN CI/CD - add nbunksec as secret and then in the workflow...
+# This will:
+# 1. Guide you through bunker connection
+# 2. Generate an nbunksec string for CI/CD use
+# 3. Display the nbunksec (shown only once!)
+
+# Add the nbunksec to your CI/CD secrets (e.g., NBUNK_SECRET)
+# Then use in your pipeline:
 nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
 ```
 
-Notes:
-- The `nbunksec` should deauthed from your bunker and rotated periodically for maximum security
-- Restricting bunker permissions to only kinds you are fine with your CI/CD publishing is recommended. 
+**Security Best Practices:**
+- Generate dedicated nbunksec for CI/CD (don't reuse personal credentials)
+- Rotate nbunksec periodically
+- Restrict bunker permissions to only required event kinds
+- Store nbunksec securely in your CI/CD platform's secret manager 
 
 ### GitHub Actions Example
 

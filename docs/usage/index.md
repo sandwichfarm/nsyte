@@ -122,6 +122,24 @@ nsyte upload ./dist --fallback=/index.html
 nsyte upload ./dist
 ```
 
+### CI/CD Integration
+
+To automate deployments in CI/CD:
+
+1. Generate CI/CD credentials locally:
+```bash
+nsyte ci
+# Follow prompts to connect bunker
+# Copy the generated nbunksec (shown only once!)
+```
+
+2. Add the nbunksec to your CI/CD secrets (e.g., `NBUNK_SECRET`)
+
+3. Use in your pipeline:
+```bash
+nsyte upload ./dist --nbunksec $NBUNK_SECRET
+```
+
 ## Next Steps
 
 - Learn about [configuration options](./configuration.md)
