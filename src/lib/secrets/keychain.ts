@@ -519,7 +519,7 @@ export async function getKeychainProvider(): Promise<KeychainProvider | null> {
   
   const isAvailable = await provider.isAvailable();
   if (!isAvailable) {
-    log.warn(`Keychain provider for ${Deno.build.os} is not available`);
+    log.debug(`Keychain provider for ${Deno.build.os} is not available`);
     return null;
   }
   

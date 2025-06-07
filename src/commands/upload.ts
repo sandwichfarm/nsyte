@@ -301,6 +301,7 @@ async function resolveContext(
 }
 
 async function initSigner( authKeyHex: string | null | undefined): Promise<Signer | { error: string }> {
+  // Priority 1: nbunksec from CLI (skip all other methods)
   if (options.nbunksec) {
     try {
       log.info("Using NostrBunker (nbunksec from CLI) for signing...");
@@ -309,8 +310,11 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       return bunkerSigner;
     } catch (e: unknown) {
       return { error: `Failed to import nbunksec from CLI: ${getErrorMessage(e)}` };
-      }
-    } else if (options.bunker) {
+    }
+  }
+  
+  // Priority 2: bunker URL from CLI
+  if (options.bunker) {
     try {
       log.info(`Using NostrBunker (URL from CLI: ${options.bunker}) for signing...`);
       const { client } = await createNip46ClientFromUrl(options.bunker);
@@ -326,6 +330,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       return { error: `Invalid private key provided: ${getErrorMessage(e)}` };
     }
   } else if (config?.bunkerPubkey) {
+    // Only access SecretsManager if we actually need it (no CLI auth provided)
     log.info(`Attempting to use configured bunker (pubkey: ${config.bunkerPubkey.substring(0,8)}...) for signing...`);
       const secretsManager = SecretsManager.getInstance();
       const nbunkString = await secretsManager.getNbunk(config.bunkerPubkey);

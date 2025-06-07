@@ -117,10 +117,10 @@ export class SecretsManager {
     // Try to initialize secure storage backend
     const keychainProvider = await getKeychainProvider();
     if (keychainProvider) {
-      log.info("Using native keychain for secure storage");
+      log.debug("Using native keychain for secure storage");
       this.storageBackend = new KeychainBackend(keychainProvider);
     } else {
-      log.info("Native keychain not available, using encrypted file storage");
+      log.debug("Native keychain not available, using encrypted file storage");
       const encryptedStorage = new EncryptedStorage();
       const encryptedInitialized = await encryptedStorage.initialize();
       

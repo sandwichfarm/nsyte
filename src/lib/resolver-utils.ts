@@ -92,6 +92,34 @@ export async function resolvePubkey(
     return pubkey;
   }
   
+  // nbunksec provided - derive pubkey without accessing SecretsManager
+  if (options.nbunksec) {
+    try {
+      const signer = await importFromNbunk(options.nbunksec);
+      const pubkey = await signer.getPublicKey();
+      log.debug(`Using pubkey from nbunksec: ${pubkey.slice(0, 8)}...`);
+      await signer.close();
+      return pubkey;
+    } catch (error) {
+      log.error(`Failed to get pubkey from nbunksec: ${getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+  
+  // Bunker URL provided - derive pubkey
+  if (options.bunker) {
+    try {
+      const { client } = await createNip46ClientFromUrl(options.bunker);
+      const pubkey = await client.getPublicKey();
+      log.debug(`Using pubkey from bunker URL: ${pubkey.slice(0, 8)}...`);
+      await client.close();
+      return pubkey;
+    } catch (error) {
+      log.error(`Failed to get pubkey from bunker URL: ${getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+  
   // Check project config for bunker pubkey
   const projectConfig = config || readProjectFile() || defaultConfig;
   if (projectConfig.bunkerPubkey) {
