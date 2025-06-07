@@ -31,26 +31,28 @@ HTTP_SERVER_PID=$!
 echo "👀 Starting file watcher for splash page and install script..."
 if command -v fswatch >/dev/null 2>&1; then
     # macOS
-    fswatch -o index.html install.sh | while read f; do
+    fswatch -o website/src/index.html website/src/install-redirect.html scripts/install.sh | while read f; do
         echo "🔄 Files changed, rebuilding..."
-        cp index.html dist/
+        cp website/src/index.html dist/
+        cp website/src/install-redirect.html dist/install.html
         mkdir -p dist/get
-        cp install.sh dist/get/install.sh
-        cp install.sh dist/get/install.txt
-        cp install.sh dist/install.txt
-        cp install.sh dist/install.sh
+        cp scripts/install.sh dist/get/install.sh
+        cp scripts/install.sh dist/get/install.txt
+        cp scripts/install.sh dist/install.txt
+        cp scripts/install.sh dist/install.sh
         echo "✅ Files updated"
     done &
 elif command -v inotifywait >/dev/null 2>&1; then
     # Linux
-    while inotifywait -e modify index.html install.sh; do
+    while inotifywait -e modify website/src/index.html website/src/install-redirect.html scripts/install.sh; do
         echo "🔄 Files changed, rebuilding..."
-        cp index.html dist/
+        cp website/src/index.html dist/
+        cp website/src/install-redirect.html dist/install.html
         mkdir -p dist/get
-        cp install.sh dist/get/install.sh
-        cp install.sh dist/get/install.txt
-        cp install.sh dist/install.txt
-        cp install.sh dist/install.sh
+        cp scripts/install.sh dist/get/install.sh
+        cp scripts/install.sh dist/get/install.txt
+        cp scripts/install.sh dist/install.txt
+        cp scripts/install.sh dist/install.sh
         echo "✅ Files updated"
     done &
 else
@@ -65,8 +67,8 @@ echo "   📱 Splash page: http://localhost:8000"
 echo "   📚 Documentation: http://localhost:8000/docs"
 echo "   🔧 MkDocs dev server: http://localhost:8001 (for docs-only editing)"
 echo ""
-echo "✨ Changes to index.html will auto-rebuild the splash page"
-echo "✨ Changes to install.sh will auto-rebuild the install script"
+echo "✨ Changes to website/src/index.html will auto-rebuild the splash page"
+echo "✨ Changes to scripts/install.sh will auto-rebuild the install script"
 echo "✨ Changes to docs/ will auto-rebuild via MkDocs"
 echo ""
 echo "Press Ctrl+C to stop all servers"

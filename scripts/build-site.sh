@@ -8,7 +8,7 @@ mkdir -p dist
 
 # Copy splash page to root
 echo "📄 Copying splash page..."
-cp index.html dist/
+cp website/src/index.html dist/
 
 # Copy demo recording files
 echo "🎬 Copying demo files..."
@@ -22,7 +22,7 @@ cp scripts/install.sh dist/get/install.txt
 # Copy install.txt at root (Bunny.net blocks .sh files at root)
 cp scripts/install.sh dist/install.txt
 # Add redirect for legacy install URL
-cp install-redirect.html dist/install.html
+cp website/src/install-redirect.html dist/install.html
 
 # Build documentation with MkDocs
 echo "📚 Building documentation..."

@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nsyte - Publish to the Decentralized Web</title>
+    <meta name="description" content="A command-line tool for publishing websites to nostr and Blossom servers. Decentralized, censorship-resistant website hosting.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Asciinema Player -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.css" />
+    
+    <!-- CSS -->
+    <style>
+        /* Cypherpunk theme variables - lower contrast */
+        :root {
+            --cyber-bg: #0f0f1a;
+            --cyber-surface: #1a1a2e;
+            --cyber-surface-variant: #242444;
+            --cyber-border: #3a3a5a;
+            --cyber-text: #d4d4d8;
+            --cyber-text-secondary: #a1a1aa;
+            --cyber-text-muted: #71717a;
+            --cyber-accent: #34d399;
+            --cyber-accent-bright: #6ee7b7;
+            --cyber-accent-dim: #10b981;
+            --cyber-purple: #8b5cf6;
+            --cyber-blue: #3b82f6;
+            --cyber-warning: #f59e0b;
+            --cyber-error: #ef4444;
+            --cyber-font-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            --cyber-font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--cyber-font-sans);
+            background: var(--cyber-bg);
+            color: var(--cyber-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* Hero Section with animated background */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            background: linear-gradient(135deg, var(--cyber-bg) 0%, var(--cyber-surface) 50%, var(--cyber-bg) 100%);
+            overflow: hidden;
+            border-bottom: 1px solid var(--cyber-border);
+            padding: 4rem 0;
+        }
+
+        /* Animated geometric background */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(52, 211, 153, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%);
+            animation: float-gradient 12s ease-in-out infinite;
+        }
+
+        /* Animated grid overlay */
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(52, 211, 153, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(52, 211, 153, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px;
+            animation: grid-move 20s linear infinite;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        @keyframes float-gradient {
+            0%, 100% { 
+                transform: translate(0, 0) scale(1);
+                opacity: 0.6;
+            }
+            33% { 
+                transform: translate(-20px, -10px) scale(1.1);
+                opacity: 0.8;
+            }
+            66% { 
+                transform: translate(10px, -20px) scale(0.9);
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes grid-move {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        /* Floating particles */
+        .hero-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: var(--cyber-accent);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: float-particle linear infinite;
+        }
+
+        .particle:nth-child(odd) {
+            background: var(--cyber-purple);
+            opacity: 0.3;
+        }
+
+        .particle:nth-child(3n) {
+            background: var(--cyber-blue);
+            opacity: 0.2;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.4;
+            }
+            90% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+        
+        .hero-text {
+            text-align: left;
+        }
+        
+        .hero-demo {
+            width: 100%;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 700;
+            margin: 0 0 1.5rem 0;
+            color: var(--cyber-text);
+            font-family: 'Space Grotesk', var(--cyber-font-sans);
+            letter-spacing: -1px;
+            line-height: 1.1;
+            position: relative;
+        }
+
+        .hero-title::before {
+            content: '> ';
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            font-size: 0.8em;
+            animation: cursor-blink 1.5s infinite;
+        }
+
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .hero-tagline {
+            font-size: clamp(1.25rem, 3vw, 1.75rem);
+            font-weight: 400;
+            margin: 0 0 1.5rem 0;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+
+        .hero-description {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            line-height: 1.7;
+            margin: 0 0 3rem 0;
+            color: var(--cyber-text-secondary);
+            font-family: var(--cyber-font-sans);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            font-family: var(--cyber-font-sans);
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+            min-width: 180px;
+            justify-content: center;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--cyber-accent);
+            color: var(--cyber-bg);
+            border-color: var(--cyber-accent);
+            text-shadow: none;
+            box-shadow: 0 4px 12px rgba(52, 211, 153, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: var(--cyber-accent-bright);
+            border-color: var(--cyber-accent-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 211, 153, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--cyber-accent);
+            border-color: var(--cyber-accent);
+            box-shadow: 0 2px 8px rgba(52, 211, 153, 0.15);
+        }
+
+        .btn-secondary:hover {
+            background: var(--cyber-surface-variant);
+            border-color: var(--cyber-accent-bright);
+            color: var(--cyber-accent-bright);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 211, 153, 0.2);
+        }
+
+        /* Demo container */
+        .demo-container {
+            width: 100%;
+        }
+
+        .demo-placeholder {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* Asciinema player customization */
+        #demo-player .asciinema-player-wrapper {
+            font-family: var(--cyber-font-mono) !important;
+        }
+
+        #demo-player .asciinema-terminal {
+            background: var(--cyber-bg) !important;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        /* Preserve ANSI yellow color for ASCII art */
+        #demo-player,
+        #demo-player .ap-terminal,
+        #demo-player .asciinema-terminal,
+        #demo-player .asciinema-theme-asciinema .ap-terminal,
+        #demo-player[data-theme="asciinema"] .ap-terminal {
+            --term-color-3: #ffff00 !important;
+            --term-color-11: #ffff55 !important;
+        }
+        
+        /* Multiple selectors to catch all possible cases */
+        #demo-player .fg-3,
+        #demo-player .ap-terminal .fg-3,
+        #demo-player .asciinema-terminal .fg-3,
+        #demo-player [class*="fg-3"] {
+            color: #ffff00 !important;
+        }
+        
+        /* Ensure theme doesn't override */
+        #demo-player .ap-player .fg-3 {
+            color: #ffff00 !important;
+        }
+
+        .demo-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            min-height: 400px;
+        }
+
+        .demo-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .demo-text {
+            font-size: 1.2rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-mono);
+            font-weight: 500;
+        }
+
+        /* Installation Section */
+        .installation {
+            padding: 5rem 0;
+            background: var(--cyber-surface);
+            position: relative;
+            border-top: 1px solid var(--cyber-border);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-sans);
+        }
+
+        .install-container {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            margin: 3rem auto;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            padding: 2rem;
+        }
+
+        .install-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue), var(--cyber-accent));
+        }
+
+        .install-method {
+            margin-bottom: 2rem;
+        }
+
+        .install-method:last-child {
+            margin-bottom: 0;
+        }
+
+        .install-method h4 {
+            margin: 0 0 1rem 0;
+            color: var(--cyber-accent);
+            font-size: 1.1rem;
+            font-family: var(--cyber-font-mono);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .recommended-badge {
+            background: var(--cyber-warning);
+            color: var(--cyber-bg);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .code-container {
+            position: relative;
+            background: var(--cyber-bg);
+            border: 1px solid var(--cyber-border);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 
+                0 10px 25px rgba(0, 255, 65, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .code-block {
+            padding: 1.5rem;
+            font-family: var(--cyber-font-mono);
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--cyber-accent-bright);
+            overflow-x: auto;
+            margin: 1rem 0;
+            background: var(--cyber-bg);
+            position: relative;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple));
+            border-radius: 8px 8px 0 0;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--cyber-surface);
+            color: var(--cyber-accent);
+            border: 1px solid var(--cyber-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: var(--cyber-font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+            background: var(--cyber-accent);
+            color: var(--cyber-bg);
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: var(--cyber-blue);
+            border-color: var(--cyber-blue);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 5rem 0;
+            background: var(--cyber-bg);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .feature-card {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+            border-color: var(--cyber-accent);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .feature-title {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.4rem;
+            color: var(--cyber-accent);
+            font-family: var(--cyber-font-sans);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .feature-description {
+            margin: 0;
+            color: var(--cyber-text-secondary);
+            line-height: 1.6;
+            font-family: var(--cyber-font-sans);
+        }
+
+        /* Remove theme toggle - pure cypherpunk theme */
+
+        /* Responsive Design */
+        @media (max-width: 968px) {
+            .hero {
+                min-height: 100vh;
+                height: auto;
+            }
+            
+            .hero-content {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                padding: 2rem 1rem;
+                text-align: center;
+            }
+            
+            .hero-text {
+                text-align: center;
+            }
+            
+            .cta-buttons {
+                justify-content: center;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .tab-nav {
+                flex-wrap: wrap;
+            }
+
+            .tab-button {
+                flex: 1;
+                min-width: 120px;
+            }
+
+            .code-block {
+                font-size: 0.875rem;
+            }
+
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-content > * {
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        .hero-content > *:nth-child(2) { animation-delay: 0.1s; }
+        .hero-content > *:nth-child(3) { animation-delay: 0.2s; }
+        .hero-content > *:nth-child(4) { animation-delay: 0.3s; }
+        .hero-content > *:nth-child(5) { animation-delay: 0.4s; }
+
+        /* Demo Walkthrough Styles */
+        .demo-section {
+            margin-bottom: 6rem;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .demo-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .demo-terminal {
+            background: var(--cyber-surface);
+            border: 1px solid var(--cyber-border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+            font-family: var(--cyber-font-mono);
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--cyber-text);
+            position: relative;
+            overflow: hidden;
+            min-height: 200px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .demo-terminal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .demo-section.playing .demo-terminal::before {
+            opacity: 1;
+            animation: pulse-gradient 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-gradient {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .demo-terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--cyber-border);
+        }
+
+        .demo-terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--cyber-border);
+        }
+
+        .demo-terminal-dot:nth-child(1) { background: #ff5f56; }
+        .demo-terminal-dot:nth-child(2) { background: #ffbd2e; }
+        .demo-terminal-dot:nth-child(3) { background: #27c93f; }
+
+        .demo-terminal-content {
+            position: relative;
+            min-height: 150px;
+        }
+
+        .demo-line {
+            margin: 0.5rem 0;
+            opacity: 0;
+            animation: fadeInLine 0.3s ease forwards;
+        }
+
+        @keyframes fadeInLine {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .demo-command {
+            color: var(--cyber-accent-bright);
+        }
+
+        .demo-prompt {
+            color: var(--cyber-accent);
+            margin-right: 0.5rem;
+        }
+
+        .demo-output {
+            color: var(--cyber-text-secondary);
+            margin-left: 1rem;
+        }
+
+        .demo-input {
+            color: var(--cyber-blue);
+        }
+
+        .demo-section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--cyber-accent);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-family: var(--cyber-font-sans);
+        }
+
+        .demo-section-description {
+            text-align: center;
+            color: var(--cyber-text-secondary);
+            margin-bottom: 2rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .demo-cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: var(--cyber-accent);
+            animation: cursor-blink 1s infinite;
+            vertical-align: text-bottom;
+            margin-left: 2px;
+        }
+
+        .demo-qr-code {
+            font-size: 8px;
+            line-height: 1;
+            letter-spacing: -1px;
+            color: var(--cyber-accent);
+            margin: 1rem 0;
+            font-family: monospace;
+            white-space: pre;
+        }
+
+        .demo-progress {
+            display: inline-block;
+            color: var(--cyber-green);
+        }
+
+        .demo-header-ascii {
+            color: var(--cyber-accent);
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: pre;
+            font-family: monospace;
+            margin-bottom: 1rem;
+        }
+
+        /* GitHub corner styling */
+        .github-corner {
+            opacity: 0.5;
+            transition: all 0.3s ease;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            color: var(--cyber-accent);
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(15, 15, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .github-corner:hover {
+            opacity: 1;
+            transform: translateY(-2px);
+            background: rgba(15, 15, 26, 0.95);
+            border-color: var(--cyber-accent);
+            box-shadow: 0 5px 20px rgba(52, 211, 153, 0.3);
+        }
+
+        .github-corner svg {
+            display: block;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <!-- GitHub corner link -->
+        <a href="https://github.com/sandwichfarm/nsyte" class="github-corner" target="_blank" rel="noopener noreferrer" aria-label="View source on GitHub">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+        </a>
+        
+        <!-- Animated particles background -->
+        <div class="hero-particles" id="particles"></div>
+        
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1 class="hero-title">nsyte</h1>
+                <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
+                <p class="hero-description">
+                    Deploy your site across decentralized infrastructure. No gatekeepers, no censorship, no single points of failure. 
+                    Your content, your keys, your network.
+                </p>
+                
+                <div class="cta-buttons">
+                    <a href="#installation" class="btn btn-primary">
+                        <span>🚀</span>
+                        Get Started
+                    </a>
+                    <a href="https://npub1lgpvhx3s6kyc427kn39n0aqvx8rpk0wdj7q72udjacj7tg08ffds3n7q94.nsite.lol/" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                        <span>🌐</span>
+                        Live Demo
+                    </a>
+                </div>
+            </div>
+            
+            <div class="hero-demo">
+                <div class="demo-container">
+                    <div id="demo-player" class="demo-placeholder"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section class="installation" id="installation">
+        <div class="container">
+            <h2 class="section-title">Quick Installation</h2>
+            
+            <div class="install-container">
+                <div class="install-method">
+                    <h4>Universal Install Script <span class="recommended-badge">All Platforms</span></h4>
+                    <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem; text-align: center;">
+                        Automatically detects your system and installs using the best available method
+                    </p>
+                    
+                    <!-- Installation method buttons -->
+                    <div class="install-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center; flex-wrap: wrap;">
+                        <button class="install-tab-btn active" data-method="script" style="padding: 0.5rem 1.5rem; background: var(--cyber-accent); color: var(--cyber-bg); border: 1px solid var(--cyber-accent); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Script</button>
+                        <button class="install-tab-btn" data-method="packages" style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Packages</button>
+                        <button class="install-tab-btn" data-method="manual" style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease;">Manual</button>
+                    </div>
+                    
+                    <!-- Script tab content -->
+                    <div class="install-tab-content" data-content="script">
+                        <!-- Command tabs -->
+                        <div class="command-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button class="cmd-tab-btn active" data-cmd="curl" style="padding: 0.5rem 1rem; background: var(--cyber-surface-variant); color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease;">curl</button>
+                            <button class="cmd-tab-btn" data-cmd="wget" style="padding: 0.5rem 1rem; background: transparent; color: var(--cyber-text-secondary); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease;">wget</button>
+                        </div>
+                        
+                        <div class="code-container" data-cmd-content="curl">
+                            <div class="code-block">curl -fsSL https://nsyte.run/get/install.sh | bash</div>
+                            <button class="copy-btn" data-copy="curl -fsSL https://nsyte.run/get/install.sh | bash">Copy</button>
+                        </div>
+                        
+                        <div class="code-container" data-cmd-content="wget" style="display: none;">
+                            <div class="code-block">wget -qO- https://nsyte.run/get/install.sh | bash</div>
+                            <button class="copy-btn" data-copy="wget -qO- https://nsyte.run/get/install.sh | bash">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Packages tab content -->
+                    <div class="install-tab-content" data-content="packages" style="display: none;">
+                        <div style="display: grid; gap: 1rem;">
+                            <div class="code-container">
+                                <div class="code-block">
+                                    <div style="color: var(--cyber-accent); margin-bottom: 0.5rem; font-weight: 600;">Deno (Recommended)</div>
+                                    <div>deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts</div>
+                                </div>
+                                <button class="copy-btn" data-copy="deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts">Copy</button>
+                            </div>
+                            <div style="margin-top: 1rem; padding: 1rem; background: var(--cyber-surface); border: 1px solid var(--cyber-border); border-radius: 8px;">
+                                <div style="color: var(--cyber-text-secondary); margin-bottom: 0.5rem;">
+                                    <strong style="color: var(--cyber-accent);">Coming Soon:</strong> Package manager support
+                                </div>
+                                <div style="font-size: 0.9rem; color: var(--cyber-text-muted); line-height: 1.6;">
+                                    We're working on making nsyte available through popular package managers like Homebrew, Snap, and others. 
+                                    For now, please use the Deno install method above or download pre-built binaries from the releases page.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual tab content -->
+                    <div class="install-tab-content" data-content="manual" style="display: none;">
+                        <div style="text-align: center; padding: 2rem;">
+                            <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem;">
+                                For detailed installation instructions including building from source, Docker, and platform-specific guides:
+                            </p>
+                            <a href="/docs/installation/" class="btn btn-primary" style="display: inline-block;">
+                                <span>📖</span>
+                                View Complete Installation Guide
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <p style="color: var(--cyber-text-secondary); font-size: 1.1rem;">
+                    After installation, run <code style="background: var(--cyber-surface-variant); color: var(--cyber-accent); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--cyber-font-mono); border: 1px solid var(--cyber-border);">nsyte init</code> to get started
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Built for Digital Sovereignty</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Censorship Resistant</h3>
+                    <p class="feature-description">
+                        Distribute across multiple nodes and relays. No single entity can silence your voice or take down your content.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔑</div>
+                    <h3 class="feature-title">Self-Sovereign Identity</h3>
+                    <p class="feature-description">
+                        Your cryptographic keys, your identity. NIP-46 bunker support for secure, remote key management.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">✍️</div>
+                    <h3 class="feature-title">Secure Signing</h3>
+                    <p class="feature-description">
+                        Sign deployments with bunkers like Amber. Keep your keys safe while maintaining full control over your content.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3 class="feature-title">Revocable CI/CD Keys</h3>
+                    <p class="feature-description">
+                        Generate ephemeral keys for automated deployments. Revoke access instantly when needed. Perfect for secure CI/CD pipelines.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Fast & Efficient</h3>
+                    <p class="feature-description">
+                        Concurrent uploads with smart diffing. Only upload what's changed. Configure concurrency for optimal performance.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3 class="feature-title">Privacy First</h3>
+                    <p class="feature-description">
+                        Zero tracking, zero data collection. Your publishing habits and content remain private and yours alone.
+                    </p>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 4rem;">
+                <a href="/docs/" class="btn btn-primary" style="color: var(--cyber-bg); background: var(--cyber-accent); border-color: var(--cyber-accent);">
+                    <span>📖</span>
+                    Explore Documentation
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CI/CD Section -->
+    <section class="cicd" style="padding: 5rem 0; background: var(--cyber-surface);">
+        <div class="container">
+            <h2 class="section-title">CI/CD? We've Got You Covered</h2>
+            
+            <div style="max-width: 900px; margin: 0 auto;">
+                <p style="text-align: center; color: var(--cyber-text-secondary); font-size: 1.2rem; margin-bottom: 2.5rem;">
+                    Deploy automatically with revocable keys. Perfect for secure CI/CD pipelines.
+                </p>
+                
+                <div class="code-container" style="position: relative; overflow: hidden;">
+                    <div class="code-block" style="padding: 2rem; line-height: 1.8;">
+                        <pre style="margin: 0; font-family: var(--cyber-font-mono); white-space: pre-wrap;"><span style="color: #5c6370;">      # ... build steps ...</span>
+      
+      - <span style="color: #e06c75;">name</span>: <span style="color: #98c379;">Deploy to Nostr/Blossom</span>
+        <span style="color: #e06c75;">uses</span>: <span style="color: #98c379;">sandwichfarm/nsite-action@v1</span>
+        <span style="color: #e06c75;">with</span>:
+          <span style="color: #e06c75;">nbunksec</span>: <span style="color: #d19a66;">${{ secrets.NBUNKSEC }}</span>
+          <span style="color: #e06c75;">directory</span>: <span style="color: #98c379;">'./dist'</span>
+          <span style="color: #e06c75;">relays</span>: |
+            <span style="color: #98c379;">wss://relay.damus.io</span>
+            <span style="color: #98c379;">wss://relay.snort.social</span>
+          <span style="color: #e06c75;">servers</span>: |
+            <span style="color: #98c379;">wss://some.blossom.server.com</span>
+          <span style="color: #e06c75;">force</span>: <span style="color: #d19a66;">false</span>
+          <span style="color: #e06c75;">verbose</span>: <span style="color: #d19a66;">true</span></pre>
+                    </div>
+                    <!-- Gradient overlay at the top -->
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to top, transparent 0%, rgba(15, 15, 26, 0.5) 40%, rgba(15, 15, 26, 0.8) 70%, var(--cyber-bg) 100%); pointer-events: none;"></div>
+                    <!-- Gradient overlay at the bottom -->
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 100px; background: linear-gradient(to bottom, transparent 0%, rgba(15, 15, 26, 0.7) 30%, rgba(15, 15, 26, 0.9) 60%, var(--cyber-bg) 100%); pointer-events: none;"></div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="https://github.com/sandwichfarm/nsite-action" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                        <span>🔗</span>
+                        View GitHub Action
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Walkthrough Section -->
+    <section class="demo-walkthrough" style="padding: 5rem 0; background: var(--cyber-bg);">
+        <div class="container">
+            <h2 class="section-title">See it in Action</h2>
+            <p style="text-align: center; color: var(--cyber-text-secondary); font-size: 1.2rem; margin-bottom: 4rem;">
+                Scroll through an interactive walkthrough of nsyte's key features
+            </p>
+            
+            <div class="demo-sections" id="demo-sections">
+                <!-- Demo sections will be dynamically inserted here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- JavaScript -->
+    <script>
+        // Copy functionality
+        function initializeCopyButtons() {
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            
+            copyButtons.forEach(button => {
+                button.addEventListener('click', async () => {
+                    const textToCopy = button.getAttribute('data-copy');
+                    
+                    try {
+                        await navigator.clipboard.writeText(textToCopy);
+                        showCopySuccess(button);
+                    } catch (err) {
+                        // Fallback for older browsers
+                        const textArea = document.createElement('textarea');
+                        textArea.value = textToCopy;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        showCopySuccess(button);
+                    }
+                });
+            });
+
+            function showCopySuccess(button) {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }
+        }
+
+
+        // Smooth scrolling
+        function initializeSmoothScrolling() {
+            const links = document.querySelectorAll('a[href^="#"]');
+            
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetId = link.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    
+                    if (targetElement) {
+                        e.preventDefault();
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        }
+
+        // Animated particles
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = 50;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random horizontal position
+                particle.style.left = Math.random() * 100 + '%';
+                
+                // Random animation duration and delay
+                const duration = Math.random() * 20 + 10; // 10-30 seconds
+                const delay = Math.random() * 10; // 0-10 seconds delay
+                
+                particle.style.animationDuration = duration + 's';
+                particle.style.animationDelay = delay + 's';
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Tab switching functionality
+        function initializeTabSwitching() {
+            // Installation method tabs
+            const installTabs = document.querySelectorAll('.install-tab-btn');
+            const installContents = document.querySelectorAll('.install-tab-content');
+            
+            installTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const method = tab.getAttribute('data-method');
+                    
+                    // Update active tab
+                    installTabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.style.background = 'transparent';
+                        t.style.color = 'var(--cyber-accent)';
+                        t.style.borderColor = 'var(--cyber-border)';
+                    });
+                    tab.classList.add('active');
+                    tab.style.background = 'var(--cyber-accent)';
+                    tab.style.color = 'var(--cyber-bg)';
+                    tab.style.borderColor = 'var(--cyber-accent)';
+                    
+                    // Show corresponding content
+                    installContents.forEach(content => {
+                        if (content.getAttribute('data-content') === method) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+            
+            // Command tabs (curl/wget)
+            const cmdTabs = document.querySelectorAll('.cmd-tab-btn');
+            const cmdContents = document.querySelectorAll('.code-container[data-cmd-content]');
+            
+            cmdTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const cmd = tab.getAttribute('data-cmd');
+                    
+                    // Update active tab
+                    cmdTabs.forEach(t => {
+                        t.classList.remove('active');
+                        t.style.background = 'transparent';
+                        t.style.color = 'var(--cyber-text-secondary)';
+                    });
+                    tab.classList.add('active');
+                    tab.style.background = 'var(--cyber-surface-variant)';
+                    tab.style.color = 'var(--cyber-accent)';
+                    
+                    // Show corresponding content
+                    cmdContents.forEach(content => {
+                        if (content.getAttribute('data-cmd-content') === cmd) {
+                            content.style.display = 'block';
+                        } else {
+                            content.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        }
+
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCopyButtons();
+            initializeSmoothScrolling();
+            createParticles();
+            initializeTabSwitching();
+        });
+    </script>
+    
+    <!-- Asciinema Player Script -->
+    <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.7.0/dist/bundle/asciinema-player.min.js"></script>
+    <script>
+        // Initialize Asciinema player when DOM is ready
+        function initializeDemo() {
+            const demoContainer = document.getElementById('demo-player');
+            
+            // Show loading state
+            demoContainer.innerHTML = `
+                <div class="demo-loading">
+                    <div class="demo-icon">⚡</div>
+                    <div class="demo-text">Loading demo...</div>
+                </div>
+            `;
+            
+            // Load the asciinema player
+            try {
+                // Clear the loading state
+                demoContainer.innerHTML = '';
+                
+                // Create the player directly with the cast file URL
+                AsciinemaPlayer.create(
+                    '/demo/nsyte-demo.cast',
+                    demoContainer,
+                    {
+                        cols: 80,
+                        rows: 24,
+                        autoPlay: true,
+                        preload: true,
+                        loop: true,
+                        speed: 1.0,
+                        theme: 'asciinema',
+                        fit: 'width',
+                        fontSize: 'small'
+                    }
+                );
+                
+            } catch (error) {
+                console.error('Error loading demo:', error);
+                demoContainer.innerHTML = `
+                    <div class="demo-loading">
+                        <div class="demo-icon">📺</div>
+                        <div class="demo-text">Demo coming soon...</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Initialize demo when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initializeDemo, 500); // Small delay to ensure everything is loaded
+        });
+
+        // Demo Walkthrough Implementation
+        // Load demo sections from generated file
+        let demoSections = [];
+        
+        // Fetch real demo sections
+        fetch('/demo/demo-sections.js')
+            .then(response => response.text())
+            .then(jsCode => {
+                // Extract the demoSections array from the JS file
+                const match = jsCode.match(/const demoSections = (\[[\s\S]*?\]);/);
+                if (match) {
+                    demoSections = JSON.parse(match[1]);
+                    // Re-initialize demo walkthrough with real data
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', initializeDemoWalkthrough);
+                    } else {
+                        initializeDemoWalkthrough();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Failed to load demo sections:', error);
+                // Fallback to basic demo data
+                demoSections = [
+                    {
+                        title: "Getting Started",
+                        description: "Initialize a new nsyte project with a simple command",
+                        content: [
+                            { type: 'header', text: `                             dP            
+                             88            
+88d888b. .d8888b. dP    dP d8888P .d8888b. 
+88'  \`88 Y8ooooo. 88    88   88   88ooood8 
+88    88       88 88.  .88   88   88.  ... 
+dP    dP \`88888P' \`8888P88   dP   \`88888P' 
+                       .88                 
+                   d8888P                  ` },
+                            { type: 'command', text: 'nsyte init' },
+                            { type: 'output', text: 'Initializing nsyte project...' }
+                        ]
+                    }
+                ];
+            });
+
+        // Terminal animation engine
+        class DemoPlayer {
+            constructor(container, content) {
+                this.container = container;
+                this.content = content;
+                this.lineIndex = 0;
+                this.isPlaying = false;
+                this.typingSpeed = 50;
+                this.lineDelay = 800;
+            }
+
+            async play() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.container.innerHTML = '';
+                
+                for (let i = 0; i < this.content.length; i++) {
+                    const item = this.content[i];
+                    await this.renderLine(item);
+                    if (i < this.content.length - 1) {
+                        await this.delay(this.lineDelay);
+                    }
+                }
+                
+                this.isPlaying = false;
+            }
+
+            async renderLine(item) {
+                const line = document.createElement('div');
+                line.className = 'demo-line';
+                
+                switch (item.type) {
+                    case 'header':
+                        line.innerHTML = `<pre class="demo-header-ascii">${item.text}</pre>`;
+                        break;
+                        
+                    case 'command':
+                        line.innerHTML = '<span class="demo-prompt">$</span> <span class="demo-command"></span>';
+                        this.container.appendChild(line);
+                        await this.typeText(line.querySelector('.demo-command'), item.text);
+                        return;
+                        
+                    case 'output':
+                        line.classList.add('demo-output');
+                        if (item.color) {
+                            line.style.color = `var(--cyber-${item.color})`;
+                        }
+                        line.textContent = item.text;
+                        break;
+                        
+                    case 'input':
+                        line.innerHTML = `<span class="demo-prompt">${item.prompt || '>'}</span> <span class="demo-input"></span>`;
+                        this.container.appendChild(line);
+                        await this.delay(500);
+                        await this.typeText(line.querySelector('.demo-input'), item.text);
+                        return;
+                        
+                    case 'qr':
+                        line.innerHTML = `<pre class="demo-qr-code">${item.text}</pre>`;
+                        break;
+                        
+                    case 'progress':
+                        line.classList.add('demo-progress');
+                        line.innerHTML = `  ${item.text} `;
+                        this.container.appendChild(line);
+                        await this.animateProgress(line, item.total || 100, item.current || 100);
+                        return;
+                }
+                
+                this.container.appendChild(line);
+            }
+
+            async typeText(element, text) {
+                for (let i = 0; i < text.length; i++) {
+                    element.textContent += text[i];
+                    await this.delay(this.typingSpeed);
+                }
+            }
+
+            async animateProgress(element, total, current) {
+                const progressBar = document.createElement('span');
+                progressBar.textContent = '[';
+                element.appendChild(progressBar);
+                
+                const barLength = 20;
+                const filled = Math.floor((current / total) * barLength);
+                
+                for (let i = 0; i < barLength; i++) {
+                    progressBar.textContent += i < filled ? '█' : '░';
+                    await this.delay(30);
+                }
+                
+                progressBar.textContent += `] ${current}/${total}`;
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Initialize demo sections
+        function initializeDemoWalkthrough() {
+            const container = document.getElementById('demo-sections');
+            if (!container) return;
+            
+            demoSections.forEach((section, index) => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'demo-section';
+                sectionEl.innerHTML = `
+                    <h3 class="demo-section-title">${section.title}</h3>
+                    <p class="demo-section-description">${section.description}</p>
+                    <div class="demo-terminal">
+                        <div class="demo-terminal-header">
+                            <span class="demo-terminal-dot"></span>
+                            <span class="demo-terminal-dot"></span>
+                            <span class="demo-terminal-dot"></span>
+                        </div>
+                        <div class="demo-terminal-content" id="demo-content-${index}"></div>
+                    </div>
+                `;
+                container.appendChild(sectionEl);
+            });
+            
+            // Set up intersection observer
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const section = entry.target;
+                        if (!section.classList.contains('visible')) {
+                            section.classList.add('visible');
+                            
+                            // Start playing the demo when fully in view
+                            const index = Array.from(container.children).indexOf(section);
+                            const contentEl = section.querySelector('.demo-terminal-content');
+                            const player = new DemoPlayer(contentEl, demoSections[index].content);
+                            
+                            // Small delay before starting
+                            setTimeout(() => {
+                                section.classList.add('playing');
+                                player.play().then(() => {
+                                    section.classList.remove('playing');
+                                });
+                            }, 500);
+                        }
+                    }
+                });
+            }, {
+                threshold: 0.8 // Trigger when 80% of the section is visible
+            });
+            
+            // Observe all demo sections
+            container.querySelectorAll('.demo-section').forEach(section => {
+                observer.observe(section);
+            });
+        }
+
+        // Add to initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeDemoWalkthrough();
+        });
+    </script>
+</body>
+</html>
