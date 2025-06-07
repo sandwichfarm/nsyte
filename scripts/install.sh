@@ -1,12 +1,10 @@
 #!/bin/bash
 set -e
 
-# nsyte Universal Install Script
-# Detects system and installs nsyte using the best available method
+# nsyte Install Script - Downloads pre-compiled binaries
 
 REPO="sandwichfarm/nsyte"
 BINARY_NAME="nsyte"
-INSTALL_DIR="/usr/local/bin"
 
 # Colors for output
 RED='\033[0;31m'
@@ -23,10 +21,6 @@ print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
     exit 1
@@ -37,136 +31,24 @@ detect_os() {
     case "$(uname -s)" in
         Darwin*)
             OS="macos"
-            ARCH="$(uname -m)"
             ;;
         Linux*)
             OS="linux"
-            ARCH="$(uname -m)"
             ;;
         CYGWIN*|MINGW*|MSYS*)
             OS="windows"
-            ARCH="$(uname -m)"
             ;;
         *)
             print_error "Unsupported operating system: $(uname -s)"
             ;;
     esac
     
-    # Normalize architecture
-    case "$ARCH" in
-        x86_64|amd64)
-            ARCH="x86_64"
-            ;;
-        arm64|aarch64)
-            ARCH="arm64"
-            ;;
-        *)
-            print_warning "Architecture $ARCH may not be supported, trying x86_64"
-            ARCH="x86_64"
-            ;;
-    esac
-    
-    print_info "Detected: $OS ($ARCH)"
+    print_info "Detected OS: $OS"
 }
 
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
-}
-
-# Install using Homebrew (macOS)
-install_homebrew() {
-    print_info "Installing nsyte using Homebrew..."
-    
-    # Add the tap if it doesn't exist
-    if ! brew tap | grep -q "sandwichfarm/tap"; then
-        print_info "Adding sandwichfarm/tap..."
-        if ! brew tap sandwichfarm/tap; then
-            print_warning "Failed to add tap, falling back to binary installation"
-            return 1
-        fi
-    fi
-    
-    # Install nsyte from the tap
-    if brew install sandwichfarm/tap/nsyte; then
-        print_success "nsyte installed successfully via Homebrew!"
-        return 0
-    else
-        print_warning "Homebrew installation failed, falling back to binary installation"
-        return 1
-    fi
-}
-
-# Install using Scoop (Windows)
-install_scoop() {
-    print_info "Installing nsyte using Scoop..."
-    if scoop bucket list | grep -q "sandwichfarm"; then
-        print_info "sandwichfarm bucket already added"
-    else
-        print_info "Adding sandwichfarm bucket..."
-        scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git
-    fi
-    
-    if scoop install nsyte; then
-        print_success "nsyte installed successfully via Scoop!"
-        return 0
-    else
-        print_warning "Scoop installation failed, falling back to binary installation"
-        return 1
-    fi
-}
-
-# Install using Chocolatey (Windows)
-install_chocolatey() {
-    print_info "Installing nsyte using Chocolatey..."
-    if choco install nsyte -y; then
-        print_success "nsyte installed successfully via Chocolatey!"
-        return 0
-    else
-        print_warning "Chocolatey installation failed, falling back to binary installation"
-        return 1
-    fi
-}
-
-# Install using yay/AUR (Arch Linux)
-install_aur() {
-    print_info "Installing nsyte using AUR..."
-    if yay -S nsyte --noconfirm; then
-        print_success "nsyte installed successfully via AUR!"
-        return 0
-    else
-        print_warning "AUR installation failed, falling back to binary installation"
-        return 1
-    fi
-}
-
-# Install using Deno
-install_deno() {
-    print_info "Installing nsyte using Deno..."
-    
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    
-    print_info "Cloning repository..."
-    if git clone https://github.com/sandwichfarm/nsyte.git "$TEMP_DIR" >/dev/null 2>&1; then
-        cd "$TEMP_DIR"
-        print_info "Installing from local repository..."
-        if deno install -A -f -g -n nsyte src/cli.ts; then
-            cd - >/dev/null
-            rm -rf "$TEMP_DIR"
-            print_success "nsyte installed successfully via Deno!"
-            return 0
-        else
-            cd - >/dev/null
-            rm -rf "$TEMP_DIR"
-            print_warning "Deno installation failed, falling back to binary installation"
-            return 1
-        fi
-    else
-        rm -rf "$TEMP_DIR"
-        print_warning "Failed to clone repository, falling back to binary installation"
-        return 1
-    fi
 }
 
 # Get latest release info from GitHub
@@ -178,12 +60,12 @@ get_latest_release() {
     elif command_exists wget; then
         LATEST_RELEASE=$(wget -qO- https://api.github.com/repos/$REPO/releases/latest)
     else
-        print_error "Neither curl nor wget found. Cannot download binary."
+        print_error "Neither curl nor wget found. Please install curl or wget and try again."
     fi
     
     VERSION=$(echo "$LATEST_RELEASE" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     if [ -z "$VERSION" ]; then
-        print_error "Could not determine latest version"
+        print_error "Could not determine latest version. Please check your internet connection."
     fi
     
     print_info "Latest version: $VERSION"
@@ -191,15 +73,15 @@ get_latest_release() {
 
 # Download and install binary
 install_binary() {
-    get_latest_release
-    
-    # Determine binary name based on OS
+    # Determine binary name and install directory based on OS
     case "$OS" in
         macos)
             BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos"
+            INSTALL_DIR="/usr/local/bin"
             ;;
         linux)
             BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-linux"
+            INSTALL_DIR="/usr/local/bin"
             ;;
         windows)
             BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-windows.exe"
@@ -208,92 +90,52 @@ install_binary() {
             ;;
     esac
     
-    print_info "Downloading $BINARY_URL..."
+    print_info "Downloading nsyte binary..."
     
-    # Create install directory if it doesn't exist
-    if [ "$OS" = "windows" ]; then
-        mkdir -p "$INSTALL_DIR"
-    else
-        sudo mkdir -p "$INSTALL_DIR" 2>/dev/null || mkdir -p "$HOME/.local/bin"
-        if [ ! -w "$INSTALL_DIR" ]; then
-            INSTALL_DIR="$HOME/.local/bin"
-            print_info "Using $INSTALL_DIR as install directory"
-        fi
-    fi
+    # Create temp file
+    TEMP_FILE=$(mktemp)
     
     # Download binary
     if command_exists curl; then
-        curl -L -o "/tmp/$BINARY_NAME" "$BINARY_URL"
+        curl -L -o "$TEMP_FILE" "$BINARY_URL" || print_error "Download failed"
     elif command_exists wget; then
-        wget -O "/tmp/$BINARY_NAME" "$BINARY_URL"
-    else
-        print_error "Neither curl nor wget found. Cannot download binary."
+        wget -O "$TEMP_FILE" "$BINARY_URL" || print_error "Download failed"
     fi
     
-    # Make executable and move to install directory
-    chmod +x "/tmp/$BINARY_NAME"
+    # Make executable
+    chmod +x "$TEMP_FILE"
     
-    if [ "$OS" = "windows" ]; then
-        mv "/tmp/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
-    else
+    # Determine if we need sudo
+    if [ "$OS" != "windows" ]; then
         if [ -w "$INSTALL_DIR" ]; then
-            mv "/tmp/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+            mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
         else
-            sudo mv "/tmp/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+            print_info "Administrator access required to install to $INSTALL_DIR"
+            sudo mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
         fi
+    else
+        # Windows
+        mkdir -p "$INSTALL_DIR"
+        mv "$TEMP_FILE" "$INSTALL_DIR/$BINARY_NAME"
     fi
     
-    print_success "nsyte binary installed to $INSTALL_DIR/$BINARY_NAME"
+    print_success "nsyte installed successfully to $INSTALL_DIR/$BINARY_NAME"
     
-    # Add to PATH instructions
-    if [ "$INSTALL_DIR" = "$HOME/.local/bin" ] || [ "$INSTALL_DIR" = "$HOME/bin" ]; then
-        print_info "Make sure $INSTALL_DIR is in your PATH:"
-        echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> ~/.bashrc
-        echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> ~/.zshrc 2>/dev/null || true
-        print_info "Restart your terminal or run: export PATH=\"$INSTALL_DIR:\$PATH\""
+    # Add to PATH instructions for Windows
+    if [ "$OS" = "windows" ]; then
+        print_info "Add $INSTALL_DIR to your PATH to use nsyte from anywhere"
     fi
 }
 
 # Main installation logic
 main() {
-    echo "🚀 nsyte Universal Installer"
-    echo "=============================="
+    echo "🚀 nsyte Install Script"
+    echo "======================="
+    echo ""
     
     detect_os
-    
-    case "$OS" in
-        macos)
-            if command_exists brew; then
-                install_homebrew && return 0
-            fi
-            if command_exists deno; then
-                install_deno && return 0
-            fi
-            install_binary
-            ;;
-        linux)
-            # Check for Arch Linux
-            if [ -f /etc/arch-release ] && command_exists yay; then
-                install_aur && return 0
-            fi
-            if command_exists deno; then
-                install_deno && return 0
-            fi
-            install_binary
-            ;;
-        windows)
-            if command_exists scoop; then
-                install_scoop && return 0
-            fi
-            if command_exists choco; then
-                install_chocolatey && return 0
-            fi
-            if command_exists deno; then
-                install_deno && return 0
-            fi
-            install_binary
-            ;;
-    esac
+    get_latest_release
+    install_binary
     
     echo ""
     print_success "Installation complete!"
