@@ -98,7 +98,9 @@ export async function resolvePubkey(
       const signer = await importFromNbunk(options.nbunksec);
       const pubkey = await signer.getPublicKey();
       log.debug(`Using pubkey from nbunksec: ${pubkey.slice(0, 8)}...`);
-      await signer.close();
+      if ('close' in signer && typeof signer.close === 'function') {
+        await signer.close();
+      }
       return pubkey;
     } catch (error) {
       log.error(`Failed to get pubkey from nbunksec: ${getErrorMessage(error)}`);
@@ -112,7 +114,9 @@ export async function resolvePubkey(
       const { client } = await createNip46ClientFromUrl(options.bunker);
       const pubkey = await client.getPublicKey();
       log.debug(`Using pubkey from bunker URL: ${pubkey.slice(0, 8)}...`);
-      await client.close();
+      if ('close' in client && typeof client.close === 'function') {
+        await client.close();
+      }
       return pubkey;
     } catch (error) {
       log.error(`Failed to get pubkey from bunker URL: ${getErrorMessage(error)}`);
