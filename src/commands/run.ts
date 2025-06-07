@@ -1,10 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { Secret } from "@cliffy/prompt";
+import { serve } from "std/http/server.ts";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
-import { resolvePubkey, resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
-import { bech32Decode, npubEncode } from "../lib/utils.ts";
+import { resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
+import { bech32Decode } from "../lib/utils.ts";
 import { listRemoteFiles } from "../lib/nostr.ts";
 
 const log = createLogger("run");
@@ -18,15 +18,15 @@ interface RunOptions extends ResolverOptions {
  */
 export function registerRunCommand(program: Command): void {
   program
-    .command("run [npub:string]")
-    .description("Simulate a resolver by fetching blossom hashes for an npub")
+    .command("run")
+    .description("Run a resolver server that serves nsites via npub subdomains")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
-    .option("-p, --port <port:number>", "Port number for the simulated resolver.", { default: 8080 })
+    .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 8080 })
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
-    .action(async (options: RunOptions, npubArg?: string) => {
-      await runCommand(options, npubArg);
+    .action(async (options: RunOptions) => {
+      await runCommand(options);
     });
 }
 
@@ -51,118 +51,260 @@ export function npubToHex(npub: string): string {
 }
 
 /**
- * Gets npub interactively from user
+ * Extract npub from hostname (e.g., "npub123.localhost" -> "npub123")
  */
-async function getInteractiveNpub(): Promise<string> {
-  while (true) {
-    const npub = await Secret.prompt({
-      message: "Enter an npub to fetch files for:",
-      validate: (value: string) => {
-        if (!value.trim()) {
-          return "Please enter an npub.";
-        }
-        if (!validateNpub(value.trim())) {
-          return "Invalid npub format. Please enter a valid npub (starts with 'npub1').";
-        }
-        return true;
-      }
-    });
-    
-    return npub.trim();
+function extractNpubFromHost(hostname: string): string | null {
+  const parts = hostname.split('.');
+  if (parts.length < 2) return null;
+  
+  const subdomain = parts[0];
+  if (subdomain.startsWith('npub')) {
+    return subdomain;
   }
+  return null;
 }
 
 /**
- * Main run command implementation
+ * Main run command implementation - runs a resolver server
  */
-export async function runCommand(options: RunOptions, npubArg?: string): Promise<void> {
+export async function runCommand(options: RunOptions): Promise<void> {
   try {
-    let npub: string;
-    let pubkeyHex: string;
-
-    // Handle npub parameter
-    if (npubArg) {
-      if (!validateNpub(npubArg)) {
-        console.error(colors.red(`Invalid npub format: ${npubArg}`));
-        console.error(colors.yellow("An npub should start with 'npub1' and be properly encoded."));
-        Deno.exit(1);
-      }
-      npub = npubArg;
-      pubkeyHex = npubToHex(npub);
-      log.debug(`Using provided npub: ${npub}`);
-    } else {
-      // Try to detect npub from config
-      try {
-        pubkeyHex = await resolvePubkey(options, null, false);
-        npub = npubEncode(pubkeyHex);
-        console.log(colors.cyan(`Detected npub from configuration: ${npub}`));
-      } catch {
-        // No config found, ask interactively
-        console.log(colors.yellow("No npub found in configuration."));
-        npub = await getInteractiveNpub();
-        pubkeyHex = npubToHex(npub);
-      }
-    }
-
-    // Resolve relays
+    const port = options.port || 8080;
     const relays = resolveRelays(options, null, true);
     
     if (relays.length === 0) {
-      console.error(colors.red("No relays available for fetching files."));
+      console.error(colors.red("No relays available. Please configure relays or use -r option."));
       Deno.exit(1);
     }
 
-    console.log(colors.green(`\n🚀 Starting nsyte resolver simulation`));
-    console.log(colors.cyan(`📍 Resolver URL: ${npub}.localhost:${options.port}`));
-    console.log(colors.cyan(`🔍 Fetching files for: ${npub}`));
+    console.log(colors.green(`\n🚀 Starting nsyte resolver server`));
     console.log(colors.cyan(`📡 Using relays: ${relays.join(", ")}`));
-    console.log("");
+    console.log(colors.cyan(`🌐 Server URL: http://localhost:${port}`));
+    console.log(colors.gray(`\nAccess nsites via: http://{npub}.localhost:${port}/path/to/file`));
+    console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html\n`));
+    console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
 
-    // Fetch remote files to get blossom hashes
-    console.log(colors.yellow("🔄 Fetching blossom hashes from nostr relays..."));
-    
-    try {
-      const remoteFiles = await listRemoteFiles(relays, pubkeyHex);
+    // Cache for file listings
+    const fileCache = new Map<string, { files: any[], timestamp: number }>();
+    const CACHE_TTL = 60000; // 1 minute cache
+
+    // Create HTTP handler
+    const handler = async (request: Request): Promise<Response> => {
+      const url = new URL(request.url);
+      const hostname = request.headers.get("host")?.split(":")[0] || "";
       
-      if (remoteFiles.length === 0) {
-        console.log(colors.yellow("📭 No files found for this npub."));
-        console.log(colors.cyan("The user hasn't uploaded any files yet, or they're using different relays."));
-      } else {
-        console.log(colors.green(`✅ Found ${remoteFiles.length} files:`));
-        console.log("");
+      // Extract npub from subdomain
+      const npub = extractNpubFromHost(hostname);
+      
+      if (!npub) {
+        return new Response("Invalid request. Use npub subdomain (e.g., npub123.localhost)", { 
+          status: 400,
+          headers: { "Content-Type": "text/plain" }
+        });
+      }
+
+      // Validate npub format
+      if (!validateNpub(npub)) {
+        return new Response(`Invalid npub format: ${npub}`, { 
+          status: 400,
+          headers: { "Content-Type": "text/plain" }
+        });
+      }
+
+      try {
+        const pubkeyHex = npubToHex(npub);
+        const requestedPath = url.pathname === "/" ? "/index.html" : url.pathname;
         
-        // Display files with their blossom hashes
-        for (const file of remoteFiles) {
-          const hash = file.sha256 || "unknown";
-          const size = file.size ? ` (${formatFileSize(file.size)})` : "";
-          console.log(colors.white(`  📄 ${file.path}${size}`));
-          console.log(colors.gray(`     🌸 ${hash}`));
+        log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);
+
+        // Check cache
+        const cached = fileCache.get(npub);
+        let remoteFiles;
+        
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+          remoteFiles = cached.files;
+        } else {
+          // Fetch file list from nostr
+          remoteFiles = await listRemoteFiles(relays, pubkeyHex);
+          fileCache.set(npub, { files: remoteFiles, timestamp: Date.now() });
+        }
+
+        // Find the requested file
+        const file = remoteFiles.find(f => f.path === requestedPath.slice(1));
+        
+        if (!file) {
+          // Generate directory listing if no specific file requested
+          if (requestedPath === "/" || requestedPath === "/index.html") {
+            const html = generateDirectoryListing(npub, remoteFiles);
+            return new Response(html, {
+              status: 200,
+              headers: { "Content-Type": "text/html" }
+            });
+          }
+          
+          return new Response(`File not found: ${requestedPath}`, { 
+            status: 404,
+            headers: { "Content-Type": "text/plain" }
+          });
+        }
+
+        // Download the file content from blossom servers
+        if (!file.sha256) {
+          return new Response("File has no SHA256 hash", { 
+            status: 500,
+            headers: { "Content-Type": "text/plain" }
+          });
+        }
+
+        // Try default blossom servers
+        const blossomServers = [
+          "https://blossom.primal.net",
+          "https://cdn.satellite.earth",
+          "https://blossom.nos.social"
+        ];
+
+        let fileData: Uint8Array | null = null;
+        for (const server of blossomServers) {
+          try {
+            fileData = await downloadFromBlossom(server, file.sha256);
+            if (fileData) break;
+          } catch (error) {
+            log.debug(`Failed to download from ${server}: ${error}`);
+          }
         }
         
-        console.log("");
-        console.log(colors.green(`📊 Total: ${remoteFiles.length} files available for download`));
-      }
-      
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(colors.red(`❌ Failed to fetch files: ${errorMessage}`));
-      console.log(colors.yellow("This could be due to:"));
-      console.log(colors.yellow("  • Relay connectivity issues"));
-      console.log(colors.yellow("  • The npub hasn't published any files"));
-      console.log(colors.yellow("  • The files are on different relays"));
-      Deno.exit(1);
-    }
+        if (!fileData) {
+          return new Response("Failed to download file from any blossom server", { 
+            status: 500,
+            headers: { "Content-Type": "text/plain" }
+          });
+        }
 
-    console.log("");
-    console.log(colors.cyan(`🌐 Resolver simulation complete!`));
-    console.log(colors.gray(`Access files via: https://${npub}.{gateway-hostname}/path/to/file`));
+        // Determine content type
+        const contentType = getContentType(file.path);
+        
+        return new Response(fileData, {
+          status: 200,
+          headers: { 
+            "Content-Type": contentType,
+            "Content-Length": fileData.byteLength.toString()
+          }
+        });
+        
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        log.error(`Error handling request: ${errorMessage}`);
+        
+        return new Response(`Error: ${errorMessage}`, { 
+          status: 500,
+          headers: { "Content-Type": "text/plain" }
+        });
+      }
+    };
+
+    // Start server
+    await serve(handler, { port });
     
   } catch (error: unknown) {
-    handleError("Error running resolver simulation", error, {
+    handleError("Error running resolver server", error, {
       exit: true,
       showConsole: true,
       logger: log
     });
+  }
+}
+
+/**
+ * Generate HTML directory listing
+ */
+function generateDirectoryListing(npub: string, files: any[]): string {
+  const fileList = files.map(file => {
+    const size = file.size ? formatFileSize(file.size) : "unknown";
+    return `<li><a href="/${file.path}">${file.path}</a> (${size})</li>`;
+  }).join("\n");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>nsite: ${npub}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { color: #333; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .info { background: #f0f0f0; padding: 1rem; border-radius: 4px; margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>nsite: ${npub}</h1>
+  <div class="info">
+    <strong>Files:</strong> ${files.length}<br>
+    <strong>Total size:</strong> ${formatFileSize(files.reduce((sum, f) => sum + (f.size || 0), 0))}
+  </div>
+  <ul>
+    ${fileList || '<li>No files found</li>'}
+  </ul>
+</body>
+</html>`;
+}
+
+/**
+ * Get content type based on file extension
+ */
+function getContentType(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const types: Record<string, string> = {
+    html: "text/html",
+    htm: "text/html",
+    css: "text/css",
+    js: "application/javascript",
+    json: "application/json",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    txt: "text/plain",
+    md: "text/markdown",
+    pdf: "application/pdf",
+    woff: "font/woff",
+    woff2: "font/woff2",
+    ttf: "font/ttf",
+    otf: "font/otf"
+  };
+  
+  return types[ext || ""] || "application/octet-stream";
+}
+
+/**
+ * Download file from a blossom server
+ */
+async function downloadFromBlossom(server: string, sha256: string): Promise<Uint8Array | null> {
+  const serverUrl = server.endsWith("/") ? server : `${server}/`;
+  const downloadUrl = `${serverUrl}${sha256}`;
+  
+  try {
+    const response = await fetch(downloadUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "*/*"
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  } catch (error) {
+    throw error;
   }
 }
 
