@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { existsSync } from "std/fs/exists.ts";
-import { join } from "std/path/mod.ts";
+import { existsSync } from "@std/fs/exists";
+import { join } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
 import { listRemoteFiles } from "../lib/nostr.ts";
 import { DEFAULT_IGNORE_PATTERNS, parseIgnorePatterns, isIgnored, type IgnoreRule } from "../lib/files.ts";

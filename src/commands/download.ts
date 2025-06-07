@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { join, dirname } from "std/path/mod.ts";
-import { ensureDir } from "std/fs/ensure_dir.ts";
+import { join, dirname } from "@std/path";
+import { ensureDir } from "@std/fs/ensure-dir";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { resolvePubkey, resolveRelays, resolveServers, type ResolverOptions } from "../lib/resolver-utils.ts";

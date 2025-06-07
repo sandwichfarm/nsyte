@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { serve } from "std/http/server.ts";
+// Using Deno.serve instead of importing serve
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
@@ -202,8 +202,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
       }
     };
 
-    // Start server
-    await serve(handler, { port });
+    // Start server using Deno.serve
+    await Deno.serve({ port }, handler).finished;
     
   } catch (error: unknown) {
     handleError("Error running resolver server", error, {

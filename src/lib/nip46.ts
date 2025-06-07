@@ -4,9 +4,9 @@
  */
 import { RelayPool, onlyEvents } from "applesauce-relay";
 import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
-import { qrcode as generateQrCodeForTerminal } from "jsr:@libs/qrcode";
-import { bytesToHex, hexToBytes } from "npm:@noble/hashes/utils";
-import { bech32 } from "npm:@scure/base";
+import { qrcode as generateQrCodeForTerminal } from "@libs/qrcode";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
+import { bech32 } from "@scure/base";
 import { randomBytes } from "@noble/hashes/utils";
 import { lastValueFrom } from "rxjs";
 import { createLogger } from "./logger.ts";

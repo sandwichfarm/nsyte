@@ -3,11 +3,11 @@
  * Uses AES-256-GCM encryption with a key derived from system-specific attributes
  */
 
-import { join } from "std/path/mod.ts";
-import { ensureDirSync } from "std/fs/ensure_dir.ts";
+import { join } from "@std/path";
+import { ensureDirSync } from "@std/fs/ensure-dir";
 import { createLogger } from "../logger.ts";
 import { getSystemConfigDir, fileExists } from "./utils.ts";
-import { encodeBase64, decodeBase64 } from "std/encoding/base64.ts";
+import { encodeBase64, decodeBase64 } from "@std/encoding/base64";
 
 const log = createLogger("encrypted-storage");
 

@@ -1,5 +1,5 @@
 import { schnorr } from "@noble/curves/secp256k1";
-import { encodeHex } from "std/encoding/hex.ts";
+import { encodeHex } from "@std/encoding/hex";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { createLogger } from "./logger.ts";
 import { getErrorMessage } from "./error-utils.ts";

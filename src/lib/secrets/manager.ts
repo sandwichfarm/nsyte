@@ -1,4 +1,4 @@
-import { join } from "std/path/mod.ts";
+import { join } from "@std/path";
 import { createLogger } from "../logger.ts";
 import { ensureSystemConfigDir, fileExists } from "./utils.ts";
 import { getKeychainProvider, KeychainProvider } from "./keychain.ts";

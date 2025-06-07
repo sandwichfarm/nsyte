@@ -1,5 +1,5 @@
-import { join } from "std/path/mod.ts";
-import { ensureDirSync } from "std/fs/ensure_dir.ts";
+import { join } from "@std/path";
+import { ensureDirSync } from "@std/fs/ensure-dir";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("secrets");

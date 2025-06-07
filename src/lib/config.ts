@@ -1,5 +1,5 @@
-import { join, dirname } from "std/path/mod.ts";
-import { ensureDirSync } from "std/fs/ensure_dir.ts";
+import { join, dirname } from "@std/path";
+import { ensureDirSync } from "@std/fs/ensure-dir";
 import { createLogger } from "./logger.ts";
 import { Input, Confirm, Select, Secret } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";

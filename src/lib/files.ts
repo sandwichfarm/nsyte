@@ -1,11 +1,11 @@
-import { join, relative, normalize, extname } from "std/path/mod.ts";
-import { contentType } from "std/media_types/mod.ts";
-import { encodeHex } from "std/encoding/hex.ts";
+import { join, relative, normalize, extname } from "@std/path";
+import { contentType } from "@std/media-types";
+import { encodeHex } from "@std/encoding/hex";
 import { createLogger } from "./logger.ts";
 import { FileEntry } from "./nostr.ts";
-import { existsSync } from "std/fs/exists.ts";
-import { expandGlob, type WalkEntry } from "jsr:@std/fs/expand-glob";
-import { globToRegExp } from "jsr:@std/path/glob-to-regexp";
+import { existsSync } from "@std/fs/exists";
+import { expandGlob, type WalkEntry } from "@std/fs/expand-glob";
+import { globToRegExp } from "@std/path/glob-to-regexp";
 
 const log = createLogger("files");
 

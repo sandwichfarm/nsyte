@@ -1,7 +1,8 @@
 {
-  "name": "nsyte",
+  "name": "@nsyte/cli",
   "version": "0.10.1",
   "description": "nsyte - publish your site to nostr and blossom servers",
+  "license": "MIT",
   "exports": "./src/cli.ts",
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
@@ -28,6 +29,11 @@
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.7",
     "@cliffy/prompt": "jsr:@cliffy/prompt@1.0.0-rc.7",
     "@libs/qrcode": "jsr:@libs/qrcode@^2.0.1",
+    "@std/http": "jsr:@std/http@^1.0.0",
+    "@std/fs": "jsr:@std/fs@^1.0.0",
+    "@std/path": "jsr:@std/path@^1.0.0",
+    "@std/media-types": "jsr:@std/media-types@^1.0.0",
+    "@std/encoding": "jsr:@std/encoding@^1.0.0",
     "applesauce-relay": "npm:applesauce-relay@1.1.0",
     "applesauce-signers": "npm:applesauce-signers@1.0.0",
     "rxjs": "npm:rxjs@^7.8.2",

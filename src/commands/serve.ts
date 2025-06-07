@@ -1,11 +1,11 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { serve } from "std/http/server.ts";
-import { serveDir } from "std/http/file_server.ts";
+// Using Deno.serve instead of importing serve
+import { serveDir } from "@std/http/file-server";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
-import { existsSync } from "std/fs/mod.ts";
-import { join } from "std/path/mod.ts";
+import { existsSync } from "@std/fs/exists";
+import { join } from "@std/path";
 
 const log = createLogger("serve");
 
@@ -61,7 +61,8 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
       });
     };
 
-    await serve(handler, { port });
+    // Start server using Deno.serve
+    await Deno.serve({ port }, handler).finished;
     
   } catch (error: unknown) {
     handleError("Error starting server", error, {
