@@ -23,7 +23,14 @@ cd nsyte
 deno task compile
 ```
 
-### Option 2: Development Build
+### Option 2: Install from JSR
+
+```bash
+# Install latest from JSR
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
+```
+
+### Option 3: Development Build from Source
 
 ```bash
 git clone https://github.com/sandwichfarm/nsyte.git

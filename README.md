@@ -13,8 +13,8 @@ A command-line tool for publishing websites to nostr and Blossom servers. Enable
 ## Quick Start
 
 ```bash
-# Install
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+# Install from JSR
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
 # Or use pre-built binary from releases
 
 # Initialize project (interactive setup)
@@ -76,7 +76,12 @@ flatpak install flathub org.github.sandwichfarm.nsyte
 
 ### Alternative Installation Methods
 
-**Using Deno:**
+**Using Deno (from JSR):**
+```bash
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
+```
+
+**Using Deno (from GitHub):**
 ```bash
 deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 ```

@@ -225,11 +225,16 @@ snap info nsyte
 
 ### Using Deno
 
-Deno is a modern JavaScript/TypeScript runtime that provides a secure and simple way to run nsyte directly from source. This method works on any platform where Deno is installed.
+Deno is a modern JavaScript/TypeScript runtime that provides a secure and simple way to run nsyte. This method works on any platform where Deno is installed.
 
 **Prerequisites**: [Deno](https://deno.land/) version 2.0 or later
 
-Install nsyte globally using Deno:
+**Install from JSR (recommended):**
+```bash
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
+```
+
+**Install from GitHub source:**
 ```bash
 deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 ```
@@ -249,11 +254,19 @@ Benefits of Deno installation:
 
 To update to the latest version:
 ```bash
+# From JSR
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
+
+# From GitHub
 deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
 ```
 
 To install a specific version:
 ```bash
+# From JSR
+deno install -A -f -g -n nsyte jsr:@nsyte/cli@0.10.1
+
+# From GitHub
 deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/v0.7.0/src/cli.ts
 ```
 
