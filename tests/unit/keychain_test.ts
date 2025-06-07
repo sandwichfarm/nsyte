@@ -1,10 +1,9 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { describe, it } from "https://jsr.io/@std/testing/1.0.12/bdd.ts";
 import { getKeychainProvider } from "../../src/lib/secrets/keychain.ts";
 
-describe("Keychain Provider", () => {
-  describe("getKeychainProvider", () => {
-    it("should return a keychain provider", async () => {
+Deno.test("Keychain Provider", async (t) => {
+  await t.step("getKeychainProvider", async (t) => {
+    await t.step("should return a keychain provider", async () => {
       const provider = await getKeychainProvider();
       assertExists(provider);
       assertEquals(typeof provider.isAvailable, "function");
@@ -14,19 +13,19 @@ describe("Keychain Provider", () => {
       assertEquals(typeof provider.list, "function");
     });
 
-    it("should check if provider is available", async () => {
+    await t.step("should check if provider is available", async () => {
       const provider = await getKeychainProvider();
       const isAvailable = await provider.isAvailable();
       assertEquals(typeof isAvailable, "boolean");
     });
   });
 
-  describe("Keychain Operations", () => {
+  await t.step("Keychain Operations", async (t) => {
     const testService = "nsyte-test";
     const testAccount = "test-pubkey-" + Date.now();
     const testPassword = "test-nbunksec-value";
 
-    it("should handle credential operations", async () => {
+    await t.step("should handle credential operations", async () => {
       const provider = await getKeychainProvider();
       
       // Clean up any existing test credential
@@ -65,13 +64,13 @@ describe("Keychain Provider", () => {
       assertEquals(afterDelete, null);
     });
 
-    it("should handle non-existent credentials", async () => {
+    await t.step("should handle non-existent credentials", async () => {
       const provider = await getKeychainProvider();
       const nonExistent = await provider.retrieve(testService, "non-existent-account");
       assertEquals(nonExistent, null);
     });
 
-    it("should handle deletion of non-existent credentials", async () => {
+    await t.step("should handle deletion of non-existent credentials", async () => {
       const provider = await getKeychainProvider();
       const deleted = await provider.delete(testService, "non-existent-account");
       assertEquals(typeof deleted, "boolean");

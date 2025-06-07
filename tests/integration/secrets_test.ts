@@ -1,5 +1,4 @@
 import { assertEquals, assertNotEquals } from "std/testing/asserts.ts";
-import { describe, it, beforeEach, afterEach } from "std/testing/bdd.ts";
 import * as path from "std/path/mod.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { 
@@ -12,14 +11,14 @@ import {
   parseBunkerUrl
 } from "../../src/lib/nip46.ts";
 
-describe("Secrets and NIP-46 Integration", () => {
+Deno.test("Secrets and NIP-46 Integration", async (t) => {
   const testDir = path.join(Deno.cwd(), ".test_secrets");
   const testBunkerPubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
   const testBunkerUrl = `bunker://${testBunkerPubkey}?relay=wss://test.relay&relay=wss://another.relay`;
   let originalHomeDir: string | undefined;
   let secretsManager: SecretsManager;
 
-  beforeEach(() => {
+  const setupTest = async () => {
     originalHomeDir = Deno.env.get("HOME");
     Deno.env.set("HOME", testDir);
     
@@ -34,15 +33,17 @@ describe("Secrets and NIP-46 Integration", () => {
     (SecretsManager as any).instance = null;
     secretsManager = SecretsManager.getInstance();
     
-    secretsManager.getAllPubkeys().forEach(pubkey => {
-      secretsManager.deleteNbunk(pubkey);
-    });
-  });
+    const pubkeys = await secretsManager.getAllPubkeys();
+    for (const pubkey of pubkeys) {
+      await secretsManager.deleteNbunk(pubkey);
+    }
+  };
 
-  afterEach(() => {
-    secretsManager.getAllPubkeys().forEach(pubkey => {
-      secretsManager.deleteNbunk(pubkey);
-    });
+  const cleanupTest = async () => {
+    const pubkeys = await secretsManager.getAllPubkeys();
+    for (const pubkey of pubkeys) {
+      await secretsManager.deleteNbunk(pubkey);
+    }
     
     if (originalHomeDir) {
       Deno.env.set("HOME", originalHomeDir);
@@ -51,9 +52,10 @@ describe("Secrets and NIP-46 Integration", () => {
     }
     
     (SecretsManager as any).instance = null;
-  });
+  };
 
-  it("should properly encode, store, and retrieve bunker information", () => {
+  await t.step("should properly encode, store, and retrieve bunker information", async () => {
+    await setupTest();
     const bunkerInfo: BunkerInfo = {
       pubkey: testBunkerPubkey,
       relays: ["wss://test.relay", "wss://another.relay"],
@@ -65,24 +67,26 @@ describe("Secrets and NIP-46 Integration", () => {
     
     assertEquals(encoded.startsWith("nbunksec"), true);
     
-    secretsManager.storeNbunk(testBunkerPubkey, encoded);
+    await secretsManager.storeNbunk(testBunkerPubkey, encoded);
     
-    const retrieved = getBunkerInfo(testBunkerPubkey);
+    const retrieved = await getBunkerInfo(testBunkerPubkey);
     
     assertNotEquals(retrieved, null);
     assertEquals(retrieved?.bunkerUrl.startsWith(`bunker://${testBunkerPubkey}`), true);
     assertEquals(retrieved?.bunkerUrl.includes("relay="), true);
     assertEquals(retrieved?.clientKey.length, 32);
+    await cleanupTest();
   });
 
-  it("should properly handle bunker URL storage and retrieval", () => {
-    storeBunkerUrl(testBunkerPubkey, testBunkerUrl);
+  await t.step("should properly handle bunker URL storage and retrieval", async () => {
+    await setupTest();
+    await storeBunkerUrl(testBunkerPubkey, testBunkerUrl);
     
-    const pubkeys = secretsManager.getAllPubkeys();
+    const pubkeys = await secretsManager.getAllPubkeys();
     
     assertEquals(pubkeys.includes(testBunkerPubkey), true);
     
-    const nbunk = secretsManager.getNbunk(testBunkerPubkey);
+    const nbunk = await secretsManager.getNbunk(testBunkerPubkey);
     assertNotEquals(nbunk, null);
     
     const decoded = decodeBunkerInfo(nbunk!);
@@ -91,5 +95,6 @@ describe("Secrets and NIP-46 Integration", () => {
     assertEquals(decoded.relays.length, 2);
     assertEquals(decoded.relays.includes("wss://test.relay"), true);
     assertEquals(decoded.relays.includes("wss://another.relay"), true);
+    await cleanupTest();
   });
 }); 

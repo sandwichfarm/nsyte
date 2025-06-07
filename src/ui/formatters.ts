@@ -270,4 +270,45 @@ export function formatConfigValue(label: string, value: string | number | boolea
 
   const defaultMarker = isDefault ? colors.dim(' (default)') : '';
   return `${labelPadded} ${valueStr}${defaultMarker}`;
+}
+
+/**
+ * Format a progress bar
+ */
+export function formatProgressBar(current: number, total: number, width: number = 20): string {
+  if (total === 0) {
+    return "[" + "░".repeat(width) + "] 0%";
+  }
+  
+  const percentage = Math.min(100, Math.floor((current / total) * 100));
+  const filledWidth = Math.floor((percentage / 100) * width);
+  const emptyWidth = width - filledWidth;
+  
+  const filled = "█".repeat(filledWidth);
+  const empty = "░".repeat(emptyWidth);
+  
+  return `[${colors.green(filled)}${colors.gray(empty)}] ${percentage}%`;
+}
+
+/**
+ * Format a duration in milliseconds to human readable format
+ */
+export function formatDuration(milliseconds: number): string {
+  if (milliseconds < 1000) {
+    return `${milliseconds}ms`;
+  }
+  
+  if (milliseconds < 60000) {
+    return `${(milliseconds / 1000).toFixed(1)}s`;
+  }
+  
+  if (milliseconds < 3600000) {
+    const minutes = Math.floor(milliseconds / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  }
+  
+  const hours = Math.floor(milliseconds / 3600000);
+  const minutes = Math.floor((milliseconds % 3600000) / 60000);
+  return `${hours}h ${minutes}m`;
 } 

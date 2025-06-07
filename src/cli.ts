@@ -19,6 +19,8 @@ import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
 import { registerInitCommand } from "./commands/init.ts";
+import { registerRunCommand } from "./commands/run.ts";
+import { registerServeCommand } from "./commands/serve.ts";
 import { setupProject } from "./lib/config.ts";
 import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
@@ -44,31 +46,8 @@ const nsite = new Command()
   .version(version)
   .description("Publish your site to nostr and blossom servers")
   .action(async () => {
-    try {
-      if (Deno.args.includes("-h") || Deno.args.includes("--help") || 
-          Deno.args.includes("-V") || Deno.args.includes("--version") ||
-          Deno.args.length === 0) {
-        await nsite.showHelp();
-        return;
-      }
-      
-      const { config, privateKey } = await setupProject();
-      
-      if (privateKey || config.bunkerPubkey) {
-        const keyType = privateKey ? "private key" : "bunker connection";
-        const relayCount = config.relays.length;
-        const serverCount = config.servers.length;
-        
-        console.log(
-          colors.green(`Project is set up with ${keyType}, ${relayCount} relays and ${serverCount} blossom servers.`)
-        );
-      }
-      
-      await nsite.showHelp();
-    } catch (error) {
-      log.error(`Error in main command: ${error}`);
-      Deno.exit(1);
-    }
+    // Just show help when no command is provided
+    await nsite.showHelp();
   });
 
 // Register all commands
@@ -77,6 +56,8 @@ registerUploadCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
 registerCICommand(nsite);
+registerRunCommand(nsite);
+registerServeCommand(nsite);
 
 /**
  * Display the nsyte header in a random color
