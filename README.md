@@ -38,25 +38,9 @@ nsyte upload ./dist
 ## Installation
 
 ### One-Line Installation
-
-**macOS/Linux (Homebrew):**
-```bash
-brew install sandwichfarm/tap/nsyte
-```
-
 **Windows (Scoop):**
 ```bash
 scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte
-```
-
-**Windows (Chocolatey):**
-```bash
-choco install nsyte
-```
-
-**Arch Linux (AUR):**
-```bash
-yay -S nsyte
 ```
 
 **Debian/Ubuntu:**
@@ -64,24 +48,9 @@ yay -S nsyte
 curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb
 ```
 
-**Snap:**
-```bash
-sudo snap install nsyte
-```
-
-**Flatpak:**
-```bash
-flatpak install flathub org.github.sandwichfarm.nsyte
-```
-
 ### Alternative Installation Methods
 
-**Using Deno (from JSR):**
-```bash
-deno install -A -f -g -n nsyte jsr:@nsyte/cli
-```
-
-**Using Deno (from GitHub):**
+**Using Deno**
 ```bash
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
