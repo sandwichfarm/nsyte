@@ -37,17 +37,6 @@ nsyte upload ./dist
 
 ## Installation
 
-### One-Line Installation
-**Windows (Scoop):**
-```bash
-scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git && scoop install nsyte
-```
-
-**Debian/Ubuntu:**
-```bash
-curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb && sudo dpkg -i nsyte.deb
-```
-
 ### Alternative Installation Methods
 
 **Using Deno**
