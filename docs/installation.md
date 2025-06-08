@@ -236,7 +236,7 @@ deno install -A -f -g -n nsyte jsr:@nsyte/cli
 
 **Install from GitHub source:**
 ```bash
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
 Command breakdown:
@@ -258,7 +258,7 @@ To update to the latest version:
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
 
 # From GitHub
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
 To install a specific version:

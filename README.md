@@ -83,7 +83,7 @@ deno install -A -f -g -n nsyte jsr:@nsyte/cli
 
 **Using Deno (from GitHub):**
 ```bash
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
 **Pre-built Binaries:**

@@ -53,7 +53,7 @@ flatpak install flathub org.github.sandwichfarm.nsyte
 
 **Deno (All Platforms):**
 ```bash
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/main/src/cli.ts
+deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
 **Pre-built Binaries:**
