@@ -4,16 +4,23 @@ This directory contains scripts for generating authentic demos that use the actu
 
 ## Files
 
+**Scripts (in this directory):**
 - `generate-real-demo.ts` - Generates demo sections using actual CLI output
+- `generate-asciinema.ts` - Generates asciinema recordings
+- `nsyte-demo-optimal.sh` - Optimal demo recording script
+- `demo-sections.js` - Demo configuration
+
+**Generated outputs (in static/demo/):**
 - `demo-sections.js` - Generated file containing real CLI demo data (do not edit manually)
 - `nsyte-demo.cast` - Asciinema recording for the main demo player
+- `nsyte-demo-output.txt` - Captured CLI output
 
 ## Regenerating Demo Content
 
 To update the demo sections with current CLI output:
 
 ```bash
-deno run --allow-read --allow-write --allow-net --allow-env --allow-run demo/generate-real-demo.ts
+deno run --allow-read --allow-write --allow-net --allow-env --allow-run scripts/demo/generate-real-demo.ts
 ```
 
 This will:

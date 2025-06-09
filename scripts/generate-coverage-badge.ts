@@ -5,36 +5,87 @@
  */
 
 async function getCoveragePercentage(): Promise<number> {
-  const cmd = new Deno.Command("deno", {
-    args: ["coverage", ".coverage"],
-    stdout: "piped",
-    stderr: "piped",
-  });
+  // Try to read from LCOV file in test-output first
+  const lcovPaths = [
+    "test-output/coverage.lcov",
+    "test-output/lcov.info",
+    "coverage.lcov",
+    "new_coverage.lcov"
+  ];
+  
+  for (const lcovPath of lcovPaths) {
+    try {
+      const lcovContent = await Deno.readTextFile(lcovPath);
+      return parseLcovCoverage(lcovContent);
+    } catch {
+      // Continue to next path
+    }
+  }
+  
+  // Fallback to coverage directory
+  try {
+    const cmd = new Deno.Command("deno", {
+      args: ["coverage", "test-output/coverage"],
+      stdout: "piped",
+      stderr: "piped",
+    });
 
-  const { stdout } = await cmd.output();
-  let output = new TextDecoder().decode(stdout);
+      const { stdout } = await cmd.output();
+      let output = new TextDecoder().decode(stdout);
+      
+      // Remove ANSI color codes
+      // deno-lint-ignore no-control-regex
+      output = output.replace(/\x1b\[[0-9;]*m/g, '');
+      
+      // Extract the "All files" line coverage percentage
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (line.includes('All files')) {
+          const parts = line.split('|');
+          if (parts.length >= 2) {
+            const coverageStr = parts[1].trim();
+            const percentage = parseFloat(coverageStr);
+            if (!isNaN(percentage)) {
+              return percentage;
+            }
+          }
+        }
+      }
+      
+      throw new Error("Could not extract coverage percentage");
+    } catch {
+      throw new Error("Could not find coverage data");
+    }
+  }
+}
+
+function parseLcovCoverage(lcovContent: string): number {
+  const records = lcovContent.split('end_of_record');
+  let totalHit = 0;
+  let totalFound = 0;
   
-  // Remove ANSI color codes
-  // deno-lint-ignore no-control-regex
-  output = output.replace(/\x1b\[[0-9;]*m/g, '');
-  
-  // Extract the "All files" line coverage percentage
-  // Looking for pattern like: "All files                       |    40.3 |  22.2 |"
-  const lines = output.split('\n');
-  for (const line of lines) {
-    if (line.includes('All files')) {
-      const parts = line.split('|');
-      if (parts.length >= 2) {
-        const coverageStr = parts[1].trim();
-        const percentage = parseFloat(coverageStr);
-        if (!isNaN(percentage)) {
-          return percentage;
+  for (const record of records) {
+    if (record.includes('SF:')) {
+      const lhMatch = record.match(/LH:(\d+)/);
+      const lfMatch = record.match(/LF:(\d+)/);
+      
+      if (lhMatch && lfMatch) {
+        const linesHit = parseInt(lhMatch[1]);
+        const linesFound = parseInt(lfMatch[1]);
+        
+        if (linesFound > 0) {
+          totalHit += linesHit;
+          totalFound += linesFound;
         }
       }
     }
   }
   
-  throw new Error("Could not extract coverage percentage");
+  if (totalFound === 0) {
+    throw new Error("No coverage data found in LCOV file");
+  }
+  
+  return (totalHit / totalFound) * 100;
 }
 
 function getColorForCoverage(percentage: number): string {
@@ -79,14 +130,6 @@ function generateBadgeSVG(percentage: number): string {
 
 async function main() {
   try {
-    // Check if coverage directory exists
-    try {
-      await Deno.stat(".coverage");
-    } catch {
-      console.error("Coverage directory not found. Run 'deno task coverage' first.");
-      Deno.exit(1);
-    }
-    
     // Get coverage percentage
     const percentage = await getCoveragePercentage();
     console.log(`Coverage: ${percentage.toFixed(1)}%`);

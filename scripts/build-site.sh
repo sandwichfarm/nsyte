@@ -12,7 +12,7 @@ cp website/src/index.html dist/
 
 # Copy demo recording files
 echo "🎬 Copying demo files..."
-cp -r demo dist/
+cp -r static/demo dist/
 
 # Copy install script to a subdirectory to avoid root-level restrictions
 echo "📦 Preparing install script..."

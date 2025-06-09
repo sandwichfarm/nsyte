@@ -1,11 +1,37 @@
+# IDE and editor files
 .vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Project-specific directories
 .deprecated
 .devdocs
 .nsite
+.claude
+.packaging
+.venv
+
+# Test and coverage directories
 .test_secrets
 .coverage
-.claude
+test-coverage/
+test-output/
+cov*/
+coverage*/
 
-dist
-node_modulestest-output
-cov*
+# Test and coverage files
+*.log
+*.lcov
+test-*.log
+coverage-*.json
+
+# Build outputs
+dist/
+node_modules/
+
+# Temporary files
+*.tmp
+*.bak
+SUMMARY.md

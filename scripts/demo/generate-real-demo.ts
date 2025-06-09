@@ -220,7 +220,7 @@ const demoSections = ${JSON.stringify(sections, null, 4)};
 export { demoSections };
 `;
   
-  const outputPath = join(Deno.cwd(), "demo/demo-sections.js");
+  const outputPath = join(Deno.cwd(), "static/demo/demo-sections.js");
   await Deno.writeTextFile(outputPath, jsContent);
   console.log(`✓ Generated demo sections: ${outputPath}`);
 }

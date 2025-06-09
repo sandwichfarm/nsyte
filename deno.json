@@ -1,13 +1,13 @@
 {
   "name": "@nsyte/cli",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "nsyte - publish your site to nostr and blossom servers",
   "license": "MIT",
   "exports": "./src/cli.ts",
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
     "test": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --no-check",
-    "coverage": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --coverage=.coverage --no-check",
+    "coverage": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --coverage=test-output/coverage --no-check",
     "coverage:badge": "deno run --allow-read --allow-write --allow-run scripts/generate-coverage-badge.ts",
     "coverage:report": "deno task coverage && deno task coverage:badge",
     "compile": "deno compile --allow-run --allow-read --allow-write --allow-net --allow-env --output dist/nsyte src/cli.ts",
