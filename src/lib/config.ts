@@ -296,6 +296,10 @@ async function selectKeySource(
     ? structuredClone(existingConfig)
     : structuredClone(defaultConfig);
 
+  // Store the original bunkerPubkey to check if it changed
+  const originalBunkerPubkey = config.bunkerPubkey;
+  let configChanged = false;
+
   // Check if there are any existing bunkers
   const secretsManager = SecretsManager.getInstance();
   const existingBunkers = await secretsManager.getAllPubkeys();
@@ -332,10 +336,12 @@ async function selectKeySource(
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
     console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
+    // Note: privateKey is returned but not stored in config, so no config change
   } else if (keyChoice === "existing") {
     privateKey = await Secret.prompt({
       message: "Enter your nostr private key (nsec/hex):",
     });
+    // Note: privateKey is returned but not stored in config, so no config change
   } else if (keyChoice === "new_bunker") {
     const signer = await newBunker(config, secretsManager);
     if (signer) {
@@ -343,6 +349,7 @@ async function selectKeySource(
       const nbunkString = getNbunkString(signer);
       await secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
       console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}... \nGenerated and stored nbunksec string.`));
+      configChanged = true;
     }
   } else if (keyChoice === "existing_bunker") {
     // Present a list of existing bunkers to choose from
@@ -360,10 +367,17 @@ async function selectKeySource(
 
     config.bunkerPubkey = selectedPubkey;
     console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
+    configChanged = originalBunkerPubkey !== selectedPubkey;
   }
 
-  writeProjectFile(config);
-  console.log(colors.green("Key configuration set up successfully!"));
+  // Only write config if it actually changed
+  if (configChanged || !existingConfig) {
+    writeProjectFile(config);
+    console.log(colors.green("Key configuration set up successfully!"));
+  } else {
+    console.log(colors.green("Key configuration completed."));
+  }
+  
   return { config, privateKey };
 }
 
