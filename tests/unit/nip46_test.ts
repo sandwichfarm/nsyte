@@ -1,14 +1,23 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert";
 import { describe, it } from "jsr:@std/testing/bdd";
-import { encodeBunkerInfo, decodeBunkerInfo, parseBunkerUrl, BunkerInfo } from "../../src/lib/nip46.ts";
+import {
+  BunkerInfo,
+  decodeBunkerInfo,
+  encodeBunkerInfo,
+  parseBunkerUrl,
+} from "../../src/lib/nip46.ts";
 
 describe("NIP-46 Bunker Functions", () => {
   describe("parseBunkerUrl", () => {
     it("should correctly parse a valid bunker URL", () => {
-      const url = "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef?relay=wss://relay.example.com&relay=wss://relay2.example.com&secret=mySecret";
+      const url =
+        "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef?relay=wss://relay.example.com&relay=wss://relay2.example.com&secret=mySecret";
       const parsed = parseBunkerUrl(url);
-      
-      assertEquals(parsed.pubkey, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+
+      assertEquals(
+        parsed.pubkey,
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      );
       assertEquals(parsed.relays.length, 2);
       assertEquals(parsed.relays[0], "wss://relay.example.com");
       assertEquals(parsed.relays[1], "wss://relay2.example.com");
@@ -16,10 +25,14 @@ describe("NIP-46 Bunker Functions", () => {
     });
 
     it("should handle URL encoded special characters", () => {
-      const url = "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef?relay=wss%3A%2F%2Frelay.example.com%3Ftoken%3Dabc&secret=secret%20with%20spaces";
+      const url =
+        "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef?relay=wss%3A%2F%2Frelay.example.com%3Ftoken%3Dabc&secret=secret%20with%20spaces";
       const parsed = parseBunkerUrl(url);
-      
-      assertEquals(parsed.pubkey, "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef");
+
+      assertEquals(
+        parsed.pubkey,
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      );
       assertEquals(parsed.relays.length, 1);
       assertEquals(parsed.relays[0], "wss://relay.example.com?token=abc");
       assertEquals(parsed.secret, "secret with spaces");
@@ -31,9 +44,12 @@ describe("NIP-46 Bunker Functions", () => {
 
     it("should throw an error if no relay is provided", () => {
       assertThrows(
-        () => parseBunkerUrl("bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"), 
-        Error, 
-        "Bunker URL must include at least one relay parameter"
+        () =>
+          parseBunkerUrl(
+            "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          ),
+        Error,
+        "Bunker URL must include at least one relay parameter",
       );
     });
   });
@@ -44,16 +60,16 @@ describe("NIP-46 Bunker Functions", () => {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com", "wss://relay2.example.com"],
         local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        secret: "secretString"
+        secret: "secretString",
       };
 
       const encoded = encodeBunkerInfo(originalInfo);
-      
+
       // Should start with nbunksec
       assertEquals(encoded.startsWith("nbunksec"), true);
-      
+
       const decoded = decodeBunkerInfo(encoded);
-      
+
       assertEquals(decoded.pubkey, originalInfo.pubkey);
       assertEquals(decoded.relays.length, originalInfo.relays.length);
       assertEquals(decoded.relays[0], originalInfo.relays[0]);
@@ -66,12 +82,12 @@ describe("NIP-46 Bunker Functions", () => {
       const originalInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
-        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       };
 
       const encoded = encodeBunkerInfo(originalInfo);
       const decoded = decodeBunkerInfo(encoded);
-      
+
       assertEquals(decoded.pubkey, originalInfo.pubkey);
       assertEquals(decoded.relays.length, originalInfo.relays.length);
       assertEquals(decoded.relays[0], originalInfo.relays[0]);
@@ -84,18 +100,18 @@ describe("NIP-46 Bunker Functions", () => {
     });
 
     it("should throw error for nbunksec missing required fields", () => {
-      // Create a minimal valid nbunksec then corrupt it 
+      // Create a minimal valid nbunksec then corrupt it
       const info: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
-        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       };
-      
+
       const encoded = encodeBunkerInfo(info);
       // Corrupt by replacing nbunksec prefix with nbuck (invalid)
       const corrupted = "nbuck" + encoded.slice(5);
-      
+
       assertThrows(() => decodeBunkerInfo(corrupted), Error);
     });
   });
-}); 
+});

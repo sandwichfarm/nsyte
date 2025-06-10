@@ -11,15 +11,15 @@ const INCOMPLETE_CHAR = "░";
 export function formatProgressBar(
   current: number,
   total: number,
-  width = PROGRESS_BAR_WIDTH
+  width = PROGRESS_BAR_WIDTH,
 ): string {
   const percentage = total === 0 ? 100 : Math.floor((current / total) * 100);
   const filledWidth = Math.floor((percentage / 100) * width);
   const emptyWidth = width - filledWidth;
-  
+
   const filledPart = PROGRESS_CHAR.repeat(filledWidth);
   const emptyPart = INCOMPLETE_CHAR.repeat(emptyWidth);
-  
+
   let progressColor;
   if (percentage < 30) {
     progressColor = colors.red;
@@ -28,7 +28,7 @@ export function formatProgressBar(
   } else {
     progressColor = colors.green;
   }
-  
+
   return `[${progressColor(filledPart)}${emptyPart}] ${percentage}%`;
 }
 
@@ -38,11 +38,13 @@ export function formatProgressBar(
 export function formatUploadProgress(progress: UploadProgress): string {
   const { total, completed, failed, inProgress } = progress;
   const progressBar = formatProgressBar(completed, total);
-  
+
   const completedStr = colors.green(`${completed} completed`);
   const failedStr = failed > 0 ? colors.red(`${failed} failed`) : `${failed} failed`;
-  const inProgressStr = inProgress > 0 ? colors.cyan(`${inProgress} in progress`) : `${inProgress} in progress`;
-  
+  const inProgressStr = inProgress > 0
+    ? colors.cyan(`${inProgress} in progress`)
+    : `${inProgress} in progress`;
+
   return `${progressBar} ${completedStr}, ${failedStr}, ${inProgressStr} (${total} total)`;
 }
 
@@ -55,7 +57,7 @@ interface ProgressData {
     [filename: string]: {
       successCount: number;
       totalServers: number;
-    }
+    };
   };
 }
 
@@ -87,12 +89,12 @@ export class ProgressRenderer {
    * Update progress with a current value and optional path
    */
   update(current: number, path?: string): void;
-  
+
   /**
    * Update progress with full progress data
    */
   update(data: ProgressData): void;
-  
+
   /**
    * Implementation of both update overloads
    */
@@ -108,16 +110,15 @@ export class ProgressRenderer {
     }
 
     // Handle the case where first parameter is a number (current progress)
-    if (typeof dataOrCurrent === 'number') {
+    if (typeof dataOrCurrent === "number") {
       this.renderProgress({
         total: this.total,
         completed: dataOrCurrent,
         failed: 0,
         inProgress: this.total - dataOrCurrent,
-        ...(path ? { serverStats: { [path]: { successCount: 1, totalServers: 1 } } } : {})
+        ...(path ? { serverStats: { [path]: { successCount: 1, totalServers: 1 } } } : {}),
       });
-    } 
-    // Handle the case where first parameter is a ProgressData object
+    } // Handle the case where first parameter is a ProgressData object
     else {
       this.renderProgress(dataOrCurrent);
     }
@@ -131,7 +132,7 @@ export class ProgressRenderer {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     // Clear the current line
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
   }
@@ -143,9 +144,9 @@ export class ProgressRenderer {
     }
 
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-    
+
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
-    
+
     if (success) {
       console.log(`${colors.green("✓ SUCCESS")}: ${message} (took ${elapsed}s)`);
     } else {
@@ -155,11 +156,11 @@ export class ProgressRenderer {
 
   private renderProgress(data: ProgressData): void {
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
-    
+
     const percent = data.total === 0 ? 0 : Math.floor((data.completed / data.total) * 100);
-    
+
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-    
+
     let eta = "calculating...";
     if (data.completed > 0) {
       const timePerItem = elapsed / data.completed;
@@ -177,14 +178,17 @@ export class ProgressRenderer {
       if (entries.length > 0) {
         const latestFile = entries[entries.length - 1];
         const [filename, stats] = latestFile;
-        serverInfo = ` | ${colors.cyan(`${stats.successCount}/${stats.totalServers}`)} servers for ${filename.split('/').pop()}`;
+        serverInfo = ` | ${
+          colors.cyan(`${stats.successCount}/${stats.totalServers}`)
+        } servers for ${filename.split("/").pop()}`;
       }
     }
-    
-    const progressText = `[${bar}] ${percent}% | ${data.completed}/${data.total} files | ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
-    
+
+    const progressText =
+      `[${bar}] ${percent}% | ${data.completed}/${data.total} files | ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
+
     Deno.stdout.writeSync(new TextEncoder().encode(progressText));
-    
+
     this.lastUpdate = Date.now();
   }
 }
@@ -196,16 +200,16 @@ function formatElapsedTime(seconds: number): string {
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
-  
+
   if (minutes < 60) {
     return `${minutes}m ${remainingSeconds}s`;
   }
-  
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
-} 
+}

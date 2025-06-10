@@ -13,50 +13,50 @@ Deno.test("Upload Command Registration", async (t) => {
       options: [] as any[],
       action: null as any,
       example: null as any,
-      calls: [] as any[]
+      calls: [] as any[],
     };
-    
-    const commandFunc = function(name: string, description: string) {
+
+    const commandFunc = function (name: string, description: string) {
       cmd.name = name;
       cmd.description = description;
       cmd.calls.push({ args: [name, description] });
-      
+
       const chainable = {
-        arguments: function(args: string) {
+        arguments: function (args: string) {
           cmd.args.push(args);
           return chainable;
         },
-        option: function(...args: any[]) {
+        option: function (...args: any[]) {
           cmd.options.push(args);
           return chainable;
         },
-        action: function(fn: any) {
+        action: function (fn: any) {
           cmd.action = fn;
           return chainable;
         },
-        example: function(...args: any[]) {
+        example: function (...args: any[]) {
           cmd.example = args;
           return chainable;
         },
         getOptions: () => cmd.options,
         getArguments: () => cmd.args,
         getName: () => cmd.name,
-        getDescription: () => cmd.description
+        getDescription: () => cmd.description,
       };
-      
+
       return chainable;
     };
-    
+
     const mockCommand = {
-      command: commandFunc
+      command: commandFunc,
     } as any;
-    
+
     // Register the command
     registerUploadCommand(mockCommand);
-    
+
     // Verify command was called
     assertEquals(cmd.calls.length, 1);
-    
+
     const call = cmd.calls[0];
     assertEquals(call.args[0], "upload <folder>");
     assertEquals(call.args[1], "Upload files from a directory");
@@ -74,35 +74,35 @@ Deno.test("Upload Command Registration", async (t) => {
           },
           action: () => chainable,
           example: () => chainable,
-          getOptions: () => options
+          getOptions: () => options,
         };
         return chainable;
-      }
+      },
     } as any;
-    
+
     const result = mockCommand.command();
-    
+
     // Common options
     result.option("-v, --verbose", "Enable verbose output");
     result.option("--non-interactive", "Disable interactive prompts");
     result.option("--skip-delete", "Skip deletion of removed files");
     result.option("--copy-to <path:string>", "Copy files to a local directory");
-    
+
     const options = result.getOptions();
     assertEquals(options.length, 4);
-    
+
     // Check verbose option
     assertEquals(options[0][0], "-v, --verbose");
     assertEquals(options[0][1], "Enable verbose output");
-    
+
     // Check non-interactive option
     assertEquals(options[1][0], "--non-interactive");
     assertEquals(options[1][1], "Disable interactive prompts");
-    
+
     // Check skip-delete option
     assertEquals(options[2][0], "--skip-delete");
     assertEquals(options[2][1], "Skip deletion of removed files");
-    
+
     // Check copy-to option
     assertEquals(options[3][0], "--copy-to <path:string>");
     assertEquals(options[3][1], "Copy files to a local directory");
@@ -118,21 +118,21 @@ Deno.test("Upload Command Registration", async (t) => {
       }
       return true;
     };
-    
+
     // Test missing argument
     assertThrows(
       () => validateArgs([]),
       Error,
-      "Missing required argument: folder"
+      "Missing required argument: folder",
     );
-    
+
     // Test empty argument
     assertThrows(
       () => validateArgs([""]),
       Error,
-      "Folder path cannot be empty"
+      "Folder path cannot be empty",
     );
-    
+
     // Test valid argument
     assertEquals(validateArgs(["./dist"]), true);
     assertEquals(validateArgs(["/path/to/folder"]), true);
@@ -145,9 +145,9 @@ Deno.test("Upload Command Options Handling", async (t) => {
       verbose: true,
       nonInteractive: false,
       skipDelete: false,
-      copyTo: undefined
+      copyTo: undefined,
     };
-    
+
     assertEquals(options.verbose, true);
     assertEquals(typeof options.verbose, "boolean");
   });
@@ -157,9 +157,9 @@ Deno.test("Upload Command Options Handling", async (t) => {
       verbose: false,
       nonInteractive: true,
       skipDelete: false,
-      copyTo: undefined
+      copyTo: undefined,
     };
-    
+
     assertEquals(options.nonInteractive, true);
     assertEquals(typeof options.nonInteractive, "boolean");
   });
@@ -169,9 +169,9 @@ Deno.test("Upload Command Options Handling", async (t) => {
       verbose: false,
       nonInteractive: false,
       skipDelete: true,
-      copyTo: undefined
+      copyTo: undefined,
     };
-    
+
     assertEquals(options.skipDelete, true);
     assertEquals(typeof options.skipDelete, "boolean");
   });
@@ -181,9 +181,9 @@ Deno.test("Upload Command Options Handling", async (t) => {
       verbose: false,
       nonInteractive: false,
       skipDelete: false,
-      copyTo: "/backup/path"
+      copyTo: "/backup/path",
     };
-    
+
     assertEquals(options.copyTo, "/backup/path");
     assertEquals(typeof options.copyTo, "string");
   });
@@ -193,9 +193,9 @@ Deno.test("Upload Command Options Handling", async (t) => {
       verbose: true,
       nonInteractive: true,
       skipDelete: true,
-      copyTo: "/backup/path"
+      copyTo: "/backup/path",
     };
-    
+
     assertEquals(options.verbose, true);
     assertEquals(options.nonInteractive, true);
     assertEquals(options.skipDelete, true);
@@ -208,24 +208,24 @@ Deno.test("Upload Command Data Structures", async (t) => {
     const comparisonResult = {
       newFiles: [
         { path: "new1.txt", size: 100 },
-        { path: "new2.txt", size: 200 }
+        { path: "new2.txt", size: 200 },
       ],
       unchangedFiles: [
-        { path: "unchanged1.txt", size: 300 }
+        { path: "unchanged1.txt", size: 300 },
       ],
       modifiedFiles: [
-        { path: "modified1.txt", size: 400 }
+        { path: "modified1.txt", size: 400 },
       ],
       deletedFiles: [
-        { path: "deleted1.txt", size: 500 }
-      ]
+        { path: "deleted1.txt", size: 500 },
+      ],
     };
-    
+
     assertEquals(comparisonResult.newFiles.length, 2);
     assertEquals(comparisonResult.unchangedFiles.length, 1);
     assertEquals(comparisonResult.modifiedFiles.length, 1);
     assertEquals(comparisonResult.deletedFiles.length, 1);
-    
+
     // Verify file structure
     const newFile = comparisonResult.newFiles[0];
     assertExists(newFile.path);
@@ -241,15 +241,15 @@ Deno.test("Upload Command Data Structures", async (t) => {
       failedFiles: 2,
       skippedFiles: 0,
       totalSize: 1024 * 1024, // 1MB
-      uploadDuration: 5000 // 5 seconds
+      uploadDuration: 5000, // 5 seconds
     };
-    
+
     assertEquals(summary.totalFiles, 10);
     assertEquals(summary.uploadedFiles, 8);
     assertEquals(summary.failedFiles, 2);
     assertEquals(summary.totalSize, 1048576);
     assertEquals(summary.uploadDuration, 5000);
-    
+
     // Calculate success rate
     const successRate = (summary.uploadedFiles / summary.totalFiles) * 100;
     assertEquals(successRate, 80);
@@ -259,18 +259,18 @@ Deno.test("Upload Command Data Structures", async (t) => {
     const serverResults: Record<string, { success: number; total: number }> = {
       "https://server1.com": { success: 5, total: 5 },
       "https://server2.com": { success: 3, total: 5 },
-      "https://server3.com": { success: 0, total: 5 }
+      "https://server3.com": { success: 0, total: 5 },
     };
-    
+
     assertEquals(Object.keys(serverResults).length, 3);
-    
+
     // Check each server
     assertEquals(serverResults["https://server1.com"].success, 5);
     assertEquals(serverResults["https://server1.com"].total, 5);
-    
+
     assertEquals(serverResults["https://server2.com"].success, 3);
     assertEquals(serverResults["https://server2.com"].total, 5);
-    
+
     assertEquals(serverResults["https://server3.com"].success, 0);
     assertEquals(serverResults["https://server3.com"].total, 5);
   });
@@ -281,7 +281,7 @@ Deno.test("Upload Command Path Handling", async (t) => {
     const normalizePath = (path: string) => {
       return path.replace(/\/+$/, "").replace(/\\+/g, "/");
     };
-    
+
     assertEquals(normalizePath("./dist/"), "./dist");
     assertEquals(normalizePath("/path/to/folder/"), "/path/to/folder");
     assertEquals(normalizePath("C:\\Users\\folder\\"), "C:/Users/folder");
@@ -295,13 +295,13 @@ Deno.test("Upload Command Path Handling", async (t) => {
       }
       return true;
     };
-    
+
     await assertRejects(
       async () => await checkFolderExists("/non/existent/path"),
       Error,
-      "Folder does not exist"
+      "Folder does not exist",
     );
-    
+
     assertEquals(await checkFolderExists("./src"), true);
   });
 
@@ -309,7 +309,7 @@ Deno.test("Upload Command Path Handling", async (t) => {
     const isAbsolutePath = (path: string) => {
       return path.startsWith("/") || /^[A-Za-z]:[/\\]/.test(path);
     };
-    
+
     assertEquals(isAbsolutePath("/absolute/path"), true);
     assertEquals(isAbsolutePath("C:/Windows/path"), true);
     assertEquals(isAbsolutePath("./relative/path"), false);
@@ -322,11 +322,11 @@ Deno.test("Upload Command Error Scenarios", async (t) => {
     const loadConfig = async () => {
       throw new Error("No .nsite/config.json found. Run 'nsyte init' first.");
     };
-    
+
     await assertRejects(
       async () => await loadConfig(),
       Error,
-      "No .nsite/config.json found"
+      "No .nsite/config.json found",
     );
   });
 
@@ -334,11 +334,11 @@ Deno.test("Upload Command Error Scenarios", async (t) => {
     const uploadWithNetworkError = async () => {
       throw new Error("Network error: Failed to connect to server");
     };
-    
+
     await assertRejects(
       async () => await uploadWithNetworkError(),
       Error,
-      "Network error"
+      "Network error",
     );
   });
 
@@ -346,11 +346,11 @@ Deno.test("Upload Command Error Scenarios", async (t) => {
     const uploadWithAuthError = async () => {
       throw new Error("Authentication failed: Invalid credentials");
     };
-    
+
     await assertRejects(
       async () => await uploadWithAuthError(),
       Error,
-      "Authentication failed"
+      "Authentication failed",
     );
   });
 
@@ -358,11 +358,11 @@ Deno.test("Upload Command Error Scenarios", async (t) => {
     const readFileWithError = async () => {
       throw new Error("Permission denied: Cannot read file");
     };
-    
+
     await assertRejects(
       async () => await readFileWithError(),
       Error,
-      "Permission denied"
+      "Permission denied",
     );
   });
 });

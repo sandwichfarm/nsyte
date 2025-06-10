@@ -1,3 +1,4 @@
+import type { Nip07Interface } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
 
@@ -8,10 +9,8 @@ const RETRY_DELAY_MS = 1000;
 
 const DEFAULT_CONCURRENCY = 4;
 
-export interface Signer {
-  signEvent(event: NostrEventTemplate): Promise<NostrEvent>;
-  getPublicKey(): string|Promise<string>;
-}
+/** @deprecated use Nip07Interface from applesauce-signers */
+export interface Signer extends Nip07Interface {}
 
 export interface UploadProgress {
   total: number;
@@ -64,7 +63,7 @@ async function createUploadAuth(signer: Signer, blobSha256: string): Promise<str
 async function uploadToServer(
   server: string,
   file: FileEntry,
-  signer: Signer
+  signer: Signer,
 ): Promise<boolean> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
@@ -101,7 +100,7 @@ async function uploadToServer(
     const serverUrl = server.endsWith("/") ? server : `${server}/`;
 
     const base64Auth = btoa(auth);
-    const authHeader = { "Authorization": `Nostr ${base64Auth}` };
+    const authHeader = { Authorization: `Nostr ${base64Auth}` };
 
     const formData = new FormData();
     formData.append("file", fileObj);
@@ -111,7 +110,7 @@ async function uploadToServer(
       const response = await fetch(`${serverUrl}upload`, {
         method: "PUT",
         headers: authHeader,
-        body: fileObj
+        body: fileObj,
       });
 
       if (response.ok) {
@@ -124,8 +123,7 @@ async function uploadToServer(
     } catch (e) {
       log.debug(`PUT to /upload with auth header failed: ${e}`);
     }
-  }
-  catch (e) {
+  } catch (e) {
     log.debug(`PUT to /upload with auth header failed: ${e}`);
   }
   return false;
@@ -134,7 +132,12 @@ async function uploadToServer(
 /**
  * Publish an nsite event to nostr
  */
-async function createpublishNsiteEvent(signer: Signer, pubkey: string, path: string, sha256: string): Promise<NostrEvent> {
+async function createpublishNsiteEvent(
+  signer: Signer,
+  pubkey: string,
+  path: string,
+  sha256: string,
+): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
   const eventTemplate: NostrEventTemplate = {
@@ -155,79 +158,99 @@ async function createpublishNsiteEvent(signer: Signer, pubkey: string, path: str
 /**
  * Publish event to relays with direct WebSocket connections
  */
-async function publishEventToRelays(event: NostrEvent, relays: string[]): Promise<boolean> {
+async function publishEventToRelays(
+  event: NostrEvent,
+  relays: string[],
+): Promise<boolean> {
   log.debug(`Publishing event to ${relays.length} relays`);
 
   let successCount = 0;
   const eventJson = JSON.stringify(["EVENT", event]);
   const relayErrors = new Map<string, string>();
 
-  await Promise.all(relays.map(async (relay) => {
-    try {
-      const socket = new WebSocket(relay);
+  await Promise.all(
+    relays.map(async (relay) => {
+      try {
+        const socket = new WebSocket(relay);
 
-      const connectPromise = new Promise<boolean>(resolve => {
-        socket.onopen = () => {
-          log.debug(`Connected to relay: ${relay}`);
-          socket.send(eventJson);
+        const connectPromise = new Promise<boolean>((resolve) => {
+          socket.onopen = () => {
+            log.debug(`Connected to relay: ${relay}`);
+            socket.send(eventJson);
 
-          socket.onmessage = (msg) => {
-            try {
-              const data = JSON.parse(msg.data);
+            socket.onmessage = (msg) => {
+              try {
+                const data = JSON.parse(msg.data);
 
-              if (Array.isArray(data) && data.length >= 3 && data[0] === "OK" && data[2] === true) {
-                log.debug(`Event published to relay: ${relay}`);
-                resolve(true);
-                socket.close();
-                return;
-              }
-
-              if (Array.isArray(data) && data.length >= 4 && data[0] === "OK" && data[2] === false) {
-                const errorMessage = data[3] || "Unknown relay error";
-
-                if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
-                  log.warn(`Relay ${relay} rate-limited this publish: ${errorMessage}`);
-                  relayErrors.set(relay, `Rate limited: ${errorMessage}`);
-                } else {
-                  log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
-                  relayErrors.set(relay, errorMessage);
+                if (
+                  Array.isArray(data) &&
+                  data.length >= 3 &&
+                  data[0] === "OK" &&
+                  data[2] === true
+                ) {
+                  log.debug(`Event published to relay: ${relay}`);
+                  resolve(true);
+                  socket.close();
+                  return;
                 }
 
-                resolve(false);
-                socket.close();
+                if (
+                  Array.isArray(data) &&
+                  data.length >= 4 &&
+                  data[0] === "OK" &&
+                  data[2] === false
+                ) {
+                  const errorMessage = data[3] || "Unknown relay error";
+
+                  if (
+                    errorMessage.includes("rate-limit") ||
+                    errorMessage.includes("noting too much")
+                  ) {
+                    log.warn(
+                      `Relay ${relay} rate-limited this publish: ${errorMessage}`,
+                    );
+                    relayErrors.set(relay, `Rate limited: ${errorMessage}`);
+                  } else {
+                    log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
+                    relayErrors.set(relay, errorMessage);
+                  }
+
+                  resolve(false);
+                  socket.close();
+                }
+              } catch (e) {
+                log.debug(`Error parsing message from relay ${relay}: ${e}`);
               }
-            } catch (e) {
-              log.debug(`Error parsing message from relay ${relay}: ${e}`);
-            }
+            };
+
+            setTimeout(() => {
+              relayErrors.set(relay, "Timeout waiting for response");
+              resolve(false);
+              socket.close();
+            }, 5000);
           };
 
-          setTimeout(() => {
-            relayErrors.set(relay, "Timeout waiting for response");
+          socket.onerror = (e) => {
+            log.debug(`WebSocket error with relay ${relay}: ${e}`);
+            relayErrors.set(relay, `WebSocket error: ${e}`);
             resolve(false);
-            socket.close();
-          }, 5000);
-        };
+          };
 
-        socket.onerror = (e) => {
-          log.debug(`WebSocket error with relay ${relay}: ${e}`);
-          relayErrors.set(relay, `WebSocket error: ${e}`);
-          resolve(false);
-        };
+          socket.onclose = () => {
+            resolve(false);
+          };
+        });
 
-        socket.onclose = () => {
-          resolve(false);
-        };
-      });
-
-      const success = await connectPromise;
-      if (success) {
-        successCount++;
+        const success = await connectPromise;
+        if (success) {
+          successCount++;
+        }
+      } catch (e) {
+        log.debug(`Failed to connect to relay ${relay}: ${e}`);
+        relayErrors.set(relay, `Connection failed: ${e}`);
       }
-    } catch (e) {
-      log.debug(`Failed to connect to relay ${relay}: ${e}`);
-      relayErrors.set(relay, `Connection failed: ${e}`);
-    }
-  }));
+    }),
+  );
 
   const success = successCount > 0;
 
@@ -283,7 +306,7 @@ export async function processUploads(
   const results: UploadResponse[] = [];
   const queue = [...files];
 
-  const errors: Array<{file: string, error: string}> = [];
+  const errors: Array<{ file: string; error: string }> = [];
 
   while (queue.length > 0) {
     const chunk = queue.splice(0, Math.min(concurrency, queue.length));
@@ -321,15 +344,15 @@ export async function processUploads(
             eventPublished: false
           };
         }
-      })
-    ).catch(error => {
+      }),
+    ).catch((error) => {
       log.error(`Error processing batch: ${error.message || error}`);
-      return chunk.map(file => ({
+      return chunk.map((file) => ({
         file,
         success: false,
         error: `Batch processing error: ${error.message || error}`,
         serverResults: {},
-        eventPublished: false
+        eventPublished: false,
       }));
     });
 
@@ -346,7 +369,7 @@ export async function processUploads(
         progress.failed++;
         errors.push({
           file: result.file.path,
-          error: result.error || "Unknown error"
+          error: result.error || "Unknown error",
         });
       }
 
@@ -358,7 +381,7 @@ export async function processUploads(
     }
 
     if (queue.length > 0) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
   }
 
@@ -382,10 +405,12 @@ async function uploadFile(
   servers: string[],
   signer: Signer,
   relays: string[],
-  retryCount = 0
+  retryCount = 0,
 ): Promise<UploadResponse> {
   try {
-    log.debug(`Uploading file ${file.path}${retryCount > 0 ? ` (retry ${retryCount})` : ""}`);
+    log.debug(
+      `Uploading file ${file.path}${retryCount > 0 ? ` (retry ${retryCount})` : ""}`,
+    );
 
     const userPubkey = await signer.getPublicKey();
 
@@ -393,7 +418,13 @@ async function uploadFile(
       throw new Error("File data or SHA-256 hash missing");
     }
 
-    const serverResults: { [server: string]: { success: boolean; error?: string; alreadyExists?: boolean } } = {};
+    const serverResults: {
+      [server: string]: {
+        success: boolean;
+        error?: string;
+        alreadyExists?: boolean;
+      };
+    } = {};
 
     const uploadResults = await Promise.all(
       servers.map(async (server) => {
@@ -405,15 +436,14 @@ async function uploadFile(
 
           try {
             const response = await fetch(`${serverUrl}${file.sha256}`, {
-              method: "HEAD"
+              method: "HEAD",
             });
             alreadyExists = response.ok;
-          } catch (e) {
-          }
+          } catch (e) {}
 
           serverResults[server] = {
             success,
-            alreadyExists: alreadyExists && success
+            alreadyExists: alreadyExists && success,
           };
 
           return success;
@@ -422,13 +452,13 @@ async function uploadFile(
           serverResults[server] = { success: false, error: errorMessage };
           return false;
         }
-      })
+      }),
     );
 
-    const anyServerSuccess = uploadResults.some(result => result);
+    const anyServerSuccess = uploadResults.some((result) => result);
 
     if (!anyServerSuccess) {
-      const allServersHaveFile = servers.every(server => {
+      const allServersHaveFile = servers.every((server) => {
         const result = serverResults[server];
         return result && (result.success || result.alreadyExists);
       });
@@ -447,54 +477,73 @@ async function uploadFile(
       }
     }
 
-    const successfulServers = Object.values(serverResults).filter(r => r.success).length;
+    const successfulServers = Object.values(serverResults).filter(
+      (r) => r.success,
+    ).length;
 
     let signedEvent: NostrEvent | null = null;
     let eventPublished = false;
 
     try {
-      signedEvent = await createpublishNsiteEvent(signer, userPubkey, file.path, file.sha256);
+      signedEvent = await createpublishNsiteEvent(
+        signer,
+        userPubkey,
+        file.path,
+        file.sha256,
+      );
 
       if (!relays || relays.length === 0) {
         throw new Error("No relays provided for publishing events");
       }
 
       try {
-      eventPublished = await publishEventToRelays(signedEvent, relays);
+        eventPublished = await publishEventToRelays(signedEvent, relays);
 
-      if (eventPublished) {
-        log.info(`Published nsite event for ${file.path} to relays`);
-      } else {
-        log.warn(`Failed to publish nsite event for ${file.path} to relays`);
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+        if (eventPublished) {
+          log.info(`Published nsite event for ${file.path} to relays`);
+        } else {
+          log.warn(`Failed to publish nsite event for ${file.path} to relays`);
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
-        if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
-          log.warn(`Rate limiting detected when publishing event for ${file.path}: ${errorMessage}`);
+        if (
+          errorMessage.includes("rate-limit") ||
+          errorMessage.includes("noting too much")
+        ) {
+          log.warn(
+            `Rate limiting detected when publishing event for ${file.path}: ${errorMessage}`,
+          );
           return {
             file,
             success: true,
             eventId: signedEvent.id,
             serverResults,
             eventPublished: false,
-            error: `Rate limited: ${errorMessage}`
+            error: `Rate limited: ${errorMessage}`,
           };
         }
 
-      log.error(`Error publishing nsite event for ${file.path}: ${errorMessage}`);
-    }
+        log.error(
+          `Error publishing nsite event for ${file.path}: ${errorMessage}`,
+        );
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
-        log.warn(`Rate limiting detected when signing event for ${file.path}: ${errorMessage}`);
+      if (
+        errorMessage.includes("rate-limit") ||
+        errorMessage.includes("noting too much")
+      ) {
+        log.warn(
+          `Rate limiting detected when signing event for ${file.path}: ${errorMessage}`,
+        );
         return {
           file,
           success: true,
           serverResults,
           eventPublished: false,
-          error: `Rate limited during signing: ${errorMessage}`
+          error: `Rate limited during signing: ${errorMessage}`,
         };
       }
 
@@ -506,12 +555,15 @@ async function uploadFile(
       success: true,
       eventId: signedEvent?.id,
       serverResults,
-      eventPublished: eventPublished
+      eventPublished: eventPublished,
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
+    if (
+      errorMessage.includes("rate-limit") ||
+      errorMessage.includes("noting too much")
+    ) {
       log.warn(`Rate limiting detected for ${file.path}: ${errorMessage}`);
 
       return {
@@ -519,15 +571,17 @@ async function uploadFile(
         success: true,
         error: `Rate limited: ${errorMessage}`,
         serverResults: {},
-        eventPublished: false
+        eventPublished: false,
       };
     }
 
     log.error(`Failed to upload ${file.path}: ${errorMessage}`);
 
     if (retryCount < MAX_RETRIES) {
-      log.debug(`Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      log.debug(
+        `Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       return uploadFile(file, baseDir, servers, signer, relays, retryCount + 1);
     }
 
@@ -536,7 +590,7 @@ async function uploadFile(
       success: false,
       error: errorMessage,
       serverResults: {},
-      eventPublished: false
+      eventPublished: false,
     };
   }
 }

@@ -7,7 +7,7 @@ import {
   listBunkers,
   removeBunker,
   showBunkerHelp,
-  useBunkerForProject
+  useBunkerForProject,
 } from "../../src/commands/bunker.ts";
 
 // Helper function to capture console output
@@ -74,8 +74,16 @@ describe("CLI Bunker Command Exports", () => {
   });
 
   it("should export useBunkerForProject function", () => {
-    assertEquals(typeof useBunkerForProject, "function", "useBunkerForProject should be a function");
-    assertEquals(useBunkerForProject.length, 1, "useBunkerForProject should take 1 optional argument");
+    assertEquals(
+      typeof useBunkerForProject,
+      "function",
+      "useBunkerForProject should be a function",
+    );
+    assertEquals(
+      useBunkerForProject.length,
+      1,
+      "useBunkerForProject should take 1 optional argument",
+    );
   });
 
   it("should export removeBunker function", () => {
@@ -104,7 +112,7 @@ describe("CLI Bunker Command Exports", () => {
       // Check that CI/CD usage is documented
       assertStringIncludes(output, "CI/CD Usage");
       assertStringIncludes(output, "--nbunksec");
-      
+
       // Check that --no-persist is documented
       assertStringIncludes(output, "--no-persist");
     } finally {

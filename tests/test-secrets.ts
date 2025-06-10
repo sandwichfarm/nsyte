@@ -11,7 +11,7 @@ import { EncryptedStorage } from "./src/lib/secrets/encrypted-storage.ts";
 
 async function testSecretsManager() {
   console.log("🔑 Testing nsyte secrets management integration");
-  console.log("=" .repeat(50));
+  console.log("=".repeat(50));
 
   // Test keychain availability
   console.log("\n1. Testing keychain availability...");
@@ -36,7 +36,7 @@ async function testSecretsManager() {
   console.log("\n3. Testing SecretsManager...");
   const secretsManager = SecretsManager.getInstance();
   const initialized = await secretsManager.initialize();
-  
+
   if (!initialized) {
     console.log("❌ SecretsManager failed to initialize");
     return;
@@ -91,7 +91,7 @@ async function testSecretsManager() {
     console.log("❌ Secret still exists after deletion");
   }
 
-  console.log("\n" + "=" .repeat(50));
+  console.log("\n" + "=".repeat(50));
   console.log("🎉 Secrets management test completed!");
 }
 

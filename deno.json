@@ -34,8 +34,9 @@
     "@std/path": "jsr:@std/path@^1.0.0",
     "@std/media-types": "jsr:@std/media-types@^1.0.0",
     "@std/encoding": "jsr:@std/encoding@^1.0.0",
-    "applesauce-relay": "npm:applesauce-relay@1.1.0",
-    "applesauce-signers": "npm:applesauce-signers@1.0.0",
+    "applesauce-core": "npm:applesauce-core@^2",
+    "applesauce-relay": "npm:applesauce-relay@^2",
+    "applesauce-signers": "npm:applesauce-signers@^2",
     "rxjs": "npm:rxjs@^7.8.2",
     "std/": "https://deno.land/std@0.220.0/",
     "cliffy/": "https://deno.land/x/cliffy@v1.0.0-rc.3/",
@@ -54,8 +55,6 @@
     "singleQuote": false
   },
   "test": {
-    "include": [
-      "tests/"
-    ]
+    "include": ["tests/"]
   }
 }

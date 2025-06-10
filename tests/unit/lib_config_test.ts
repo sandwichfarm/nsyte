@@ -2,10 +2,10 @@ import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { join } from "std/path/mod.ts";
 import { ensureDir } from "std/fs/mod.ts";
 import {
+  defaultConfig,
   ProjectConfig,
   readProjectFile,
   writeProjectFile,
-  defaultConfig
 } from "../../src/lib/config.ts";
 
 Deno.test("lib/config", async (t) => {
@@ -40,13 +40,13 @@ Deno.test("lib/config", async (t) => {
         relays: ["wss://relay1.test", "wss://relay2.test"],
         servers: ["https://server1.test"],
         publishServerList: true,
-        publishRelayList: true
+        publishRelayList: true,
       };
-      
+
       // Create .nsite directory and config.json
       await ensureDir(".nsite");
       await Deno.writeTextFile(".nsite/config.json", JSON.stringify(testConfig, null, 2));
-      
+
       const config = readProjectFile();
       assertExists(config);
       assertEquals(config.relays, ["wss://relay1.test", "wss://relay2.test"]);
@@ -71,11 +71,11 @@ Deno.test("lib/config", async (t) => {
         relays: ["wss://test.relay"],
         servers: ["https://test.server"],
         publishServerList: true,
-        publishRelayList: true
+        publishRelayList: true,
       };
-      
+
       writeProjectFile(testConfig);
-      
+
       const content = await Deno.readTextFile(".nsite/config.json");
       const parsed = JSON.parse(content);
       assertEquals(parsed.relays, ["wss://test.relay"]);
@@ -89,11 +89,11 @@ Deno.test("lib/config", async (t) => {
         relays: ["wss://test.relay"],
         servers: [],
         publishServerList: true,
-        publishRelayList: true
+        publishRelayList: true,
       };
-      
+
       writeProjectFile(testConfig);
-      
+
       const exists = await Deno.stat(".nsite/config.json").then(() => true).catch(() => false);
       assertEquals(exists, true);
       await cleanupTest();
@@ -122,13 +122,13 @@ Deno.test("lib/config", async (t) => {
         bunkerPubkey: "test-pubkey",
         profile: {
           name: "Test User",
-          about: "Test description"
-        }
+          about: "Test description",
+        },
       };
-      
+
       writeProjectFile(testConfig);
       const readConfig = readProjectFile();
-      
+
       assertExists(readConfig);
       assertEquals(readConfig.relays, testConfig.relays);
       assertEquals(readConfig.servers, testConfig.servers);
@@ -145,12 +145,12 @@ Deno.test("lib/config", async (t) => {
         relays: ["wss://relay.test"],
         servers: ["https://server.test"],
         publishServerList: false,
-        publishRelayList: true
+        publishRelayList: true,
       };
-      
+
       writeProjectFile(testConfig);
       const config = readProjectFile();
-      
+
       assertExists(config);
       assertEquals(config.relays, ["wss://relay.test"]);
       assertEquals(config.servers, ["https://server.test"]);

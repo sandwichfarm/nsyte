@@ -1,8 +1,8 @@
-import { assertEquals, assertThrows, assertRejects } from "std/assert/mod.ts";
-import { stub, returnsNext, Stub, spy, SpyCall } from "std/testing/mock.ts";
+import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
+import { returnsNext, spy, SpyCall, Stub, stub } from "std/testing/mock.ts";
 
 // Import the functions to test
-import { validateNpub, npubToHex, formatFileSize, runCommand } from "../../src/commands/run.ts";
+import { formatFileSize, npubToHex, runCommand, validateNpub } from "../../src/commands/run.ts";
 import * as resolverUtils from "../../src/lib/resolver-utils.ts";
 import * as nostr from "../../src/lib/nostr.ts";
 
@@ -33,16 +33,19 @@ Deno.test("Run Command Core - Input Validation", async (t) => {
   await t.step("validateNpub should correctly validate npubs", () => {
     const validNpub = generateValidNpub();
     assertEquals(validateNpub(validNpub), true);
-    
+
     assertEquals(validateNpub("invalid"), false);
     assertEquals(validateNpub(""), false);
-    assertEquals(validateNpub("nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"), false);
+    assertEquals(
+      validateNpub("nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"),
+      false,
+    );
   });
 
   await t.step("npubToHex should convert npub to hex correctly", () => {
     const validNpub = generateValidNpub();
     const hex = npubToHex(validNpub);
-    
+
     assertEquals(typeof hex, "string");
     assertEquals(hex.length, 64);
     assertEquals(/^[0-9a-f]+$/i.test(hex), true);
@@ -69,17 +72,16 @@ Deno.test("Run Command Core - Error Handling", async (t) => {
 
   await t.step("should handle invalid npub parameter", async () => {
     setupMocks();
-    
+
     try {
       await assertRejects(
         () => runCommand({}, "invalid_npub"),
         Error,
-        "Deno.exit called"
+        "Deno.exit called",
       );
-      
+
       // Verify that console.error was called for the invalid npub
       assertEquals(consoleErrorSpy.calls.length > 0, true);
-      
     } finally {
       teardownMocks();
     }
@@ -87,23 +89,22 @@ Deno.test("Run Command Core - Error Handling", async (t) => {
 
   await t.step("should handle no relays available", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const options = {};
-    
+
     // Mock resolveRelays to return empty array
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => []);
-    
+
     try {
       await assertRejects(
         () => runCommand(options, validNpub),
         Error,
-        "Deno.exit called"
+        "Deno.exit called",
       );
-      
+
       // Verify that console.error was called about no relays
       assertEquals(consoleErrorSpy.calls.length > 0, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       teardownMocks();
@@ -112,27 +113,26 @@ Deno.test("Run Command Core - Error Handling", async (t) => {
 
   await t.step("should handle relay connection errors", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const pubkeyHex = npubToHex(validNpub);
     const options = {};
-    
+
     // Mock dependencies
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => {
       throw new Error("Failed to connect to relays");
     });
-    
+
     try {
       await assertRejects(
         () => runCommand(options, validNpub),
         Error,
-        "Deno.exit called"
+        "Deno.exit called",
       );
-      
+
       // Verify error handling was triggered
       assertEquals(consoleErrorSpy.calls.length > 0, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       listRemoteFilesStub?.restore();
@@ -151,41 +151,40 @@ Deno.test("Run Command Core - Successful Execution", async (t) => {
       path: "index.html",
       sha256: "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567a",
       size: 1024,
-      contentType: "text/html"
+      contentType: "text/html",
     },
     {
       path: "style.css",
       sha256: "b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
       size: 2048,
-      contentType: "text/css"
-    }
+      contentType: "text/css",
+    },
   ];
 
   await t.step("should successfully execute with valid npub and files", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const pubkeyHex = npubToHex(validNpub);
     const options = {};
-    
+
     // Mock all dependencies for successful execution
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => Promise.resolve(mockFiles));
-    
+
     try {
       await runCommand(options, validNpub);
-      
+
       // Verify successful execution logs
       assertEquals(consoleLogSpy.calls.length > 0, true);
-      
+
       // Check that specific success messages were logged
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      const hasResolverMessage = logCalls.some(log => log.includes("resolver simulation"));
-      const hasFilesMessage = logCalls.some(log => log.includes("Found"));
-      
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+      const hasResolverMessage = logCalls.some((log) => log.includes("resolver simulation"));
+      const hasFilesMessage = logCalls.some((log) => log.includes("Found"));
+
       assertEquals(hasResolverMessage, true);
       assertEquals(hasFilesMessage, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       listRemoteFilesStub?.restore();
@@ -195,23 +194,22 @@ Deno.test("Run Command Core - Successful Execution", async (t) => {
 
   await t.step("should handle empty file list gracefully", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const options = {};
-    
+
     // Mock dependencies for empty file list
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => Promise.resolve([]));
-    
+
     try {
       await runCommand(options, validNpub);
-      
+
       // Verify that "no files found" message was logged
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      const hasNoFilesMessage = logCalls.some(log => log.includes("No files found"));
-      
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+      const hasNoFilesMessage = logCalls.some((log) => log.includes("No files found"));
+
       assertEquals(hasNoFilesMessage, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       listRemoteFilesStub?.restore();
@@ -227,27 +225,26 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
 
   await t.step("should attempt to resolve pubkey from config when no npub provided", async () => {
     setupMocks();
-    
+
     const testPubkey = npubToHex(generateValidNpub());
     const options = {};
-    
+
     // Mock successful pubkey resolution from config
     resolvePubkeyStub = stub(resolverUtils, "resolvePubkey", () => Promise.resolve(testPubkey));
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => Promise.resolve([]));
-    
+
     try {
       await runCommand(options); // No npub parameter
-      
+
       // Verify that resolvePubkey was called (config detection attempt)
       assertEquals(resolvePubkeyStub.calls.length, 1);
-      
+
       // Verify that detection message was logged
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      const hasDetectionMessage = logCalls.some(log => log.includes("Detected npub"));
-      
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+      const hasDetectionMessage = logCalls.some((log) => log.includes("Detected npub"));
+
       assertEquals(hasDetectionMessage, true);
-      
     } finally {
       resolvePubkeyStub?.restore();
       resolveRelaysStub?.restore();
@@ -258,22 +255,21 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
 
   await t.step("should handle config resolution failure", async () => {
     setupMocks();
-    
+
     const options = {};
-    
+
     // Mock failed pubkey resolution from config
     resolvePubkeyStub = stub(resolverUtils, "resolvePubkey", () => {
       throw new Error("No public key available");
     });
-    
+
     try {
       // This should trigger interactive mode or fail
       // Since we can't test interactive mode easily, it should fail
       await assertRejects(
         () => runCommand(options), // No npub parameter
-        Error
+        Error,
       );
-      
     } finally {
       resolvePubkeyStub?.restore();
       teardownMocks();
@@ -290,39 +286,38 @@ Deno.test("Run Command Core - Output Formatting", async (t) => {
       path: "index.html",
       sha256: "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567a",
       size: 1024,
-      contentType: "text/html"
+      contentType: "text/html",
     },
     {
       path: "large-file.bin",
       sha256: "c3d4e5f6789012345678901234567890123456789012345678901234567890ab",
       size: 1048576, // 1MB
-      contentType: "application/octet-stream"
-    }
+      contentType: "application/octet-stream",
+    },
   ];
 
   await t.step("should format file information correctly", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const options = {};
-    
+
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => Promise.resolve(mockFiles));
-    
+
     try {
       await runCommand(options, validNpub);
-      
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      
+
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+
       // Check that file information is properly formatted and displayed
-      const hasFileCount = logCalls.some(log => log.includes("Found 2 files"));
-      const hasFileSize = logCalls.some(log => log.includes("1 MB") || log.includes("1 KB"));
-      const hasHashDisplay = logCalls.some(log => log.includes("🌸"));
-      
+      const hasFileCount = logCalls.some((log) => log.includes("Found 2 files"));
+      const hasFileSize = logCalls.some((log) => log.includes("1 MB") || log.includes("1 KB"));
+      const hasHashDisplay = logCalls.some((log) => log.includes("🌸"));
+
       assertEquals(hasFileCount, true);
       assertEquals(hasFileSize, true);
       assertEquals(hasHashDisplay, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       listRemoteFilesStub?.restore();
@@ -332,25 +327,22 @@ Deno.test("Run Command Core - Output Formatting", async (t) => {
 
   await t.step("should display resolver URL format correctly", async () => {
     setupMocks();
-    
+
     const validNpub = generateValidNpub();
     const options = { port: 3000 };
-    
+
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => ["wss://test.relay"]);
     listRemoteFilesStub = stub(nostr, "listRemoteFiles", () => Promise.resolve([]));
-    
+
     try {
       await runCommand(options, validNpub);
-      
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      
+
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+
       // Check that resolver URL is displayed correctly
-      const hasResolverUrl = logCalls.some(log => 
-        log.includes(`${validNpub}.localhost:3000`)
-      );
-      
+      const hasResolverUrl = logCalls.some((log) => log.includes(`${validNpub}.localhost:3000`));
+
       assertEquals(hasResolverUrl, true);
-      
     } finally {
       resolveRelaysStub?.restore();
       listRemoteFilesStub?.restore();

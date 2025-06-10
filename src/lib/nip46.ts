@@ -2,25 +2,28 @@
  * NIP-46: Nostr Remote Signing implementation
  * Following the specification at https://nostr-nips.com/nip-46
  */
-import { RelayPool, onlyEvents } from "applesauce-relay";
-import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { qrcode as generateQrCodeForTerminal } from "@libs/qrcode";
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { bech32 } from "@scure/base";
-import { randomBytes } from "@noble/hashes/utils";
-import { lastValueFrom } from "rxjs";
+import { RelayPool } from "applesauce-relay";
+import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
 
-export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([0,10002,24242,34128])
+export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
+  0,
+  10002,
+  24242,
+  34128,
+]);
 
-const pool = new RelayPool()
+const pool = new RelayPool();
 
 /** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
-NostrConnectSigner.subscriptionMethod = (relays, filters) => pool.subscription(relays, filters).pipe(onlyEvents())
-NostrConnectSigner.publishMethod = (relays, event) => lastValueFrom(pool.publish(relays, event)).then(() => {})
+NostrConnectSigner.subscriptionMethod = pool.subscription.bind(pool);
+NostrConnectSigner.publishMethod = pool.publish.bind(pool);
 
 /**
  * Helper function to render a QR code boolean array with a quiet zone to the console.
@@ -32,7 +35,7 @@ function _renderQrArrayWithQuietZone(
   qrArray: boolean[][] | undefined,
   borderSize: number,
   lightCharPair = "\u2588\u2588", // Full blocks (appears as foreground color, e.g., white)
-  darkCharPair = "  " // Spaces (appears as background color, e.g., black)
+  darkCharPair = "  ", // Spaces (appears as background color, e.g., black)
 ): number {
   if (!qrArray || qrArray.length === 0) {
     log.warn("QR array is empty, cannot render.");
@@ -123,11 +126,15 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
   try {
     const encodedData: Uint8Array[] = [];
 
-    const pubkeyBytes = new Uint8Array(info.pubkey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+    const pubkeyBytes = new Uint8Array(
+      info.pubkey.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
+    );
     encodedData.push(new Uint8Array([0, pubkeyBytes.length]));
     encodedData.push(pubkeyBytes);
 
-    const localKeyBytes = new Uint8Array(info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+    const localKeyBytes = new Uint8Array(
+      info.local_key.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
+    );
     encodedData.push(new Uint8Array([1, localKeyBytes.length]));
     encodedData.push(localKeyBytes);
 
@@ -143,7 +150,10 @@ export function encodeBunkerInfo(info: BunkerInfo): string {
       encodedData.push(secretBytes);
     }
 
-    const combinedLength = encodedData.reduce((sum, part) => sum + part.length, 0);
+    const combinedLength = encodedData.reduce(
+      (sum, part) => sum + part.length,
+      0,
+    );
     const combinedData = new Uint8Array(combinedLength);
 
     let offset = 0;
@@ -170,7 +180,9 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
 
     const decoded = bech32.decodeUnsafe(nbunkString, 1000);
     if (!decoded || decoded.prefix !== "nbunksec") {
-      throw new Error(`Invalid prefix: ${decoded?.prefix || "none"}, expected nbunksec`);
+      throw new Error(
+        `Invalid prefix: ${decoded?.prefix || "none"}, expected nbunksec`,
+      );
     }
 
     const data = bech32.fromWords(decoded.words);
@@ -178,7 +190,7 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
     const result: BunkerInfo = {
       pubkey: "",
       relays: [],
-      local_key: ""
+      local_key: "",
     };
 
     let i = 0;
@@ -226,7 +238,13 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
 /**
  * Bunker management functions for secrets storage
  */
-export async function getBunkerInfo(bunkerPubkey: string): Promise<{ clientKey: Uint8Array; bunkerUrl: string; nbunkString?: string } | null> {
+export async function getBunkerInfo(bunkerPubkey: string): Promise<
+  {
+    clientKey: Uint8Array;
+    bunkerUrl: string;
+    nbunkString?: string;
+  } | null
+> {
   try {
     const secretsManager = SecretsManager.getInstance();
     const nbunkString = await secretsManager.getNbunk(bunkerPubkey);
@@ -238,19 +256,23 @@ export async function getBunkerInfo(bunkerPubkey: string): Promise<{ clientKey: 
     const info = decodeBunkerInfo(nbunkString);
 
     const clientKey = new Uint8Array(
-      info.local_key.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []
+      info.local_key.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
     );
 
-    const relayParams = info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+    const relayParams = info.relays
+      .map((r) => `relay=${encodeURIComponent(r)}`)
+      .join("&");
     const bunkerUrl = `bunker://${info.pubkey}?${relayParams}`;
 
     return {
       clientKey,
       bunkerUrl,
-      nbunkString
+      nbunkString,
     };
   } catch (error) {
-    log.debug(`No existing bunker info found for bunker ${bunkerPubkey}: ${error}`);
+    log.debug(
+      `No existing bunker info found for bunker ${bunkerPubkey}: ${error}`,
+    );
     return null;
   }
 }
@@ -258,12 +280,16 @@ export async function getBunkerInfo(bunkerPubkey: string): Promise<{ clientKey: 
 /**
  * Store bunker information
  */
-export async function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array, bunkerUrl: string): Promise<void> {
+export async function saveBunkerInfo(
+  bunkerPubkey: string,
+  clientKey: Uint8Array,
+  bunkerUrl: string,
+): Promise<void> {
   try {
     const bunkerInfo: BunkerInfo = {
       pubkey: bunkerPubkey,
       relays: parseBunkerUrl(bunkerUrl).relays,
-      local_key: bytesToHex(clientKey)
+      local_key: bytesToHex(clientKey),
     };
 
     const nbunkString = encodeBunkerInfo(bunkerInfo);
@@ -281,7 +307,10 @@ export async function saveBunkerInfo(bunkerPubkey: string, clientKey: Uint8Array
  * Store a bunker URL in the secrets system
  * This function is used by the config system
  */
-export async function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): Promise<void> {
+export async function storeBunkerUrl(
+  bunkerPubkey: string,
+  bunkerUrl: string,
+): Promise<void> {
   try {
     const tempClientKey = randomBytes(32);
 
@@ -297,18 +326,28 @@ export async function storeBunkerUrl(bunkerPubkey: string, bunkerUrl: string): P
  * Reconnect to a bunker using a previously stored nbunksec
  * This should be used for reconnections after initial pairing
  */
-export async function importFromNbunk(nbunkString: string): Promise<NostrConnectSigner> {
+export async function importFromNbunk(
+  nbunkString: string,
+): Promise<NostrConnectSigner> {
   try {
     const info = decodeBunkerInfo(nbunkString);
-    const clientKey =  hexToBytes(info.local_key);
+    const clientKey = hexToBytes(info.local_key);
 
-    const signer = new NostrConnectSigner({remote: info.pubkey, relays: info.relays, signer: new SimpleSigner(clientKey)});
+    const signer = new NostrConnectSigner({
+      remote: info.pubkey,
+      relays: info.relays,
+      signer: new SimpleSigner(clientKey),
+    });
 
     try {
       await signer.connect();
       log.info("Session established from nbunksec");
 
-      const dummyUrl = `bunker://${info.pubkey}?${info.relays.map(r => `relay=${encodeURIComponent(r)}`).join("&")}`;
+      const dummyUrl = `bunker://${info.pubkey}?${
+        info.relays
+          .map((r) => `relay=${encodeURIComponent(r)}`)
+          .join("&")
+      }`;
       await saveBunkerInfo(info.pubkey, clientKey, dummyUrl);
 
       return signer;
@@ -316,7 +355,9 @@ export async function importFromNbunk(nbunkString: string): Promise<NostrConnect
       await signer.close();
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-      log.error(`Failed to establish session with bunker from nbunksec: ${errorMessage}`);
+      log.error(
+        `Failed to establish session with bunker from nbunksec: ${errorMessage}`,
+      );
       throw error;
     }
   } catch (error: unknown) {
@@ -326,51 +367,68 @@ export async function importFromNbunk(nbunkString: string): Promise<NostrConnect
   }
 }
 
-  /**
-   * Get the encoded bunker info for this connection
-   */
+/**
+ * Get the encoded bunker info for this connection
+ */
 export function getNbunkString(signer: NostrConnectSigner): string {
-  if(!signer.remote) throw new Error("Cant save bunker when its not setup");
+  if (!signer.remote) throw new Error("Cant save bunker when its not setup");
 
   const bunkerInfo: BunkerInfo = {
     pubkey: signer.remote,
     relays: signer.relays,
-    local_key: bytesToHex(signer.signer.key)
+    local_key: bytesToHex(signer.signer.key),
   };
 
   return encodeBunkerInfo(bunkerInfo);
 }
 
 /**
-   * Initiate a connection using Nostr Connect (NIP-46 QR Code flow)
-   * @param appName - Name of this application, to be shown in the Signer
-   * @param appRelays - Relays this application will listen on for the Signer's response
-   */
+ * Initiate a connection using Nostr Connect (NIP-46 QR Code flow)
+ * @param appName - Name of this application, to be shown in the Signer
+ * @param appRelays - Relays this application will listen on for the Signer's response
+ */
 export async function initiateNostrConnect(
   appName: string,
   appRelays: string[],
-  connectTimeoutMs = 120000 // 2 minutes
+  connectTimeoutMs = 120000, // 2 minutes
 ): Promise<NostrConnectSigner> {
-  const isDebug = Deno.env.get("LOG_LEVEL") === "debug";
-  log.debug(`Initiating Nostr Connect with app name: ${appName}, relays: ${appRelays.join(', ')}`);
-  
-  const signer = new NostrConnectSigner({relays: appRelays});
+  log.debug(
+    `Initiating Nostr Connect with app name: ${appName}, relays: ${
+      appRelays.join(
+        ", ",
+      )
+    }`,
+  );
 
-  const nostrConnectUri = signer.getNostrConnectURI({name: appName, permissions: PERMISSIONS});
+  const signer = new NostrConnectSigner({ relays: appRelays });
+
+  const nostrConnectUri = signer.getNostrConnectURI({
+    name: appName,
+    permissions: PERMISSIONS,
+  });
   log.debug(`Generated Nostr Connect URI: ${nostrConnectUri}`);
 
-  log.info("Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):");
+  log.info(
+    "Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):",
+  );
   let qrLines = 0;
   try {
-    const qrArray: boolean[][] | undefined = await generateQrCodeForTerminal(nostrConnectUri, { output: "array" });
+    const qrArray: boolean[][] | undefined = await generateQrCodeForTerminal(
+      nostrConnectUri,
+      { output: "array" },
+    );
     qrLines = _renderQrArrayWithQuietZone(qrArray, 2);
     log.debug(`QR code rendered with ${qrLines} lines`);
   } catch (qrError) {
-    log.error(`Failed to generate QR code: ${qrError}. Please copy the URI manually.`);
+    log.error(
+      `Failed to generate QR code: ${qrError}. Please copy the URI manually.`,
+    );
     qrLines = -1;
   }
   log.info(`Or copy-paste this URI: ${nostrConnectUri}`);
-  log.info(`Waiting for Signer to connect (timeout in ${connectTimeoutMs / 1000}s)...`);
+  log.info(
+    `Waiting for Signer to connect (timeout in ${connectTimeoutMs / 1000}s)...`,
+  );
 
   const linesToClearAfterScanOrTimeout = qrLines >= 0 ? qrLines + 3 : 3;
 
@@ -382,7 +440,7 @@ export async function initiateNostrConnect(
       const encoder = new TextEncoder();
       Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`));
       for (let i = 0; i < lines; i++) {
-        Deno.stdout.writeSync(encoder.encode('\x1b[2K\x1b[B'));
+        Deno.stdout.writeSync(encoder.encode("\x1b[2K\x1b[B"));
       }
       Deno.stdout.writeSync(encoder.encode(`\x1b[${lines}A`));
     }
@@ -390,10 +448,13 @@ export async function initiateNostrConnect(
 
   let timeoutHandle: number | undefined = undefined;
 
-  const signerPromise = signer.waitForSigner()
+  const signerPromise = signer
+    .waitForSigner()
     .then(() => {
       if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
-      log.debug("Signer connected successfully via waitForSigner. Returning the signer instance.");
+      log.debug(
+        "Signer connected successfully via waitForSigner. Returning the signer instance.",
+      );
       return signer;
     })
     .catch((error) => {
@@ -404,8 +465,14 @@ export async function initiateNostrConnect(
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
-      log.error(`Connection explicitly timed out after ${connectTimeoutMs / 1000} seconds`);
-      reject(new Error(`Connection timed out after ${connectTimeoutMs / 1000} seconds`));
+      log.error(
+        `Connection explicitly timed out after ${connectTimeoutMs / 1000} seconds`,
+      );
+      reject(
+        new Error(
+          `Connection timed out after ${connectTimeoutMs / 1000} seconds`,
+        ),
+      );
     }, connectTimeoutMs);
   });
 
@@ -417,7 +484,7 @@ export async function initiateNostrConnect(
     return resultSigner;
   } catch (error) {
     log.error(`Failed to connect to signer (outer catch): ${error}`);
-    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle); 
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
     clearConsoleMessages(linesToClearAfterScanOrTimeout);
     throw error;
   }

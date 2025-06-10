@@ -1,15 +1,15 @@
 import { assertEquals } from "std/assert/mod.ts";
 import {
-  formatTitle,
-  formatSectionHeader,
   formatConfigValue,
+  formatDuration,
   formatFilePath,
   formatFileSize,
   formatFileSummary,
-  formatRelayList,
-  formatServerResults,
   formatProgressBar,
-  formatDuration
+  formatRelayList,
+  formatSectionHeader,
+  formatServerResults,
+  formatTitle,
 } from "../../src/ui/formatters.ts";
 
 Deno.test("UI Formatters - formatTitle", async (t) => {
@@ -169,16 +169,16 @@ Deno.test("UI Formatters - formatServerResults", async (t) => {
     const results = {
       "https://server1.test": { success: 10, total: 10 },
       "https://server2.test": { success: 8, total: 10 },
-      "https://server3.test": { success: 0, total: 10 }
+      "https://server3.test": { success: 0, total: 10 },
     };
-    
+
     const formatted = formatServerResults(results);
     assertEquals(typeof formatted, "string");
     assertEquals(formatted.includes("server1"), true);
     assertEquals(formatted.includes("server2"), true);
     assertEquals(formatted.includes("server3"), true);
     assertEquals(formatted.includes("100%"), true); // server1 should be 100%
-    assertEquals(formatted.includes("80%"), true);  // server2 should be 80%
+    assertEquals(formatted.includes("80%"), true); // server2 should be 80%
   });
 
   await t.step("should handle empty results", () => {
@@ -188,7 +188,7 @@ Deno.test("UI Formatters - formatServerResults", async (t) => {
 
   await t.step("should handle servers with zero total", () => {
     const results = {
-      "https://server.test": { success: 0, total: 0 }
+      "https://server.test": { success: 0, total: 0 },
     };
     const formatted = formatServerResults(results);
     assertEquals(typeof formatted, "string");

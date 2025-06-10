@@ -3,7 +3,7 @@
  * Tests keychain providers, encrypted storage, and SecretsManager
  */
 
-import { assertEquals, assertRejects, assert } from "https://deno.land/std@0.208.0/assert/mod.ts";
+import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.208.0/assert/mod.ts";
 import { join } from "std/path/mod.ts";
 import { ensureDirSync, existsSync } from "std/fs/mod.ts";
 import { SecretsManager } from "../src/lib/secrets/manager.ts";
@@ -18,7 +18,9 @@ class MockKeychainProvider {
     return true;
   }
 
-  async store(credential: { service: string; account: string; password: string }): Promise<boolean> {
+  async store(
+    credential: { service: string; account: string; password: string },
+  ): Promise<boolean> {
     const key = `${credential.service}:${credential.account}`;
     this.storage.set(key, credential.password);
     return true;
@@ -84,7 +86,7 @@ function mockEnvironment() {
 
 Deno.test("Keychain Provider Detection", async () => {
   const provider = await getKeychainProvider();
-  
+
   // Should detect provider on supported platforms
   if (["darwin", "windows", "linux"].includes(Deno.build.os)) {
     // Provider might be available or not depending on system setup
@@ -98,7 +100,7 @@ Deno.test("Keychain Provider Detection", async () => {
 Deno.test("EncryptedStorage - Basic Operations", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     const initialized = await storage.initialize();
@@ -131,7 +133,7 @@ Deno.test("EncryptedStorage - Basic Operations", async () => {
 Deno.test("EncryptedStorage - Multiple Secrets", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     await storage.initialize();
@@ -165,26 +167,26 @@ Deno.test("EncryptedStorage - Multiple Secrets", async () => {
 Deno.test("SecretsManager - Encrypted Storage Fallback", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     // Test with encrypted storage directly to avoid keychain prompts
     const storage = new EncryptedStorage();
     const initialized = await storage.initialize();
     assert(initialized, "EncryptedStorage should initialize");
-    
+
     // Test basic operations
     const testPubkey = "npub1test123";
     const testNbunksec = "bunker://test-connection";
-    
+
     const stored = await storage.store("nsyte", testPubkey, testNbunksec);
     assert(stored, "Should store nbunksec successfully");
-    
+
     const retrieved = await storage.retrieve("nsyte", testPubkey);
     assertEquals(retrieved, testNbunksec, "Should retrieve correct nbunksec");
-    
+
     const pubkeys = await storage.list("nsyte");
     assert(pubkeys.includes(testPubkey), "Pubkey should be in list");
-    
+
     const deleted = await storage.delete("nsyte", testPubkey);
     assert(deleted, "Should delete nbunksec successfully");
   } finally {
@@ -196,38 +198,42 @@ Deno.test("SecretsManager - Encrypted Storage Fallback", async () => {
 Deno.test("SecretsManager - Legacy Migration (Encrypted Storage)", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     // Create legacy secrets file
     const configDir = join(TEST_DIR, ".config", "nsyte");
     ensureDirSync(configDir);
-    
+
     const legacySecrets = {
       "npub1legacy1": "bunker://legacy-connection-1",
       "npub1legacy2": "bunker://legacy-connection-2",
     };
-    
+
     const legacyPath = join(configDir, "secrets.json");
     Deno.writeTextFileSync(legacyPath, JSON.stringify(legacySecrets, null, 2));
-    
+
     // Test migration with encrypted storage directly
     const storage = new EncryptedStorage();
     await storage.initialize();
-    
+
     // Manually test migration logic by reading legacy file and storing in encrypted storage
     for (const [pubkey, nbunksec] of Object.entries(legacySecrets)) {
       const stored = await storage.store("nsyte", pubkey, nbunksec);
       assert(stored, `Should migrate ${pubkey} successfully`);
     }
-    
+
     // Verify migration worked
     for (const [pubkey, expectedNbunksec] of Object.entries(legacySecrets)) {
       const retrieved = await storage.retrieve("nsyte", pubkey);
       assertEquals(retrieved, expectedNbunksec, `Migrated secret for ${pubkey} should match`);
     }
-    
+
     const pubkeys = await storage.list("nsyte");
-    assertEquals(pubkeys.sort(), Object.keys(legacySecrets).sort(), "All migrated pubkeys should be available");
+    assertEquals(
+      pubkeys.sort(),
+      Object.keys(legacySecrets).sort(),
+      "All migrated pubkeys should be available",
+    );
   } finally {
     restoreEnv();
     cleanupTestDir();
@@ -237,19 +243,19 @@ Deno.test("SecretsManager - Legacy Migration (Encrypted Storage)", async () => {
 Deno.test("EncryptedStorage - Error Handling", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     await storage.initialize();
-    
+
     // Test retrieving non-existent secret
     const nonExistent = await storage.retrieve("nsyte", "npub1nonexistent");
     assertEquals(nonExistent, null, "Non-existent secret should return null");
-    
+
     // Test deleting non-existent secret
     const deletedNonExistent = await storage.delete("nsyte", "npub1nonexistent");
     assertEquals(deletedNonExistent, false, "Deleting non-existent secret should return false");
-    
+
     // Test empty account
     const emptyResult = await storage.retrieve("nsyte", "");
     assertEquals(emptyResult, null, "Empty account should return null");
@@ -262,31 +268,31 @@ Deno.test("EncryptedStorage - Error Handling", async () => {
 Deno.test("EncryptedStorage - Concurrent Operations", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     await storage.initialize();
-    
+
     // Store multiple secrets concurrently
     const promises = [];
     for (let i = 0; i < 10; i++) {
       promises.push(storage.store("nsyte", `npub1test${i}`, `bunker://connection-${i}`));
     }
-    
+
     const results = await Promise.all(promises);
     results.forEach((result: boolean, i: number) => {
       assert(result, `Concurrent store ${i} should succeed`);
     });
-    
+
     // Small delay to ensure all writes are flushed
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Retrieve all secrets concurrently
     const retrievePromises = [];
     for (let i = 0; i < 10; i++) {
       retrievePromises.push(storage.retrieve("nsyte", `npub1test${i}`));
     }
-    
+
     const retrievedSecrets = await Promise.all(retrievePromises);
     retrievedSecrets.forEach((secret: string | null, i: number) => {
       assertEquals(secret, `bunker://connection-${i}`, `Concurrent retrieve ${i} should match`);
@@ -300,28 +306,31 @@ Deno.test("EncryptedStorage - Concurrent Operations", async () => {
 Deno.test("EncryptedStorage - Encryption Security", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     await storage.initialize();
-    
+
     // Store a secret
     const sensitiveData = "very-sensitive-bunker-connection-string-with-keys";
     await storage.store(TEST_SERVICE, "test-account", sensitiveData);
-    
+
     // Check that the file doesn't contain the plaintext secret
     const configDir = join(TEST_DIR, ".config", "nsyte");
     const encryptedFile = join(configDir, "secrets.enc");
-    
+
     if (existsSync(encryptedFile)) {
       const fileContent = Deno.readTextFileSync(encryptedFile);
-      assert(!fileContent.includes(sensitiveData), "Encrypted file should not contain plaintext secret");
+      assert(
+        !fileContent.includes(sensitiveData),
+        "Encrypted file should not contain plaintext secret",
+      );
       assert(fileContent.includes("salt"), "Encrypted file should contain salt");
       assert(fileContent.includes("iv"), "Encrypted file should contain IV");
       assert(fileContent.includes("data"), "Encrypted file should contain encrypted data");
       assert(fileContent.includes("tag"), "Encrypted file should contain authentication tag");
     }
-    
+
     // Verify we can still retrieve the correct data
     const retrieved = await storage.retrieve(TEST_SERVICE, "test-account");
     assertEquals(retrieved, sensitiveData, "Should decrypt to original data");
@@ -334,11 +343,11 @@ Deno.test("EncryptedStorage - Encryption Security", async () => {
 Deno.test("Platform Config Directory Handling", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
-  
+
   try {
     const storage = new EncryptedStorage();
     await storage.initialize();
-    
+
     // Verify config directory is created in the right place
     let expectedPath: string;
     switch (Deno.build.os) {
@@ -351,7 +360,7 @@ Deno.test("Platform Config Directory Handling", async () => {
       default:
         expectedPath = join(TEST_DIR, ".config", "nsyte");
     }
-    
+
     assert(existsSync(expectedPath), `Config directory should exist at ${expectedPath}`);
   } finally {
     restoreEnv();

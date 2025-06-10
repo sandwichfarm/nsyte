@@ -1,8 +1,8 @@
-import { assertEquals, assertThrows, assertRejects } from "std/assert/mod.ts";
+import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
 
 // Import the functions to test
 import { bech32Decode } from "../../src/lib/utils.ts";
-import { validateNpub, npubToHex, formatFileSize, runCommand } from "../../src/commands/run.ts";
+import { formatFileSize, npubToHex, runCommand, validateNpub } from "../../src/commands/run.ts";
 
 // Test utilities
 function generateValidNpub(): string {
@@ -31,20 +31,20 @@ const mockFileEntries: MockFileEntry[] = [
     path: "index.html",
     sha256: "abc123def456",
     size: 1024,
-    contentType: "text/html"
+    contentType: "text/html",
   },
   {
-    path: "style.css", 
+    path: "style.css",
     sha256: "def456ghi789",
     size: 2048,
-    contentType: "text/css"
+    contentType: "text/css",
   },
   {
     path: "script.js",
     sha256: "ghi789jkl012",
     size: 512,
-    contentType: "application/javascript"
-  }
+    contentType: "application/javascript",
+  },
 ];
 
 Deno.test("Run Command - Npub Validation", async (t) => {
@@ -63,7 +63,10 @@ Deno.test("Run Command - Npub Validation", async (t) => {
   });
 
   await t.step("should reject non-npub bech32 string", () => {
-    assertEquals(validateNpub("nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"), false);
+    assertEquals(
+      validateNpub("nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"),
+      false,
+    );
   });
 
   await t.step("should reject strings not starting with npub", () => {
@@ -111,7 +114,7 @@ Deno.test("Run Command - File Size Formatting", async (t) => {
 Deno.test("Run Command - Mock File Data Processing", async (t) => {
   await t.step("should process mock file entries correctly", () => {
     assertEquals(mockFileEntries.length, 3);
-    
+
     for (const file of mockFileEntries) {
       assertEquals(typeof file.path, "string");
       assertEquals(typeof file.sha256, "string");
@@ -157,9 +160,9 @@ Deno.test("Run Command - Edge Cases", async (t) => {
       path: "empty.txt",
       sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       size: 0,
-      contentType: "text/plain"
+      contentType: "text/plain",
     }];
-    
+
     assertEquals(mockZeroFiles[0].size, 0);
     assertEquals(formatFileSize(mockZeroFiles[0].size), "0 B");
   });
@@ -175,11 +178,11 @@ Deno.test("Run Command - Workflow Logic", async (t) => {
 
   await t.step("should handle npub workflow", () => {
     const validNpub = generateValidNpub();
-    
+
     // 1. Validate npub
     const isValid = validateNpub(validNpub);
     assertEquals(isValid, true);
-    
+
     // 2. Convert to hex
     const pubkeyHex = npubToHex(validNpub);
     assertEquals(pubkeyHex.length, 64);
@@ -188,13 +191,13 @@ Deno.test("Run Command - Workflow Logic", async (t) => {
 
   await t.step("should handle file processing workflow", () => {
     const testFiles = mockFileEntries;
-    
+
     // Simulate processing files
-    const processedFiles = testFiles.map(file => ({
+    const processedFiles = testFiles.map((file) => ({
       ...file,
-      sizeFormatted: formatFileSize(file.size)
+      sizeFormatted: formatFileSize(file.size),
     }));
-    
+
     assertEquals(processedFiles.length, 3);
     assertEquals(processedFiles[0].sizeFormatted, "1 KB");
     assertEquals(processedFiles[1].sizeFormatted, "2 KB");
@@ -214,22 +217,22 @@ Deno.test("Run Command - Command Function Integration", async (t) => {
   await t.step("should handle invalid npub in runCommand", async () => {
     const invalidOptions = {};
     const invalidNpub = "invalid_npub";
-    
+
     // This should fail with invalid npub error
     await assertRejects(
       () => runCommand(invalidOptions, invalidNpub),
-      Error
+      Error,
     );
   });
 
   await t.step("should handle valid npub but no relays", async () => {
     const validNpub = generateValidNpub();
     const options = { relays: "" }; // Empty relays should cause error
-    
+
     // This should fail due to no relays
     await assertRejects(
       () => runCommand(options, validNpub),
-      Error
+      Error,
     );
   });
 });

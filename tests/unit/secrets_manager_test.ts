@@ -23,7 +23,7 @@ Deno.test("SecretsManager", async (t) => {
     } catch {
       // Ignore errors during cleanup
     }
-    
+
     // Remove test directory
     try {
       await Deno.remove(testDir, { recursive: true });
@@ -54,7 +54,7 @@ Deno.test("SecretsManager", async (t) => {
       await setupTest();
       // First store it
       await manager.storeNbunk(testPubkey, testNbunksec);
-      
+
       // Then delete it
       const deleted = await manager.deleteNbunk(testPubkey);
       assertEquals(deleted, true);
@@ -78,7 +78,7 @@ Deno.test("SecretsManager", async (t) => {
       // Store multiple bunkers
       const pubkey1 = testPubkey + "-1";
       const pubkey2 = testPubkey + "-2";
-      
+
       await manager.storeNbunk(pubkey1, testNbunksec + "1");
       await manager.storeNbunk(pubkey2, testNbunksec + "2");
 
@@ -105,7 +105,7 @@ Deno.test("SecretsManager", async (t) => {
       await setupTest();
       // This test depends on the implementation details
       // It may need to be adjusted based on how migration is triggered
-      
+
       // Try to list bunkers to trigger any migration
       const bunkers = await manager.getAllPubkeys();
       assertEquals(Array.isArray(bunkers), true);
@@ -119,7 +119,7 @@ Deno.test("SecretsManager", async (t) => {
       // Store using whatever backend is available
       const stored = await manager.storeNbunk(testPubkey, testNbunksec);
       assertEquals(stored, true);
-      
+
       // Should be able to retrieve regardless of backend
       const retrieved = await manager.getNbunk(testPubkey);
       assertEquals(retrieved, testNbunksec);
@@ -131,10 +131,10 @@ Deno.test("SecretsManager", async (t) => {
       // Test with invalid characters that might fail in some backends
       const invalidPubkey = "test/invalid\\pubkey";
       const stored = await manager.storeNbunk(invalidPubkey, testNbunksec);
-      
+
       // Should either succeed or fail gracefully
       assertEquals(typeof stored, "boolean");
-      
+
       if (stored) {
         // Clean up if it was stored
         await manager.deleteNbunk(invalidPubkey);

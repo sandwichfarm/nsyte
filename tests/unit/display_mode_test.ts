@@ -1,8 +1,5 @@
 import { assertEquals } from "std/assert/mod.ts";
-import { 
-  DisplayMode,
-  getDisplayManager
-} from "../../src/lib/display-mode.ts";
+import { DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
 
 Deno.test("DisplayMode enum", async (t) => {
   await t.step("should have correct values", () => {
@@ -43,10 +40,10 @@ Deno.test("DisplayManager", async (t) => {
   await t.step("should handle verbose mode", () => {
     manager.setVerbose(false);
     assertEquals(manager.isVerbose(), false);
-    
+
     manager.setVerbose(true);
     assertEquals(manager.isVerbose(), true);
-    
+
     manager.setVerbose(false);
     assertEquals(manager.isVerbose(), false);
   });
@@ -55,13 +52,13 @@ Deno.test("DisplayManager", async (t) => {
     // Test non-interactive option
     manager.configureFromOptions({ nonInteractive: true });
     assertEquals(manager.isNonInteractive(), true);
-    
+
     // Test verbose option (should set debug mode if not already non-interactive)
     manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ verbose: true });
     assertEquals(manager.isVerbose(), true);
     assertEquals(manager.isDebug(), true);
-    
+
     // Test verbose with non-interactive (non-interactive takes precedence)
     manager.configureFromOptions({ nonInteractive: true, verbose: true });
     assertEquals(manager.isNonInteractive(), true);
@@ -80,11 +77,11 @@ Deno.test("getDisplayManager", async (t) => {
     const manager = getDisplayManager();
     manager.setMode(DisplayMode.DEBUG);
     manager.setVerbose(true);
-    
+
     const manager2 = getDisplayManager();
     assertEquals(manager2.getMode(), DisplayMode.DEBUG);
     assertEquals(manager2.isVerbose(), true);
-    
+
     // Reset to default
     manager.setMode(DisplayMode.INTERACTIVE);
     manager.setVerbose(false);

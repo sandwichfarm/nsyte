@@ -1,6 +1,6 @@
 import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
 import { stub } from "std/testing/mock.ts";
-import type { ProjectConfig, Profile } from "../../src/lib/config.ts";
+import type { Profile, ProjectConfig } from "../../src/lib/config.ts";
 
 Deno.test("Configuration Handling - Validation", async (t) => {
   await t.step("should validate relay URLs", () => {
@@ -88,7 +88,7 @@ Deno.test("Configuration Handling - Validation", async (t) => {
       about: "Software developer",
       website: "https://johndoe.com",
       picture: "https://example.com/avatar.jpg",
-      nip05: "john@johndoe.com"
+      nip05: "john@johndoe.com",
     };
     assertEquals(validateProfile(validProfile), []);
 
@@ -97,12 +97,12 @@ Deno.test("Configuration Handling - Validation", async (t) => {
       name: "x".repeat(101), // Too long
       website: "not-a-url",
       picture: "also-not-a-url",
-      nip05: "invalid-nip05"
+      nip05: "invalid-nip05",
     };
     const errors = validateProfile(invalidProfile);
     assertEquals(errors.length > 0, true);
-    assertEquals(errors.some(e => e.includes("Name too long")), true);
-    assertEquals(errors.some(e => e.includes("Invalid website URL")), true);
+    assertEquals(errors.some((e) => e.includes("Name too long")), true);
+    assertEquals(errors.some((e) => e.includes("Invalid website URL")), true);
   });
 });
 
@@ -114,7 +114,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
         relays: [],
         servers: [],
         publishServerList: false,
-        publishRelayList: false
+        publishRelayList: false,
       };
 
       // Migrate relays
@@ -154,7 +154,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       servers: ["https://server1.com", "https://server2.com"],
       bunkerPubkey: "pubkey123",
       publishServerList: true,
-      profile: { name: "Test User" }
+      profile: { name: "Test User" },
     };
 
     const migrated = migrateConfig(oldConfig);
@@ -167,7 +167,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
     // Test migration with array format
     const newFormatConfig = {
       relays: ["wss://relay1.com", "wss://relay2.com"],
-      servers: ["https://server.com"]
+      servers: ["https://server.com"],
     };
 
     const migrated2 = migrateConfig(newFormatConfig);
@@ -179,7 +179,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
     const addVersionToConfig = (config: ProjectConfig): ProjectConfig & { version: string } => {
       return {
         ...config,
-        version: "1.0.0"
+        version: "1.0.0",
       };
     };
 
@@ -191,7 +191,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       relays: ["wss://relay.com"],
       servers: ["https://server.com"],
       publishServerList: true,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     const versionedConfig = addVersionToConfig(baseConfig);
@@ -212,12 +212,12 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
 
       // Override relays from environment
       if (env.NSITE_RELAYS) {
-        overriddenConfig.relays = env.NSITE_RELAYS.split(",").map(r => r.trim());
+        overriddenConfig.relays = env.NSITE_RELAYS.split(",").map((r) => r.trim());
       }
 
       // Override servers from environment
       if (env.NSITE_SERVERS) {
-        overriddenConfig.servers = env.NSITE_SERVERS.split(",").map(s => s.trim());
+        overriddenConfig.servers = env.NSITE_SERVERS.split(",").map((s) => s.trim());
       }
 
       // Override publish settings
@@ -241,14 +241,14 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
       relays: ["wss://default-relay.com"],
       servers: ["https://default-server.com"],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     const env = {
       NSITE_RELAYS: "wss://env-relay1.com,wss://env-relay2.com",
       NSITE_SERVERS: "https://env-server.com",
       NSITE_PUBLISH_RELAYS: "true",
-      NSITE_BUNKER_PUBKEY: "env-pubkey"
+      NSITE_BUNKER_PUBKEY: "env-pubkey",
     };
 
     const overriddenConfig = applyEnvironmentOverrides(baseConfig, env);
@@ -265,7 +265,7 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
       const errors: string[] = [];
 
       if (env.NSITE_RELAYS) {
-        const relays = env.NSITE_RELAYS.split(",").map(r => r.trim());
+        const relays = env.NSITE_RELAYS.split(",").map((r) => r.trim());
         for (const relay of relays) {
           try {
             const url = new URL(relay);
@@ -279,7 +279,7 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
       }
 
       if (env.NSITE_SERVERS) {
-        const servers = env.NSITE_SERVERS.split(",").map(s => s.trim());
+        const servers = env.NSITE_SERVERS.split(",").map((s) => s.trim());
         for (const server of servers) {
           try {
             const url = new URL(server);
@@ -292,8 +292,10 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
         }
       }
 
-      if (env.NSITE_PUBLISH_RELAYS && 
-          !["true", "false"].includes(env.NSITE_PUBLISH_RELAYS.toLowerCase())) {
+      if (
+        env.NSITE_PUBLISH_RELAYS &&
+        !["true", "false"].includes(env.NSITE_PUBLISH_RELAYS.toLowerCase())
+      ) {
         errors.push("NSITE_PUBLISH_RELAYS must be 'true' or 'false'");
       }
 
@@ -304,7 +306,7 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
     const validEnv = {
       NSITE_RELAYS: "wss://relay1.com,wss://relay2.com",
       NSITE_SERVERS: "https://server.com",
-      NSITE_PUBLISH_RELAYS: "true"
+      NSITE_PUBLISH_RELAYS: "true",
     };
     assertEquals(validateEnvironmentOverrides(validEnv), []);
 
@@ -312,7 +314,7 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
     const invalidEnv = {
       NSITE_RELAYS: "invalid-url,https://wrong-protocol.com",
       NSITE_SERVERS: "wss://wrong-protocol.com",
-      NSITE_PUBLISH_RELAYS: "maybe"
+      NSITE_PUBLISH_RELAYS: "maybe",
     };
     const errors = validateEnvironmentOverrides(invalidEnv);
     assertEquals(errors.length > 0, true);
@@ -326,20 +328,20 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         relays: [
           "wss://nos.lol",
           "wss://relay.damus.io",
-          "wss://relay.nostr.band"
+          "wss://relay.nostr.band",
         ],
         servers: [
           "https://blossom.hzrd149.com",
-          "https://cdn.satellite.earth"
+          "https://cdn.satellite.earth",
         ],
         publishServerList: true,
         publishRelayList: true,
-        publishProfile: false
+        publishProfile: false,
       };
     };
 
     const defaultConfig = createDefaultConfig();
-    
+
     assertExists(defaultConfig.relays);
     assertEquals(defaultConfig.relays.length > 0, true);
     assertExists(defaultConfig.servers);
@@ -365,7 +367,7 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
           relays: ["wss://relay.nostr.band"],
           servers: ["https://blossom.hzrd149.com"],
           publishServerList: true,
-          publishRelayList: true
+          publishRelayList: true,
         };
       }
 
@@ -376,7 +378,7 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         publishServerList: configData.publishServerList ?? true,
         publishRelayList: configData.publishRelayList ?? true,
         bunkerPubkey: configData.bunkerPubkey,
-        profile: configData.profile
+        profile: configData.profile,
       };
     };
 
@@ -386,9 +388,9 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
     assertEquals(fallbackConfig.publishServerList, true);
 
     // Test with partial config
-    const partialConfig = loadConfigWithFallback({ 
+    const partialConfig = loadConfigWithFallback({
       relays: ["wss://custom-relay.com"],
-      publishServerList: false
+      publishServerList: false,
     });
     assertEquals(partialConfig.relays, ["wss://custom-relay.com"]);
     assertEquals(partialConfig.publishServerList, false);
@@ -405,7 +407,7 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
         return {
           type: "file_not_found",
           suggestion: "Run 'nsyte init' to create a configuration file",
-          canContinue: true
+          canContinue: true,
         };
       }
 
@@ -413,7 +415,7 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
         return {
           type: "permission_denied",
           suggestion: "Check file permissions for .nsite/config.json",
-          canContinue: false
+          canContinue: false,
         };
       }
 
@@ -421,14 +423,14 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
         return {
           type: "invalid_json",
           suggestion: "Fix JSON syntax in .nsite/config.json",
-          canContinue: false
+          canContinue: false,
         };
       }
 
       return {
         type: "unknown",
         suggestion: "Check the configuration file",
-        canContinue: false
+        canContinue: false,
       };
     };
 
@@ -508,7 +510,7 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
       relays: ["wss://relay.com"],
       servers: ["https://server.com"],
       publishServerList: true,
-      publishRelayList: false
+      publishRelayList: false,
     };
     assertEquals(validateConfigBeforeSave(validConfig), []);
 
@@ -517,11 +519,11 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
       relays: "not-an-array",
       servers: ["invalid-url"],
       publishServerList: "not-a-boolean",
-      publishRelayList: false
+      publishRelayList: false,
     } as any;
     const errors = validateConfigBeforeSave(invalidConfig);
     assertEquals(errors.length > 0, true);
-    assertEquals(errors.some(e => e.includes("must be an array")), true);
-    assertEquals(errors.some(e => e.includes("must be a boolean")), true);
+    assertEquals(errors.some((e) => e.includes("must be an array")), true);
+    assertEquals(errors.some((e) => e.includes("must be a boolean")), true);
   });
 });

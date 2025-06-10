@@ -4,7 +4,12 @@
 
 import { colors } from "@cliffy/ansi/colors";
 import { header } from "./header.ts";
-import { formatTitle, formatSectionHeader, formatRelayList, formatConfigValue } from "./formatters.ts";
+import {
+  formatConfigValue,
+  formatRelayList,
+  formatSectionHeader,
+  formatTitle,
+} from "./formatters.ts";
 
 /**
  * Display the nsyte header in a random color
@@ -24,9 +29,9 @@ export function displayColorfulHeader(): string {
     colors.brightMagenta,
     colors.brightCyan,
   ];
-  
+
   const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
-  
+
   return randomColorFn(header);
 }
 
@@ -53,7 +58,7 @@ export function displayUploadConfigTable(config: {
   publishProfile: boolean;
 }): string[] {
   const lines = [];
-  
+
   lines.push(formatTitle("Upload Configuration"));
   lines.push(formatConfigValue("User", config.publisherPubkey, false));
   lines.push(formatConfigValue("Relays", formatRelayList(config.relays), false));
@@ -63,11 +68,25 @@ export function displayUploadConfigTable(config: {
   lines.push(formatConfigValue("Concurrency", config.concurrency, config.concurrency === 4));
   lines.push(formatConfigValue("404 Fallback", config.fallback || "None", !config.fallback));
   lines.push(formatConfigValue("Publish", "", false));
-  lines.push(formatConfigValue("  - Relay List", config.publishRelayList ? "Yes" : "No", !config.publishRelayList));
-  lines.push(formatConfigValue("  - Server List", config.publishServerList ? "Yes" : "No", !config.publishServerList));
-  lines.push(formatConfigValue("  - Profile", config.publishProfile ? "Yes" : "No", !config.publishProfile));
+  lines.push(
+    formatConfigValue(
+      "  - Relay List",
+      config.publishRelayList ? "Yes" : "No",
+      !config.publishRelayList,
+    ),
+  );
+  lines.push(
+    formatConfigValue(
+      "  - Server List",
+      config.publishServerList ? "Yes" : "No",
+      !config.publishServerList,
+    ),
+  );
+  lines.push(
+    formatConfigValue("  - Profile", config.publishProfile ? "Yes" : "No", !config.publishProfile),
+  );
   lines.push("");
-  
+
   return lines;
 }
 
@@ -78,7 +97,7 @@ export function getUploadSections() {
   return {
     blobsHeader: formatSectionHeader("Blobs Upload Results (🌸 Blossom)"),
     serverHeader: formatSectionHeader("Blossom Server Summary"),
-    eventsHeader: formatSectionHeader("Nsite Events Publish Results (𓅦 nostr)")
+    eventsHeader: formatSectionHeader("Nsite Events Publish Results (𓅦 nostr)"),
   };
 }
 
@@ -97,8 +116,11 @@ export function formatUploadResults(uploaded: number, total: number): string {
  * Format server results
  */
 export function formatServerResult(server: string, success: number, total: number): string {
-  const status = success === total ? colors.green("✓") : 
-                 success === 0 ? colors.red("✗") : colors.yellow("!");
+  const status = success === total
+    ? colors.green("✓")
+    : success === 0
+    ? colors.red("✗")
+    : colors.yellow("!");
   const percentage = Math.round((success / total) * 100);
   return `${status} ${server}        ${success}/${total} (${percentage}%)`;
 }
@@ -133,7 +155,7 @@ export function getSuccessMessage(): string {
  */
 export function formatHelpOutput(): string[] {
   const lines = [];
-  
+
   lines.push(colors.cyan.bold("nsyte - Publish your site to nostr and blossom servers"));
   lines.push("");
   lines.push("Usage: nsyte [command] [options]");
@@ -156,7 +178,7 @@ export function formatHelpOutput(): string[] {
   lines.push("  nsyte ls               # List published files");
   lines.push("  nsyte bunker connect   # Connect to bunker");
   lines.push("");
-  
+
   return lines;
 }
 
@@ -166,13 +188,14 @@ export function formatHelpOutput(): string[] {
 export function getQRMessages() {
   return {
     connecting: colors.cyan("Initiating Nostr Connect as 'nsyte' on relays: wss://relay.nsec.app"),
-    instruction: "Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):",
+    instruction:
+      "Please scan the QR code with your NIP-46 compatible signer (e.g., mobile wallet):",
     uri: "Or copy-paste this URI: nostr+walletconnect://b22f...",
     waiting: "Waiting for Signer to connect (timeout in 120s)...",
     connected: colors.green("✓ Connected!"),
     disconnecting: "Disconnecting from bunker...",
     disconnected: "Disconnected from bunker.",
     success: colors.green("Successfully connected to bunker a8c7d3f2..."),
-    stored: "Generated and stored nbunksec string."
+    stored: "Generated and stored nbunksec string.",
   };
 }

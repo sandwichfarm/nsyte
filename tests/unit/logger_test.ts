@@ -1,9 +1,5 @@
 import { assertEquals, assertStringIncludes } from "std/assert/mod.ts";
-import { 
-  createLogger, 
-  setProgressMode, 
-  flushQueuedLogs
-} from "../../src/lib/logger.ts";
+import { createLogger, flushQueuedLogs, setProgressMode } from "../../src/lib/logger.ts";
 
 Deno.test("Logger", async (t) => {
   let originalConsoleLog: typeof console.log;
@@ -17,15 +13,15 @@ Deno.test("Logger", async (t) => {
     originalConsoleError = console.error;
     logOutput = [];
     errorOutput = [];
-    
+
     console.log = (...args: unknown[]) => {
       logOutput.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       errorOutput.push(args.map(String).join(" "));
     };
-    
+
     // Reset progress mode
     setProgressMode(false);
   };
@@ -54,7 +50,7 @@ Deno.test("Logger", async (t) => {
     await t.step("should log debug messages", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       logger.debug("debug message");
       assertEquals(logOutput.length, 1);
       assertStringIncludes(logOutput[0], "DEBUG");
@@ -65,7 +61,7 @@ Deno.test("Logger", async (t) => {
     await t.step("should log info messages", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       logger.info("info message");
       assertEquals(logOutput.length, 1);
       assertStringIncludes(logOutput[0], "INFO");
@@ -76,7 +72,7 @@ Deno.test("Logger", async (t) => {
     await t.step("should log warning messages", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       logger.warn("warning message");
       assertEquals(logOutput.length, 1);
       assertStringIncludes(logOutput[0], "WARN");
@@ -87,7 +83,7 @@ Deno.test("Logger", async (t) => {
     await t.step("should log error messages", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       logger.error("error message");
       assertEquals(errorOutput.length, 1);
       assertStringIncludes(errorOutput[0], "ERROR");
@@ -98,15 +94,15 @@ Deno.test("Logger", async (t) => {
     await t.step("should log different message types", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       logger.debug("debug");
       logger.info("info");
       logger.warn("warn");
       logger.error("error");
-      
+
       assertEquals(logOutput.length, 3); // debug, info, warn
       assertEquals(errorOutput.length, 1); // error
-      assertStringIncludes(logOutput.find(log => log.includes("warn")) || "", "warn");
+      assertStringIncludes(logOutput.find((log) => log.includes("warn")) || "", "warn");
       assertStringIncludes(errorOutput[0], "error");
       cleanupTest();
     });
@@ -116,11 +112,11 @@ Deno.test("Logger", async (t) => {
     await t.step("should queue logs in progress mode", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       setProgressMode(true);
       logger.info("queued info");
       logger.error("queued error");
-      
+
       // Logs should be queued, not output
       assertEquals(logOutput.length, 0);
       assertEquals(errorOutput.length, 0);
@@ -130,14 +126,14 @@ Deno.test("Logger", async (t) => {
     await t.step("should flush queued logs when progress mode ends", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       setProgressMode(true);
       logger.info("queued info");
       logger.error("queued error");
-      
+
       setProgressMode(false);
       flushQueuedLogs();
-      
+
       // Now logs should be output
       assertEquals(logOutput.length, 1);
       assertEquals(errorOutput.length, 1);
@@ -149,10 +145,10 @@ Deno.test("Logger", async (t) => {
     await t.step("should handle debug logs in progress mode", () => {
       setupTest();
       const logger = createLogger("test");
-      
+
       setProgressMode(true);
       logger.debug("debug in progress");
-      
+
       setProgressMode(false);
       // Debug logs should not be queued in progress mode
       assertEquals(logOutput.length, 1); // Debug logs still get printed immediately
@@ -164,7 +160,7 @@ Deno.test("Logger", async (t) => {
     await t.step("should include namespace in log output", () => {
       setupTest();
       const logger = createLogger("my-namespace");
-      
+
       logger.info("test message");
       assertEquals(logOutput.length, 1);
       assertStringIncludes(logOutput[0], "my-namespace");

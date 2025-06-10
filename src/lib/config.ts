@@ -1,12 +1,12 @@
-import { join, dirname } from "@std/path";
-import { ensureDirSync } from "@std/fs/ensure-dir";
-import { createLogger } from "./logger.ts";
-import { Input, Confirm, Select, Secret } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
+import { Confirm, Input, Secret, Select } from "@cliffy/prompt";
+import { ensureDirSync } from "@std/fs/ensure-dir";
+import { dirname, join } from "@std/path";
+import { NostrConnectSigner } from "applesauce-signers";
+import { createLogger } from "./logger.ts";
+import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { NostrConnectSigner } from "applesauce-signers";
-import { initiateNostrConnect, getNbunkString } from "./nip46.ts";
 
 const log = createLogger("config");
 
@@ -22,7 +22,7 @@ export interface Profile {
 }
 
 export type ProjectConfig = {
-  bunkerPubkey?: string;  // Only store the pubkey reference, not the full URL
+  bunkerPubkey?: string; // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
   profile?: Profile;
@@ -31,7 +31,7 @@ export type ProjectConfig = {
   publishProfile?: boolean;
   fallback?: string;
   gatewayHostnames?: string[];
-}
+};
 
 export interface ProjectContext {
   config: ProjectConfig;
@@ -65,10 +65,10 @@ export const defaultConfig: ProjectConfig = {
   servers: [],
   publishServerList: false,
   publishRelayList: false,
-  gatewayHostnames: [ 
-    'nsite.lol',
-  ]
-}
+  gatewayHostnames: [
+    "nsite.lol",
+  ],
+};
 
 /**
  * Sanitize a bunker URL for storage by removing the secret parameter
@@ -91,7 +91,7 @@ function sanitizeBunkerUrl(url: string): string {
 
     // Append relay parameters
     const relays = parsedUrl.searchParams.getAll("relay");
-    const relayParams = relays.map(r => `relay=${encodeURIComponent(r)}`).join("&");
+    const relayParams = relays.map((r) => `relay=${encodeURIComponent(r)}`).join("&");
 
     return relayParams ? `${sanitized}?${relayParams}` : sanitized;
   } catch (error) {
@@ -177,7 +177,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
         relays: [],
         servers: [],
         publishRelayList: false,
-        publishServerList: false
+        publishServerList: false,
       };
       log.debug("Running in non-interactive mode with no existing configuration");
       return { config, privateKey: undefined };
@@ -239,15 +239,18 @@ async function connectToBunkerWithURI(): Promise<NostrConnectSigner> {
     message: "Enter the bunker URL (bunker://...):",
     validate: (input: string) => {
       return input.trim().startsWith("bunker://") ||
-            "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-    }
+        "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+    },
   });
 
   console.log(colors.cyan("Connecting to bunker via URL..."));
   return NostrConnectSigner.fromBunkerURI(bunkerUrl);
 }
 
-async function newBunker(config: ProjectConfig, secretsManager: SecretsManager): Promise<NostrConnectSigner | undefined>{
+async function newBunker(
+  config: ProjectConfig,
+  secretsManager: SecretsManager,
+): Promise<NostrConnectSigner | undefined> {
   let signer: NostrConnectSigner | null = null;
 
   const choice = await Select.prompt<string>({
@@ -259,10 +262,7 @@ async function newBunker(config: ProjectConfig, secretsManager: SecretsManager):
   });
 
   try {
-    
-    signer = choice === "qr" 
-      ? await connectToBunkerWithQR()
-      : await connectToBunkerWithURI();
+    signer = choice === "qr" ? await connectToBunkerWithQR() : await connectToBunkerWithURI();
 
     if (!signer) {
       throw new Error("Failed to establish signer connection");
@@ -284,14 +284,17 @@ async function newBunker(config: ProjectConfig, secretsManager: SecretsManager):
       }
     }
   }
-    
 }
 
-async function selectKeySource(existingConfig?: ProjectConfig): Promise<{config: ProjectConfig, privateKey?: string}>{
+async function selectKeySource(
+  existingConfig?: ProjectConfig,
+): Promise<{ config: ProjectConfig; privateKey?: string }> {
   console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
   let privateKey: string | undefined;
-  const config: ProjectConfig = existingConfig ? structuredClone(existingConfig) : structuredClone(defaultConfig);
+  const config: ProjectConfig = existingConfig
+    ? structuredClone(existingConfig)
+    : structuredClone(defaultConfig);
 
   // Check if there are any existing bunkers
   const secretsManager = SecretsManager.getInstance();
@@ -303,13 +306,13 @@ async function selectKeySource(existingConfig?: ProjectConfig): Promise<{config:
   // Prepare options based on whether bunkers exist
   const keyOptions = [
     { name: "Generate a new private key", value: "generate" },
-    { name: "Use an existing private key", value: "existing" }
+    { name: "Use an existing private key", value: "existing" },
   ];
 
   if (hasBunkers) {
     keyOptions.push(
       { name: "Use an existing NSEC bunker", value: "existing_bunker" },
-      { name: "Connect to a new NSEC bunker", value: "new_bunker" }
+      { name: "Connect to a new NSEC bunker", value: "new_bunker" },
     );
   } else {
     keyOptions.push({ name: "Connect to an NSEC bunker", value: "new_bunker" });
@@ -329,13 +332,11 @@ async function selectKeySource(existingConfig?: ProjectConfig): Promise<{config:
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
     console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
-  } 
-  else if (keyChoice === "existing") {
+  } else if (keyChoice === "existing") {
     privateKey = await Secret.prompt({
       message: "Enter your nostr private key (nsec/hex):",
     });
-  } 
-  else if (keyChoice === "new_bunker") {
+  } else if (keyChoice === "new_bunker") {
     const signer = await newBunker(config, secretsManager);
     if (signer) {
       config.bunkerPubkey = await signer.getPublicKey();
@@ -343,13 +344,12 @@ async function selectKeySource(existingConfig?: ProjectConfig): Promise<{config:
       await secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
       console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}... \nGenerated and stored nbunksec string.`));
     }
-  } 
-  else if (keyChoice === "existing_bunker") {
+  } else if (keyChoice === "existing_bunker") {
     // Present a list of existing bunkers to choose from
     const bunkerOptions = existingBunkers.map((pubkey: string) => {
       return {
         name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
-        value: pubkey
+        value: pubkey,
       };
     });
 
@@ -381,13 +381,13 @@ async function interactiveSetup(): Promise<ProjectContext> {
   // Prepare options based on whether bunkers exist
   const keyOptions = [
     { name: "Generate a new private key", value: "generate" },
-    { name: "Use an existing private key", value: "existing" }
+    { name: "Use an existing private key", value: "existing" },
   ];
 
   if (hasBunkers) {
     keyOptions.push(
       { name: "Use an existing NSEC bunker", value: "existing_bunker" },
-      { name: "Connect to a new NSEC bunker", value: "new_bunker" }
+      { name: "Connect to a new NSEC bunker", value: "new_bunker" },
     );
   } else {
     keyOptions.push({ name: "Connect to an NSEC bunker", value: "new_bunker" });
@@ -410,12 +410,10 @@ async function interactiveSetup(): Promise<ProjectContext> {
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
     console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
-
   } else if (keyChoice === "existing") {
     privateKey = await Secret.prompt({
       message: "Enter your nostr private key (nsec/hex):",
     });
-
   } else if (keyChoice === "new_bunker") {
     const choice = await Select.prompt<string>({
       message: "How would you like to connect to the bunker?",
@@ -441,7 +439,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
         }
 
         if (chosenRelays.length === 0) {
@@ -456,8 +454,8 @@ async function interactiveSetup(): Promise<ProjectContext> {
           message: "Enter the bunker URL (bunker://...):",
           validate: (input: string) => {
             return input.trim().startsWith("bunker://") ||
-                  "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-          }
+              "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+          },
         });
 
         console.log(colors.cyan("Connecting to bunker via URL..."));
@@ -494,7 +492,7 @@ Generated and stored nbunksec string.`));
     const bunkerOptions = existingBunkers.map((pubkey: string) => {
       return {
         name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
-        value: pubkey
+        value: pubkey,
       };
     });
 
@@ -547,7 +545,7 @@ Generated and stored nbunksec string.`));
     },
     publishProfile,
     publishRelayList,
-    publishServerList
+    publishServerList,
   };
 
   return { config, privateKey };
@@ -578,4 +576,3 @@ async function promptForUrls(message: string, suggestions: string[]): Promise<st
 
   return urls;
 }
-

@@ -1,12 +1,12 @@
 import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { stub } from "std/testing/mock.ts";
 import {
-  parseCommaSeparated,
-  resolveRelays,
-  resolveServers,
-  resolvePubkey,
   createSigner,
-  type ResolverOptions
+  parseCommaSeparated,
+  resolvePubkey,
+  resolveRelays,
+  type ResolverOptions,
+  resolveServers,
 } from "../../src/lib/resolver-utils.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "../../src/lib/constants.ts";
@@ -39,7 +39,7 @@ Deno.test("parseCommaSeparated", async (t) => {
     assertEquals(parseCommaSeparated(urls), [
       "https://server1.com",
       "wss://relay.example.com:443",
-      "https://server2.com/path"
+      "https://server2.com/path",
     ]);
   });
 });
@@ -47,14 +47,14 @@ Deno.test("parseCommaSeparated", async (t) => {
 Deno.test("resolveRelays", async (t) => {
   await t.step("should use relays from options first", () => {
     const options: ResolverOptions = {
-      relays: "wss://relay1.com,wss://relay2.com"
+      relays: "wss://relay1.com,wss://relay2.com",
     };
     const config: ProjectConfig = {
       relays: ["wss://config-relay.com"],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const relays = resolveRelays(options, config);
     assertEquals(relays, ["wss://relay1.com", "wss://relay2.com"]);
   });
@@ -64,9 +64,9 @@ Deno.test("resolveRelays", async (t) => {
     const config: ProjectConfig = {
       relays: ["wss://config-relay1.com", "wss://config-relay2.com"],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const relays = resolveRelays(options, config);
     assertEquals(relays, ["wss://config-relay1.com", "wss://config-relay2.com"]);
   });
@@ -76,9 +76,9 @@ Deno.test("resolveRelays", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const relays = resolveRelays(options, config, false);
     assertEquals(relays, NSYTE_BROADCAST_RELAYS);
   });
@@ -88,30 +88,30 @@ Deno.test("resolveRelays", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const relays = resolveRelays(options, config, true);
     assertEquals(relays, RELAY_DISCOVERY_RELAYS);
   });
 
   await t.step("should handle null config", () => {
     const options: ResolverOptions = {};
-    
+
     const relays = resolveRelays(options, null);
     assertEquals(relays, NSYTE_BROADCAST_RELAYS);
   });
 
   await t.step("should handle empty relay string in options", () => {
     const options: ResolverOptions = {
-      relays: ""
+      relays: "",
     };
     const config: ProjectConfig = {
       relays: ["wss://config-relay.com"],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const relays = resolveRelays(options, config);
     assertEquals(relays, []); // Empty string results in empty array
   });
@@ -120,14 +120,14 @@ Deno.test("resolveRelays", async (t) => {
 Deno.test("resolveServers", async (t) => {
   await t.step("should use servers from options first", () => {
     const options: ResolverOptions = {
-      servers: "https://server1.com,https://server2.com"
+      servers: "https://server1.com,https://server2.com",
     };
     const config: ProjectConfig = {
       relays: [],
       servers: ["https://config-server.com"],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const servers = resolveServers(options, config);
     assertEquals(servers, ["https://server1.com", "https://server2.com"]);
   });
@@ -137,9 +137,9 @@ Deno.test("resolveServers", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: ["https://config-server1.com", "https://config-server2.com"],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const servers = resolveServers(options, config);
     assertEquals(servers, ["https://config-server1.com", "https://config-server2.com"]);
   });
@@ -149,30 +149,30 @@ Deno.test("resolveServers", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const servers = resolveServers(options, config);
     assertEquals(servers, []);
   });
 
   await t.step("should handle null config", () => {
     const options: ResolverOptions = {};
-    
+
     const servers = resolveServers(options, null);
     assertEquals(servers, []);
   });
 
   await t.step("should handle empty server string in options", () => {
     const options: ResolverOptions = {
-      servers: ""
+      servers: "",
     };
     const config: ProjectConfig = {
       relays: [],
       servers: ["https://config-server.com"],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const servers = resolveServers(options, config);
     assertEquals(servers, []); // Empty string results in empty array
   });
@@ -181,18 +181,18 @@ Deno.test("resolveServers", async (t) => {
 Deno.test("resolvePubkey", async (t) => {
   await t.step("should use explicit pubkey from options", async () => {
     const options: ResolverOptions = {
-      pubkey: "pubkey123abc"
+      pubkey: "pubkey123abc",
     };
-    
+
     const pubkey = await resolvePubkey(options, null, false);
     assertEquals(pubkey, "pubkey123abc");
   });
 
   await t.step("should derive pubkey from private key", async () => {
     const options: ResolverOptions = {
-      privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
     };
-    
+
     const pubkey = await resolvePubkey(options, null, false);
     assertExists(pubkey);
     assertEquals(typeof pubkey, "string");
@@ -204,9 +204,9 @@ Deno.test("resolvePubkey", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: "bunker-pubkey-123"
+      bunkerPubkey: "bunker-pubkey-123",
     };
-    
+
     const pubkey = await resolvePubkey(options, config, false);
     assertEquals(pubkey, "bunker-pubkey-123");
   });
@@ -216,40 +216,40 @@ Deno.test("resolvePubkey", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     await assertRejects(
       async () => await resolvePubkey(options, config, false),
       Error,
-      "No public key available"
+      "No public key available",
     );
   });
 
   await t.step("should prioritize options over config", async () => {
     const options: ResolverOptions = {
-      pubkey: "explicit-pubkey"
+      pubkey: "explicit-pubkey",
     };
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: "config-bunker-pubkey"
+      bunkerPubkey: "config-bunker-pubkey",
     };
-    
+
     const pubkey = await resolvePubkey(options, config, false);
     assertEquals(pubkey, "explicit-pubkey");
   });
 
   await t.step("should prioritize privatekey over bunker in config", async () => {
     const options: ResolverOptions = {
-      privatekey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+      privatekey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     };
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: "config-bunker-pubkey"
+      bunkerPubkey: "config-bunker-pubkey",
     };
-    
+
     const pubkey = await resolvePubkey(options, config, false);
     assertExists(pubkey);
     assertEquals(pubkey !== "config-bunker-pubkey", true);
@@ -259,9 +259,9 @@ Deno.test("resolvePubkey", async (t) => {
 Deno.test("createSigner", async (t) => {
   await t.step("should create signer from private key", async () => {
     const options: ResolverOptions = {
-      privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
     };
-    
+
     const signer = await createSigner(options, null);
     assertExists(signer);
     assertEquals(typeof signer.getPublicKey, "function");
@@ -273,9 +273,9 @@ Deno.test("createSigner", async (t) => {
     const config: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     const signer = await createSigner(options, config);
     assertEquals(signer, null);
   });
@@ -287,15 +287,15 @@ Deno.test("createSigner", async (t) => {
       "importFromNbunk",
       async () => ({
         getPublicKey: () => "mock-pubkey",
-        signEvent: async () => ({} as any)
-      })
+        signEvent: async () => ({} as any),
+      }),
     );
-    
+
     try {
       const options: ResolverOptions = {
-        nbunksec: "nbunksec1..."
+        nbunksec: "nbunksec1...",
       };
-      
+
       const signer = await createSigner(options, null);
       assertExists(signer);
     } finally {
@@ -311,17 +311,17 @@ Deno.test("createSigner", async (t) => {
       async () => ({
         client: {
           getPublicKey: () => "mock-pubkey",
-          signEvent: async () => ({} as any)
+          signEvent: async () => ({} as any),
         },
-        relays: []
-      })
+        relays: [],
+      }),
     );
-    
+
     try {
       const options: ResolverOptions = {
-        bunker: "bunker://pubkey?relay=wss://relay.com"
+        bunker: "bunker://pubkey?relay=wss://relay.com",
       };
-      
+
       const signer = await createSigner(options, null);
       assertExists(signer);
     } finally {
@@ -338,9 +338,9 @@ Deno.test("ResolverOptions interface", async (t) => {
       privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
       pubkey: "pubkey123",
       bunker: "bunker://pubkey?relay=wss://relay.com",
-      nbunksec: "nbunksec1..."
+      nbunksec: "nbunksec1...",
     };
-    
+
     assertExists(options.relays);
     assertExists(options.servers);
     assertExists(options.privatekey);
@@ -353,7 +353,7 @@ Deno.test("ResolverOptions interface", async (t) => {
     const options1: ResolverOptions = { relays: "wss://relay.com" };
     const options2: ResolverOptions = { privatekey: "key123" };
     const options3: ResolverOptions = {};
-    
+
     assertEquals(Object.keys(options1).length, 1);
     assertEquals(Object.keys(options2).length, 1);
     assertEquals(Object.keys(options3).length, 0);
@@ -367,18 +367,18 @@ Deno.test("Priority Resolution", async (t) => {
     const config1: ProjectConfig = {
       relays: ["wss://config-relay.com"],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     assertEquals(resolveRelays(options1, config1), ["wss://option-relay.com"]);
-    
+
     const options2: ResolverOptions = {};
     assertEquals(resolveRelays(options2, config1), ["wss://config-relay.com"]);
-    
+
     const config2: ProjectConfig = {
       relays: [],
       servers: [],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
     assertEquals(resolveRelays(options2, config2), NSYTE_BROADCAST_RELAYS);
   });
@@ -389,11 +389,11 @@ Deno.test("Priority Resolution", async (t) => {
     const config1: ProjectConfig = {
       relays: [],
       servers: ["https://config-server.com"],
-      bunkerPubkey: null
+      bunkerPubkey: null,
     };
-    
+
     assertEquals(resolveServers(options1, config1), ["https://option-server.com"]);
-    
+
     const options2: ResolverOptions = {};
     assertEquals(resolveServers(options2, config1), ["https://config-server.com"]);
   });

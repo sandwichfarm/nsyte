@@ -7,10 +7,10 @@ Deno.test("UI Interactions - Progress Display", async (t) => {
       const percentage = total === 0 ? 100 : Math.floor((current / total) * 100);
       const filledWidth = Math.floor((percentage / 100) * width);
       const emptyWidth = width - filledWidth;
-      
+
       const filledPart = "█".repeat(filledWidth);
       const emptyPart = "░".repeat(emptyWidth);
-      
+
       return `[${filledPart}${emptyPart}] ${percentage}%`;
     };
 
@@ -34,7 +34,7 @@ Deno.test("UI Interactions - Progress Display", async (t) => {
         current: 0,
         total: 0,
         status: "idle",
-        errors: []
+        errors: [],
       };
 
       return {
@@ -58,12 +58,12 @@ Deno.test("UI Interactions - Progress Display", async (t) => {
         getPercentage: () => {
           if (state.total === 0) return 0;
           return Math.round((state.current / state.total) * 100);
-        }
+        },
       };
     };
 
     const tracker = createProgressTracker();
-    
+
     // Test initialization
     tracker.setTotal(5);
     assertEquals(tracker.getState().status, "initialized");
@@ -90,24 +90,27 @@ Deno.test("UI Interactions - Progress Display", async (t) => {
   });
 
   await t.step("should format status messages", () => {
-    const formatStatusMessage = (type: "info" | "success" | "warning" | "error", message: string) => {
+    const formatStatusMessage = (
+      type: "info" | "success" | "warning" | "error",
+      message: string,
+    ) => {
       const symbols = {
         info: "ℹ",
         success: "✓",
         warning: "⚠",
-        error: "✗"
+        error: "✗",
       };
 
       const colors = {
         info: (text: string) => `\x1b[36m${text}\x1b[0m`, // Cyan
         success: (text: string) => `\x1b[32m${text}\x1b[0m`, // Green
         warning: (text: string) => `\x1b[33m${text}\x1b[0m`, // Yellow
-        error: (text: string) => `\x1b[31m${text}\x1b[0m` // Red
+        error: (text: string) => `\x1b[31m${text}\x1b[0m`, // Red
       };
 
       const symbol = symbols[type];
       const colorFn = colors[type];
-      
+
       return `${colorFn(symbol)} ${message}`;
     };
 
@@ -128,8 +131,8 @@ Deno.test("UI Interactions - Table Formatting", async (t) => {
   await t.step("should format data tables", () => {
     const formatTable = (headers: string[], rows: string[][]) => {
       // Calculate column widths
-      const columnWidths = headers.map(header => header.length);
-      
+      const columnWidths = headers.map((header) => header.length);
+
       for (const row of rows) {
         row.forEach((cell, index) => {
           const cellLength = cell.replace(/\x1b\[[0-9;]*m/g, "").length; // Strip ANSI codes
@@ -140,15 +143,15 @@ Deno.test("UI Interactions - Table Formatting", async (t) => {
       }
 
       // Format header
-      const headerRow = headers.map((header, index) => 
-        header.padEnd(columnWidths[index])
-      ).join(" | ");
-      
+      const headerRow = headers.map((header, index) => header.padEnd(columnWidths[index])).join(
+        " | ",
+      );
+
       // Format separator
-      const separator = columnWidths.map(width => "-".repeat(width)).join("-+-");
-      
+      const separator = columnWidths.map((width) => "-".repeat(width)).join("-+-");
+
       // Format data rows
-      const dataRows = rows.map(row => 
+      const dataRows = rows.map((row) =>
         row.map((cell, index) => {
           const cleanCell = cell.replace(/\x1b\[[0-9;]*m/g, "");
           const padding = columnWidths[index] - cleanCell.length;
@@ -163,11 +166,11 @@ Deno.test("UI Interactions - Table Formatting", async (t) => {
     const rows = [
       ["index.html", "1.2 KB", "✓ Uploaded"],
       ["style.css", "856 B", "✗ Failed"],
-      ["script.js", "3.4 KB", "⚠ Skipped"]
+      ["script.js", "3.4 KB", "⚠ Skipped"],
     ];
 
     const table = formatTable(headers, rows);
-    
+
     assertEquals(table.includes("File"), true);
     assertEquals(table.includes("Size"), true);
     assertEquals(table.includes("Status"), true);
@@ -181,10 +184,10 @@ Deno.test("UI Interactions - Table Formatting", async (t) => {
       if (headers.length === 0) {
         return "No data available";
       }
-      
+
       const headerRow = headers.join(" | ");
       const separator = headers.map(() => "---").join("-+-");
-      
+
       return `${headerRow}\n${separator}\n(no rows)`;
     };
 
@@ -204,7 +207,7 @@ Deno.test("UI Interactions - Interactive Elements", async (t) => {
       const responses = new Map([
         ["Delete all files?", false],
         ["Continue with upload?", true],
-        ["Overwrite existing config?", false]
+        ["Overwrite existing config?", false],
       ]);
 
       return responses.get(question) ?? defaultValue;
@@ -222,7 +225,7 @@ Deno.test("UI Interactions - Interactive Elements", async (t) => {
       const menuResponses = new Map([
         ["Choose relay", 0],
         ["Select server", 1],
-        ["Pick action", 2]
+        ["Pick action", 2],
       ]);
 
       const selectedIndex = menuResponses.get(question) ?? 0;
@@ -231,13 +234,13 @@ Deno.test("UI Interactions - Interactive Elements", async (t) => {
 
     const relayOptions = [
       { name: "Default Relay", value: "wss://relay.default.com" },
-      { name: "Custom Relay", value: "wss://relay.custom.com" }
+      { name: "Custom Relay", value: "wss://relay.custom.com" },
     ];
 
     const serverOptions = [
       { name: "Server A", value: "https://server-a.com" },
       { name: "Server B", value: "https://server-b.com" },
-      { name: "Server C", value: "https://server-c.com" }
+      { name: "Server C", value: "https://server-c.com" },
     ];
 
     assertEquals(simulateSelection(relayOptions, "Choose relay"), "wss://relay.default.com");
@@ -271,17 +274,21 @@ Deno.test("UI Interactions - Interactive Elements", async (t) => {
 
       return {
         isValid: errors.length === 0,
-        errors
+        errors,
       };
     };
 
     // Test valid inputs
-    const validName = validateTextInput("John Doe", { required: true, minLength: 2, maxLength: 50 });
+    const validName = validateTextInput("John Doe", {
+      required: true,
+      minLength: 2,
+      maxLength: 50,
+    });
     assertEquals(validName.isValid, true);
     assertEquals(validName.errors.length, 0);
 
-    const validEmail = validateTextInput("test@example.com", { 
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ 
+    const validEmail = validateTextInput("test@example.com", {
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     });
     assertEquals(validEmail.isValid, true);
 
@@ -292,10 +299,10 @@ Deno.test("UI Interactions - Interactive Elements", async (t) => {
 
     const tooShort = validateTextInput("Hi", { minLength: 5 });
     assertEquals(tooShort.isValid, false);
-    assertEquals(tooShort.errors.some(e => e.includes("Minimum length")), true);
+    assertEquals(tooShort.errors.some((e) => e.includes("Minimum length")), true);
 
-    const invalidEmail = validateTextInput("not-an-email", { 
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ 
+    const invalidEmail = validateTextInput("not-an-email", {
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     });
     assertEquals(invalidEmail.isValid, false);
     assertEquals(invalidEmail.errors.includes("Invalid format"), true);
@@ -336,12 +343,13 @@ Deno.test("UI Interactions - Responsive Layout", async (t) => {
       return adaptedLines.join("\n");
     };
 
-    const longContent = "This is a very long line that should be wrapped to fit within the specified terminal width";
+    const longContent =
+      "This is a very long line that should be wrapped to fit within the specified terminal width";
     const wrapped = adaptToTerminalWidth(longContent, 40);
-    
+
     const lines = wrapped.split("\n");
     assertEquals(lines.length > 1, true); // Should be wrapped
-    assertEquals(lines.every(line => line.length <= 40), true); // All lines should fit
+    assertEquals(lines.every((line) => line.length <= 40), true); // All lines should fit
   });
 
   await t.step("should handle different content types", () => {
@@ -351,7 +359,7 @@ Deno.test("UI Interactions - Responsive Layout", async (t) => {
       }
 
       if (Array.isArray(content)) {
-        return content.map(item => formatContentForWidth(item, width));
+        return content.map((item) => formatContentForWidth(item, width));
       }
 
       if (typeof content === "object" && content !== null) {
@@ -390,22 +398,24 @@ Deno.test("UI Interactions - Error Display", async (t) => {
     const formatError = (error: Error | string, context?: string) => {
       const message = typeof error === "string" ? error : error.message;
       const stack = typeof error === "object" && error.stack ? error.stack : null;
-      
+
       let formatted = `❌ Error: ${message}`;
-      
+
       if (context) {
         formatted = `❌ Error in ${context}: ${message}`;
       }
-      
+
       // Add helpful suggestions based on error type
       if (message.toLowerCase().includes("permission denied")) {
         formatted += "\n💡 Suggestion: Check file permissions or run with appropriate privileges";
-      } else if (message.toLowerCase().includes("network") || message.toLowerCase().includes("connection")) {
+      } else if (
+        message.toLowerCase().includes("network") || message.toLowerCase().includes("connection")
+      ) {
         formatted += "\n💡 Suggestion: Check your internet connection and try again";
       } else if (message.toLowerCase().includes("not found")) {
         formatted += "\n💡 Suggestion: Verify the file or directory exists";
       }
-      
+
       return formatted;
     };
 
@@ -426,29 +436,29 @@ Deno.test("UI Interactions - Error Display", async (t) => {
         network: [
           "Check your internet connection",
           "Try again in a few moments",
-          "Verify the server URL is correct"
+          "Verify the server URL is correct",
         ],
         permission: [
           "Check file permissions",
           "Run with appropriate privileges",
-          "Ensure the directory is writable"
+          "Ensure the directory is writable",
         ],
         configuration: [
           "Run 'nsyte init' to create configuration",
           "Check your configuration file syntax",
-          "Verify relay and server URLs"
+          "Verify relay and server URLs",
         ],
         authentication: [
           "Check your private key or bunker connection",
           "Verify your credentials are correct",
-          "Try reconnecting to the bunker"
-        ]
+          "Try reconnecting to the bunker",
+        ],
       };
 
       const contextSpecific: Record<string, string[]> = {
         upload: ["Check if files exist", "Verify file permissions"],
         download: ["Ensure sufficient disk space", "Check download directory permissions"],
-        init: ["Ensure directory is writable", "Remove existing config if corrupted"]
+        init: ["Ensure directory is writable", "Remove existing config if corrupted"],
       };
 
       const generalSuggestions = suggestions[errorType] || ["Try again later"];
@@ -462,7 +472,7 @@ Deno.test("UI Interactions - Error Display", async (t) => {
     assertEquals(networkSuggestions.includes("Check if files exist"), true);
 
     const configSuggestions = getRecoverySuggestions("configuration", "init");
-    assertEquals(configSuggestions.some(s => s.includes("nsyte init")), true);
-    assertEquals(configSuggestions.some(s => s.includes("Remove existing config")), true);
+    assertEquals(configSuggestions.some((s) => s.includes("nsyte init")), true);
+    assertEquals(configSuggestions.some((s) => s.includes("Remove existing config")), true);
   });
 });

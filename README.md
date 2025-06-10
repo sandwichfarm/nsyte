@@ -4,9 +4,14 @@
 
 ![Coverage](./static/coverage-badge.svg)
 
-A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized, censorship-resistant website hosting.
+A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized,
+censorship-resistant website hosting.
 
-> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an) [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This fork has been ported to deno and rewritten in the process. Some behaviors in this fork are slightly different.
+> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
+> [flox1an](https://github.com/flox1an)
+> [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This
+> fork has been ported to deno and rewritten in the process. Some behaviors in this fork are
+> slightly different.
 
 ![nsyte screen demo](./static/nsyte.gif)
 
@@ -40,14 +45,15 @@ nsyte upload ./dist
 ### Alternative Installation Methods
 
 **Using Deno**
+
 ```bash
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
-**Pre-built Binaries:**
-Download from [Releases](https://github.com/sandwichfarm/nsyte/releases)
+**Pre-built Binaries:** Download from [Releases](https://github.com/sandwichfarm/nsyte/releases)
 
 **Build Yourself:**
+
 ```bash
 # Current platform
 deno task compile
@@ -58,14 +64,14 @@ deno task compile:all
 
 ## Core Commands
 
-| Command | Description |
-|---------|-------------|
-| `nsyte` | Interactive setup wizard |
-| `nsyte init` | Initialize configuration |
-| `nsyte upload <dir>` | Upload files |
-| `nsyte ls` | List published files |
-| `nsyte download <dir>` | Download files |
-| `nsyte bunker <action>` | Manage NIP-46 bunkers |
+| Command                 | Description              |
+| ----------------------- | ------------------------ |
+| `nsyte`                 | Interactive setup wizard |
+| `nsyte init`            | Initialize configuration |
+| `nsyte upload <dir>`    | Upload files             |
+| `nsyte ls`              | List published files     |
+| `nsyte download <dir>`  | Download files           |
+| `nsyte bunker <action>` | Manage NIP-46 bunkers    |
 
 ### Uploading Files
 
@@ -82,12 +88,15 @@ nsyte upload ./dist --force --concurrency 8 --verbose
 nsyte supports three ways to authenticate:
 
 ### 1. Generated Private Key
+
 Create and use a new nostr key pair.
 
 ### 2. Existing Private Key
+
 Use your own nostr private key.
 
 ### 3. nostr Bunker (NIP-46)
+
 Recommended for maximum security - keep keys on a separate device.
 
 ```bash
@@ -105,7 +114,8 @@ nsyte bunker list
 
 **Private Keys**: Never exposed to servers, stored in project configuration.
 
-**Secure Credential Storage**: 
+**Secure Credential Storage**:
+
 - nsyte uses a multi-tier security approach for storing sensitive bunker connection data
 - **Tier 1 (Best)**: Native OS keychain services:
   - macOS: Keychain Services (security command)
@@ -115,24 +125,28 @@ nsyte bunker list
 - **Tier 3 (Fallback)**: Plain JSON storage with security warnings
 
 **Storage Locations**:
+
 - Secure storage: Platform-specific keychain or encrypted files
 - Config directories:
   - Linux: `~/.config/nsyte`
   - macOS: `~/Library/Application Support/nsyte`
   - Windows: `%APPDATA%\nsyte`
 
-**Bunker Connections**: 
+**Bunker Connections**:
+
 - Uses NIP-46 protocol for remote signing
 - Connection secrets automatically encrypted and stored securely
 - Legacy plain-text storage automatically migrated to secure storage
 
-**nbunksec Strings**: 
+**nbunksec Strings**:
+
 - Contain sensitive key material
 - Automatically stored in most secure available backend
 - Must be stored securely in CI/CD environments
 - Should be rotated periodically
 
 **Security Features**:
+
 - Automatic migration from legacy plain-text storage
 - Platform-specific encryption key derivation
 - Graceful fallback when secure storage unavailable
@@ -157,10 +171,11 @@ nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
 ```
 
 **Security Best Practices:**
+
 - Generate dedicated nbunksec for CI/CD (don't reuse personal credentials)
 - Rotate nbunksec periodically
 - Restrict bunker permissions to only required event kinds
-- Store nbunksec securely in your CI/CD platform's secret manager 
+- Store nbunksec securely in your CI/CD platform's secret manager
 
 ### GitHub Actions Example
 
@@ -192,10 +207,13 @@ Configuration is stored in `.nsite/config.json`:
 
 ### Ignoring Files (`.nsite-ignore`)
 
-Similar to `.gitignore`, you can create a `.nsite-ignore` file in the root of your project (the directory where you run the `nsyte` command) to specify files and directories that should be excluded from uploads.
+Similar to `.gitignore`, you can create a `.nsite-ignore` file in the root of your project (the
+directory where you run the `nsyte` command) to specify files and directories that should be
+excluded from uploads.
 
 - Create a file named `.nsite-ignore`.
-- Add patterns using standard [glob syntax](https://en.wikipedia.org/wiki/Glob_(programming)), one pattern per line.
+- Add patterns using standard [glob syntax](https://en.wikipedia.org/wiki/Glob_(programming)), one
+  pattern per line.
 - Lines starting with `#` are treated as comments.
 - Directories should usually end with a `/`.
 - The patterns are matched against paths relative to the directory where `nsyte` is executed.
@@ -265,7 +283,7 @@ nsyte upload ./dist --fallback=/index.html
 
 ### Prerequisites
 
-- Deno 2^ 
+- Deno 2^
 
 ### Tasks
 
@@ -281,4 +299,5 @@ deno task compile:all
 ```
 
 ## License
-[MIT License](LICENSE) 
+
+[MIT License](LICENSE)

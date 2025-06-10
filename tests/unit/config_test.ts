@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "jsr:@std/assert";
-import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { readProjectFile, writeProjectFile } from "../../src/lib/config.ts";
 import { join } from "std/path/mod.ts";
 
@@ -60,4 +60,4 @@ describe("ProjectConfig Module", () => {
     const readData = readProjectFile();
     assertEquals(readData, null);
   });
-}); 
+});

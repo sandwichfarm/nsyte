@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import { getDisplayManager, DisplayMode } from "./display-mode.ts";
+import { DisplayMode, getDisplayManager } from "./display-mode.ts";
 
 let inProgressMode = false;
 
@@ -21,12 +21,12 @@ const queuedLogs: Array<{ level: string; namespace: string; message: string }> =
  */
 export function flushQueuedLogs(): void {
   const displayManager = getDisplayManager();
-  
+
   if (displayManager.isInteractive() && !displayManager.isDebug()) {
     queuedLogs.length = 0;
     return;
   }
-  
+
   for (const log of queuedLogs) {
     if (log.level === "error") {
       console.error(formatLogMessage(log.level, log.namespace, log.message));
@@ -62,11 +62,11 @@ function formatLogMessage(level: string, namespace: string, message: string): st
  */
 function shouldShowLog(level: string): boolean {
   const displayManager = getDisplayManager();
-  
+
   if (displayManager.isInteractive() && !displayManager.isDebug() && level !== "error") {
     return false;
   }
-  
+
   return true;
 }
 
@@ -75,7 +75,7 @@ function shouldShowLog(level: string): boolean {
  */
 export function createLogger(namespace: string) {
   const logLevel = Deno.env.get("LOG_LEVEL") || "info";
-  
+
   const shouldLog = (level: string): boolean => {
     const levels = {
       debug: 0,
@@ -84,17 +84,17 @@ export function createLogger(namespace: string) {
       error: 3,
       none: 4,
     };
-    
+
     return levels[level as keyof typeof levels] >= levels[logLevel as keyof typeof levels];
   };
-  
+
   return {
     debug(message: string): void {
       if (shouldLog("debug") && shouldShowLog("debug")) {
         console.log(formatLogMessage("debug", namespace, message));
       }
     },
-    
+
     info(message: string): void {
       if (shouldLog("info")) {
         if (inProgressMode) {
@@ -104,7 +104,7 @@ export function createLogger(namespace: string) {
         }
       }
     },
-    
+
     warn(message: string): void {
       if (shouldLog("warn")) {
         if (inProgressMode) {
@@ -114,7 +114,7 @@ export function createLogger(namespace: string) {
         }
       }
     },
-    
+
     error(message: string): void {
       if (shouldLog("error")) {
         if (inProgressMode) {
@@ -124,7 +124,7 @@ export function createLogger(namespace: string) {
         }
       }
     },
-    
+
     success(message: string): void {
       if (shouldShowLog("success")) {
         console.log(formatLogMessage("success", namespace, message));
@@ -133,4 +133,4 @@ export function createLogger(namespace: string) {
   };
 }
 
-export const log = createLogger("nsite"); 
+export const log = createLogger("nsite");

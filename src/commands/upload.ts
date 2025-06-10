@@ -1,33 +1,36 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
-import { npubEncode } from "../lib/utils.ts";
 import { copy } from "@std/fs/copy";
-import { join, normalize, dirname } from "@std/path";
-import { defaultConfig, readProjectFile, setupProject, type ProjectConfig, type ProjectContext } from "../lib/config.ts";
+import { join } from "@std/path";
+import {
+  defaultConfig,
+  type ProjectConfig,
+  type ProjectContext,
+  readProjectFile,
+  setupProject,
+} from "../lib/config.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
+import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
-import { MessageCollector, MessageCategory } from "../lib/message-collector.ts";
-import { decodeBunkerInfo, importFromNbunk } from "../lib/nip46.ts";
+import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
+import { importFromNbunk } from "../lib/nip46.ts";
 import {
   createNip46ClientFromUrl,
-  listRemoteFiles,
-  type NostrEvent,
-  type NostrEventTemplate,
-  type FileEntry,
-  NSITE_KIND,
   createProfileEvent,
   createRelayListEvent,
   createServerListEvent,
+  type FileEntry,
+  listRemoteFiles,
+  NSITE_KIND,
+  publishEventsToRelays,
   purgeRemoteFiles,
-  createDeleteEvent,
-  publishEventsToRelays
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
-import { getErrorMessage, logError, handleError } from "../lib/error-utils.ts";
+import { npubEncode } from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -36,7 +39,7 @@ import {
   formatRelayList,
   formatSectionHeader,
   formatServerResults,
-  formatTitle
+  formatTitle,
 } from "../ui/formatters.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
@@ -57,7 +60,7 @@ let resolvedRelays: string[] = [];
 let resolvedServers: string[] = [];
 
 const currentWorkingDir = Deno.cwd();
-let targetDir!: string; 
+let targetDir!: string;
 let context!: ProjectContext;
 
 // TYPES ----------------------------------------------------------------------------------------------------- //
@@ -79,10 +82,10 @@ export interface UploadCommandOptions {
   nonInteractive: boolean;
 }
 
-export interface FilePreparationResult { 
-  toTransfer: FileEntry[]; 
-  existing: FileEntry[]; 
-  toDelete: FileEntry[] 
+export interface FilePreparationResult {
+  toTransfer: FileEntry[];
+  existing: FileEntry[];
+  toDelete: FileEntry[]
 }
 
 /**
@@ -116,7 +119,7 @@ export function registerUploadCommand(program: Command): void {
 
 /**
  * Implements the primary upload command functionality for nsyte
- * 
+ *
  * This function handles the entire upload workflow including:
  * - Initializing state and configuration
  * - Resolving project context and authentication
@@ -126,10 +129,10 @@ export function registerUploadCommand(program: Command): void {
  * - Processing file uploads/deletions
  * - Publishing metadata
  * - Displaying results
- * 
+ *
  * @param fileOrFolder: string - Path to the file or folder to upload, relative to current working directory
  * @param options<UploadCommandOptions> - Upload command options
- * 
+ *
  * @returns Promise that resolves when upload completes, process exits with status code
  */
 export async function uploadCommand( fileOrFolder: string, options_: UploadCommandOptions ): Promise<void> {
@@ -140,7 +143,7 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
   try {
     targetDir = join(currentWorkingDir, fileOrFolder);
     context = await resolveContext(options);
-    
+
     if (context.error) {
       statusDisplay.error(context.error);
       log.error(`Configuration error: ${context.error}`);
@@ -155,20 +158,20 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
       log.error("Critical error: Project data is null after context resolution without error (interactive mode).");
       return Deno.exit(1);
     }
-    
+
     signer = (await initSigner(authKeyHex)) as Signer;
-    
+
     if ("error" in signer) {
       statusDisplay.error(`Signer: ${signer.error}`);
       log.error(`Signer initialization failed: ${signer.error}`);
       return Deno.exit(1);
     }
-    
+
     const publisherPubkey = await signer.getPublicKey();
 
     resolvedServers = options.servers?.split(",").filter(s => s.trim()) || config.servers || [];
     resolvedRelays = options.relays?.split(",").filter(r => r.trim()) || config.relays || [];
-    
+
     displayConfig( publisherPubkey );
 
     const includedFiles = await scanLocalFiles();
@@ -178,16 +181,16 @@ export async function uploadCommand( fileOrFolder: string, options_: UploadComma
 
     await maybeProcessFiles( toTransfer,  toDelete );
     await maybePublishMetadata();
-    
-    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 && 
+
+    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 &&
         !(options.publishProfile || options.publishRelayList || options.publishServerList)) {
       log.info("No effective operations performed.");
     }
-    
+
     flushQueuedLogs();
 
     displayGatewayUrl(publisherPubkey);
-    
+
     return Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
@@ -206,15 +209,13 @@ function displayGatewayUrl(publisherPubkey: string) {
   }
 }
 
-
-export function initState(options_: UploadCommandOptions){
+export function initState(options_: UploadCommandOptions) {
   options = options_;
   displayManager = getDisplayManager();
   displayManager.configureFromOptions(options);
   messageCollector = new MessageCollector(displayManager.isInteractive());
   statusDisplay = new StatusDisplay();
 }
-
 
 async function resolveContext(
   options: UploadCommandOptions,
@@ -224,7 +225,7 @@ async function resolveContext(
 
   if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
-      const existingProjectData = readProjectFile() || defaultConfig;
+    const existingProjectData = readProjectFile() || defaultConfig;
 
     if (!options.servers && (!existingProjectData?.servers || existingProjectData.servers.length === 0)) {
       return { config: existingProjectData, authKeyHex, error: "Missing servers: Provide --servers or configure in .nsite/config.json." };
@@ -240,7 +241,7 @@ async function resolveContext(
         log.info("No direct key/nsec on CLI. Will attempt to use configured bunker for non-interactive mode.");
       }
     }
-    
+
     config = {
       servers: (options.servers ? options.servers.split(",").filter(s => s.trim()) : existingProjectData?.servers) || [],
       relays: (options.relays ? options.relays.split(",").filter(r => r.trim()) : existingProjectData?.relays) || [],
@@ -248,11 +249,10 @@ async function resolveContext(
       publishRelayList: options.publishRelayList !== undefined ? options.publishRelayList : existingProjectData?.publishRelayList || false,
       publishProfile: options.publishProfile !== undefined ? options.publishProfile : existingProjectData?.publishProfile || false,
       profile: existingProjectData?.profile,
-      bunkerPubkey: existingProjectData?.bunkerPubkey, 
+      bunkerPubkey: existingProjectData?.bunkerPubkey,
       fallback: options.fallback || existingProjectData?.fallback,
-      gatewayHostnames: existingProjectData?.gatewayHostnames || [ 'nsite.lol' ]
+      gatewayHostnames: existingProjectData?.gatewayHostnames || ["nsite.lol"],
     };
-
   } else {
     log.debug("Resolving project context in interactive mode.");
     const currentProjectData = readProjectFile();
@@ -260,7 +260,7 @@ async function resolveContext(
 
     if (!currentProjectData) {
       log.info("No .nsite/config.json found, running initial project setup.");
-      const setupResult = await setupProject(false); 
+      const setupResult = await setupProject(false);
       if (!setupResult.config) {
         return { config: defaultConfig, authKeyHex: undefined, error: "Project setup failed or was aborted." };
       }
@@ -279,17 +279,17 @@ async function resolveContext(
       }
     }
 
-    if(!config?.gatewayHostnames) {
-      config.gatewayHostnames = [ 'nsite.lol' ];
+    if (!config?.gatewayHostnames) {
+      config.gatewayHostnames = ["nsite.lol"];
     }
-    
+
     if (options.privatekey) {
-        authKeyHex = options.privatekey;
+      authKeyHex = options.privatekey;
     } else if (keyFromInteractiveSetup) {
-        authKeyHex = keyFromInteractiveSetup;
+      authKeyHex = keyFromInteractiveSetup;
     }
   }
-  
+
   if (!config || !config.servers || config.servers.length === 0) {
     return { config, authKeyHex, error: "Servers configuration is missing or empty." };
   }
@@ -312,7 +312,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       return { error: `Failed to import nbunksec from CLI: ${getErrorMessage(e)}` };
     }
   }
-  
+
   // Priority 2: bunker URL from CLI
   if (options.bunker) {
     try {
@@ -337,7 +337,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
       if (nbunkString) {
         try {
         log.info("Found stored nbunksec for configured bunker. Importing...");
-          const bunkerSigner = await importFromNbunk(nbunkString);
+        const bunkerSigner = await importFromNbunk(nbunkString);
         await bunkerSigner.getPublicKey();
         return bunkerSigner;
       } catch (e: unknown) {
@@ -360,9 +360,7 @@ async function initSigner( authKeyHex: string | null | undefined): Promise<Signe
   return { error: "No valid signing method could be initialized (private key, nbunksec, or bunker). Please check your configuration or CLI arguments." };
 }
 
-
-
-export function displayConfig(publisherPubkey: string){
+export function displayConfig(publisherPubkey: string) {
   if (displayManager.isInteractive()) {
     console.log(formatTitle("Upload Configuration"));
     console.log(formatConfigValue("User", publisherPubkey, false));
@@ -393,7 +391,7 @@ export function displayConfig(publisherPubkey: string){
 /**
  * Scan local files in the target directory
  */
-async function scanLocalFiles( _targetDir?: string ): Promise<FileEntry[]> {
+async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
   targetDir = _targetDir || targetDir;
   statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
   const { includedFiles, ignoredFilePaths } = await getLocalFiles(targetDir);
@@ -411,7 +409,8 @@ async function scanLocalFiles( _targetDir?: string ): Promise<FileEntry[]> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList;
+  const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
+    shouldPublishServerList;
 
   if (includedFiles.length === 0) {
     const noFilesMsg = "No files to upload after ignore rules.";
@@ -419,10 +418,10 @@ async function scanLocalFiles( _targetDir?: string ): Promise<FileEntry[]> {
     if (options.purge || shouldPublishAny) {
         log.info("Proceeding with purge/publish operations as requested despite no files to upload.");
     } else {
-        return Deno.exit(0);
+      return Deno.exit(0);
     }
   }
-  
+
   if (includedFiles.length > 0) {
     const foundFilesMsg = `Found ${includedFiles.length} files to process for upload.`;
     if (displayManager.isInteractive()) { statusDisplay.update(foundFilesMsg); }
@@ -435,11 +434,9 @@ async function scanLocalFiles( _targetDir?: string ): Promise<FileEntry[]> {
 /**
  * Fetch remote file entries from relays
  */
-async function fetchRemoteFiles(
-  publisherPubkey: string
-): Promise<FileEntry[]> {
+async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
   let remoteFileEntries: FileEntry[] = [];
-  
+
   if (!options.force && !options.purge) {
     if (resolvedRelays.length > 0) {
       statusDisplay.update("Checking for existing files on remote relays...");
@@ -463,28 +460,24 @@ async function fetchRemoteFiles(
 /**
  * Handle purge operations for remote files
  */
-async function handlePurgeOperation( remoteEntries: FileEntry[] ): Promise<FileEntry[]> {
-
+async function handlePurgeOperation(
+  remoteEntries: FileEntry[],
+): Promise<FileEntry[]> {
   const shouldPurge = options.purge;
 
   if (!shouldPurge) {
     return remoteEntries;
   }
-  
-  const confirmPurge = options.nonInteractive ? true : await Confirm.prompt({ 
-    message: `Are you sure you want to purge ALL remote files (nsite kind ${NSITE_KIND}) for pubkey ${await signer.getPublicKey()} before uploading?`, 
+
+  const confirmPurge = options.nonInteractive ? true : await Confirm.prompt({
+    message: `Are you sure you want to purge ALL remote files (nsite kind ${NSITE_KIND}) for pubkey ${await signer.getPublicKey()} before uploading?`,
     default: false
   });
-  
+
   if (confirmPurge && resolvedRelays.length > 0) {
     statusDisplay.update("Purging remote files...");
     try {
-      await purgeRemoteFiles(
-        resolvedRelays, 
-        remoteEntries, 
-        signer, 
-        messageCollector
-      );
+      await purgeRemoteFiles(resolvedRelays, remoteEntries, signer);
       statusDisplay.success("Remote files purge command issued.");
       return [];
     } catch (e: unknown) {
@@ -492,17 +485,13 @@ async function handlePurgeOperation( remoteEntries: FileEntry[] ): Promise<FileE
       statusDisplay.error(errMsg);
       log.error(errMsg);
     }
-  }
-
-  else if(resolvedRelays.length === 0) {
+  } else if (resolvedRelays.length === 0) {
     const noRelayErr = "Cannot purge remote files: No relays specified.";
     displayManager.isInteractive()
       ? statusDisplay.error(noRelayErr)
       : console.error(colors.red(noRelayErr));
     log.error(noRelayErr);
-  }
-  
-  else if(confirmPurge === false) {
+  } else if (confirmPurge === false) {
     log.info("Purge cancelled.");
   }
 
@@ -516,33 +505,33 @@ async function compareAndPrepareFiles( localFiles: FileEntry[], remoteFiles: Fil
   statusDisplay.update("Comparing local and remote files...");
   const { toTransfer, existing, toDelete } = compareFiles(localFiles, remoteFiles);
   const compareMsg = formatFileSummary(toTransfer.length, existing.length, toDelete.length);
-  
-  if (displayManager.isInteractive()) { 
-    statusDisplay.success(compareMsg); 
-  } else { 
-    console.log(colors.cyan(compareMsg)); 
+
+  if (displayManager.isInteractive()) {
+    statusDisplay.success(compareMsg);
+  } else {
+    console.log(colors.cyan(compareMsg));
   }
-  
+
   log.info(`Comparison result: ${toTransfer.length} to upload, ${existing.length} unchanged, ${toDelete.length} to delete.`);
-  
+
   // Check both command-line options AND config settings
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList;
-  
+
   if (toTransfer.length === 0 && !options.force && !options.purge) {
     log.info("No new files to upload.");
-    
+
     if (displayManager.isInteractive()) {
       const forceUpload = await Confirm.prompt({
         message: "No new files detected. Force upload anyway?",
-        default: false
+        default: false,
       });
-      
+
       if (!forceUpload) {
         log.info("Upload cancelled by user.");
-        
+
         if (!shouldPublishAny) {
           await flushQueuedLogs();
           return Deno.exit(0);
@@ -556,7 +545,7 @@ async function compareAndPrepareFiles( localFiles: FileEntry[], remoteFiles: Fil
       const errMsg = "No new files to upload. Use --force to upload anyway.";
       console.error(colors.red(errMsg));
       log.error(errMsg);
-      
+
       if (!shouldPublishAny) {
         await flushQueuedLogs();
         return Deno.exit(1);
@@ -565,30 +554,29 @@ async function compareAndPrepareFiles( localFiles: FileEntry[], remoteFiles: Fil
       }
     }
   }
-  
+
   return { toTransfer, existing, toDelete };
 }
 
 /**
  * Delete files marked for deletion
  */
-async function deleteRemovedFiles( filesToDelete: FileEntry[] ): Promise<void> {
+async function deleteRemovedFiles(filesToDelete: FileEntry[]): Promise<void> {
   if (filesToDelete.length === 0) {
     return;
   }
-  
+
   log.info(`Requesting deletion of ${filesToDelete.length} files from remote events`);
-  
+
   statusDisplay.update(`Deleting ${filesToDelete.length} files...`);
-  
+
   try {
     const deletedCount = await purgeRemoteFiles(
-      resolvedRelays, 
+      resolvedRelays,
       filesToDelete,
       signer,
-      messageCollector
     );
-    
+
     if (deletedCount > 0) {
       statusDisplay.success(`Deleted ${deletedCount} files`);
     } else {
@@ -606,7 +594,7 @@ async function deleteRemovedFiles( filesToDelete: FileEntry[] ): Promise<void> {
  */
 async function prepareFilesForUpload( filesToTransfer: FileEntry[] ): Promise<FileEntry[]> {
   const preparedFiles: FileEntry[] = [];
-  
+
   for (const file of filesToTransfer) {
     try {
       const fileWithData = await loadFileData(targetDir, file);
@@ -617,40 +605,31 @@ async function prepareFilesForUpload( filesToTransfer: FileEntry[] ): Promise<Fi
       messageCollector.addFileError(file.path, errorMessage);
     }
   }
-  
+
   return preparedFiles;
 }
 
 export async function maybeProcessFiles(
-  toTransfer: FileEntry[], 
+  toTransfer: FileEntry[],
   toDelete: FileEntry[]
 ){
   if (toTransfer.length > 0) {
     log.info("Processing files for upload...");
-    
+
     try {
-      const preparedFiles = await prepareFilesForUpload(
-        toTransfer
-      );
-      
-      await uploadFiles(
-        preparedFiles
-      );
+      const preparedFiles = await prepareFilesForUpload(toTransfer);
 
-
+      await uploadFiles(preparedFiles);
     } catch (e: unknown) {
       const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
       log.error(errMsg);
     }
-  } 
-  
-  if (toDelete.length > 0) {
-    await deleteRemovedFiles(
-      toDelete
-    );
   }
 
+  if (toDelete.length > 0) {
+    await deleteRemovedFiles(toDelete);
+  }
 }
 
 /**
@@ -661,21 +640,21 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
     statusDisplay.error("No files could be loaded for upload.");
     return [];
   }
-  
+
   statusDisplay.update(`Uploading ${preparedFiles.length} files...`);
 
   const { fallback } = options;
 
   const totalFiles = fallback ? preparedFiles.length + 1 : preparedFiles.length;
-  
+
   setProgressMode(true);
   progressRenderer = new ProgressRenderer(totalFiles);
   progressRenderer.start();
-  
+
   if (resolvedServers.length === 0) {
     throw new Error("No servers configured for upload");
   }
-  
+
   const uploadResponses = await processUploads(
     preparedFiles,
     targetDir,
@@ -685,21 +664,20 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
     options.concurrency,
     (progress) => {
       progressRenderer.update(progress);
-    }
+    },
   );
 
   if(fallback) {
     await processFallbackFile();
-  } 
+  }
 
   progressRenderer.stop();
   setProgressMode(false);
 
-  
   if (uploadResponses.length > 0) {
     const uploadedCount = uploadResponses.filter(r => r.success).length;
     const uploadedSize = uploadResponses.reduce((sum, r) => sum + (r.file.size || 0), 0);
-    
+
     for (const result of uploadResponses) {
       if (result.success) {
         if (result.file.sha256) {
@@ -712,10 +690,10 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
         messageCollector.addFileError(result.file.path, result.error);
       }
     }
-    
+
     flushQueuedLogs();
     console.log("");
-    
+
     if (uploadedCount === preparedFiles.length) {
       const msg = `${uploadedCount} files uploaded successfully (${formatFileSize(uploadedSize)})`;
       progressRenderer.complete(true, msg);
@@ -726,9 +704,9 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
       const msg = "Failed to upload any files";
       progressRenderer.complete(false, msg);
     }
-    
+
     console.log("");
-    
+
     if (messageCollector.hasMessageType("relay-rejection") ||
         messageCollector.hasMessageType("connection-error")) {
       console.log(formatSectionHeader("Relay Issues"));
@@ -771,8 +749,8 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
     }
     console.log(formatServerResults(serverResults));
     console.log("");
-    
-    const eventCount = uploadResponses.filter(r => r.eventPublished).length;
+
+    const eventCount = uploadResponses.filter((r) => r.eventPublished).length;
     if (eventCount > 0) {
       console.log(formatSectionHeader("Nsite Events Publish Results (𓅦 nostr)"));
       if (eventCount === uploadedCount) {
@@ -784,12 +762,12 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
       }
       messageCollector.printEventSuccessSummary();
       console.log("");
-    }    
+    }
   } else {
     progressRenderer.stop();
     console.log(colors.red("No upload responses received from servers."));
   }
-  
+
   if (messageCollector.hasMessageCategory(MessageCategory.SERVER)) {
     console.log(formatSectionHeader("Server Messages"));
     for (const { type, target, content } of messageCollector.getMessagesByCategory(MessageCategory.SERVER)) {
@@ -797,7 +775,7 @@ async function uploadFiles( preparedFiles: FileEntry[] ): Promise<UploadResponse
       log.info(`${prefix} from ${target}: ${content}`);
     }
   }
-  
+
   return uploadResponses;
 }
 
@@ -810,22 +788,22 @@ async function processFallbackFile(): Promise<void> {
   if (!fallbackPath) {
     return;
   }
-  
+
   try {
     const fallbackFile = join(targetDir, fallbackPath);
     const destFile = join(targetDir, "404.html");
-    
+
     statusDisplay.update(`Copying fallback file ${formatFilePath(fallbackPath)} to 404.html...`);
-    
+
     await copy(fallbackFile, destFile, { overwrite: true });
-    
+
     const fallbackFileEntry: FileEntry = {
       path: "404.html",
-      contentType: "text/html"
+      contentType: "text/html",
     };
-    
+
     const fallbackFileData = await loadFileData(targetDir, fallbackFileEntry);
-    
+
     statusDisplay.update("Uploading 404.html fallback file...");
     const fallbackUploads = await processUploads(
       [fallbackFileData],
@@ -836,9 +814,9 @@ async function processFallbackFile(): Promise<void> {
       1,
       (progress) => {
         progressRenderer.update(progress);
-      }
+      },
     );
-    
+
     if (fallbackUploads[0]?.success) {
       statusDisplay.success(`Fallback file uploaded as 404.html`);
     } else {
@@ -863,7 +841,7 @@ async function processFallbackFile(): Promise<void> {
  * Publish metadata to relays (profile, relay list, server list)
  */
 async function maybePublishMetadata(): Promise<void> {
-  log.debug("maybePublishMetadata called"); 
+  log.debug("maybePublishMetadata called");
 
   // Check both command-line options AND config settings
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
@@ -878,13 +856,13 @@ async function maybePublishMetadata(): Promise<void> {
     log.debug("No metadata events requested for publishing, returning early");
     return;
   }
-  
+
   console.log(formatSectionHeader("Metadata Events Publish Results"));
-  
+
   try {
     if (shouldPublishProfile && config.profile) {
       statusDisplay.update("Publishing profile...");
-      
+
       try {
         const profileEvent = await createProfileEvent(signer, config.profile);
         log.debug(`Created profile event for publishing: ${JSON.stringify(profileEvent)}`);
@@ -895,7 +873,7 @@ async function maybePublishMetadata(): Promise<void> {
         log.error(`Profile publication error: ${getErrorMessage(e)}`);
       }
     }
-    
+
     if (shouldPublishRelayList) {
       statusDisplay.update("Publishing relay list...");
       try {
@@ -908,10 +886,10 @@ async function maybePublishMetadata(): Promise<void> {
         log.error(`Relay list publication error: ${getErrorMessage(e)}`);
       }
     }
-    
+
     if (shouldPublishServerList) {
       statusDisplay.update("Publishing server list...");
-      
+
       try {
         const serverListEvent = await createServerListEvent(signer, options.servers?.split(",") || config.servers || []);
         log.debug(`Created server list event: ${JSON.stringify(serverListEvent)}`);
@@ -927,31 +905,27 @@ async function maybePublishMetadata(): Promise<void> {
     statusDisplay.error(errMsg);
     log.error(errMsg);
   }
-  
+
   if (messageCollector.hasMessageCategory(MessageCategory.RELAY)) {
     log.info(formatSectionHeader("Relay Messages"));
-    
+
     const relayResults: Record<string, { success: number; total: number }> = {};
     const relayMessages = messageCollector.getMessagesByCategory(MessageCategory.RELAY);
-    
+
     for (const message of relayMessages) {
       const relayUrl = message.target;
       if (!relayResults[relayUrl]) {
         relayResults[relayUrl] = { success: 0, total: 0 };
       }
-      
+
       relayResults[relayUrl].total++;
       if (message.type === "success") {
         relayResults[relayUrl].success++;
       }
     }
-    
+
     console.log(formatServerResults(relayResults));
   }
-  
+
   log.debug("Metadata publishing completed");
 }
-
-
-
-
