@@ -5,9 +5,9 @@
  * Tests keychain, encrypted storage, and legacy fallback
  */
 
-import { SecretsManager } from "./src/lib/secrets/mod.ts";
-import { getKeychainProvider } from "./src/lib/secrets/keychain.ts";
-import { EncryptedStorage } from "./src/lib/secrets/encrypted-storage.ts";
+import { SecretsManager } from "../src/lib/secrets/mod.ts";
+import { getKeychainProvider } from "../src/lib/secrets/keychain.ts";
+import { EncryptedStorage } from "../src/lib/secrets/encrypted-storage.ts";
 
 async function testSecretsManager() {
   console.log("🔑 Testing nsyte secrets management integration");

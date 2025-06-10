@@ -41,7 +41,7 @@ export function resolveRelays(
   useDiscoveryRelays = false,
 ): string[] {
   // Priority: CLI options > config > defaults
-  if (options.relays) {
+  if (options.relays !== undefined) {
     return parseCommaSeparated(options.relays);
   }
 
@@ -62,7 +62,7 @@ export function resolveServers(
   config?: ProjectConfig | null,
 ): string[] {
   // Priority: CLI options > config
-  if (options.servers) {
+  if (options.servers !== undefined) {
     return parseCommaSeparated(options.servers);
   }
 

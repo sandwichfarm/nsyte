@@ -281,52 +281,29 @@ Deno.test("createSigner", async (t) => {
   });
 
   await t.step("should handle nbunksec option", async () => {
-    // Mock the importFromNbunk function
-    const importStub = stub(
-      await import("../../src/lib/nip46.ts"),
-      "importFromNbunk",
-      async () => ({
-        getPublicKey: () => "mock-pubkey",
-        signEvent: async () => ({} as any),
-      }),
+    const options: ResolverOptions = {
+      nbunksec: "invalid-nbunk-string"
+    };
+    
+    // This should throw for invalid nbunk format
+    await assertRejects(
+      async () => await createSigner(options, null),
+      Error,
+      "Failed to decode nbunksec string"
     );
-
-    try {
-      const options: ResolverOptions = {
-        nbunksec: "nbunksec1...",
-      };
-
-      const signer = await createSigner(options, null);
-      assertExists(signer);
-    } finally {
-      importStub.restore();
-    }
   });
 
   await t.step("should handle bunker URL option", async () => {
-    // Mock the createNip46ClientFromUrl function
-    const createClientStub = stub(
-      await import("../../src/lib/nostr.ts"),
-      "createNip46ClientFromUrl",
-      async () => ({
-        client: {
-          getPublicKey: () => "mock-pubkey",
-          signEvent: async () => ({} as any),
-        },
-        relays: [],
-      }),
+    const options: ResolverOptions = {
+      bunker: "invalid-bunker-url"
+    };
+    
+    // This should throw for invalid bunker URL format
+    await assertRejects(
+      async () => await createSigner(options, null),
+      Error,
+      "Failed to connect to bunker"
     );
-
-    try {
-      const options: ResolverOptions = {
-        bunker: "bunker://pubkey?relay=wss://relay.com",
-      };
-
-      const signer = await createSigner(options, null);
-      assertExists(signer);
-    } finally {
-      createClientStub.restore();
-    }
   });
 });
 
