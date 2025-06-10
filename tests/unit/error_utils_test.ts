@@ -1,7 +1,12 @@
-import { assertEquals, assert, assertStringIncludes } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
-import { stub, restore, type Stub } from "jsr:@std/testing/mock";
-import { getErrorMessage, logError, handleError, withErrorHandling } from "../../src/lib/error-utils.ts";
+import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { restore, type Stub, stub } from "jsr:@std/testing/mock";
+import {
+  getErrorMessage,
+  handleError,
+  logError,
+  withErrorHandling,
+} from "../../src/lib/error-utils.ts";
 import { createLogger } from "../../src/lib/logger.ts";
 
 describe("error-utils", () => {
@@ -40,14 +45,14 @@ describe("error-utils", () => {
     it("should log error with context", () => {
       const error = new Error("Test error");
       const result = logError("Test context", error);
-      
+
       assertEquals(result, "Test error");
     });
 
     it("should output to console when requested", () => {
       const error = new Error("Test error");
       logError("Test context", error, { showConsole: true });
-      
+
       assertEquals(consoleErrorStub.calls.length, 1);
       const call = consoleErrorStub.calls[0];
       assertStringIncludes(call.args[0] as string, "Error: Test context: Test error");
@@ -56,7 +61,7 @@ describe("error-utils", () => {
     it("should output colored console messages by default", () => {
       const error = new Error("Test error");
       logError("Test context", error, { showConsole: true });
-      
+
       assertEquals(consoleErrorStub.calls.length, 1);
       const message = consoleErrorStub.calls[0].args[0] as string;
       // Should contain ANSI color codes
@@ -66,7 +71,7 @@ describe("error-utils", () => {
     it("should output uncolored console messages when color is false", () => {
       const error = new Error("Test error");
       logError("Test context", error, { showConsole: true, color: false });
-      
+
       assertEquals(consoleErrorStub.calls.length, 1);
       const message = consoleErrorStub.calls[0].args[0] as string;
       assertEquals(message, "Error: Test context: Test error");
@@ -77,14 +82,14 @@ describe("error-utils", () => {
     it("should log error without exiting by default", () => {
       const error = new Error("Test error");
       handleError("Test context", error);
-      
+
       assertEquals(exitStub.calls.length, 0);
     });
 
     it("should exit when requested", () => {
       const error = new Error("Test error");
       handleError("Test context", error, { exit: true });
-      
+
       assertEquals(exitStub.calls.length, 1);
       assertEquals(exitStub.calls[0].args[0], 1); // Default exit code
     });
@@ -92,7 +97,7 @@ describe("error-utils", () => {
     it("should use custom exit code", () => {
       const error = new Error("Test error");
       handleError("Test context", error, { exit: true, exitCode: 42 });
-      
+
       assertEquals(exitStub.calls.length, 1);
       assertEquals(exitStub.calls[0].args[0], 42);
     });
@@ -100,7 +105,7 @@ describe("error-utils", () => {
     it("should show console output when requested", () => {
       const error = new Error("Test error");
       handleError("Test context", error, { showConsole: true });
-      
+
       assertEquals(consoleErrorStub.calls.length, 1);
     });
   });
@@ -110,7 +115,7 @@ describe("error-utils", () => {
       const result = await withErrorHandling("Test context", async () => {
         return "success";
       });
-      
+
       assertEquals(result, "success");
     });
 
@@ -118,7 +123,7 @@ describe("error-utils", () => {
       const result = await withErrorHandling("Test context", async () => {
         throw new Error("Test error");
       });
-      
+
       assertEquals(result, undefined);
     });
 
@@ -126,7 +131,7 @@ describe("error-utils", () => {
       await withErrorHandling("Test context", async () => {
         throw new Error("Test error");
       }, { exit: true });
-      
+
       assertEquals(exitStub.calls.length, 1);
       assertEquals(exitStub.calls[0].args[0], 1);
     });

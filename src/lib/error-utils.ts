@@ -20,21 +20,21 @@ export function logError(
     showConsole?: boolean;
     color?: boolean;
     logger?: ReturnType<typeof createLogger>;
-  }
+  },
 ): string {
   const message = getErrorMessage(error);
   const fullMessage = `${context}: ${message}`;
-  
+
   const logger = options?.logger || log;
   logger.error(fullMessage);
-  
+
   if (options?.showConsole) {
-    const output = options.color !== false 
+    const output = options.color !== false
       ? colors.red(`Error: ${fullMessage}`)
       : `Error: ${fullMessage}`;
     console.error(output);
   }
-  
+
   return message;
 }
 
@@ -50,10 +50,10 @@ export function handleError(
     showConsole?: boolean;
     color?: boolean;
     logger?: ReturnType<typeof createLogger>;
-  }
+  },
 ): void {
   logError(context, error, options);
-  
+
   if (options?.exit) {
     Deno.exit(options.exitCode ?? 1);
   }
@@ -71,7 +71,7 @@ export async function withErrorHandling<T>(
     showConsole?: boolean;
     color?: boolean;
     logger?: ReturnType<typeof createLogger>;
-  }
+  },
 ): Promise<T | undefined> {
   try {
     return await fn();

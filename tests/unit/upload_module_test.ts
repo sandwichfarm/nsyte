@@ -1,9 +1,5 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import type {
-  Signer,
-  UploadProgress,
-  UploadResponse
-} from "../../src/lib/upload.ts";
+import type { Signer, UploadProgress, UploadResponse } from "../../src/lib/upload.ts";
 
 Deno.test("upload types", async (t) => {
   await t.step("Signer interface", () => {
@@ -14,12 +10,12 @@ Deno.test("upload types", async (t) => {
           ...event,
           id: "mock-id",
           pubkey: "mock-pubkey",
-          sig: "mock-sig"
+          sig: "mock-sig",
         };
       },
-      getPublicKey: () => "mock-public-key"
+      getPublicKey: () => "mock-public-key",
     };
-    
+
     assertExists(mockSigner.signEvent);
     assertExists(mockSigner.getPublicKey);
     assertEquals(typeof mockSigner.signEvent, "function");
@@ -31,9 +27,9 @@ Deno.test("upload types", async (t) => {
       total: 10,
       completed: 5,
       failed: 1,
-      inProgress: 2
+      inProgress: 2,
     };
-    
+
     assertEquals(progress.total, 10);
     assertEquals(progress.completed, 5);
     assertEquals(progress.failed, 1);
@@ -46,7 +42,7 @@ Deno.test("upload types", async (t) => {
         path: "/test/file.txt",
         size: 1024,
         sha256: "abc123",
-        contentType: "text/plain"
+        contentType: "text/plain",
       },
       success: true,
       eventId: "event-123",
@@ -54,15 +50,15 @@ Deno.test("upload types", async (t) => {
       serverResults: {
         "https://server1.com": {
           success: true,
-          alreadyExists: false
+          alreadyExists: false,
         },
         "https://server2.com": {
           success: false,
-          error: "Connection failed"
-        }
-      }
+          error: "Connection failed",
+        },
+      },
     };
-    
+
     assertEquals(response.success, true);
     assertEquals(response.file.path, "/test/file.txt");
     assertEquals(response.eventId, "event-123");
@@ -75,13 +71,13 @@ Deno.test("upload types", async (t) => {
   await t.step("UploadResponse with error", () => {
     const errorResponse: UploadResponse = {
       file: {
-        path: "/test/failed.txt"
+        path: "/test/failed.txt",
       },
       success: false,
       error: "Upload failed",
-      serverResults: {}
+      serverResults: {},
     };
-    
+
     assertEquals(errorResponse.success, false);
     assertEquals(errorResponse.error, "Upload failed");
     assertEquals(errorResponse.eventId, undefined);
@@ -95,16 +91,16 @@ Deno.test("upload types", async (t) => {
           ...event,
           id: "async-id",
           pubkey: "async-pubkey",
-          sig: "async-sig"
+          sig: "async-sig",
         };
       },
       getPublicKey: async () => {
         // Simulate async operation
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         return "async-public-key";
-      }
+      },
     };
-    
+
     const pubkey = await asyncSigner.getPublicKey();
     assertEquals(pubkey, "async-public-key");
   });

@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { processUploads, Signer } from "../../src/lib/upload.ts";
 import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
 
@@ -47,10 +47,13 @@ describe("Upload Module File Existence", () => {
 
   beforeEach(() => {
     // Setup mock fetch
-    globalThis.fetch = async (url: string | URL | Request, options?: RequestInit): Promise<Response> => {
+    globalThis.fetch = async (
+      url: string | URL | Request,
+      options?: RequestInit,
+    ): Promise<Response> => {
       const urlStr = url.toString();
       const method = options?.method || "GET";
-      
+
       if (urlStr.includes("already-exists") || urlStr.includes("existing1234567890")) {
         return new Response("", { status: 200 });
       } else if (method === "HEAD") {
@@ -65,7 +68,11 @@ describe("Upload Module File Existence", () => {
     // Make setTimeout immediate to prevent leaked async ops
     originalSetTimeout = globalThis.setTimeout;
     // @ts-ignore: override
-    globalThis.setTimeout = (handler: TimerHandler, _timeout?: number, ...args: unknown[]): number => {
+    globalThis.setTimeout = (
+      handler: TimerHandler,
+      _timeout?: number,
+      ...args: unknown[]
+    ): number => {
       if (typeof handler === "function") {
         handler(...args);
       } else {
@@ -94,9 +101,11 @@ describe("Upload Module File Existence", () => {
           // Immediately send OK response
           setTimeout(() => {
             if (this.onmessage) {
-              this.onmessage(new MessageEvent("message", {
-                data: JSON.stringify(["OK", "mock-event-id", true])
-              }));
+              this.onmessage(
+                new MessageEvent("message", {
+                  data: JSON.stringify(["OK", "mock-event-id", true]),
+                }),
+              );
             }
           }, 5);
         }, 5);
@@ -127,36 +136,47 @@ describe("Upload Module File Existence", () => {
   it("should handle already existing files on server", async () => {
     const servers = ["https://test-server.com"];
     const relays = ["wss://test-relay.com"];
-    
+
     const results = await processUploads(
       mockFiles,
       "/test",
       servers,
       mockSigner,
       relays,
-      2
+      2,
     );
 
     assertEquals(results.length, 2, "Should have results for both files");
-    
+
     // All uploads should be successful
-    assertEquals(results.every(r => r.success), true, "All uploads should be successful");
-    
+    assertEquals(results.every((r) => r.success), true, "All uploads should be successful");
+
     // All events should be published or at least attempted
-    assertEquals(results.every(r => r.eventPublished !== false), true, "Events should not have explicit failure");
-    
+    assertEquals(
+      results.every((r) => r.eventPublished !== false),
+      true,
+      "Events should not have explicit failure",
+    );
+
     // Verify server results
     for (const result of results) {
-      assertEquals(result.serverResults["https://test-server.com"].success, true, "Server upload should be successful");
+      assertEquals(
+        result.serverResults["https://test-server.com"].success,
+        true,
+        "Server upload should be successful",
+      );
     }
   });
 
   it("should correctly mark files that already exist", async () => {
     // Override fetch to specifically test already existing file case
-    globalThis.fetch = async (url: string | URL | Request, options?: RequestInit): Promise<Response> => {
+    globalThis.fetch = async (
+      url: string | URL | Request,
+      options?: RequestInit,
+    ): Promise<Response> => {
       const urlStr = url.toString();
       const method = options?.method || "GET";
-      
+
       if (urlStr.includes("existing1234567890") && method === "HEAD") {
         return new Response("", { status: 200 });
       } else if (method === "HEAD") {
@@ -168,25 +188,29 @@ describe("Upload Module File Existence", () => {
 
     const servers = ["https://test-server.com"];
     const relays = ["wss://test-relay.com"];
-    
+
     const results = await processUploads(
       mockFiles,
       "/test",
       servers,
       mockSigner,
       relays,
-      2
+      2,
     );
 
     assertEquals(results.length, 2, "Should have results for both files");
-    
+
     // Check the already existing file
-    const existingFile = results.find(r => r.file.path === "/already-exists.html");
+    const existingFile = results.find((r) => r.file.path === "/already-exists.html");
     assertExists(existingFile, "Should have a result for the existing file");
     assertEquals(existingFile?.success, true, "Already existing file should be marked as success");
-    
+
     // Verify the server results indicate it already exists (alreadyExists flag)
     const serverResult = existingFile?.serverResults["https://test-server.com"];
-    assertEquals(serverResult?.success, true, "Server should report success for already existing file");
+    assertEquals(
+      serverResult?.success,
+      true,
+      "Server should report success for already existing file",
+    );
   });
-}); 
+});

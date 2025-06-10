@@ -27,4 +27,4 @@ export const DEFAULT_BLOSSOM_SERVERS = [
   "https://cdn.sovbit.host",
   "https://cdn.nostrcheck.me",
   "https://nostr.download",
-]; 
+];

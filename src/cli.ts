@@ -1,13 +1,14 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-net --allow-env
 
 self.addEventListener("unhandledrejection", (event) => {
-  if (event.reason && 
-      event.reason.message && 
-      (event.reason.message.includes("rate-limit") || 
-       event.reason.message.includes("noting too much"))) {
-    
+  if (
+    event.reason &&
+    event.reason.message &&
+    (event.reason.message.includes("rate-limit") ||
+      event.reason.message.includes("noting too much"))
+  ) {
     console.warn(`Rate limiting detected: ${event.reason.message}`);
-    
+
     event.preventDefault();
   }
 });
@@ -26,15 +27,15 @@ import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
 import { version } from "./version.ts";
 
-// import { 
-//   // bunkerCommand as bunkerCommandHandler, 
-//   listBunkers, 
-//   importNbunk, 
-//   exportNbunk, 
-//   connectBunker, 
-//   useBunkerForProject, 
-//   removeBunker, 
-//   showBunkerHelp 
+// import {
+//   // bunkerCommand as bunkerCommandHandler,
+//   listBunkers,
+//   importNbunk,
+//   exportNbunk,
+//   connectBunker,
+//   useBunkerForProject,
+//   removeBunker,
+//   showBunkerHelp
 // } from "./commands/bunker.backup.ts";
 
 import { handleBunkerCommand } from "./commands/bunker.ts";
@@ -75,11 +76,11 @@ function displayColorfulHeader() {
     colors.brightBlue,
     colors.brightYellow,
     colors.brightMagenta,
-    colors.brightCyan
+    colors.brightCyan,
   ];
-  
+
   const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
-  
+
   console.log(randomColorFn(header));
 }
 
@@ -89,12 +90,12 @@ function displayColorfulHeader() {
 async function main() {
   try {
     displayColorfulHeader();
-    
+
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
       await handleBunkerCommand(false);
       return;
     }
-    
+
     await nsite.parse(Deno.args);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -107,4 +108,4 @@ async function main() {
 main().catch((err) => {
   console.error("Unexpected error:", err);
   Deno.exit(1);
-}); 
+});

@@ -1,9 +1,8 @@
-import { assertEquals, assert, assertStringIncludes } from "std/assert/mod.ts";
-import { describe, it, beforeEach, afterEach } from "jsr:@std/testing/bdd";
-import { stub, assertSpyCall, assertSpyCalls, type Stub, type Spy } from "jsr:@std/testing/mock";
-import { Signer as LibSigner, UploadResponse, UploadProgress } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
+import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { assertSpyCall, assertSpyCalls, type Spy, type Stub, stub } from "jsr:@std/testing/mock";
+import { Signer as LibSigner, UploadProgress, UploadResponse } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
 import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
-import type { NostrConnectSigner } from "applesauce-signers";
 import { uploadCommand, type UploadCommandOptions } from "../../src/commands/upload.ts";
 
 // Import the modules whose functions we will NOT stub directly in uploadCommand tests,
@@ -19,7 +18,7 @@ import { createLogger } from "../../src/lib/logger.ts"; // To get the logger ins
 // MockSigner class for "Upload Module" tests (can remain as is if not used by uploadCommand tests)
 class MockSigner implements LibSigner {
   callCount = 0;
-  
+
   async signEvent(event: NostrEventTemplate): Promise<NostrEvent> {
     this.callCount++;
     return {
@@ -33,8 +32,8 @@ class MockSigner implements LibSigner {
       content: event.content || "",
     } as NostrEvent; // Ensure it's cast to NostrEvent if not all fields are filled by spread
   }
-  
-  getPublicKey(): Promise<string> { 
+
+  getPublicKey(): Promise<string> {
     return Promise.resolve("mock-pubkey");
   }
 }
@@ -44,14 +43,24 @@ let exitCode: number | undefined;
 
 // Stubs for uploadCommand integration tests
 // We will stub methods on INSTANCES or GLOBALS, not direct module function imports.
-let commandLoggerStubbedError: Stub<ReturnType<typeof createLogger>, Parameters<ReturnType<typeof createLogger>["error"]>, void> | undefined;
+let commandLoggerStubbedError:
+  | Stub<
+    ReturnType<typeof createLogger>,
+    Parameters<ReturnType<typeof createLogger>["error"]>,
+    void
+  >
+  | undefined;
 let consoleErrorStub: Stub<Console, Parameters<Console["error"]>, void> | undefined;
 let consoleLogStub: Stub<Console, Parameters<Console["log"]>, void> | undefined; // For specific tests needing to check output
 
 let pksGetPublicKeyStub: Stub<PrivateKeySigner, [], string> | undefined; // Stubbing prototype
-let pksSignEventStub: Stub<PrivateKeySigner, Parameters<PrivateKeySigner["signEvent"]>, Promise<NostrEvent>> | undefined; // Stubbing prototype
+let pksSignEventStub:
+  | Stub<PrivateKeySigner, Parameters<PrivateKeySigner["signEvent"]>, Promise<NostrEvent>>
+  | undefined; // Stubbing prototype
 
-let fetchStub: Stub<typeof globalThis, Parameters<typeof fetch>, ReturnType<typeof fetch>> | undefined; // For processUploads
+let fetchStub:
+  | Stub<typeof globalThis, Parameters<typeof fetch>, ReturnType<typeof fetch>>
+  | undefined; // For processUploads
 
 // Get the actual logger instance that uploadCommand will use (assuming it uses a module-scoped log)
 // If uploadCommand creates its own logger instance, this approach needs adjustment.
@@ -63,7 +72,6 @@ let fetchStub: Stub<typeof globalThis, Parameters<typeof fetch>, ReturnType<type
 // If specific log messages from `uploadCommand`'s own logger need checking, that logger needs to be accessible.
 // Let's assume for now that critical errors also go to console.error or lead to Deno.exit.
 
-
 describe("uploadCommand", () => {
   beforeEach(() => {
     originalDenoExit = Deno.exit;
@@ -74,32 +82,39 @@ describe("uploadCommand", () => {
     };
 
     // Stub global console methods
-    consoleErrorStub = stub(console, "error", () => {}); 
+    consoleErrorStub = stub(console, "error", () => {});
     // consoleLogStub is set up per-test if needed
 
     // Stub PrivateKeySigner prototype methods - these will affect any NEW PrivateKeySigner instance
-    pksGetPublicKeyStub = stub(PrivateKeySigner.prototype, "getPublicKey", () => "mock-privatekey-pubkey");
-    pksSignEventStub = stub(PrivateKeySigner.prototype, "signEvent", (eventTemplate) => Promise.resolve({
-        id: "mock-pks-id",
-        pubkey: "mock-privatekey-pubkey",
-        sig: "mock-pks-signature",
-        created_at: eventTemplate.created_at || 0,
-        kind: eventTemplate.kind || 0,
-        tags: eventTemplate.tags || [],
-        content: eventTemplate.content || "",
-    } as NostrEvent));
+    pksGetPublicKeyStub = stub(
+      PrivateKeySigner.prototype,
+      "getPublicKey",
+      () => "mock-privatekey-pubkey",
+    );
+    pksSignEventStub = stub(
+      PrivateKeySigner.prototype,
+      "signEvent",
+      (eventTemplate) =>
+        Promise.resolve({
+          id: "mock-pks-id",
+          pubkey: "mock-privatekey-pubkey",
+          sig: "mock-pks-signature",
+          created_at: eventTemplate.created_at || 0,
+          kind: eventTemplate.kind || 0,
+          tags: eventTemplate.tags || [],
+          content: eventTemplate.content || "",
+        } as NostrEvent),
+    );
 
     // Stub global fetch (used by processUploads, which is called by uploadCommand)
     fetchStub = stub(globalThis, "fetch", (input: URL | RequestInfo, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input.toString();
-        const method = init?.method || "GET";
-        if (method === "HEAD") { // Simulate file not found for existence checks, forcing upload
-            return Promise.resolve(new Response("", { status: 404 }));
-        }
-        return Promise.resolve(new Response("OK", { status: 200 })); // Simulate successful PUT/POST
+      const url = typeof input === "string" ? input : input.toString();
+      const method = init?.method || "GET";
+      if (method === "HEAD") { // Simulate file not found for existence checks, forcing upload
+        return Promise.resolve(new Response("", { status: 404 }));
+      }
+      return Promise.resolve(new Response("OK", { status: 200 })); // Simulate successful PUT/POST
     });
-
-
   });
 
   afterEach(() => {
@@ -144,7 +159,7 @@ describe("uploadCommand", () => {
       // In non-interactive, if it were called due to missing essential info not covered by CLI,
       // it would likely error or exit, or we'd need to mock prompts.
       // The refactored _resolveProjectContextAndAuth should handle this.
-      
+
       // For now, primarily assert clean exit. Deeper assertions later.
       await uploadCommand("test_folder", options); // Will use actual config.readProjectFile
       assertEquals(exitCode, 0, "Should exit cleanly if all non-interactive args are present");
@@ -163,9 +178,12 @@ describe("uploadCommand", () => {
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 0, "Should exit cleanly");
       // Verify PrivateKeySigner was used by checking its prototype stubs
-      assert((pksGetPublicKeyStub?.calls?.length ?? 0) > 0, "PrivateKeySigner.getPublicKey should have been called");
+      assert(
+        (pksGetPublicKeyStub?.calls?.length ?? 0) > 0,
+        "PrivateKeySigner.getPublicKey should have been called",
+      );
     });
-    
+
     it("should exit with error if --servers is missing", async () => {
       const options = getDefaultOptions({
         nonInteractive: true,
@@ -175,7 +193,12 @@ describe("uploadCommand", () => {
       });
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 1, "Should exit with error code 1 for missing servers");
-      assert(consoleErrorStub?.calls.some(call => typeof call.args[0] === 'string' && call.args[0].includes("Missing servers")), "Error message for missing servers not logged to console.error");
+      assert(
+        consoleErrorStub?.calls.some((call) =>
+          typeof call.args[0] === "string" && call.args[0].includes("Missing servers")
+        ),
+        "Error message for missing servers not logged to console.error",
+      );
     });
 
     it("should exit with error if --relays is missing", async () => {
@@ -187,7 +210,12 @@ describe("uploadCommand", () => {
       });
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 1, "Should exit with error code 1 for missing relays");
-      assert(consoleErrorStub?.calls.some(call => typeof call.args[0] === 'string' && call.args[0].includes("Missing relays")), "Error message for missing relays not logged");
+      assert(
+        consoleErrorStub?.calls.some((call) =>
+          typeof call.args[0] === "string" && call.args[0].includes("Missing relays")
+        ),
+        "Error message for missing relays not logged",
+      );
     });
 
     it("should exit with error if no key option is provided (and no configured bunker)", async () => {
@@ -202,7 +230,12 @@ describe("uploadCommand", () => {
       });
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 1, "Should exit with error for missing key");
-      assert(consoleErrorStub?.calls.some(call => typeof call.args[0] === 'string' && call.args[0].includes("Missing signing key")), "Error message for missing key option not logged");
+      assert(
+        consoleErrorStub?.calls.some((call) =>
+          typeof call.args[0] === "string" && call.args[0].includes("Missing signing key")
+        ),
+        "Error message for missing key option not logged",
+      );
     });
 
     it("should use CLI args for config even if a config file exists", async () => {
@@ -226,7 +259,7 @@ describe("uploadCommand", () => {
       // We'd check that the console.log output reflects CLI args.
       await uploadCommand("test_folder", options);
       assertEquals(exitCode, 0, "Should exit cleanly");
-      
+
       let foundRelays = false;
       let foundServers = false;
       consoleLogStub.calls.forEach((call: Spy<Console, any[], void>["calls"][number]) => {
@@ -250,7 +283,7 @@ describe("uploadCommand", () => {
       // We expect setupProject to be called. In a non-TTY test env, it might error or exit.
       // This test assumes readProjectFile() will return null (no config).
       // To guarantee this, tests might need to run in a clean temp directory.
-      
+
       // For now, we can't directly assert setupProject was called without stubbing it.
       // We can check if Deno.exit was called, which might happen if setupProject prompts.
       // This test becomes more about the overall flow when config is missing.
@@ -266,15 +299,14 @@ describe("uploadCommand", () => {
     });
 
     // it("should call setupProject if nonInteractive is true but required args are missing (delegating to setupProject's non-interactive logic)", async () => {
-      // This specific case is now handled by _resolveProjectContextAndAuth, which should error out *before* calling setupProject.
-      // The original intent was if setupProject(true) was called.
-      // If _resolveProjectContextAndAuth decides to call setupProject(true) [which it doesn't directly anymore],
-      // then that would be the path.
-      // This test might be obsolete or need rephrasing based on _resolveProjectContextAndAuth's behavior.
+    // This specific case is now handled by _resolveProjectContextAndAuth, which should error out *before* calling setupProject.
+    // The original intent was if setupProject(true) was called.
+    // If _resolveProjectContextAndAuth decides to call setupProject(true) [which it doesn't directly anymore],
+    // then that would be the path.
+    // This test might be obsolete or need rephrasing based on _resolveProjectContextAndAuth's behavior.
     // });
   });
 });
-
 
 // "Upload Module" tests use their own fetch stubbing and MockSigner.
 // They should remain largely unaffected by changes to uploadCommand test stubs.
@@ -297,76 +329,98 @@ describe("Upload Module", () => {
       size: 13,
     },
   ];
-  
+
   const servers = ["https://mock-server-1", "https://mock-server-2"];
   const relays = ["wss://relay.test"];
-  
+
   let moduleFetchStub: Stub<typeof globalThis, Parameters<typeof fetch>, ReturnType<typeof fetch>>;
 
-  const createDefaultModuleFetchStub = () => stub(globalThis, "fetch", (input: URL | RequestInfo, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    const method = init?.method || "GET";
-    if (method === "HEAD") { return Promise.resolve(new Response("", { status: 404 })); }
-    return Promise.resolve(new Response("OK", { status: 200 }));
-  });
-  
+  const createDefaultModuleFetchStub = () =>
+    stub(globalThis, "fetch", (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input.toString();
+      const method = init?.method || "GET";
+      if (method === "HEAD") return Promise.resolve(new Response("", { status: 404 }));
+      return Promise.resolve(new Response("OK", { status: 200 }));
+    });
+
   beforeEach(() => {
     moduleFetchStub = createDefaultModuleFetchStub();
   });
-  
+
   afterEach(() => {
     moduleFetchStub.restore();
   });
-  
+
   it("should process uploads in parallel", async () => {
-    const signer = new MockSigner(); 
-    const concurrency = 2; 
+    const signer = new MockSigner();
+    const concurrency = 2;
     const progressUpdates: UploadProgress[] = [];
-    
+
     // Assuming processUploads is imported from its actual module for direct testing if needed
     // For these tests, we're testing the actual processUploads from "../../src/lib/upload.ts"
     const { processUploads: actualProcessUploads } = await import("../../src/lib/upload.ts");
 
-    const results = await actualProcessUploads( testFiles, "/base/dir", servers, signer, relays, concurrency, (progress: UploadProgress) => progressUpdates.push({ ...progress }) );
-    
+    const results = await actualProcessUploads(
+      testFiles,
+      "/base/dir",
+      servers,
+      signer,
+      relays,
+      concurrency,
+      (progress: UploadProgress) => progressUpdates.push({ ...progress }),
+    );
+
     assertEquals(results.length, testFiles.length);
-    for (const result of results) { assertEquals(result.success, true); }
+    for (const result of results) assertEquals(result.success, true);
     assert(moduleFetchStub.calls.length >= testFiles.length);
-    const signerPublicKey = await signer.getPublicKey(); 
+    const signerPublicKey = await signer.getPublicKey();
     assertEquals(signerPublicKey, "mock-pubkey");
     assert(signer.callCount >= testFiles.length);
     assert(progressUpdates.length > 0);
     assertEquals(progressUpdates[progressUpdates.length - 1].completed, testFiles.length);
     assertEquals(progressUpdates[progressUpdates.length - 1].failed, 0);
   });
-  
+
   it("should handle errors and retry uploads", async () => {
     const signer = new MockSigner();
     moduleFetchStub.restore(); // Restore default beforeEach stub.
 
     let failedOnce = false;
     // Create a new local stub for this test's specific behavior
-    const localRetryFetchStub = stub(globalThis, "fetch", (input: URL | RequestInfo, _init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      if (url.includes("sha256-1") && !failedOnce) {
-        failedOnce = true;
-        return Promise.reject(new Error("Simulated fetch error"));
-      }
-      return Promise.resolve(new Response("OK", { status: 200 }));
-    });
-    
+    const localRetryFetchStub = stub(
+      globalThis,
+      "fetch",
+      (input: URL | RequestInfo, _init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("sha256-1") && !failedOnce) {
+          failedOnce = true;
+          return Promise.reject(new Error("Simulated fetch error"));
+        }
+        return Promise.resolve(new Response("OK", { status: 200 }));
+      },
+    );
+
     const { processUploads: actualProcessUploads } = await import("../../src/lib/upload.ts");
-        
+
     try {
-      const results = await actualProcessUploads( testFiles.slice(0, 1), "/base/dir", servers, signer, relays, 1 );
+      const results = await actualProcessUploads(
+        testFiles.slice(0, 1),
+        "/base/dir",
+        servers,
+        signer,
+        relays,
+        1,
+      );
       assertEquals(results.length, 1);
       assertEquals(results[0].success, true);
-      assert(localRetryFetchStub.calls.some(call => call.args[0].toString().includes("sha256-1")));
-      assert(localRetryFetchStub.calls.length >= 2); 
+      assert(
+        localRetryFetchStub.calls.some((call) => call.args[0].toString().includes("sha256-1")),
+      );
+      assert(localRetryFetchStub.calls.length >= 2);
     } finally {
       localRetryFetchStub.restore(); // Clean up the local stub
       // Re-establish the default stub for subsequent tests / afterEach
-      moduleFetchStub = createDefaultModuleFetchStub(); 
+      moduleFetchStub = createDefaultModuleFetchStub();
     }
   });
-}); 
+});

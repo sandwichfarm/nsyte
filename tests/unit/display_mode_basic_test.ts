@@ -1,8 +1,8 @@
 import { assertEquals } from "std/assert/mod.ts";
-import { 
-  getDisplayManager,
+import {
+  type DisplayManager,
   type DisplayMode,
-  type DisplayManager
+  getDisplayManager,
 } from "../../src/lib/display-mode.ts";
 
 Deno.test("Display Mode - getDisplayManager", async (t) => {
@@ -57,7 +57,7 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
     // Non-interactive takes precedence over verbose
     manager.configureFromOptions({ verbose: true, nonInteractive: true });
     assertEquals(manager.getMode(), "non-interactive");
-    
+
     // Verbose mode when not non-interactive
     manager.configureFromOptions({ verbose: true, nonInteractive: false });
     assertEquals(manager.getMode(), "debug");
@@ -66,10 +66,10 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
   await t.step("should reset to defaults", () => {
     // Configure with specific options
     manager.configureFromOptions({ verbose: true, nonInteractive: true });
-    
+
     // Reset by configuring with empty options
     manager.configureFromOptions({});
-    
+
     // Should return to defaults
     const mode = manager.getMode();
     assertEquals(mode, "interactive");
@@ -79,15 +79,15 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
 Deno.test("Display Mode - Options interface", async (t) => {
   await t.step("should handle all option combinations", () => {
     const manager = getDisplayManager();
-    
+
     const testCases = [
       { options: { verbose: false }, expectedMode: "interactive" },
       { options: { verbose: true }, expectedMode: "debug" },
       { options: { nonInteractive: true }, expectedMode: "non-interactive" },
       { options: { verbose: true, nonInteractive: true }, expectedMode: "non-interactive" },
-      { options: { verbose: true, nonInteractive: false }, expectedMode: "debug" }
+      { options: { verbose: true, nonInteractive: false }, expectedMode: "debug" },
     ];
-    
+
     for (const testCase of testCases) {
       manager.configureFromOptions(testCase.options);
       assertEquals(manager.getMode(), testCase.expectedMode);
@@ -96,22 +96,22 @@ Deno.test("Display Mode - Options interface", async (t) => {
 
   await t.step("should handle nonInteractive option", () => {
     const manager = getDisplayManager();
-    
+
     manager.configureFromOptions({ nonInteractive: false });
     assertEquals(manager.isInteractive(), true);
-    
+
     manager.configureFromOptions({ nonInteractive: true });
     assertEquals(manager.isInteractive(), false);
   });
 
   await t.step("should handle undefined options gracefully", () => {
     const manager = getDisplayManager();
-    
+
     manager.configureFromOptions({
       verbose: undefined,
-      nonInteractive: undefined
+      nonInteractive: undefined,
     });
-    
+
     // Should use defaults
     assertEquals(manager.getMode(), "interactive");
     assertEquals(manager.isInteractive(), true);

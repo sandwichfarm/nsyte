@@ -1,27 +1,27 @@
 /**
  * Direct bunker command implementation
- * 
+ *
  * This is a direct command handler that bypasses the Cliffy command framework.
  * It was created because the bunker command requires complex URL parsing and
  * argument handling that is difficult to implement with Cliffy's command framework.
- * 
+ *
  * Specifically:
  * 1. Complex URL parsing for bunker:// URLs with query parameters
  * 2. Interactive prompts for connection details
  * 3. Special handling of shell escaping for URLs with ? and & characters
  * 4. Direct control over command exit timing
- * 
+ *
  * The command is registered in cli.ts and intercepts all bunker commands
  * before they reach the Cliffy command framework.
  */
 
 import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
+import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { decodeBunkerInfo, getNbunkString, initiateNostrConnect, parseBunkerUrl } from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { NostrConnectSigner } from "npm:applesauce-signers@^1.0.0";
 
 const log = createLogger("bunker-direct");
 
@@ -35,10 +35,10 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
       Deno.exit(0);
       return;
     }
-    
+
     const subcommand = Deno.args[1];
     const args = Deno.args.slice(2);
-    
+
     switch (subcommand) {
       case "list":
         await listBunkers();
@@ -61,7 +61,7 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
           let relay = "";
           let secret = "";
           let noPersist = false;
-          
+
           for (let i = 0; i < args.length; i++) {
             if (args[i] === "--pubkey" && i + 1 < args.length) {
               pubkey = args[i + 1];
@@ -76,7 +76,7 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
               noPersist = true;
             }
           }
-          
+
           if (pubkey && relay) {
             const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${secret ? `&secret=${secret}` : ''}`;
             await connectBunker(url, false, noPersist);
@@ -103,7 +103,7 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
         Deno.exit(1);
         break;
     }
-    
+
     setTimeout(() => {
       Deno.exit(0);
     }, 500);
@@ -326,7 +326,7 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
         signer = await initiateNostrConnect(appName, chosenRelays);
         log.debug("connectBunker: initiateNostrConnect returned, attempting signer.getPublicKey()");
 
-        const getPubkeyPromise = signer.getPublicKey();
+        const getPubkeyPromise = await signer.getPublicKey();
         const pubkeyTimeoutMs = 30000; // 30 seconds
         const pubkeyTimeoutPromise = new Promise<string>((_, reject) =>
           setTimeout(() => reject(new Error(`signer.getPublicKey() timed out after ${pubkeyTimeoutMs / 1000} seconds`)), pubkeyTimeoutMs)
@@ -393,7 +393,7 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
       console.log(colors.cyan("Your nbunksec string (copy it now, it won't be shown again):"));
       console.log(colors.bold(nbunkString));
       console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
-      
+
       // Skip project interaction when using --no-persist
       log.debug("connectBunker: nbunkString displayed but not stored due to --no-persist flag");
     } else {
@@ -559,4 +559,4 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   } else {
     console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
   }
-} 
+}

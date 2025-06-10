@@ -27,10 +27,10 @@ Deno.test("Keychain Provider", async (t) => {
 
     await t.step("should handle credential operations", async () => {
       const provider = await getKeychainProvider();
-      
+
       // Clean up any existing test credential
       await provider.delete(testService, testAccount);
-      
+
       // Test store
       const stored = await provider.store({
         service: testService,
@@ -38,7 +38,7 @@ Deno.test("Keychain Provider", async (t) => {
         password: testPassword,
       });
       assertEquals(typeof stored, "boolean");
-      
+
       // Test retrieve
       const retrieved = await provider.retrieve(testService, testAccount);
       if (stored) {
@@ -47,18 +47,18 @@ Deno.test("Keychain Provider", async (t) => {
         // If storage failed (e.g., no keychain available), retrieve should return null
         assertEquals(retrieved, null);
       }
-      
+
       // Test list
       const accounts = await provider.list(testService);
       assertEquals(Array.isArray(accounts), true);
       if (stored) {
         assertEquals(accounts.includes(testAccount), true);
       }
-      
+
       // Test delete
       const deleted = await provider.delete(testService, testAccount);
       assertEquals(typeof deleted, "boolean");
-      
+
       // Verify deletion
       const afterDelete = await provider.retrieve(testService, testAccount);
       assertEquals(afterDelete, null);

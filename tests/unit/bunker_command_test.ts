@@ -6,7 +6,7 @@ import {
   exportNbunk,
   importNbunk,
   removeBunker,
-  showBunkerHelp
+  showBunkerHelp,
 } from "../../src/commands/bunker.ts";
 import { BunkerInfo, encodeBunkerInfo } from "../../src/lib/nip46.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
@@ -149,7 +149,7 @@ describe("Bunker Command", () => {
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
-        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       };
 
       const nbunkString = encodeBunkerInfo(testInfo);
@@ -209,7 +209,7 @@ describe("Bunker Command", () => {
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
-        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       };
 
       const nbunkString = encodeBunkerInfo(testInfo);
@@ -236,7 +236,7 @@ describe("Bunker Command", () => {
       const testInfo: BunkerInfo = {
         pubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         relays: ["wss://relay.example.com"],
-        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        local_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       };
 
       const nbunkString = encodeBunkerInfo(testInfo);
@@ -268,13 +268,13 @@ describe("Bunker Command", () => {
       // Mock the NostrConnectSigner since we can't actually connect in tests
       // This test verifies the --no-persist flag behavior
       const testPubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-      
+
       // Since connectBunker needs actual connection, we'll test the behavior
       // by checking that no storage occurs when noPersist is true
-      
+
       // This is a conceptual test - in a real implementation, you'd need to mock
       // the NostrConnectSigner class and its methods
-      
+
       // For now, verify that the function exists and has the right signature
       assertEquals(typeof connectBunker, "function");
       assertEquals(connectBunker.length, 0); // Has default parameters

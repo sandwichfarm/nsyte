@@ -10,16 +10,16 @@ export enum DisplayMode {
    * Clean, formatted output with pretty formatting
    */
   INTERACTIVE = "interactive",
-  
+
   /**
    * Raw log output suitable for scripts
    */
   NON_INTERACTIVE = "non-interactive",
-  
+
   /**
    * Detailed debug output
    */
-  DEBUG = "debug"
+  DEBUG = "debug",
 }
 
 /**
@@ -30,7 +30,7 @@ export class DisplayManager {
   private currentMode: DisplayMode = DisplayMode.INTERACTIVE;
   private verbose: boolean = false;
   private initialized: boolean = false;
-  
+
   /**
    * Create a new DisplayManager
    */
@@ -50,17 +50,17 @@ export class DisplayManager {
           break;
       }
     }
-    
+
     // Also check LOG_LEVEL for debug mode
     const logLevel = Deno.env.get("LOG_LEVEL");
     if (logLevel?.toLowerCase() === "debug") {
       this.currentMode = DisplayMode.DEBUG;
     }
-    
+
     // Avoid calling logger during initialization to prevent circular dependency
     this.initialized = true;
   }
-  
+
   /**
    * Get the DisplayManager instance
    */
@@ -74,7 +74,7 @@ export class DisplayManager {
     }
     return DisplayManager.instance;
   }
-  
+
   /**
    * Set the display mode
    */
@@ -82,14 +82,14 @@ export class DisplayManager {
     this.currentMode = mode;
     log.debug(`Display mode set to ${mode}`);
   }
-  
+
   /**
    * Get the current display mode
    */
   public getMode(): DisplayMode {
     return this.currentMode;
   }
-  
+
   /**
    * Set whether we're in verbose mode
    */
@@ -97,35 +97,35 @@ export class DisplayManager {
     this.verbose = verbose;
     log.debug(`Verbose mode set to ${verbose}`);
   }
-  
+
   /**
    * Check if we're in verbose mode
    */
   public isVerbose(): boolean {
     return this.verbose;
   }
-  
+
   /**
    * Check if we're in interactive mode
    */
   public isInteractive(): boolean {
     return this.currentMode === DisplayMode.INTERACTIVE;
   }
-  
+
   /**
    * Check if we're in non-interactive mode
    */
   public isNonInteractive(): boolean {
     return this.currentMode === DisplayMode.NON_INTERACTIVE;
   }
-  
+
   /**
    * Check if we're in debug mode
    */
   public isDebug(): boolean {
     return this.currentMode === DisplayMode.DEBUG;
   }
-  
+
   /**
    * Configure display mode from command options
    */
@@ -133,7 +133,7 @@ export class DisplayManager {
     if (options.nonInteractive) {
       this.setMode(DisplayMode.NON_INTERACTIVE);
     }
-    
+
     if (options.verbose) {
       this.setVerbose(true);
       if (!this.isDebug() && !this.isNonInteractive()) {
@@ -148,4 +148,4 @@ export class DisplayManager {
  */
 export function getDisplayManager(): DisplayManager {
   return DisplayManager.getInstance();
-} 
+}

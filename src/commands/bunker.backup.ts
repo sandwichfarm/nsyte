@@ -1,11 +1,16 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
+import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
-import { decodeBunkerInfo, getNbunkString, initiateNostrConnect, parseBunkerUrl } from "../lib/nip46.ts";
+import {
+  decodeBunkerInfo,
+  getNbunkString,
+  initiateNostrConnect,
+  parseBunkerUrl,
+} from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { NostrConnectSigner } from "applesauce-signers";
 
 const log = createLogger("bunker-cmd");
 
@@ -137,7 +142,7 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker remove 3bf0c63...");
   console.log("  nsyte upload ./dist --nbunksec nbunksec1q...");
   console.log("");
-  
+
   // Ensure command exits after completion
   Deno.exit(0);
 }
@@ -176,7 +181,7 @@ export async function listBunkers(): Promise<void> {
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
-  
+
   // Ensure command exits after completion
   Deno.exit(0);
 }
@@ -241,9 +246,9 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
       return;
     }
 
-    const options = pubkeys.map(key => ({
+    const options = pubkeys.map((key) => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key
+      value: key,
     }));
 
     const result = await Select.prompt<string>({
@@ -270,7 +275,7 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
   console.log(colors.cyan("\nNbunk string for selected bunker:"));
   console.log(nbunkString);
   console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
-  
+
   // Ensure command exits after completion
   Deno.exit(0);
 }
@@ -306,7 +311,7 @@ export async function connectBunker(bunkerUrl?: string): Promise<void> {
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
         }
 
         if (chosenRelays.length === 0) {
@@ -323,8 +328,8 @@ export async function connectBunker(bunkerUrl?: string): Promise<void> {
           message: "Enter the bunker URL (bunker://...):",
           validate: (input: string) => {
             return input.trim().startsWith("bunker://") ||
-                  "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-          }
+              "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+          },
         });
       } else {
         console.log(colors.yellow("Invalid choice. Exiting."));
@@ -399,8 +404,7 @@ Generated and stored nbunksec string.`));
       }
 
       if (!operationError) {
-         Deno.exit(0);
-      } else {
+        Deno.exit(0);
       }
     }
   }
@@ -421,9 +425,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
       return;
     }
 
-    const options = pubkeys.map(key => ({
+    const options = pubkeys.map((key) => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key
+      value: key,
     }));
 
     const result = await Select.prompt<string>({
@@ -458,7 +462,7 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   writeProjectFile(config);
 
   console.log(colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`));
-  
+
   // Ensure command exits after completion
   Deno.exit(0);
 }
@@ -529,7 +533,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   } else {
     console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
   }
-  
+
   // Ensure command exits after completion
   Deno.exit(0);
 }

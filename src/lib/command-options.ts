@@ -19,7 +19,7 @@ export interface CommonOptions {
 export function addRelayOption(command: Command): Command {
   return command.option(
     "-r, --relays <relays:string>",
-    "The nostr relays to use (comma separated)."
+    "The nostr relays to use (comma separated).",
   );
 }
 
@@ -29,7 +29,7 @@ export function addRelayOption(command: Command): Command {
 export function addPrivateKeyOption(command: Command): Command {
   return command.option(
     "-k, --privatekey <nsec:string>",
-    "The private key (nsec/hex) to use for signing."
+    "The private key (nsec/hex) to use for signing.",
   );
 }
 
@@ -39,7 +39,7 @@ export function addPrivateKeyOption(command: Command): Command {
 export function addPubkeyOption(command: Command, description = "The public key to use"): Command {
   return command.option(
     "-p, --pubkey <npub:string>",
-    description
+    description,
   );
 }
 
@@ -49,7 +49,7 @@ export function addPubkeyOption(command: Command, description = "The public key 
 export function addBunkerOption(command: Command): Command {
   return command.option(
     "-b, --bunker <url:string>",
-    "The NIP-46 bunker URL to use for signing."
+    "The NIP-46 bunker URL to use for signing.",
   );
 }
 
@@ -59,7 +59,7 @@ export function addBunkerOption(command: Command): Command {
 export function addServerOption(command: Command): Command {
   return command.option(
     "-s, --servers <servers:string>",
-    "The servers to use (comma separated)."
+    "The servers to use (comma separated).",
   );
 }
 
@@ -69,7 +69,7 @@ export function addServerOption(command: Command): Command {
 export function addNbunksecOption(command: Command): Command {
   return command.option(
     "--nbunksec <nbunksec:string>",
-    "The nbunksec string to use for authentication (for CI/CD)."
+    "The nbunksec string to use for authentication (for CI/CD).",
   );
 }
 
