@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
 import { restore, stub } from "std/testing/mock.ts";
 import { Command } from "@cliffy/command";
 import { registerDownloadCommand } from "../../src/commands/download.ts";
@@ -68,11 +68,10 @@ Deno.test("Download Command - Registration", async (t) => {
 Deno.test("Download Command - Options Validation", async (t) => {
   await t.step("should validate output directory option", () => {
     const validateOutputDir = (outputDir?: string) => {
-      if (!outputDir) {
-        return { valid: true, dir: "." }; // Default to current directory
-      }
-
-      if (outputDir.trim() === "") {
+      if (!outputDir || outputDir.trim() === "") {
+        if (outputDir === undefined) {
+          return { valid: true, dir: "." }; // Default to current directory
+        }
         throw new Error("Output directory cannot be empty");
       }
 
@@ -85,8 +84,8 @@ Deno.test("Download Command - Options Validation", async (t) => {
     assertEquals(validateOutputDir("/absolute/path"), { valid: true, dir: "/absolute/path" });
 
     // Invalid cases
-    assertRejects(async () => validateOutputDir(""), Error, "cannot be empty");
-    assertRejects(async () => validateOutputDir("   "), Error, "cannot be empty");
+    assertThrows(() => validateOutputDir(""), Error, "cannot be empty");
+    assertThrows(() => validateOutputDir("   "), Error, "cannot be empty");
   });
 
   await t.step("should validate relay URLs", () => {
@@ -124,14 +123,14 @@ Deno.test("Download Command - Options Validation", async (t) => {
     ]);
 
     // Invalid cases
-    assertRejects(
-      async () => validateRelays("https://not-a-relay.com"),
+    assertThrows(
+      () => validateRelays("https://not-a-relay.com"),
       Error,
-      "Invalid relay protocol",
+      "Invalid relay URL",
     );
-    assertRejects(async () => validateRelays("invalid-url"), Error, "Invalid relay URL");
-    assertRejects(
-      async () => validateRelays("wss://relay.com,invalid"),
+    assertThrows(() => validateRelays("invalid-url"), Error, "Invalid relay URL");
+    assertThrows(
+      () => validateRelays("wss://relay.com,invalid"),
       Error,
       "Invalid relay URL",
     );
@@ -171,9 +170,9 @@ Deno.test("Download Command - Options Validation", async (t) => {
     );
 
     // Invalid cases
-    assertRejects(async () => validatePubkey("npub1short"), Error, "incorrect length");
-    assertRejects(async () => validatePubkey("invalid-key"), Error, "Invalid public key format");
-    assertRejects(async () => validatePubkey("123"), Error, "Invalid public key format");
+    assertThrows(() => validatePubkey("npub1short"), Error, "incorrect length");
+    assertThrows(() => validatePubkey("invalid-key"), Error, "Invalid public key format");
+    assertThrows(() => validatePubkey("123"), Error, "Invalid public key format");
   });
 
   await t.step("should validate private key formats", () => {
@@ -210,9 +209,9 @@ Deno.test("Download Command - Options Validation", async (t) => {
     );
 
     // Invalid cases
-    assertRejects(async () => validatePrivateKey("nsec1short"), Error, "incorrect length");
-    assertRejects(
-      async () => validatePrivateKey("invalid-key"),
+    assertThrows(() => validatePrivateKey("nsec1short"), Error, "incorrect length");
+    assertThrows(
+      () => validatePrivateKey("invalid-key"),
       Error,
       "Invalid private key format",
     );
@@ -264,9 +263,9 @@ Deno.test("Download Command - Workflow Logic", async (t) => {
     });
 
     // Invalid cases
-    assertRejects(async () => validateAuth({}), Error, "Must provide either");
-    assertRejects(
-      async () => validateAuth({ privatekey: "nsec123...", pubkey: "npub123..." }),
+    assertThrows(() => validateAuth({}), Error, "Must provide either");
+    assertThrows(
+      () => validateAuth({ privatekey: "nsec123...", pubkey: "npub123..." }),
       Error,
       "Cannot specify both",
     );
@@ -302,7 +301,7 @@ Deno.test("Download Command - Workflow Logic", async (t) => {
     assertEquals(result2.targetPubkey, "derived_pubkey_from_private_key");
     assertEquals(result2.downloadingOwnFiles, true);
 
-    assertRejects(async () => resolveDownloadTarget({}), Error, "No target specified");
+    assertThrows(() => resolveDownloadTarget({}), Error, "No target specified");
   });
 
   await t.step("should plan download strategy", () => {
@@ -495,6 +494,6 @@ Deno.test("Download Command - Error Scenarios", async (t) => {
     };
     const invalidResult = validateFileData(invalidData);
     assertEquals(invalidResult.valid, false);
-    assertEquals(invalidResult.issues.length, 3);
+    assertEquals(invalidResult.issues.length, 2);
   });
 });

@@ -7,7 +7,8 @@
  */
 
 // This file serves as documentation for running tests
-// The actual tests are in tests/secrets_test.ts
+// The actual tests are in tests/unit/
 
-console.log("🧪 Running nsyte secrets management tests");
-console.log("Run with: deno test --allow-read --allow-write --allow-env --allow-run --allow-net tests/secrets_test.ts");
+console.log("🧪 Running nsyte tests");
+console.log("Run all unit tests with: deno test --allow-all tests/unit/");
+console.log("Run integration tests with: deno test --allow-all tests/integration/");

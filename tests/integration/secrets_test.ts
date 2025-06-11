@@ -1,4 +1,5 @@
 import { assertEquals, assertNotEquals } from "std/testing/asserts.ts";
+import { stub, restore } from "std/testing/mock.ts";
 import * as path from "std/path/mod.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import {
@@ -22,7 +23,11 @@ Deno.test("Secrets and NIP-46 Integration", async (t) => {
   const setupTest = async () => {
     originalHomeDir = Deno.env.get("HOME");
     Deno.env.set("HOME", testDir);
-
+    
+    // Mock the keychain provider to prevent accessing native keystore
+    const keychainModule = await import("../../src/lib/secrets/keychain.ts");
+    stub(keychainModule, "getKeychainProvider", () => Promise.resolve(null));
+    
     try {
       Deno.mkdirSync(testDir, { recursive: true });
     } catch (e) {
@@ -53,6 +58,7 @@ Deno.test("Secrets and NIP-46 Integration", async (t) => {
     }
 
     (SecretsManager as any).instance = null;
+    restore(); // Restore all mocks
   };
 
   await t.step("should properly encode, store, and retrieve bunker information", async () => {

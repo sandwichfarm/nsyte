@@ -3,8 +3,11 @@
  */
 export const RELAY_DISCOVERY_RELAYS = [
   "wss://purplepag.es",
+  "wss://user.kindpag.es",
   "wss://nos.lol",
   "wss://relay.nostr.band",
+  "wss://relay.damus.io",
+  "wss://relay.primal.net",
 ];
 
 /**
