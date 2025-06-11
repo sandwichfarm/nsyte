@@ -11,7 +11,9 @@ export class MockKeychainProvider implements KeychainProvider {
     return true;
   }
 
-  async store(credential: { service: string; account: string; password: string }): Promise<boolean> {
+  async store(
+    credential: { service: string; account: string; password: string },
+  ): Promise<boolean> {
     const key = `${credential.service}:${credential.account}`;
     this.storage.set(key, credential.password);
     return true;
@@ -44,16 +46,16 @@ export class MockKeychainProvider implements KeychainProvider {
  */
 export async function mockKeychainInTests() {
   const keychainModule = await import("../../src/lib/secrets/keychain.ts");
-  
+
   // Always return null to force encrypted storage fallback
   const getKeychainProviderStub = stub(
     keychainModule,
     "getKeychainProvider",
-    () => Promise.resolve(null)
+    () => Promise.resolve(null),
   );
 
   return {
-    restore: () => getKeychainProviderStub.restore()
+    restore: () => getKeychainProviderStub.restore(),
   };
 }
 
@@ -87,10 +89,10 @@ export function mockSecretsEnvironment(testDir: string) {
     // Restore original environment
     if (originalEnv.HOME) Deno.env.set("HOME", originalEnv.HOME);
     else Deno.env.delete("HOME");
-    
+
     if (originalEnv.USERPROFILE) Deno.env.set("USERPROFILE", originalEnv.USERPROFILE);
     else Deno.env.delete("USERPROFILE");
-    
+
     if (originalEnv.APPDATA) Deno.env.set("APPDATA", originalEnv.APPDATA);
     else Deno.env.delete("APPDATA");
   };

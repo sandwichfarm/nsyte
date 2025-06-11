@@ -1,6 +1,6 @@
 import { assertEquals } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 import {
   exportNbunk,
@@ -27,20 +27,24 @@ describe("Bunker Command Tests", () => {
     mockStorage = new Map();
 
     // Setup exit stub
-    exitStub = stub(Deno, "exit", ((code?: number) => {
-      (exitStub as any).lastExitCode = code;
-      return undefined as never;
-    }) as any);
+    exitStub = stub(
+      Deno,
+      "exit",
+      ((code?: number) => {
+        (exitStub as any).lastExitCode = code;
+        return undefined as never;
+      }) as any,
+    );
 
     // Setup console capture
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -49,11 +53,11 @@ describe("Bunker Command Tests", () => {
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
-    
+
     // Clear singleton instances
     (globalThis as any).SecretsManager = undefined;
   });
@@ -77,11 +81,12 @@ describe("Bunker Command Tests", () => {
       stub(keychainModule, "getKeychainProvider", () => Promise.resolve(null));
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getAllPubkeys: async () => [],
-        getNbunk: async () => null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getAllPubkeys: async () => [],
+          getNbunk: async () => null,
+          initialize: async () => true,
+        }) as any);
 
       const configModule = await import("../../src/lib/config.ts");
       stub(configModule, "readProjectFile", () => null);
@@ -100,11 +105,12 @@ describe("Bunker Command Tests", () => {
       stub(keychainModule, "getKeychainProvider", () => Promise.resolve(null));
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getAllPubkeys: async () => ["pubkey123", "pubkey456"],
-        getNbunk: async (pubkey: string) => pubkey === "pubkey123" ? "nbunk123" : "nbunk456",
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getAllPubkeys: async () => ["pubkey123", "pubkey456"],
+          getNbunk: async (pubkey: string) => pubkey === "pubkey123" ? "nbunk123" : "nbunk456",
+          initialize: async () => true,
+        }) as any);
 
       const nip46Module = await import("../../src/lib/nip46.ts");
       stub(nip46Module, "decodeBunkerInfo", (nbunk: string) => ({
@@ -139,13 +145,14 @@ describe("Bunker Command Tests", () => {
       stub(keychainModule, "getKeychainProvider", () => Promise.resolve(null));
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        storeNbunk: async (pubkey: string, nbunk: string) => {
-          mockStorage.set(pubkey, nbunk);
-          return true;
-        },
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          storeNbunk: async (pubkey: string, nbunk: string) => {
+            mockStorage.set(pubkey, nbunk);
+            return true;
+          },
+          initialize: async () => true,
+        }) as any);
 
       const nip46Module = await import("../../src/lib/nip46.ts");
       stub(nip46Module, "decodeBunkerInfo", () => ({
@@ -187,10 +194,11 @@ describe("Bunker Command Tests", () => {
       mockStorage.set("pubkey123", "nbunksec1test");
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
+          initialize: async () => true,
+        }) as any);
 
       await exportNbunk("pubkey123");
       const output = [...consoleOutput.logs, ...consoleOutput.errors].join("\n");
@@ -206,10 +214,11 @@ describe("Bunker Command Tests", () => {
       stub(keychainModule, "getKeychainProvider", () => Promise.resolve(null));
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async () => null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async () => null,
+          initialize: async () => true,
+        }) as any);
 
       await exportNbunk("nonexistent");
       const output = [...consoleOutput.logs, ...consoleOutput.errors].join("\n");
@@ -229,10 +238,11 @@ describe("Bunker Command Tests", () => {
       mockStorage.set("pubkey123", "nbunksec1test");
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
+          initialize: async () => true,
+        }) as any);
 
       const configModule = await import("../../src/lib/config.ts");
       let savedConfig: any = null;
@@ -261,10 +271,11 @@ describe("Bunker Command Tests", () => {
       mockStorage.set("pubkey123", "nbunksec1test");
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
+          initialize: async () => true,
+        }) as any);
 
       const configModule = await import("../../src/lib/config.ts");
       stub(configModule, "readProjectFile", () => null);
@@ -287,11 +298,12 @@ describe("Bunker Command Tests", () => {
       mockStorage.set("pubkey123", "nbunksec1test");
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
-        deleteNbunk: async (pubkey: string) => mockStorage.delete(pubkey),
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
+          deleteNbunk: async (pubkey: string) => mockStorage.delete(pubkey),
+          initialize: async () => true,
+        }) as any);
 
       const confirmModule = await import("@cliffy/prompt/confirm");
       stub(confirmModule.Confirm, "prompt", () => Promise.resolve(true));
@@ -325,10 +337,11 @@ describe("Bunker Command Tests", () => {
       mockStorage.set("pubkey123", "nbunksec1test");
 
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-      stub(SecretsManagerModule.SecretsManager, "getInstance", () => ({
-        getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
-        initialize: async () => true,
-      }) as any);
+      stub(SecretsManagerModule.SecretsManager, "getInstance", () =>
+        ({
+          getNbunk: async (pubkey: string) => mockStorage.get(pubkey) || null,
+          initialize: async () => true,
+        }) as any);
 
       const confirmModule = await import("@cliffy/prompt/confirm");
       stub(confirmModule.Confirm, "prompt", () => Promise.resolve(false));

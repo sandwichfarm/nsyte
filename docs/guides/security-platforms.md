@@ -5,7 +5,8 @@ description: Detailed security implementation for each supported platform
 
 # Platform-Specific Security
 
-This document provides detailed information about how nsyte's credential storage works on each supported platform.
+This document provides detailed information about how nsyte's credential storage works on each
+supported platform.
 
 ## Overview
 
@@ -19,15 +20,15 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Native Keychain (Tier 1)
 
-**Implementation**: macOS Keychain Services via `security` command  
-**Location**: User's login keychain (`~/Library/Keychains/login.keychain-db`)  
+**Implementation**: macOS Keychain Services via `security` command\
+**Location**: User's login keychain (`~/Library/Keychains/login.keychain-db`)\
 **Encryption**: Apple's hardware-backed encryption with Secure Enclave when available
 
-!!! info "Requirements"
-    - `security` command (included with macOS)
-    - User keychain access (may prompt for password/Touch ID)
+!!! info "Requirements" - `security` command (included with macOS) - User keychain access (may
+prompt for password/Touch ID)
 
 **Security Benefits**:
+
 - Hardware-backed encryption on modern Macs
 - Integration with Touch ID/Face ID authentication
 - Protected by user's login keychain password
@@ -35,18 +36,19 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Encrypted Storage (Tier 2)
 
-**Location**: `~/Library/Application Support/nsyte/secrets.enc`  
+**Location**: `~/Library/Application Support/nsyte/secrets.enc`\
 **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
 **Key Derivation Input**:
+
 - System hostname
 - Operating system (darwin)
-- Architecture (arm64/x86_64)  
+- Architecture (arm64/x86_64)
 - Username
 
 ### Legacy Fallback (Tier 3)
 
-**Location**: `~/Library/Application Support/nsyte/secrets.json`  
+**Location**: `~/Library/Application Support/nsyte/secrets.json`\
 **Security**: Plain text with warnings
 
 ---
@@ -55,16 +57,15 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Native Keychain (Tier 1)
 
-**Implementation**: Windows Credential Manager via `cmdkey` and PowerShell  
-**Location**: User's credential store (`%LOCALAPPDATA%\Microsoft\Credentials\`)  
+**Implementation**: Windows Credential Manager via `cmdkey` and PowerShell\
+**Location**: User's credential store (`%LOCALAPPDATA%\Microsoft\Credentials\`)\
 **Encryption**: Windows Data Protection API (DPAPI)
 
-!!! info "Requirements"
-    - `cmdkey` command (included with Windows)
-    - PowerShell for credential retrieval
-    - User account access
+!!! info "Requirements" - `cmdkey` command (included with Windows) - PowerShell for credential
+retrieval - User account access
 
 **Security Benefits**:
+
 - Protected by Windows DPAPI
 - Tied to user account and machine
 - Automatic encryption key management
@@ -72,10 +73,11 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Encrypted Storage (Tier 2)
 
-**Location**: `%APPDATA%\nsyte\secrets.enc`  
+**Location**: `%APPDATA%\nsyte\secrets.enc`\
 **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
 **Key Derivation Input**:
+
 - System hostname
 - Operating system (windows)
 - Architecture (x86_64/arm64)
@@ -83,7 +85,7 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Legacy Fallback (Tier 3)
 
-**Location**: `%APPDATA%\nsyte\secrets.json`  
+**Location**: `%APPDATA%\nsyte\secrets.json`\
 **Security**: Plain text with warnings
 
 ---
@@ -92,16 +94,15 @@ nsyte automatically selects the most secure storage method available on your pla
 
 ### Native Keychain (Tier 1)
 
-**Implementation**: Secret Service API via `secret-tool` (libsecret)  
-**Location**: D-Bus secret service (usually GNOME Keyring or KDE Wallet)  
+**Implementation**: Secret Service API via `secret-tool` (libsecret)\
+**Location**: D-Bus secret service (usually GNOME Keyring or KDE Wallet)\
 **Encryption**: Service-specific encryption
 
-!!! info "Requirements"
-    - `secret-tool` command installed
-    - Secret service running (GNOME Keyring, KDE Wallet, etc.)
-    - D-Bus session
+!!! info "Requirements" - `secret-tool` command installed - Secret service running (GNOME Keyring,
+KDE Wallet, etc.) - D-Bus session
 
 **Installation**:
+
 ```bash
 # Ubuntu/Debian
 sudo apt install libsecret-tools
@@ -114,16 +115,18 @@ sudo pacman -S libsecret
 ```
 
 **Security Benefits**:
+
 - Integration with desktop keyring services
 - Protected by user session authentication
 - Service-specific encryption (varies by implementation)
 
 ### Encrypted Storage (Tier 2)
 
-**Location**: `~/.config/nsyte/secrets.enc` (or `$XDG_CONFIG_HOME/nsyte/secrets.enc`)  
+**Location**: `~/.config/nsyte/secrets.enc` (or `$XDG_CONFIG_HOME/nsyte/secrets.enc`)\
 **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
 **Key Derivation Input**:
+
 - System hostname
 - Operating system (linux)
 - Architecture (x86_64/arm64/etc.)
@@ -131,14 +134,15 @@ sudo pacman -S libsecret
 
 ### Legacy Fallback (Tier 3)
 
-**Location**: `~/.config/nsyte/secrets.json`  
+**Location**: `~/.config/nsyte/secrets.json`\
 **Security**: Plain text with warnings
 
 ---
 
 ## Other Platforms
 
-For unsupported platforms, nsyte automatically falls back to encrypted file storage using the same AES-256-GCM encryption with platform-specific key derivation.
+For unsupported platforms, nsyte automatically falls back to encrypted file storage using the same
+AES-256-GCM encryption with platform-specific key derivation.
 
 ---
 
@@ -155,15 +159,14 @@ For unsupported platforms, nsyte automatically falls back to encrypted file stor
 ### Threat Model
 
 **Protected Against**:
+
 - Casual file system access
 - Basic malware file scanning
 - Accidental credential exposure in backups
 
-!!! warning "Not Protected Against"
-    - Malware with keychain/credential manager access
-    - Physical access with user credentials
-    - Advanced persistent threats with system-level access
-    - Side-channel attacks on encryption
+!!! warning "Not Protected Against" - Malware with keychain/credential manager access - Physical
+access with user credentials - Advanced persistent threats with system-level access - Side-channel
+attacks on encryption
 
 ### Migration Security
 

@@ -1,21 +1,22 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { stub, restore } from "std/testing/mock.ts";
-import { 
+import { restore, stub } from "std/testing/mock.ts";
+import {
   getKeychainProvider,
+  type KeychainCredential,
   type KeychainProvider,
-  type KeychainCredential
 } from "../../src/lib/secrets/keychain.ts";
 
 Deno.test("Keychain Provider Factory", async (t) => {
   await t.step("returns provider for darwin", async () => {
     const osStub = stub(Deno.build, "os", () => "darwin");
     const commandStub = stub(Deno, "Command", () => ({
-      output: () => Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() })
+      output: () =>
+        Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() }),
     }));
-    
+
     const provider = await getKeychainProvider();
     assertExists(provider);
-    
+
     osStub.restore();
     commandStub.restore();
   });
@@ -23,12 +24,13 @@ Deno.test("Keychain Provider Factory", async (t) => {
   await t.step("returns provider for windows", async () => {
     const osStub = stub(Deno.build, "os", () => "windows");
     const commandStub = stub(Deno, "Command", () => ({
-      output: () => Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() })
+      output: () =>
+        Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() }),
     }));
-    
+
     const provider = await getKeychainProvider();
     assertExists(provider);
-    
+
     osStub.restore();
     commandStub.restore();
   });
@@ -36,34 +38,36 @@ Deno.test("Keychain Provider Factory", async (t) => {
   await t.step("returns provider for linux", async () => {
     const osStub = stub(Deno.build, "os", () => "linux");
     const commandStub = stub(Deno, "Command", () => ({
-      output: () => Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() })
+      output: () =>
+        Promise.resolve({ code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() }),
     }));
-    
+
     const provider = await getKeychainProvider();
     assertExists(provider);
-    
+
     osStub.restore();
     commandStub.restore();
   });
 
   await t.step("returns null for unsupported platform", async () => {
     const osStub = stub(Deno.build, "os", () => "freebsd" as any);
-    
+
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
-    
+
     osStub.restore();
   });
 
   await t.step("returns null when provider is not available", async () => {
     const osStub = stub(Deno.build, "os", () => "darwin");
     const commandStub = stub(Deno, "Command", () => ({
-      output: () => Promise.resolve({ code: 1, stdout: new Uint8Array(), stderr: new Uint8Array() })
+      output: () =>
+        Promise.resolve({ code: 1, stdout: new Uint8Array(), stderr: new Uint8Array() }),
     }));
-    
+
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
-    
+
     osStub.restore();
     commandStub.restore();
   });
@@ -75,7 +79,7 @@ Deno.test("Keychain Provider Mock Operations", async (t) => {
     store: async (cred: KeychainCredential) => true,
     retrieve: async (service: string, account: string) => "mock-password",
     delete: async (service: string, account: string) => true,
-    list: async (service: string) => ["account1", "account2"]
+    list: async (service: string) => ["account1", "account2"],
   };
 
   await t.step("mock provider operations", async () => {
@@ -85,7 +89,7 @@ Deno.test("Keychain Provider Mock Operations", async (t) => {
     const stored = await mockProvider.store({
       service: "test",
       account: "test-account",
-      password: "test-password"
+      password: "test-password",
     });
     assertEquals(stored, true);
 
@@ -106,10 +110,10 @@ Deno.test("Keychain Error Handling", async (t) => {
     const commandStub = stub(Deno, "Command", () => {
       throw new Error("Command not found");
     });
-    
+
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
-    
+
     osStub.restore();
     commandStub.restore();
   });
@@ -117,12 +121,12 @@ Deno.test("Keychain Error Handling", async (t) => {
   await t.step("handles runtime errors in operations", async () => {
     const osStub = stub(Deno.build, "os", () => "darwin");
     const commandStub = stub(Deno, "Command", () => ({
-      output: () => Promise.reject(new Error("Operation failed"))
+      output: () => Promise.reject(new Error("Operation failed")),
     }));
-    
+
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
-    
+
     osStub.restore();
     commandStub.restore();
   });

@@ -5,7 +5,8 @@ description: How to deploy your site using nsyte
 
 # Deployment Guide
 
-This guide covers different deployment strategies and best practices for deploying your site using nsyte.
+This guide covers different deployment strategies and best practices for deploying your site using
+nsyte.
 
 ## Basic Deployment
 
@@ -16,6 +17,7 @@ nsyte upload ./dist
 ```
 
 This will:
+
 1. Upload your files to configured relays
 2. Publish to configured blossom servers
 3. Update your site's metadata
@@ -25,11 +27,13 @@ This will:
 ### 1. Manual Deployment
 
 Suitable for:
+
 - Small sites
 - Infrequent updates
 - Personal projects
 
 Steps:
+
 1. Build your site
 2. Run `nsyte upload`
 3. Verify the deployment
@@ -37,11 +41,13 @@ Steps:
 ### 2. Automated Deployment
 
 Suitable for:
+
 - Team projects
 - Frequent updates
 - Production sites
 
 Options:
+
 - GitHub Actions
 - GitLab CI
 - Custom scripts
@@ -51,11 +57,13 @@ See [CI/CD Guide](./ci-cd.md) for detailed setup instructions.
 ### 3. Staged Deployment
 
 Suitable for:
+
 - Large sites
 - Critical applications
 - Testing environments
 
 Steps:
+
 1. Deploy to staging relays
 2. Test the deployment
 3. Deploy to production
@@ -159,7 +167,6 @@ Before deploying:
    - Ensure that provided relays are not rate-limited.
    - Check authentication
 
-
 2. **Missing Files**
    - Review ignore patterns
    - Check file paths
@@ -181,4 +188,4 @@ Before deploying:
 
 - Set up [CI/CD integration](./ci-cd.md)
 - Review [security best practices](./security.md)
-- Learn about [local development](../usage/index.md) 
+- Learn about [local development](../usage/index.md)

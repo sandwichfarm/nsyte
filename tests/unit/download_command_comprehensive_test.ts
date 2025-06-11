@@ -3,7 +3,7 @@ import "../test-setup-global.ts";
 
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 import { registerDownloadCommand } from "../../src/commands/download.ts";
 import { Command } from "@cliffy/command";
@@ -20,26 +20,30 @@ describe("Download Command - Comprehensive Tests", () => {
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
 
     // Setup exit stub
-    exitStub = stub(Deno, "exit", ((code?: number) => {
-      (exitStub as any).lastExitCode = code;
-      return undefined as never;
-    }) as any);
+    exitStub = stub(
+      Deno,
+      "exit",
+      ((code?: number) => {
+        (exitStub as any).lastExitCode = code;
+        return undefined as never;
+      }) as any,
+    );
   });
 
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
@@ -55,13 +59,19 @@ describe("Download Command - Comprehensive Tests", () => {
       const fsModule = await import("@std/fs/ensure-dir");
 
       // Mock resolvePubkey to return a test pubkey
-      stub(resolverUtilsModule, "resolvePubkey", () => 
-        Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+      stub(
+        resolverUtilsModule,
+        "resolvePubkey",
+        () => Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
       );
 
       // Mock resolveRelays and resolveServers
       stub(resolverUtilsModule, "resolveRelays", () => ["wss://relay1.com", "wss://relay2.com"]);
-      stub(resolverUtilsModule, "resolveServers", () => ["https://server1.com", "https://server2.com"]);
+      stub(
+        resolverUtilsModule,
+        "resolveServers",
+        () => ["https://server1.com", "https://server2.com"],
+      );
 
       // Mock config
       stub(configModule, "readProjectFile", () => null);
@@ -81,7 +91,7 @@ describe("Download Command - Comprehensive Tests", () => {
       // Get the internal downloadCommand function by importing and calling registerDownloadCommand
       const program = new Command();
       registerDownloadCommand(program);
-      
+
       // Find the registered command
       const commands = program.getCommands();
       const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
@@ -108,8 +118,10 @@ describe("Download Command - Comprehensive Tests", () => {
       const fsModule = await import("@std/fs/ensure-dir");
 
       // Mock resolvePubkey
-      stub(resolverUtilsModule, "resolvePubkey", () => 
-        Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+      stub(
+        resolverUtilsModule,
+        "resolvePubkey",
+        () => Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
       );
 
       // Mock resolveRelays and resolveServers
@@ -139,7 +151,7 @@ describe("Download Command - Comprehensive Tests", () => {
           created: Date.now(),
         },
         {
-          hash: "def456", 
+          hash: "def456",
           name: "test2.txt",
           size: 200,
           url: "https://server1.com/def456",
@@ -162,15 +174,15 @@ describe("Download Command - Comprehensive Tests", () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = async (input: string | Request | URL) => {
         if (String(input).includes("abc123")) {
-          return new Response("test content 1", { 
+          return new Response("test content 1", {
             status: 200,
-            headers: { "content-length": "100" }
+            headers: { "content-length": "100" },
           });
         }
         if (String(input).includes("def456")) {
-          return new Response("test content 2", { 
+          return new Response("test content 2", {
             status: 200,
-            headers: { "content-length": "200" }
+            headers: { "content-length": "200" },
           });
         }
         return new Response("Not found", { status: 404 });
@@ -178,7 +190,10 @@ describe("Download Command - Comprehensive Tests", () => {
 
       // Mock Deno.writeFile
       const originalWriteFile = Deno.writeFile;
-      Deno.writeFile = async (path: string | URL, data: Uint8Array | ReadableStream<Uint8Array>) => {
+      Deno.writeFile = async (
+        path: string | URL,
+        data: Uint8Array | ReadableStream<Uint8Array>,
+      ) => {
         // Just simulate successful write
         return Promise.resolve();
       };
@@ -186,7 +201,7 @@ describe("Download Command - Comprehensive Tests", () => {
       try {
         const program = new Command();
         registerDownloadCommand(program);
-        
+
         const commands = program.getCommands();
         const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
         assertExists(downloadCommand);
@@ -211,7 +226,7 @@ describe("Download Command - Comprehensive Tests", () => {
   describe("error handling", () => {
     it("should handle resolver errors gracefully", async () => {
       const resolverUtilsModule = await import("../../src/lib/resolver-utils.ts");
-      
+
       // Mock resolvePubkey to throw an error
       stub(resolverUtilsModule, "resolvePubkey", () => {
         throw new Error("Failed to resolve pubkey");
@@ -219,7 +234,7 @@ describe("Download Command - Comprehensive Tests", () => {
 
       const program = new Command();
       registerDownloadCommand(program);
-      
+
       const commands = program.getCommands();
       const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
       assertExists(downloadCommand);
@@ -244,15 +259,25 @@ describe("Download Command - Comprehensive Tests", () => {
       const displayModeModule = await import("../../src/lib/display-mode.ts");
 
       // Create spies to verify calls
-      const resolvePubkeySpy = stub(resolverUtilsModule, "resolvePubkey", () => 
-        Promise.resolve("test-pubkey")
+      const resolvePubkeySpy = stub(
+        resolverUtilsModule,
+        "resolvePubkey",
+        () => Promise.resolve("test-pubkey"),
       );
       const resolveRelaysSpy = stub(resolverUtilsModule, "resolveRelays", () => ["wss://test.com"]);
-      const resolveServersSpy = stub(resolverUtilsModule, "resolveServers", () => ["https://test.com"]);
+      const resolveServersSpy = stub(
+        resolverUtilsModule,
+        "resolveServers",
+        () => ["https://test.com"],
+      );
       const readProjectFileSpy = stub(configModule, "readProjectFile", () => null);
-      
+
       const mockDisplayManager = { configureFromOptions: stub() };
-      const getDisplayManagerSpy = stub(displayModeModule, "getDisplayManager", () => mockDisplayManager as any);
+      const getDisplayManagerSpy = stub(
+        displayModeModule,
+        "getDisplayManager",
+        () => mockDisplayManager as any,
+      );
 
       const program = new Command();
       registerDownloadCommand(program);

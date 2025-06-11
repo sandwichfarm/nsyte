@@ -1,6 +1,6 @@
 import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { describe, it } from "std/testing/bdd.ts";
-import { spy, stub, restore, type Stub } from "std/testing/mock.ts";
+import { restore, spy, type Stub, stub } from "std/testing/mock.ts";
 
 import {
   exportNbunk,
@@ -14,10 +14,14 @@ import {
 
 // Helper to create exit stub
 function stubExit(): Stub {
-  return stub(Deno, "exit", ((code?: number) => {
-    (stubExit as any).lastExitCode = code;
-    return undefined as never;
-  }) as any);
+  return stub(
+    Deno,
+    "exit",
+    ((code?: number) => {
+      (stubExit as any).lastExitCode = code;
+      return undefined as never;
+    }) as any,
+  );
 }
 
 // Helper to capture console output
@@ -49,7 +53,7 @@ function captureConsole() {
 // Helper to create mock SecretsManager
 function createMockSecretsManager(data: Record<string, string> = {}) {
   const storage = new Map(Object.entries(data));
-  
+
   return {
     storeNbunk: async (pubkey: string, nbunk: string) => {
       storage.set(pubkey, nbunk);
@@ -266,7 +270,7 @@ describe("Bunker Command - Direct Functions", () => {
       // Mock SecretsManager
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
       const mockSecretsManager = createMockSecretsManager({
-        "pubkey123": nbunkString
+        "pubkey123": nbunkString,
       });
       const getInstanceStub = stub(
         SecretsManagerModule.SecretsManager,
@@ -330,7 +334,7 @@ describe("Bunker Command - Direct Functions", () => {
       // Mock SecretsManager
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
       const mockSecretsManager = createMockSecretsManager({
-        "pubkey123": "nbunksec1valid"
+        "pubkey123": "nbunksec1valid",
       });
       const getInstanceStub = stub(
         SecretsManagerModule.SecretsManager,
@@ -369,7 +373,7 @@ describe("Bunker Command - Direct Functions", () => {
       // Mock SecretsManager
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
       const mockSecretsManager = createMockSecretsManager({
-        "pubkey123": "nbunksec1valid"
+        "pubkey123": "nbunksec1valid",
       });
       const getInstanceStub = stub(
         SecretsManagerModule.SecretsManager,
@@ -407,7 +411,7 @@ describe("Bunker Command - Direct Functions", () => {
       // Mock SecretsManager
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
       const mockSecretsManager = createMockSecretsManager({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
       const getInstanceStub = stub(
         SecretsManagerModule.SecretsManager,
@@ -451,7 +455,7 @@ describe("Bunker Command - Direct Functions", () => {
       // Mock SecretsManager
       const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
       const mockSecretsManager = createMockSecretsManager({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
       const getInstanceStub = stub(
         SecretsManagerModule.SecretsManager,

@@ -22,7 +22,9 @@ export function registerServeCommand(program: Command): void {
     .command("serve")
     .description("Build and serve your local nsite files")
     .option("-p, --port <port:number>", "Port number for the local server.", { default: 8080 })
-    .option("-d, --dir <dir:string>", "Directory to serve (defaults to current directory).", { default: "." })
+    .option("-d, --dir <dir:string>", "Directory to serve (defaults to current directory).", {
+      default: ".",
+    })
     .action(async (options: ServeOptions) => {
       await serveCommand(options);
     });
@@ -52,7 +54,7 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
     const handler = async (request: Request): Promise<Response> => {
       const url = new URL(request.url);
       log.debug(`Request: ${request.method} ${url.pathname}`);
-      
+
       // Serve files from the specified directory
       return await serveDir(request, {
         fsRoot: absoluteDir,
@@ -63,12 +65,11 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
 
     // Start server using Deno.serve
     await Deno.serve({ port }, handler).finished;
-    
   } catch (error: unknown) {
     handleError("Error starting server", error, {
       exit: true,
       showConsole: true,
-      logger: log
+      logger: log,
     });
   }
 }

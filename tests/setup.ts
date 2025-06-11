@@ -12,31 +12,20 @@ import { stub } from "std/testing/mock.ts";
 export * from "./mocks/index.ts";
 
 // Export commonly used test assertions
-export { 
-  assertEquals, 
-  assertExists, 
-  assertRejects,
-  assertThrows,
+export {
   assert,
+  assertEquals,
+  assertExists,
   assertNotEquals,
+  assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from "std/assert/mod.ts";
 
 // Export test utilities from std
-export { 
-  afterEach, 
-  beforeEach, 
-  describe, 
-  it 
-} from "std/testing/bdd.ts";
+export { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
 
-export {
-  restore,
-  spy,
-  stub,
-  type Spy,
-  type Stub,
-} from "std/testing/mock.ts";
+export { restore, type Spy, spy, type Stub, stub } from "std/testing/mock.ts";
 
 // Test data generators
 export function generateTestPubkey(index: number = 0): string {

@@ -21,15 +21,21 @@ async function release() {
   console.log(`Preparing to release version ${version} (tag ${gitTagVersion}).`);
 
   try {
-    const localTagCheckProcess = new Deno.Command("git", { args: ["rev-parse", gitTagVersion], stdout: "piped", stderr: "piped" });
+    const localTagCheckProcess = new Deno.Command("git", {
+      args: ["rev-parse", gitTagVersion],
+      stdout: "piped",
+      stderr: "piped",
+    });
     const localTagCheckOutput = await localTagCheckProcess.output();
     if (localTagCheckOutput.code !== 0) {
-        console.error(`Error: Local tag ${gitTagVersion} does not exist. Please run the version update script first (e.g., 'deno task version:update').`);
-        const localTagErrText = new TextDecoder().decode(localTagCheckOutput.stderr).trim();
-        if (localTagErrText) {
-            console.error("Details:", localTagErrText);
-        }
-        return;
+      console.error(
+        `Error: Local tag ${gitTagVersion} does not exist. Please run the version update script first (e.g., 'deno task version:update').`,
+      );
+      const localTagErrText = new TextDecoder().decode(localTagCheckOutput.stderr).trim();
+      if (localTagErrText) {
+        console.error("Details:", localTagErrText);
+      }
+      return;
     }
     console.log(`Local tag ${gitTagVersion} found.`);
   } catch (error) {
@@ -39,17 +45,21 @@ async function release() {
 
   try {
     console.log("Pushing commits to origin...");
-    const pushCommitsProcess = new Deno.Command("git", { args: ["push"], stdout: "piped", stderr: "piped" });
+    const pushCommitsProcess = new Deno.Command("git", {
+      args: ["push"],
+      stdout: "piped",
+      stderr: "piped",
+    });
     const pushCommitsOutput = await pushCommitsProcess.output();
     if (pushCommitsOutput.code !== 0) {
-        const errText = new TextDecoder().decode(pushCommitsOutput.stderr).trim();
-        if (errText && !errText.includes("Everything up-to-date")) {
-            console.error("Error pushing commits:", errText);
-        } else {
-            console.log("Commits are up-to-date or pushed successfully.");
-        }
+      const errText = new TextDecoder().decode(pushCommitsOutput.stderr).trim();
+      if (errText && !errText.includes("Everything up-to-date")) {
+        console.error("Error pushing commits:", errText);
+      } else {
+        console.log("Commits are up-to-date or pushed successfully.");
+      }
     } else {
-        console.log("Commits pushed successfully or already up-to-date.");
+      console.log("Commits pushed successfully or already up-to-date.");
     }
   } catch (error) {
     console.error("Error during git push:", error);
@@ -57,13 +67,18 @@ async function release() {
 
   try {
     console.log(`Checking if tag ${gitTagVersion} exists on remote 'origin'...`);
-    const remoteTagCheckProcess = new Deno.Command("git", { args: ["ls-remote", "--tags", "origin", `refs/tags/${gitTagVersion}`], stdout: "piped", stderr: "piped" });
-    const { stdout: remoteTagCheckOut, code: remoteTagCheckCode, stderr: remoteTagCheckErr } = await remoteTagCheckProcess.output();
+    const remoteTagCheckProcess = new Deno.Command("git", {
+      args: ["ls-remote", "--tags", "origin", `refs/tags/${gitTagVersion}`],
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { stdout: remoteTagCheckOut, code: remoteTagCheckCode, stderr: remoteTagCheckErr } =
+      await remoteTagCheckProcess.output();
     const remoteTagOutput = new TextDecoder().decode(remoteTagCheckOut).trim();
     const remoteTagErrText = new TextDecoder().decode(remoteTagCheckErr).trim();
 
     if (remoteTagCheckCode !== 0 && remoteTagErrText) {
-        console.warn("Warning checking remote tag:", remoteTagErrText);
+      console.warn("Warning checking remote tag:", remoteTagErrText);
     }
 
     const remoteTagExists = remoteTagOutput.includes(`refs/tags/${gitTagVersion}`);
@@ -73,11 +88,18 @@ async function release() {
       const overwriteRemote = await Confirm.prompt("Delete remote tag and push local tag? (Y/n)");
       if (overwriteRemote) {
         console.log(`Deleting remote tag ${gitTagVersion} from 'origin'...`);
-        const deleteRemoteTagProcess = new Deno.Command("git", { args: ["push", "origin", ":refs/tags/" + gitTagVersion], stdout: "piped", stderr: "piped" });
+        const deleteRemoteTagProcess = new Deno.Command("git", {
+          args: ["push", "origin", ":refs/tags/" + gitTagVersion],
+          stdout: "piped",
+          stderr: "piped",
+        });
         const delRemoteOut = await deleteRemoteTagProcess.output();
         if (delRemoteOut.code !== 0) {
-            console.error("Error deleting remote tag:", new TextDecoder().decode(delRemoteOut.stderr).trim());
-            return;
+          console.error(
+            "Error deleting remote tag:",
+            new TextDecoder().decode(delRemoteOut.stderr).trim(),
+          );
+          return;
         }
         console.log(`Successfully deleted remote tag ${gitTagVersion}.`);
       } else {
@@ -87,14 +109,17 @@ async function release() {
     }
 
     console.log(`Pushing tag ${gitTagVersion} to 'origin'...`);
-    const pushTagProcess = new Deno.Command("git", { args: ["push", "origin", gitTagVersion], stdout: "piped", stderr: "piped" });
+    const pushTagProcess = new Deno.Command("git", {
+      args: ["push", "origin", gitTagVersion],
+      stdout: "piped",
+      stderr: "piped",
+    });
     const pushTagOut = await pushTagProcess.output();
     if (pushTagOut.code !== 0) {
-        console.error("Error pushing tag:", new TextDecoder().decode(pushTagOut.stderr).trim());
+      console.error("Error pushing tag:", new TextDecoder().decode(pushTagOut.stderr).trim());
     } else {
-        console.log(`Successfully pushed tag ${gitTagVersion} to 'origin'.`);
+      console.log(`Successfully pushed tag ${gitTagVersion} to 'origin'.`);
     }
-
   } catch (error) {
     console.error("Error during git tag operations:", error);
   }
@@ -102,4 +127,4 @@ async function release() {
 
 if (import.meta.main) {
   release();
-} 
+}

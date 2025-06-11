@@ -5,11 +5,13 @@ description: Configuration options and settings for nsyte
 
 # Configuration
 
-nsyte uses a configuration file to store your settings. This guide explains all available configuration options and how to use them.
+nsyte uses a configuration file to store your settings. This guide explains all available
+configuration options and how to use them.
 
 ## Configuration File
 
-The configuration is stored in `.nsite/config.json` in your project directory. This file is created when you run `nsyte init` and can be modified manually or through the CLI.
+The configuration is stored in `.nsite/config.json` in your project directory. This file is created
+when you run `nsyte init` and can be modified manually or through the CLI.
 
 ## Basic Configuration
 
@@ -65,7 +67,8 @@ You can also configure nsyte using environment variables:
 
 ## Ignoring Files
 
-Create a `.nsite-ignore` file in your project root to specify files and directories that should be excluded from uploads. This uses standard glob syntax:
+Create a `.nsite-ignore` file in your project root to specify files and directories that should be
+excluded from uploads. This uses standard glob syntax:
 
 ```
 # Ignore build artifacts
@@ -79,6 +82,7 @@ secrets.json
 ### Default Ignore Patterns
 
 nsyte automatically ignores:
+
 - `.git/**`
 - `.DS_Store`
 - `node_modules/**`
@@ -101,16 +105,19 @@ nsyte config show
 You can update your configuration in several ways:
 
 1. Using the CLI:
+
 ```bash
 nsyte config set relays wss://relay1,wss://relay2
 ```
 
 2. Editing the file directly:
+
 ```bash
 # Edit .nsite/config.json
 ```
 
 3. Using environment variables:
+
 ```bash
 export NSITE_RELAYS=wss://relay1,wss://relay2
 ```
@@ -155,4 +162,4 @@ export NSITE_RELAYS=wss://relay1,wss://relay2
 
 - Learn about [deployment options](../guides/deployment.md)
 - Set up [CI/CD integration](../guides/ci-cd.md)
-- Review [security best practices](../guides/security.md) 
+- Review [security best practices](../guides/security.md)

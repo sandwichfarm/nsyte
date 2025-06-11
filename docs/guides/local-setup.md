@@ -49,6 +49,7 @@ nsyte init
 ```
 
 During initialization:
+
 - Connect your bunker signer when prompted
 - Configure at least one relay for testing
 - Optionally configure blossom servers
@@ -163,16 +164,19 @@ node_modules/
 ### Common Issues
 
 **Permission Errors**
+
 - Ensure Deno has necessary permissions
 - Check file system permissions
 - Verify bunker connection
 
 **Connection Issues**
+
 - Test relay connectivity manually
 - Check network/firewall settings
 - Verify relay URLs are correct
 
 **Authentication Problems**
+
 - Reconnect bunker signer
 - Check bunker permissions
 - Generate new CI token if needed
@@ -187,4 +191,4 @@ node_modules/
 
 - [Set up CI/CD automation](./ci-cd.md)
 - [Configure production deployment](./deployment.md)
-- [Review security practices](./security.md) 
+- [Review security practices](./security.md)

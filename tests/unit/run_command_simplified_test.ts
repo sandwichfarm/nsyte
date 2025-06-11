@@ -1,28 +1,31 @@
 import { assertEquals, assertExists, assertStringIncludes } from "std/assert/mod.ts";
-import { stub, restore } from "std/testing/mock.ts";
+import { restore, stub } from "std/testing/mock.ts";
 import { Command } from "@cliffy/command";
 import {
+  formatFileSize,
+  npubToHex,
   registerRunCommand,
   runCommand,
   validateNpub,
-  npubToHex,
-  formatFileSize
 } from "../../src/commands/run.ts";
 
 Deno.test("Run Command - Registration", async (t) => {
   await t.step("should register run command with correct options", () => {
     const program = new Command();
     registerRunCommand(program);
-    
+
     const runCommandInstance = program.getCommand("run");
     assertExists(runCommandInstance);
     assertEquals(runCommandInstance.getName(), "run");
-    assertEquals(runCommandInstance.getDescription(), "Run a resolver server that serves nsites via npub subdomains");
-    
+    assertEquals(
+      runCommandInstance.getDescription(),
+      "Run a resolver server that serves nsites via npub subdomains",
+    );
+
     // Check that all options are registered
     const options = runCommandInstance.getOptions();
-    const optionNames = options.map(opt => opt.name);
-    
+    const optionNames = options.map((opt) => opt.name);
+
     assertEquals(optionNames.includes("relays"), true);
     assertEquals(optionNames.includes("port"), true);
     assertEquals(optionNames.includes("privatekey"), true);
@@ -33,7 +36,7 @@ Deno.test("Run Command - Registration", async (t) => {
   await t.step("should have correct default values", () => {
     const program = new Command();
     registerRunCommand(program);
-    
+
     const runCommandInstance = program.getCommand("run");
     assertExists(runCommandInstance);
     const portOption = runCommandInstance.getOption("port");
@@ -46,7 +49,10 @@ Deno.test("Run Command - Utility Functions", async (t) => {
     // Test invalid formats
     assertEquals(validateNpub("invalid"), false);
     assertEquals(validateNpub("npub1short"), false);
-    assertEquals(validateNpub("nsec1w0rthlessness0000000000000000000000000000000000000000000000000"), false);
+    assertEquals(
+      validateNpub("nsec1w0rthlessness0000000000000000000000000000000000000000000000000"),
+      false,
+    );
     assertEquals(validateNpub(""), false);
   });
 
@@ -57,8 +63,8 @@ Deno.test("Run Command - Utility Functions", async (t) => {
       "bech32Decode",
       () => ({
         prefix: "npub",
-        data: new Uint8Array([1, 2, 3, 4, 5])
-      })
+        data: new Uint8Array([1, 2, 3, 4, 5]),
+      }),
     );
 
     try {
@@ -85,7 +91,7 @@ Deno.test("Run Command - Server Setup", async (t) => {
     const resolveRelaysStub = stub(
       await import("../../src/lib/resolver-utils.ts"),
       "resolveRelays",
-      () => []
+      () => [],
     );
 
     const consoleErrorStub = stub(console, "error");
@@ -93,14 +99,13 @@ Deno.test("Run Command - Server Setup", async (t) => {
 
     try {
       await runCommand({ port: 8080 });
-      
+
       // Should have called console.error and Deno.exit
       assertEquals(consoleErrorStub.calls.length > 0, true);
       assertEquals(processExitStub.calls.length > 0, true);
-      
+
       const errorMessage = consoleErrorStub.calls[0].args[0];
       assertStringIncludes(errorMessage, "No relays available");
-      
     } finally {
       resolveRelaysStub.restore();
       consoleErrorStub.restore();
@@ -115,25 +120,24 @@ Deno.test("Run Command - Server Setup", async (t) => {
       "resolveRelays",
       () => {
         throw new Error("Resolver error");
-      }
+      },
     );
 
     const handleErrorStub = stub(
       await import("../../src/lib/error-utils.ts"),
-      "handleError"
+      "handleError",
     );
 
     try {
       await runCommand({ port: 8080 });
-      
+
       // Should have called handleError
       assertEquals(handleErrorStub.calls.length > 0, true);
-      
+
       const errorCall = handleErrorStub.calls[0];
       assertEquals(errorCall.args[0], "Error running resolver server");
       assertEquals(errorCall.args[1] instanceof Error, true);
       assertEquals(errorCall.args[2]?.exit, true);
-      
     } finally {
       resolveRelaysStub.restore();
       handleErrorStub.restore();
@@ -149,7 +153,7 @@ Deno.test("Run Command - Validation Functions", async (t) => {
       "bech32Decode",
       () => {
         throw new Error("Invalid bech32");
-      }
+      },
     );
 
     try {
@@ -167,8 +171,8 @@ Deno.test("Run Command - Validation Functions", async (t) => {
       "bech32Decode",
       () => ({
         prefix: "nsec", // Wrong prefix
-        data: new Uint8Array(32) // Correct length
-      })
+        data: new Uint8Array(32), // Correct length
+      }),
     );
 
     try {
@@ -186,8 +190,8 @@ Deno.test("Run Command - Validation Functions", async (t) => {
       "bech32Decode",
       () => ({
         prefix: "npub", // Correct prefix
-        data: new Uint8Array(16) // Wrong length (should be 32)
-      })
+        data: new Uint8Array(16), // Wrong length (should be 32)
+      }),
     );
 
     try {
@@ -205,8 +209,8 @@ Deno.test("Run Command - Validation Functions", async (t) => {
       "bech32Decode",
       () => ({
         prefix: "npub", // Correct prefix
-        data: new Uint8Array(32) // Correct length
-      })
+        data: new Uint8Array(32), // Correct length
+      }),
     );
 
     try {
@@ -225,10 +229,10 @@ Deno.test("Run Command - File Size Formatting Edge Cases", async (t) => {
     assertEquals(formatFileSize(1025), "1 KB");
     assertEquals(formatFileSize(1048575), "1024 KB");
     assertEquals(formatFileSize(1048577), "1 MB");
-    
+
     // Test very large numbers
     assertEquals(formatFileSize(1099511627776), "1 GB");
-    
+
     // Test decimal precision
     assertEquals(formatFileSize(1536), "1.5 KB"); // 1.5 * 1024
     assertEquals(formatFileSize(2560), "2.5 KB"); // 2.5 * 1024
@@ -241,24 +245,24 @@ Deno.test("Run Command - Configuration Options", async (t) => {
     const resolveRelaysStub = stub(
       await import("../../src/lib/resolver-utils.ts"),
       "resolveRelays",
-      () => ["wss://test.relay.com"]
+      () => ["wss://test.relay.com"],
     );
 
     const consoleLogStub = stub(console, "log");
-    
+
     // Mock Deno.serve to resolve immediately
-    const denoServeStub = stub(Deno, "serve", () => ({
-      finished: Promise.resolve()
-    }) as any);
+    const denoServeStub = stub(Deno, "serve", () =>
+      ({
+        finished: Promise.resolve(),
+      }) as any);
 
     try {
       // Should use default port
       await runCommand({});
-      
+
       assertEquals(denoServeStub.calls.length, 1);
       // Should use default port 8080
       assertEquals(denoServeStub.calls[0].args[0].port, 8080);
-      
     } finally {
       resolveRelaysStub.restore();
       consoleLogStub.restore();
@@ -270,21 +274,21 @@ Deno.test("Run Command - Configuration Options", async (t) => {
     const resolveRelaysStub = stub(
       await import("../../src/lib/resolver-utils.ts"),
       "resolveRelays",
-      () => ["wss://test.relay.com"]
+      () => ["wss://test.relay.com"],
     );
 
     const consoleLogStub = stub(console, "log");
-    
-    const denoServeStub = stub(Deno, "serve", () => ({
-      finished: Promise.resolve()
-    }) as any);
+
+    const denoServeStub = stub(Deno, "serve", () =>
+      ({
+        finished: Promise.resolve(),
+      }) as any);
 
     try {
       await runCommand({ port: 3000 });
-      
+
       assertEquals(denoServeStub.calls.length, 1);
       assertEquals(denoServeStub.calls[0].args[0].port, 3000);
-      
     } finally {
       resolveRelaysStub.restore();
       consoleLogStub.restore();
@@ -296,36 +300,36 @@ Deno.test("Run Command - Configuration Options", async (t) => {
     const resolveRelaysStub = stub(
       await import("../../src/lib/resolver-utils.ts"),
       "resolveRelays",
-      () => ["wss://test.relay.com", "wss://test2.relay.com"]
+      () => ["wss://test.relay.com", "wss://test2.relay.com"],
     );
 
     const consoleLogStub = stub(console, "log");
-    
-    const denoServeStub = stub(Deno, "serve", () => ({
-      finished: Promise.resolve()
-    }) as any);
+
+    const denoServeStub = stub(Deno, "serve", () =>
+      ({
+        finished: Promise.resolve(),
+      }) as any);
 
     try {
       await runCommand({ port: 8080 });
-      
+
       // Should have logged startup messages
-      const logMessages = consoleLogStub.calls.map(call => call.args[0]);
-      
-      const hasStartupMessage = logMessages.some(msg => 
+      const logMessages = consoleLogStub.calls.map((call) => call.args[0]);
+
+      const hasStartupMessage = logMessages.some((msg) =>
         typeof msg === "string" && msg.includes("Starting nsyte resolver server")
       );
       assertEquals(hasStartupMessage, true);
-      
-      const hasRelayMessage = logMessages.some(msg => 
+
+      const hasRelayMessage = logMessages.some((msg) =>
         typeof msg === "string" && msg.includes("Using relays:")
       );
       assertEquals(hasRelayMessage, true);
-      
-      const hasServerUrlMessage = logMessages.some(msg => 
+
+      const hasServerUrlMessage = logMessages.some((msg) =>
         typeof msg === "string" && msg.includes("Server URL:")
       );
       assertEquals(hasServerUrlMessage, true);
-      
     } finally {
       resolveRelaysStub.restore();
       consoleLogStub.restore();

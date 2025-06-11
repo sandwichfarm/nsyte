@@ -4,8 +4,13 @@ import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
 import { listRemoteFiles } from "../lib/nostr.ts";
-import { DEFAULT_IGNORE_PATTERNS, parseIgnorePatterns, isIgnored, type IgnoreRule } from "../lib/files.ts";
-import { resolveRelays, resolvePubkey } from "../lib/resolver-utils.ts";
+import {
+  DEFAULT_IGNORE_PATTERNS,
+  type IgnoreRule,
+  isIgnored,
+  parseIgnorePatterns,
+} from "../lib/files.ts";
+import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { handleError } from "../lib/error-utils.ts";
 
 const log = createLogger("ls");
@@ -19,7 +24,10 @@ export function registerLsCommand(program: Command): void {
     .description("List files available on the nostr network")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
-    .option("-p, --pubkey <npub:string>", "The public key to list files for (if not using private key).")
+    .option(
+      "-p, --pubkey <npub:string>",
+      "The public key to list files for (if not using private key).",
+    )
     .action(command);
 }
 
@@ -34,12 +42,16 @@ export async function command(options: any): Promise<void> {
     let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
     let ignoredFileCount = 0;
 
-    console.log(colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`));
+    console.log(
+      colors.cyan(`Listing files for ${colors.bold(pubkey)} using relays: ${relays.join(", ")}`),
+    );
 
     if (existsSync(ignoreFilePath)) {
       try {
         const ignoreContent = await Deno.readTextFile(ignoreFilePath);
-        const customPatterns = ignoreContent.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith("#"));
+        const customPatterns = ignoreContent.split("\n").map((l) => l.trim()).filter((l) =>
+          l && !l.startsWith("#")
+        );
         ignoreRules = parseIgnorePatterns([...DEFAULT_IGNORE_PATTERNS, ...customPatterns]);
         log.info(`Loaded .nsite-ignore rules.`);
       } catch (error) {
@@ -58,8 +70,8 @@ export async function command(options: any): Promise<void> {
 
       files.sort((a, b) => a.path.localeCompare(b.path));
 
-      files.forEach(file => {
-        const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
+      files.forEach((file) => {
+        const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
         const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
 
         if (shouldBeIgnored) {
@@ -71,7 +83,11 @@ export async function command(options: any): Promise<void> {
       });
 
       if (ignoredFileCount > 0) {
-        console.log(colors.yellow(`\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`));
+        console.log(
+          colors.yellow(
+            `\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`,
+          ),
+        );
       }
     }
 
@@ -80,7 +96,7 @@ export async function command(options: any): Promise<void> {
     handleError("Error listing files", error, {
       showConsole: true,
       exit: true,
-      exitCode: 1
+      exitCode: 1,
     });
   }
 }

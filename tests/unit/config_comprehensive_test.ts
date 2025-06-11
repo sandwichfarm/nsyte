@@ -1,16 +1,16 @@
 import { assertEquals, assertExists, assertThrows } from "std/assert/mod.ts";
-import { stub, restore } from "std/testing/mock.ts";
+import { restore, stub } from "std/testing/mock.ts";
 import { join } from "std/path/mod.ts";
 import {
-  readProjectFile,
-  writeProjectFile,
-  setupProject,
   defaultConfig,
-  popularRelays,
   popularBlossomServers,
+  popularRelays,
+  type Profile,
   type ProjectConfig,
   type ProjectContext,
-  type Profile
+  readProjectFile,
+  setupProject,
+  writeProjectFile,
 } from "../../src/lib/config.ts";
 
 const CONFIG_DIR = ".nsite";
@@ -48,7 +48,7 @@ Deno.test("Config - Constants", async (t) => {
 
 Deno.test("Config - File Operations", async (t) => {
   const testConfigDir = join(Deno.cwd(), CONFIG_DIR);
-  
+
   const cleanup = () => {
     try {
       Deno.removeSync(testConfigDir, { recursive: true });
@@ -66,14 +66,14 @@ Deno.test("Config - File Operations", async (t) => {
       relays: ["wss://test.relay"],
       servers: ["https://test.server"],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     writeProjectFile(config);
-    
+
     const stats = Deno.statSync(testConfigDir);
     assertEquals(stats.isDirectory, true);
-    
+
     const fileStats = Deno.statSync(join(testConfigDir, PROJECT_FILE));
     assertEquals(fileStats.isFile, true);
   });
@@ -84,11 +84,11 @@ Deno.test("Config - File Operations", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     writeProjectFile(config);
-    
+
     const saved = readProjectFile();
     assertExists(saved);
     assertEquals(saved.bunkerPubkey?.includes("secret="), false);
@@ -102,11 +102,11 @@ Deno.test("Config - File Operations", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     writeProjectFile(config);
-    
+
     const saved = readProjectFile();
     assertExists(saved);
     assertEquals(saved.bunkerPubkey, "regular-pubkey");
@@ -121,7 +121,7 @@ Deno.test("Config - File Operations", async (t) => {
       website: "https://example.com",
       nip05: "test@example.com",
       lud16: "test@ln.example.com",
-      banner: "https://example.com/banner.jpg"
+      banner: "https://example.com/banner.jpg",
     };
 
     const config: ProjectConfig = {
@@ -130,11 +130,11 @@ Deno.test("Config - File Operations", async (t) => {
       profile,
       publishServerList: false,
       publishRelayList: false,
-      publishProfile: true
+      publishProfile: true,
     };
 
     writeProjectFile(config);
-    
+
     const saved = readProjectFile();
     assertExists(saved);
     assertEquals(saved.profile, profile);
@@ -149,7 +149,7 @@ Deno.test("Config - File Operations", async (t) => {
   await t.step("readProjectFile handles malformed JSON", () => {
     Deno.mkdirSync(testConfigDir, { recursive: true });
     Deno.writeTextFileSync(join(testConfigDir, PROJECT_FILE), "{ invalid json");
-    
+
     const result = readProjectFile();
     assertEquals(result, null);
   });
@@ -170,7 +170,7 @@ Deno.test("Config - File Operations", async (t) => {
 
 Deno.test("Config - setupProject", async (t) => {
   const testConfigDir = join(Deno.cwd(), CONFIG_DIR);
-  
+
   const cleanup = () => {
     try {
       Deno.removeSync(testConfigDir, { recursive: true });
@@ -183,9 +183,9 @@ Deno.test("Config - setupProject", async (t) => {
 
   await t.step("returns basic config in non-interactive mode with no existing config", async () => {
     cleanup();
-    
+
     const result = await setupProject(true);
-    
+
     assertExists(result);
     assertExists(result.config);
     assertEquals(result.config.relays, []);
@@ -201,13 +201,13 @@ Deno.test("Config - setupProject", async (t) => {
       relays: ["wss://relay1", "wss://relay2"],
       servers: ["https://server1"],
       publishServerList: true,
-      publishRelayList: true
+      publishRelayList: true,
     };
 
     writeProjectFile(existingConfig);
-    
+
     const result = await setupProject(true);
-    
+
     assertExists(result);
     assertEquals(result.config.bunkerPubkey, existingConfig.bunkerPubkey);
     assertEquals(result.config.relays, existingConfig.relays);
@@ -216,11 +216,11 @@ Deno.test("Config - setupProject", async (t) => {
 
   await t.step("logs error in non-interactive mode with no key config", async () => {
     cleanup();
-    
+
     // The implementation logs an error but doesn't actually exit in test environment
     // This is because the config is being set up with no existing config
     const result = await setupProject(true);
-    
+
     // When no config exists and skipInteractive is true, it returns a basic config
     assertExists(result);
     assertExists(result.config);
@@ -238,12 +238,12 @@ Deno.test("Config - Bunker URL Sanitization", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     writeProjectFile(config);
     const saved = readProjectFile();
-    
+
     assertExists(saved);
     assertExists(saved.bunkerPubkey);
     assertEquals(saved.bunkerPubkey.includes("secret="), false);
@@ -258,12 +258,12 @@ Deno.test("Config - Bunker URL Sanitization", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     writeProjectFile(config);
     const saved = readProjectFile();
-    
+
     assertExists(saved);
     assertEquals(saved.bunkerPubkey, "bunker://pubkey123/"); // URL class adds trailing slash
   });
@@ -274,13 +274,13 @@ Deno.test("Config - Bunker URL Sanitization", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     // Should not throw, returns original URL
     writeProjectFile(config);
     const saved = readProjectFile();
-    
+
     assertExists(saved);
     assertEquals(saved.bunkerPubkey, "bunker://invalid url with spaces");
   });
@@ -301,13 +301,13 @@ Deno.test("Config - Error Handling", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     assertThrows(
       () => writeProjectFile(config),
       Error,
-      "Write failed"
+      "Write failed",
     );
 
     writeStub.restore();
@@ -324,7 +324,7 @@ Deno.test("Config - Error Handling", async (t) => {
       relays: [],
       servers: [],
       publishServerList: false,
-      publishRelayList: false
+      publishRelayList: false,
     };
 
     try {

@@ -1,6 +1,6 @@
 import { assertEquals } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { stub, restore, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 // Set environment variable to disable keychain
 Deno.env.set("NSYTE_DISABLE_KEYCHAIN", "true");
@@ -17,11 +17,11 @@ describe("Bunker Simple Tests", () => {
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -31,7 +31,7 @@ describe("Bunker Simple Tests", () => {
     // Restore console
     console.log = originalLog;
     console.error = originalError;
-    
+
     // Restore all stubs
     restore();
   });

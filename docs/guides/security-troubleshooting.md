@@ -32,12 +32,11 @@ ls %APPDATA%\nsyte\secrets.json      # Windows
 
 ### 1. "Keychain Not Found" on macOS
 
-!!! error "Symptoms"
-    - Error: "A keychain cannot be found to store..."
-    - Dialog prompts cancelled
-    - Falls back to encrypted storage
+!!! error "Symptoms" - Error: "A keychain cannot be found to store..." - Dialog prompts cancelled -
+Falls back to encrypted storage
 
 **Causes**:
+
 - User cancelled keychain access prompt
 - Keychain locked or corrupted
 - Running in non-interactive environment
@@ -57,15 +56,13 @@ security create-keychain ~/Library/Keychains/login.keychain-db
 # Add Terminal or your app
 ```
 
-!!! tip "Workaround"
-    nsyte will automatically fall back to encrypted file storage if keychain access fails.
+!!! tip "Workaround" nsyte will automatically fall back to encrypted file storage if keychain access
+fails.
 
 ### 2. "secret-tool: command not found" on Linux
 
-!!! error "Symptoms"
-    - Error about missing secret-tool
-    - Falls back to encrypted storage
-    - No native keychain integration
+!!! error "Symptoms" - Error about missing secret-tool - Falls back to encrypted storage - No native
+keychain integration
 
 **Solutions**:
 
@@ -84,15 +81,13 @@ sudo pacman -S libsecret
 which secret-tool
 ```
 
-!!! note "Alternative"
-    If you don't want to install secret-tool, nsyte will use encrypted file storage which is still secure.
+!!! note "Alternative" If you don't want to install secret-tool, nsyte will use encrypted file
+storage which is still secure.
 
 ### 3. "cmdkey: Access Denied" on Windows
 
-!!! error "Symptoms"
-    - Error when storing credentials
-    - Access denied messages
-    - Falls back to encrypted storage
+!!! error "Symptoms" - Error when storing credentials - Access denied messages - Falls back to
+encrypted storage
 
 **Solutions**:
 
@@ -110,12 +105,11 @@ cmdkey /delete:nsyte:<pubkey>
 
 ### 4. Encrypted Storage Initialization Failed
 
-!!! error "Symptoms"
-    - Error: "Failed to initialize encrypted storage"
-    - Falls back to plain JSON storage
-    - Security warnings shown
+!!! error "Symptoms" - Error: "Failed to initialize encrypted storage" - Falls back to plain JSON
+storage - Security warnings shown
 
 **Causes**:
+
 - Permission issues with config directory
 - Disk space issues
 - Filesystem corruption
@@ -141,10 +135,8 @@ nsyte bunker list  # Will recreate directory
 
 ### 5. Migration Issues
 
-!!! error "Symptoms"
-    - Legacy secrets not migrated
-    - Duplicated entries
-    - Missing bunkers after update
+!!! error "Symptoms" - Legacy secrets not migrated - Duplicated entries - Missing bunkers after
+update
 
 **Diagnosis**:
 
@@ -178,10 +170,8 @@ rm ~/.config/nsyte/secrets.json
 
 ### 6. CI/CD Authentication Issues
 
-!!! error "Symptoms"
-    - nbunksec not working in CI/CD
-    - Authentication failures
-    - Missing environment variables
+!!! error "Symptoms" - nbunksec not working in CI/CD - Authentication failures - Missing environment
+variables
 
 **Solutions**:
 
@@ -207,10 +197,8 @@ nsyte upload ./dist --nbunksec $NBUNK_SECRET
 
 ### 7. Permission Denied Errors
 
-!!! error "Symptoms"
-    - Permission denied accessing keychain
-    - Can't write to config directory
-    - Access denied errors
+!!! error "Symptoms" - Permission denied accessing keychain - Can't write to config directory -
+Access denied errors
 
 **Solutions**:
 
@@ -292,7 +280,7 @@ cmdkey /list | findstr nsyte
    ```bash
    # Generate new connection
    nsyte bunker connect bunker://...
-   
+
    # Remove old connection
    nsyte bunker remove <old-pubkey>
    ```
@@ -321,9 +309,8 @@ cmdkey /list | findstr nsyte
 
 ## Getting Help
 
-!!! question "Need More Help?"
-    If you're still experiencing issues:
-    
+!!! question "Need More Help?" If you're still experiencing issues:
+
     1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
     2. **Create Bug Report**: Include debug logs and system information
     3. **Security Issues**: Report privately to security@sandwichfarm.com

@@ -123,12 +123,16 @@ export class SecretsManager {
       log.debug("Native keychain not available, using encrypted file storage");
       const encryptedStorage = new EncryptedStorage();
       const encryptedInitialized = await encryptedStorage.initialize();
-      
+
       if (encryptedInitialized) {
         this.storageBackend = new EncryptedBackend(encryptedStorage);
       } else {
-        log.warn("Failed to initialize encrypted storage, falling back to legacy plain JSON storage");
-        log.warn("⚠️  Secrets will be stored in plain text. This is not recommended for production use.");
+        log.warn(
+          "Failed to initialize encrypted storage, falling back to legacy plain JSON storage",
+        );
+        log.warn(
+          "⚠️  Secrets will be stored in plain text. This is not recommended for production use.",
+        );
         this.legacyMode = true;
       }
     }
@@ -229,7 +233,7 @@ export class SecretsManager {
    */
   public async storeNbunk(pubkey: string, nbunksec: string): Promise<boolean> {
     if (!await this.initialize()) return false;
-    
+
     try {
       if (this.storageBackend) {
         const success = await this.storageBackend.store(pubkey, nbunksec);
@@ -258,7 +262,7 @@ export class SecretsManager {
    */
   public async getNbunk(pubkey: string): Promise<string | null> {
     if (!await this.initialize()) return null;
-    
+
     try {
       if (this.storageBackend) {
         return await this.storageBackend.retrieve(pubkey);
@@ -280,7 +284,7 @@ export class SecretsManager {
    */
   public async getAllPubkeys(): Promise<string[]> {
     if (!await this.initialize()) return [];
-    
+
     try {
       if (this.storageBackend) {
         return await this.storageBackend.list();
@@ -302,7 +306,7 @@ export class SecretsManager {
    */
   public async deleteNbunk(pubkey: string): Promise<boolean> {
     if (!await this.initialize()) return false;
-    
+
     try {
       if (this.storageBackend) {
         const success = await this.storageBackend.delete(pubkey);
@@ -328,4 +332,4 @@ export class SecretsManager {
       return false;
     }
   }
-} 
+}

@@ -1,45 +1,33 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block header %} {% include "partials/header.html" %} {% endblock %} {%
+block extrahead %} {{ super() }} {% if page.title == "nsyte - Decentralized Website Publishing" %}
+<style>
+  /* Hide TOC on splash page */
+  .md-sidebar--secondary {
+    display: none;
+  }
 
-{% block header %}
-  {% include "partials/header.html" %}
-{% endblock %}
+  /* Full width content on splash page */
+  .md-content {
+    max-width: none;
+  }
 
-{% block extrahead %}
-  {{ super() }}
-  {% if page.title == "nsyte - Decentralized Website Publishing" %}
-  <style>
-    /* Hide TOC on splash page */
-    .md-sidebar--secondary {
-      display: none;
-    }
-    
-    /* Full width content on splash page */
-    .md-content {
-      max-width: none;
-    }
-    
-    /* Remove default padding on splash page */
-    .md-content__inner {
-      margin: 0;
-      padding: 0;
-    }
-    
-    /* Override default content styling for splash page */
-    .md-typeset > .hero-section:first-child {
-      margin-top: 0;
-    }
-  </style>
-  {% endif %}
-{% endblock %}
+  /* Remove default padding on splash page */
+  .md-content__inner {
+    margin: 0;
+    padding: 0;
+  }
 
-{% block content %}
-  {% if page.title == "nsyte - Decentralized Website Publishing" %}
-    <!-- Custom layout for splash page -->
-    <div class="md-content__inner md-typeset splash-page">
-      {{ page.content }}
-    </div>
-  {% else %}
-    <!-- Default layout for other pages -->
-    {{ super() }}
-  {% endif %}
-{% endblock %}
+  /* Override default content styling for splash page */
+  .md-typeset > .hero-section:first-child {
+    margin-top: 0;
+  }
+</style>
+{% endif %} {% endblock %} {% block content %} {% if page.title == "nsyte - Decentralized Website
+Publishing" %}
+<!-- Custom layout for splash page -->
+<div class="md-content__inner md-typeset splash-page">
+  {{ page.content }}
+</div>
+{% else %}
+<!-- Default layout for other pages -->
+{{ super() }} {% endif %} {% endblock %}

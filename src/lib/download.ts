@@ -1,7 +1,7 @@
-import { join, dirname } from "@std/path";
+import { dirname, join } from "@std/path";
 import { ensureDir } from "@std/fs/ensure-dir";
 import { createLogger } from "./logger.ts";
-import { listRemoteFiles, type FileEntry } from "./nostr.ts";
+import { type FileEntry, listRemoteFiles } from "./nostr.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 
 const log = createLogger("download");
@@ -54,7 +54,9 @@ export class DownloadService {
    * Fetch file list from relays for a given pubkey
    */
   async fetchFileList(relays: string[], pubkey: string): Promise<FileEntry[]> {
-    log.debug(`Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...`);
+    log.debug(
+      `Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...`,
+    );
     return await listRemoteFiles(relays, pubkey);
   }
 
@@ -64,14 +66,14 @@ export class DownloadService {
   async downloadFiles(
     files: FileEntry[],
     servers: string[],
-    options: DownloadOptions
+    options: DownloadOptions,
   ): Promise<DownloadResult[]> {
     const progress: DownloadProgress = {
       total: files.length,
       completed: 0,
       failed: 0,
       skipped: 0,
-      inProgress: 0
+      inProgress: 0,
     };
 
     const progressRenderer = new ProgressRenderer(files.length);
@@ -92,10 +94,10 @@ export class DownloadService {
             return {
               file,
               success: false,
-              error: error instanceof Error ? error.message : String(error)
+              error: error instanceof Error ? error.message : String(error),
             };
           }
-        })
+        }),
       );
 
       for (const result of batchResults) {
@@ -118,14 +120,14 @@ export class DownloadService {
           total: progress.total,
           completed: progress.completed + progress.skipped,
           failed: progress.failed,
-          inProgress: progress.inProgress
+          inProgress: progress.inProgress,
         });
       }
     }
 
     progressRenderer.complete(
       progress.failed === 0,
-      `Downloaded ${progress.completed} files, skipped ${progress.skipped}, failed ${progress.failed}`
+      `Downloaded ${progress.completed} files, skipped ${progress.skipped}, failed ${progress.failed}`,
     );
 
     return results;
@@ -137,7 +139,7 @@ export class DownloadService {
   async downloadSingleFile(
     file: FileEntry,
     servers: string[],
-    options: DownloadOptions
+    options: DownloadOptions,
   ): Promise<DownloadResult> {
     const outputPath = join(options.output, file.path);
 
@@ -151,7 +153,7 @@ export class DownloadService {
       return {
         file,
         success: false,
-        error: "No SHA256 hash found for file"
+        error: "No SHA256 hash found for file",
       };
     }
 
@@ -170,7 +172,7 @@ export class DownloadService {
           return {
             file,
             success: true,
-            savedPath: outputPath
+            savedPath: outputPath,
           };
         }
       } catch (error) {
@@ -184,7 +186,7 @@ export class DownloadService {
     return {
       file,
       success: false,
-      error: `Failed to download from any server (tried ${servers.length} servers)`
+      error: `Failed to download from any server (tried ${servers.length} servers)`,
     };
   }
 
@@ -199,8 +201,8 @@ export class DownloadService {
       const response = await fetch(downloadUrl, {
         method: "GET",
         headers: {
-          "Accept": "*/*"
-        }
+          "Accept": "*/*",
+        },
       });
 
       if (!response.ok) {
@@ -222,7 +224,10 @@ export class DownloadService {
   /**
    * Check if a file already exists and handle overwrite logic
    */
-  private async checkExistingFile(outputPath: string, overwrite?: boolean): Promise<DownloadResult | null> {
+  private async checkExistingFile(
+    outputPath: string,
+    overwrite?: boolean,
+  ): Promise<DownloadResult | null> {
     try {
       const stat = await Deno.stat(outputPath);
       if (stat.isFile && !overwrite) {
@@ -231,7 +236,7 @@ export class DownloadService {
           success: true,
           skipped: true,
           reason: "File already exists (use --overwrite to replace)",
-          savedPath: outputPath
+          savedPath: outputPath,
         };
       }
     } catch {
@@ -246,7 +251,7 @@ export class DownloadService {
   private async saveFile(outputPath: string, data: Uint8Array): Promise<void> {
     // Ensure directory exists
     await ensureDir(dirname(outputPath));
-    
+
     // Save file
     await Deno.writeFile(outputPath, data);
   }
@@ -255,9 +260,9 @@ export class DownloadService {
    * Calculate download statistics
    */
   calculateStats(results: DownloadResult[]): DownloadStats {
-    const successful = results.filter(r => r.success && !r.skipped);
-    const skipped = results.filter(r => r.skipped);
-    const failed = results.filter(r => !r.success);
+    const successful = results.filter((r) => r.success && !r.skipped);
+    const skipped = results.filter((r) => r.skipped);
+    const failed = results.filter((r) => !r.success);
 
     const totalSize = results.reduce((sum, r) => sum + (r.file.size || 0), 0);
     const downloadedSize = successful.reduce((sum, r) => sum + (r.file.size || 0), 0);
@@ -268,7 +273,7 @@ export class DownloadService {
       skipped: skipped.length,
       failed: failed.length,
       totalSize,
-      downloadedSize
+      downloadedSize,
     };
   }
 
@@ -284,7 +289,7 @@ export class DownloadService {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 

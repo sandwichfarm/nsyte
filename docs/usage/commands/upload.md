@@ -35,21 +35,25 @@ nsyte upload <folder> [options]
 ## Examples
 
 Upload the `dist` directory:
+
 ```bash
 nsyte upload dist
 ```
 
 Upload with custom relays and servers:
+
 ```bash
 nsyte upload dist --relays wss://relay.example --servers https://server.example
 ```
 
 Force upload and purge deleted files:
+
 ```bash
 nsyte upload dist --force --purge
 ```
 
 Publish profile and relay/server lists:
+
 ```bash
 nsyte upload dist --publish-profile --publish-relay-list --publish-server-list
 ```
@@ -57,4 +61,4 @@ nsyte upload dist --publish-profile --publish-relay-list --publish-server-list
 ## Next Steps
 
 - [Check deployment status](../../guides/deployment.md)
-- [Configure relays and servers](../configuration.md#relays-and-servers) 
+- [Configure relays and servers](../configuration.md#relays-and-servers)

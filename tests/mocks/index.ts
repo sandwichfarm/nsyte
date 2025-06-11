@@ -1,4 +1,4 @@
-import { stub, type Stub } from "std/testing/mock.ts";
+import { type Stub, stub } from "std/testing/mock.ts";
 import type { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 
@@ -16,7 +16,7 @@ export function stubExit(): Stub {
     // Don't actually exit, just return undefined
     return undefined as never;
   }) as (code?: number) => never;
-  
+
   return stub(Deno, "exit", mockExit);
 }
 
@@ -24,7 +24,7 @@ export function stubExit(): Stub {
  * Create a mock SecretsManager instance
  */
 export function createMockSecretsManager(
-  data: Record<string, string> = {}
+  data: Record<string, string> = {},
 ): Partial<SecretsManager> & {
   storeNbunk: (pubkey: string, nbunk: string) => Promise<boolean>;
   getNbunk: (pubkey: string) => Promise<string | null>;
@@ -32,7 +32,7 @@ export function createMockSecretsManager(
   deleteNbunk: (pubkey: string) => Promise<boolean>;
 } {
   const storage = new Map(Object.entries(data));
-  
+
   return {
     storeNbunk: async (pubkey: string, nbunk: string) => {
       storage.set(pubkey, nbunk);
@@ -97,7 +97,7 @@ export function captureConsole() {
  */
 export function createTestDirectory(prefix: string = "test") {
   const dir = Deno.makeTempDirSync({ prefix: `nsyte_${prefix}_` });
-  
+
   return {
     path: dir,
     cleanup: () => {
@@ -138,7 +138,7 @@ export async function mockInteractivePrompts() {
   }
 
   return {
-    restore: () => stubs.forEach(s => s.restore()),
+    restore: () => stubs.forEach((s) => s.restore()),
   };
 }
 
@@ -158,6 +158,6 @@ export async function setupTestMocks() {
   }
 
   return {
-    restore: () => stubs.forEach(s => s.restore()),
+    restore: () => stubs.forEach((s) => s.restore()),
   };
 }

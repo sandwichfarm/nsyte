@@ -26,11 +26,11 @@ const command = new Deno.Command("deno", {
     "--allow-all",
     "--no-prompt",
     "--no-check", // Skip type checking for now
-    ...testPaths
+    ...testPaths,
   ],
   env: {
     ...Deno.env.toObject(),
-    NSYTE_DISABLE_KEYCHAIN: "true"
+    NSYTE_DISABLE_KEYCHAIN: "true",
   },
   stdout: "inherit",
   stderr: "inherit",

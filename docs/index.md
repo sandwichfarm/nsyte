@@ -7,7 +7,8 @@ description: Complete documentation for nsyte - publish your site to nostr and b
 
 > ⚠️ nsyte is alpha. use at your own risk.
 
-Welcome to the nsyte documentation! nsyte is a command-line tool for publishing websites to nostr and Blossom servers, enabling decentralized, censorship-resistant website hosting.
+Welcome to the nsyte documentation! nsyte is a command-line tool for publishing websites to nostr
+and Blossom servers, enabling decentralized, censorship-resistant website hosting.
 
 ## Quick Start
 
@@ -25,14 +26,17 @@ nsyte upload ./dist
 ## Documentation Sections
 
 ### Getting Started
+
 - [**Installation**](installation.md) - Install nsyte on your platform
 - [**Basic Usage**](usage/index.md) - Learn the fundamentals
 
 ### Core Features
+
 - [**Configuration**](usage/configuration.md) - Configure nsyte for your needs
 - [**Commands**](usage/commands/upload.md) - Complete command reference
 
 ### Advanced Topics
+
 - [**CI/CD Integration**](guides/ci-cd.md) - Automated deployments
 - [**Security Best Practices**](guides/security.md) - Keep your deployments secure
 - [**Local Development**](guides/local-setup.md) - Development environment setup
@@ -53,4 +57,6 @@ nsyte upload ./dist
 
 ## About nsyte
 
-nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by [flox1an](https://github.com/flox1an), ported to Deno with enhanced features and improved performance.
+nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
+[flox1an](https://github.com/flox1an), ported to Deno with enhanced features and improved
+performance.

@@ -1,25 +1,25 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { Command } from "@cliffy/command";
-import { spy, stub, restore } from "std/testing/mock.ts";
+import { restore, spy, stub } from "std/testing/mock.ts";
 import { registerServeCommand, serveCommand } from "../../src/commands/serve.ts";
 
 Deno.test("Serve Command - Registration", async (t) => {
   await t.step("should register serve command with options", () => {
     const program = new Command();
     registerServeCommand(program);
-    
+
     const commands = program.getCommands();
-    const serveCmd = commands.find(cmd => cmd.getName() === "serve");
-    
+    const serveCmd = commands.find((cmd) => cmd.getName() === "serve");
+
     assertExists(serveCmd);
     assertEquals(serveCmd.getName(), "serve");
     assertEquals(serveCmd.getDescription(), "Build and serve your local nsite files");
-    
+
     // Check if options are registered
     const options = serveCmd.getOptions();
-    const hasPortOption = options.some(opt => opt.flags.includes("--port"));
-    const hasDirOption = options.some(opt => opt.flags.includes("--dir"));
-    
+    const hasPortOption = options.some((opt) => opt.flags.includes("--port"));
+    const hasDirOption = options.some((opt) => opt.flags.includes("--dir"));
+
     assertEquals(hasPortOption, true);
     assertEquals(hasDirOption, true);
   });
@@ -31,7 +31,7 @@ Deno.test("Serve Command - Success Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => true
+      () => true,
     );
 
     // Mock Deno.cwd
@@ -42,27 +42,26 @@ Deno.test("Serve Command - Success Cases", async (t) => {
 
     // Mock Deno.serve
     const mockServer = {
-      finished: Promise.resolve()
+      finished: Promise.resolve(),
     };
     const serveStub = stub(Deno, "serve", () => mockServer);
 
     try {
       await serveCommand({});
-      
+
       // Verify console output
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      const hasStartMessage = logCalls.some(log => log.includes("Starting local nsite server"));
-      const hasDirectoryMessage = logCalls.some(log => log.includes("/test/directory/."));
-      const hasUrlMessage = logCalls.some(log => log.includes("http://localhost:8080"));
-      
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+      const hasStartMessage = logCalls.some((log) => log.includes("Starting local nsite server"));
+      const hasDirectoryMessage = logCalls.some((log) => log.includes("/test/directory/."));
+      const hasUrlMessage = logCalls.some((log) => log.includes("http://localhost:8080"));
+
       assertEquals(hasStartMessage, true);
       assertEquals(hasDirectoryMessage, true);
       assertEquals(hasUrlMessage, true);
-      
+
       // Verify server was started with correct port
       assertEquals(serveStub.calls.length, 1);
       assertEquals(serveStub.calls[0].args[0].port, 8080);
-      
     } finally {
       restore();
     }
@@ -73,7 +72,7 @@ Deno.test("Serve Command - Success Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => true
+      () => true,
     );
 
     // Mock Deno.cwd
@@ -84,25 +83,24 @@ Deno.test("Serve Command - Success Cases", async (t) => {
 
     // Mock Deno.serve
     const mockServer = {
-      finished: Promise.resolve()
+      finished: Promise.resolve(),
     };
     const serveStub = stub(Deno, "serve", () => mockServer);
 
     try {
       await serveCommand({ port: 3000, dir: "public" });
-      
+
       // Verify console output with custom values
-      const logCalls = consoleLogSpy.calls.map(call => call.args.join(' '));
-      const hasDirectoryMessage = logCalls.some(log => log.includes("/test/directory/public"));
-      const hasUrlMessage = logCalls.some(log => log.includes("http://localhost:3000"));
-      
+      const logCalls = consoleLogSpy.calls.map((call) => call.args.join(" "));
+      const hasDirectoryMessage = logCalls.some((log) => log.includes("/test/directory/public"));
+      const hasUrlMessage = logCalls.some((log) => log.includes("http://localhost:3000"));
+
       assertEquals(hasDirectoryMessage, true);
       assertEquals(hasUrlMessage, true);
-      
+
       // Verify server was started with custom port
       assertEquals(serveStub.calls.length, 1);
       assertEquals(serveStub.calls[0].args[0].port, 3000);
-      
     } finally {
       restore();
     }
@@ -113,7 +111,7 @@ Deno.test("Serve Command - Success Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => true
+      () => true,
     );
 
     // Mock Deno.cwd
@@ -124,13 +122,13 @@ Deno.test("Serve Command - Success Cases", async (t) => {
     const serveDirStub = stub(
       await import("@std/http/file-server"),
       "serveDir",
-      () => Promise.resolve(mockResponse)
+      () => Promise.resolve(mockResponse),
     );
 
     // Mock Deno.serve to capture handler
     let capturedHandler: ((req: Request) => Promise<Response>) | null = null;
     const mockServer = {
-      finished: Promise.resolve()
+      finished: Promise.resolve(),
     };
     const serveStub = stub(Deno, "serve", (options, handler) => {
       capturedHandler = handler;
@@ -139,21 +137,20 @@ Deno.test("Serve Command - Success Cases", async (t) => {
 
     try {
       const servePromise = serveCommand({ dir: "." });
-      
+
       // Test the captured handler
       if (capturedHandler) {
         const testRequest = new Request("http://localhost:8080/test.html");
         const response = await capturedHandler(testRequest);
-        
+
         assertEquals(response, mockResponse);
-        
+
         // Verify serveDir was called with correct options
         assertEquals(serveDirStub.calls.length, 1);
         assertEquals(serveDirStub.calls[0].args[1].fsRoot, "/test/.");
         assertEquals(serveDirStub.calls[0].args[1].showDirListing, true);
         assertEquals(serveDirStub.calls[0].args[1].enableCors, true);
       }
-      
     } finally {
       restore();
     }
@@ -166,7 +163,7 @@ Deno.test("Serve Command - Error Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => false
+      () => false,
     );
 
     // Mock Deno.cwd
@@ -180,19 +177,18 @@ Deno.test("Serve Command - Error Cases", async (t) => {
 
     try {
       await serveCommand({ dir: "nonexistent" });
-      
+
       // Verify error message
-      const errorCalls = consoleErrorSpy.calls.map(call => call.args.join(' '));
-      const hasErrorMessage = errorCalls.some(log => 
+      const errorCalls = consoleErrorSpy.calls.map((call) => call.args.join(" "));
+      const hasErrorMessage = errorCalls.some((log) =>
         log.includes("Directory not found") && log.includes("/test/directory/nonexistent")
       );
-      
+
       assertEquals(hasErrorMessage, true);
-      
+
       // Verify exit(1) was called
       assertEquals(exitStub.calls.length, 1);
       assertEquals(exitStub.calls[0].args[0], 1);
-      
     } finally {
       restore();
     }
@@ -203,7 +199,7 @@ Deno.test("Serve Command - Error Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => true
+      () => true,
     );
 
     // Mock Deno.cwd
@@ -218,19 +214,18 @@ Deno.test("Serve Command - Error Cases", async (t) => {
     const handleErrorStub = stub(
       await import("../../src/lib/error-utils.ts"),
       "handleError",
-      () => {}
+      () => {},
     );
 
     try {
       await serveCommand({ port: 8080 });
-      
+
       // Verify handleError was called
       assertEquals(handleErrorStub.calls.length, 1);
       assertEquals(handleErrorStub.calls[0].args[0], "Error starting server");
       assertEquals(handleErrorStub.calls[0].args[1].message, "Port already in use");
       assertEquals(handleErrorStub.calls[0].args[2].exit, true);
       assertEquals(handleErrorStub.calls[0].args[2].showConsole, true);
-      
     } finally {
       restore();
     }
@@ -241,7 +236,7 @@ Deno.test("Serve Command - Error Cases", async (t) => {
     const existsSyncStub = stub(
       await import("@std/fs/exists"),
       "existsSync",
-      () => true
+      () => true,
     );
 
     // Mock Deno.cwd
@@ -249,18 +244,17 @@ Deno.test("Serve Command - Error Cases", async (t) => {
 
     // Mock Deno.serve
     const mockServer = {
-      finished: Promise.resolve()
+      finished: Promise.resolve(),
     };
     const serveStub = stub(Deno, "serve", () => mockServer);
 
     try {
       // Pass undefined values to test fallbacks
       await serveCommand({ port: undefined, dir: undefined });
-      
+
       // Verify default port 8080 was used
       assertEquals(serveStub.calls.length, 1);
       assertEquals(serveStub.calls[0].args[0].port, 8080);
-      
     } finally {
       restore();
     }

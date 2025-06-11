@@ -73,4 +73,4 @@ export function fileExists(filePath: string): boolean {
     }
     throw error;
   }
-} 
+}

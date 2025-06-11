@@ -1,5 +1,5 @@
 /* Cypherpunk theme for nsyte documentation */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 /* Global cypherpunk variables - lower contrast */
 :root {
@@ -17,8 +17,8 @@
   --cyber-blue: #3b82f6;
   --cyber-warning: #f59e0b;
   --cyber-error: #ef4444;
-  --cyber-font-mono: 'JetBrains Mono', 'SF Mono', monospace;
-  --cyber-font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --cyber-font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --cyber-font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 /* Override Material theme variables */
@@ -66,7 +66,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .md-typeset pre > code::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -103,7 +103,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .terminal::before {
-  content: '●●●';
+  content: "●●●";
   position: absolute;
   top: 12px;
   left: 16px;
@@ -224,7 +224,12 @@ code, pre, .highlight, .md-typeset code {
 
 /* Cypherpunk Hero Section */
 .hero-section {
-  background: linear-gradient(135deg, var(--cyber-bg) 0%, var(--cyber-surface) 50%, var(--cyber-bg) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--cyber-bg) 0%,
+    var(--cyber-surface) 50%,
+    var(--cyber-bg) 100%
+  );
   position: relative;
   color: var(--cyber-text);
   padding: 6rem 0;
@@ -235,13 +240,13 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .hero-section::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 20% 20%, rgba(0, 255, 65, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(157, 78, 221, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(0, 153, 255, 0.05) 0%, transparent 50%);
@@ -249,12 +254,16 @@ code, pre, .highlight, .md-typeset code {
 }
 
 @keyframes cyber-pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .hero-section::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -302,7 +311,7 @@ code, pre, .highlight, .md-typeset code {
   font-weight: 700;
   margin: 0 0 1.5rem 0;
   color: var(--cyber-text);
-  text-shadow: 
+  text-shadow:
     0 0 10px var(--cyber-accent),
     0 0 20px var(--cyber-accent),
     0 0 40px var(--cyber-accent);
@@ -313,7 +322,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .hero-title::before {
-  content: '> ';
+  content: "> ";
   color: var(--cyber-accent);
   font-family: var(--cyber-font-mono);
   font-size: 0.8em;
@@ -321,8 +330,12 @@ code, pre, .highlight, .md-typeset code {
 }
 
 @keyframes cursor-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
 }
 
 .hero-tagline {
@@ -359,27 +372,35 @@ code, pre, .highlight, .md-typeset code {
   max-width: 500px;
   position: relative;
   backdrop-filter: blur(10px);
-  box-shadow: 
-    0 0 20px rgba(0, 255, 65, 0.2),
-    inset 0 0 20px rgba(0, 255, 65, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.2), inset 0 0 20px rgba(0, 255, 65, 0.1);
 }
 
 .demo-box::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -2px;
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background: linear-gradient(45deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue), var(--cyber-accent));
+  background: linear-gradient(
+    45deg,
+    var(--cyber-accent),
+    var(--cyber-purple),
+    var(--cyber-blue),
+    var(--cyber-accent)
+  );
   border-radius: 12px;
   z-index: -1;
   animation: border-spin 3s linear infinite;
 }
 
 @keyframes border-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .demo-text {
@@ -420,7 +441,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .btn::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
@@ -446,9 +467,7 @@ code, pre, .highlight, .md-typeset code {
   background: var(--cyber-accent-bright);
   border-color: var(--cyber-accent-bright);
   transform: translateY(-3px);
-  box-shadow: 
-    0 8px 25px rgba(0, 255, 65, 0.3),
-    0 0 40px rgba(0, 255, 65, 0.6);
+  box-shadow: 0 8px 25px rgba(0, 255, 65, 0.3), 0 0 40px rgba(0, 255, 65, 0.6);
 }
 
 .btn-secondary {
@@ -463,9 +482,7 @@ code, pre, .highlight, .md-typeset code {
   border-color: var(--cyber-accent-bright);
   color: var(--cyber-accent-bright);
   transform: translateY(-3px);
-  box-shadow: 
-    0 8px 25px rgba(0, 255, 65, 0.2),
-    0 0 30px rgba(0, 255, 65, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 255, 65, 0.2), 0 0 30px rgba(0, 255, 65, 0.4);
 }
 
 /* Cypherpunk Installation Tabs */
@@ -476,19 +493,23 @@ code, pre, .highlight, .md-typeset code {
   margin: 3rem 0;
   overflow: hidden;
   position: relative;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(0, 255, 65, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 65, 0.1);
 }
 
 .install-tabs::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple), var(--cyber-blue), var(--cyber-accent));
+  background: linear-gradient(
+    90deg,
+    var(--cyber-accent),
+    var(--cyber-purple),
+    var(--cyber-blue),
+    var(--cyber-accent)
+  );
 }
 
 .tab-nav {
@@ -500,7 +521,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .tab-nav::before {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 0;
@@ -527,7 +548,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .tab-button::before {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 0;
@@ -572,8 +593,14 @@ code, pre, .highlight, .md-typeset code {
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .install-method {
@@ -590,7 +617,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .install-method::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -622,7 +649,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .code-block::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -693,7 +720,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .feature-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -706,9 +733,7 @@ code, pre, .highlight, .md-typeset code {
 
 .feature-card:hover {
   transform: translateY(-8px);
-  box-shadow: 
-    0 16px 40px rgba(0, 0, 0, 0.4),
-    0 0 30px rgba(0, 255, 65, 0.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 255, 65, 0.2);
   border-color: var(--cyber-accent);
 }
 
@@ -745,7 +770,7 @@ code, pre, .highlight, .md-typeset code {
 }
 
 .footer-note::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 50%;
@@ -772,58 +797,58 @@ code, pre, .highlight, .md-typeset code {
     padding: 4rem 0;
     margin: -1rem -1rem 3rem -1rem;
   }
-  
+
   .hero-title {
     font-size: 2.8rem;
     line-height: 1.2;
   }
-  
+
   .hero-tagline {
     font-size: 1.4rem;
   }
-  
+
   .hero-description {
     font-size: 1rem;
     padding: 0 1rem;
   }
-  
+
   .cta-buttons {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
   }
-  
+
   .btn {
     width: 240px;
     text-align: center;
     justify-content: center;
   }
-  
+
   .tab-nav {
     flex-wrap: wrap;
   }
-  
+
   .tab-button {
     flex: 1;
     min-width: 80px;
     padding: 12px 16px;
     font-size: 12px;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
-  
+
   .code-block {
     font-size: 12px;
     padding: 1rem;
   }
-  
+
   .install-method {
     padding: 1rem;
   }
-  
+
   .demo-box {
     padding: 2rem 1rem;
     margin: 0 1rem;
@@ -1080,32 +1105,32 @@ code, pre, .highlight, .md-typeset code {
   .md-header {
     min-height: 3rem;
   }
-  
+
   .md-header__inner {
     padding: 0 0.5rem;
   }
-  
+
   .md-header__title {
     font-size: 1rem;
   }
-  
+
   .md-tabs {
     min-height: 2.5rem;
   }
-  
+
   .md-tabs__inner {
     padding: 0 0.5rem;
   }
-  
+
   .md-tabs__link {
     font-size: 0.8rem;
     padding: 0 0.75rem;
     min-height: 2.5rem;
     line-height: 2.5rem;
   }
-  
+
   .md-search__input {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
   }
-} 
+}

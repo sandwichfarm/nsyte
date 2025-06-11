@@ -52,7 +52,10 @@ Deno.test("Run Command Integration - Command Registration", async (t) => {
 
     assertEquals(runCommand !== undefined, true);
     assertEquals(runCommand?.getName(), "run");
-    assertEquals(runCommand?.getDescription(), "Run a resolver server that serves nsites via npub subdomains");
+    assertEquals(
+      runCommand?.getDescription(),
+      "Run a resolver server that serves nsites via npub subdomains",
+    );
   });
 
   await t.step("should have correct command options", () => {

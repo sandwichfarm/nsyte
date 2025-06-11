@@ -1,4 +1,4 @@
-import { stub, Stub } from "std/testing/mock.ts";
+import { Stub, stub } from "std/testing/mock.ts";
 
 /**
  * Helper to stub Deno.exit for tests
@@ -16,22 +16,22 @@ export function stubExit(): Stub {
 export function stubConsole() {
   const logs: string[] = [];
   const errors: string[] = [];
-  
+
   const logStub = stub(console, "log", (...args: unknown[]) => {
     logs.push(args.map(String).join(" "));
   });
-  
+
   const errorStub = stub(console, "error", (...args: unknown[]) => {
     errors.push(args.map(String).join(" "));
   });
-  
+
   return {
     logs,
     errors,
     restore: () => {
       logStub.restore();
       errorStub.restore();
-    }
+    },
   };
 }
 
@@ -40,7 +40,7 @@ export function stubConsole() {
  */
 export function createTestDir(name: string) {
   const testDir = `./test_${name}_${Date.now()}`;
-  
+
   const cleanup = () => {
     try {
       Deno.removeSync(testDir, { recursive: true });
@@ -48,12 +48,12 @@ export function createTestDir(name: string) {
       // Ignore errors
     }
   };
-  
+
   // Clean up any existing directory
   cleanup();
-  
+
   // Create fresh directory
   Deno.mkdirSync(testDir, { recursive: true });
-  
+
   return { testDir, cleanup };
 }

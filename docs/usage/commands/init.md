@@ -10,6 +10,7 @@ Initialize a new nsyte site in the current directory.
 ## Description
 
 The `init` command creates a new nsyte site by:
+
 1. Creating the `.nsite` directory
 2. Generating a default configuration file
 3. Setting up initial project structure
@@ -29,16 +30,19 @@ nsyte init [options]
 ## Examples
 
 Basic initialization:
+
 ```bash
 nsyte init
 ```
 
 Force initialization:
+
 ```bash
 nsyte init --force
 ```
 
 Use template:
+
 ```bash
 nsyte init --template=blog
 ```
@@ -74,6 +78,7 @@ After initialization, your project will have this structure:
 ## Next Steps
 
 After initialization:
+
 1. Configure your [relays and servers](../configuration.md#relays-and-servers)
 2. Set up your [authentication](../configuration.md#authentication)
-3. Start [building your site](../index.md#building-your-site) 
+3. Start [building your site](../index.md#building-your-site)

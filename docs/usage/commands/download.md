@@ -24,16 +24,19 @@ nsyte download [options]
 ## Examples
 
 Download files to the `backup` directory:
+
 ```bash
 nsyte download --output backup
 ```
 
 Download files for a specific public key:
+
 ```bash
 nsyte download --pubkey npub1... --output backup
 ```
 
 Download files using a private key and custom relays:
+
 ```bash
 nsyte download --privatekey nsec1... --relays wss://relay.example --output backup
-``` 
+```

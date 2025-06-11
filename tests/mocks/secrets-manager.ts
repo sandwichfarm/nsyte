@@ -66,7 +66,7 @@ export class MockSecretsManager {
  * Create a fresh mock SecretsManager instance for tests
  */
 export function createMockSecretsManager(
-  initialData: MockSecretsManagerData = {}
+  initialData: MockSecretsManagerData = {},
 ): MockSecretsManager {
   return new MockSecretsManager(initialData);
 }
@@ -81,6 +81,6 @@ export function mockSecretsManagerModule(mockInstance: MockSecretsManager) {
       getInstance: () => mockInstance,
       // Expose instance for direct access if needed
       instance: mockInstance,
-    }
+    },
   };
 }

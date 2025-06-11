@@ -49,7 +49,8 @@ Deno.test("Nostr Library - generateKeyPair", async (t) => {
 
 Deno.test("Nostr Library - parseBunkerUrl", async (t) => {
   await t.step("should parse valid bunker URL with relay and secret", () => {
-    const url = "bunker://23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d?relay=wss://relay.example.com&secret=mysecret";
+    const url =
+      "bunker://23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d?relay=wss://relay.example.com&secret=mysecret";
     const result = parseBunkerUrl(url);
 
     assertEquals(result.pubkey, "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d");
@@ -58,7 +59,8 @@ Deno.test("Nostr Library - parseBunkerUrl", async (t) => {
   });
 
   await t.step("should parse bunker URL with multiple relays", () => {
-    const url = "bunker://e428a103934f42d877740eb926ea84a51ac9ce2bd1e344ae8924329814012179?relay=wss://relay1.com&relay=wss://relay2.com";
+    const url =
+      "bunker://e428a103934f42d877740eb926ea84a51ac9ce2bd1e344ae8924329814012179?relay=wss://relay1.com&relay=wss://relay2.com";
     const result = parseBunkerUrl(url);
 
     assertEquals(result.pubkey, "e428a103934f42d877740eb926ea84a51ac9ce2bd1e344ae8924329814012179");
@@ -67,7 +69,8 @@ Deno.test("Nostr Library - parseBunkerUrl", async (t) => {
   });
 
   await t.step("should parse bunker URL without secret", () => {
-    const url = "bunker://ad5308eb46a2194e0304d5fb3b8e1ded04541dba71bea36bda3906f7b9ca2b7f?relay=wss://relay.com";
+    const url =
+      "bunker://ad5308eb46a2194e0304d5fb3b8e1ded04541dba71bea36bda3906f7b9ca2b7f?relay=wss://relay.com";
     const result = parseBunkerUrl(url);
 
     assertEquals(result.pubkey, "ad5308eb46a2194e0304d5fb3b8e1ded04541dba71bea36bda3906f7b9ca2b7f");
@@ -79,7 +82,8 @@ Deno.test("Nostr Library - parseBunkerUrl", async (t) => {
 Deno.test("Nostr Library - createNip46ClientFromUrl", async (t) => {
   await t.step("should create client from valid bunker URL", async () => {
     const mockSigner = {
-      getPublicKey: () => Promise.resolve("23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d"),
+      getPublicKey: () =>
+        Promise.resolve("23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d"),
     };
 
     // Mock NostrConnectSigner
@@ -94,7 +98,10 @@ Deno.test("Nostr Library - createNip46ClientFromUrl", async (t) => {
       const result = await createNip46ClientFromUrl("bunker://test");
 
       assertEquals(result.client, mockSigner);
-      assertEquals(result.userPubkey, "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d");
+      assertEquals(
+        result.userPubkey,
+        "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d",
+      );
       assertEquals(fromBunkerURIStub.calls.length, 1);
       assertEquals(fromBunkerURIStub.calls[0].args[0], "bunker://test");
     } finally {
@@ -231,7 +238,10 @@ Deno.test("Nostr Library - listRemoteFiles", async (t) => {
     );
 
     try {
-      const files = await listRemoteFiles(["wss://relay.test"], "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d");
+      const files = await listRemoteFiles(
+        ["wss://relay.test"],
+        "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d",
+      );
 
       assertEquals(files, []);
       assertEquals(fetchFileEventsStub.calls.length, 1);
@@ -290,7 +300,10 @@ Deno.test("Nostr Library - listRemoteFiles", async (t) => {
       );
 
       try {
-        const files = await listRemoteFiles(["wss://relay.test"], "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d");
+        const files = await listRemoteFiles(
+          ["wss://relay.test"],
+          "23762f9bc85456db6badaaba49e33a640cc09856442b202c2df968cf0e96ff5d",
+        );
 
         assertEquals(files.length, 2);
 

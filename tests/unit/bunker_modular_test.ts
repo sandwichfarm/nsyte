@@ -3,7 +3,7 @@ import "../test-setup-global.ts";
 
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 import { createMockSecretsManager } from "../mocks/secrets-manager.ts";
 
@@ -20,20 +20,24 @@ describe("Bunker Modular Tests", () => {
     mockSecretsManager = createMockSecretsManager();
 
     // Setup exit stub
-    exitStub = stub(Deno, "exit", ((code?: number) => {
-      (exitStub as any).lastExitCode = code;
-      return undefined as never;
-    }) as any);
+    exitStub = stub(
+      Deno,
+      "exit",
+      ((code?: number) => {
+        (exitStub as any).lastExitCode = code;
+        return undefined as never;
+      }) as any,
+    );
 
     // Setup console capture
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -42,7 +46,7 @@ describe("Bunker Modular Tests", () => {
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
@@ -52,7 +56,7 @@ describe("Bunker Modular Tests", () => {
     it("should display help information", async () => {
       // Import and call directly without module-level stubbing
       const { showBunkerHelp } = await import("../../src/commands/bunker.ts");
-      
+
       await showBunkerHelp();
       const output = [...consoleOutput.logs, ...consoleOutput.errors].join("\n");
 
@@ -68,7 +72,7 @@ describe("Bunker Modular Tests", () => {
       // This test verifies that we can import the bunker module
       // without triggering any system calls
       const bunkerModule = await import("../../src/commands/bunker.ts");
-      
+
       assertExists(bunkerModule.showBunkerHelp);
       assertExists(bunkerModule.listBunkers);
       assertExists(bunkerModule.importNbunk);
@@ -81,10 +85,10 @@ describe("Bunker Modular Tests", () => {
       // Test that our mock works
       await mockSecretsManager.storeNbunk("test", "value");
       assertEquals(await mockSecretsManager.getNbunk("test"), "value");
-      
+
       const pubkeys = await mockSecretsManager.getAllPubkeys();
       assertEquals(pubkeys, ["test"]);
-      
+
       const deleted = await mockSecretsManager.deleteNbunk("test");
       assertEquals(deleted, true);
       assertEquals(await mockSecretsManager.getNbunk("test"), null);

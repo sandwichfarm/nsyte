@@ -5,7 +5,9 @@ description: List files available on the nostr network
 
 # ls
 
-List files available on the nostr network for a given public key. This command shows which files have been published to nostr relays and indicates which files would be ignored based on local `.nsite-ignore` rules.
+List files available on the nostr network for a given public key. This command shows which files
+have been published to nostr relays and indicates which files would be ignored based on local
+`.nsite-ignore` rules.
 
 ## Usage
 
@@ -15,23 +17,27 @@ nsyte ls [options]
 
 ## Options
 
-- `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays from project config or default discovery relays
+- `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays
+  from project config or default discovery relays
 - `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for authentication
 - `-p, --pubkey <npub>` — The public key to list files for (if not using private key)
 
 ## Examples
 
 List files using project config:
+
 ```bash
 nsyte ls
 ```
 
 List files for a specific public key:
+
 ```bash
 nsyte ls --pubkey npub1... --relays wss://relay.example
 ```
 
 List files using a private key:
+
 ```bash
 nsyte ls --privatekey nsec1...
 ```
@@ -52,8 +58,10 @@ The `ls` command supports multiple authentication methods:
 ## Ignore Rules
 
 Files marked in red in the output would be ignored during upload based on:
+
 - Default ignore patterns (`.git/**`, `node_modules/**`, etc.)
 - Custom patterns in `.nsite-ignore` file
 - Implicit dotfile ignoring (except `.well-known/`)
 
-This helps you understand which remote files would not be re-uploaded in a subsequent `nsyte upload` command. 
+This helps you understand which remote files would not be re-uploaded in a subsequent `nsyte upload`
+command.

@@ -20,7 +20,12 @@ import { Confirm, Input, Select } from "@cliffy/prompt";
 import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
-import { decodeBunkerInfo, getNbunkString, initiateNostrConnect, parseBunkerUrl } from "../lib/nip46.ts";
+import {
+  decodeBunkerInfo,
+  getNbunkString,
+  initiateNostrConnect,
+  parseBunkerUrl,
+} from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 
 const log = createLogger("bunker-direct");
@@ -78,7 +83,9 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
           }
 
           if (pubkey && relay) {
-            const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${secret ? `&secret=${secret}` : ''}`;
+            const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${
+              secret ? `&secret=${secret}` : ""
+            }`;
             await connectBunker(url, false, noPersist);
           } else {
             await connectBunker(undefined, false, noPersist);
@@ -132,7 +139,9 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  export <pubkey>          Export a bunker as an nbunksec string");
   console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
   console.log("  connect --pubkey <key> --relay <url> [--secret <secret>] [--no-persist]");
-  console.log("                           Connect using separate parameters (avoids shell escaping issues)");
+  console.log(
+    "                           Connect using separate parameters (avoids shell escaping issues)",
+  );
   console.log("                           --no-persist: Display nbunksec without storing it");
   console.log("  use <pubkey>             Configure current project to use a bunker");
   console.log("  remove <pubkey>          Remove a bunker from storage");
@@ -181,7 +190,11 @@ export async function listBunkers(): Promise<void> {
       console.log(`- ${colors.green(pubkey)}`);
       console.log(`  Relays: ${info.relays.join(", ")}`);
     } catch (error) {
-      console.log(`- ${colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))} (Error decoding nbunksec)`);
+      console.log(
+        `- ${
+          colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))
+        } (Error decoding nbunksec)`,
+      );
     }
   }
 
@@ -204,8 +217,8 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
         message: "Enter the nbunksec string to import:",
         validate: (input: string) => {
           return input.trim().startsWith("nbunksec") ||
-                "Invalid nbunksec string. Must start with 'nbunksec'";
-        }
+            "Invalid nbunksec string. Must start with 'nbunksec'";
+        },
       });
     }
 
@@ -220,7 +233,9 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
     const secretsManager = SecretsManager.getInstance();
     await secretsManager.storeNbunk(info.pubkey, nbunkString);
 
-    console.log(colors.green(`Successfully imported bunker with pubkey ${info.pubkey.slice(0, 8)}...`));
+    console.log(
+      colors.green(`Successfully imported bunker with pubkey ${info.pubkey.slice(0, 8)}...`),
+    );
 
     const useForProject = await Confirm.prompt({
       message: "Would you like to use this bunker for the current project?",
@@ -252,9 +267,9 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
       return;
     }
 
-    const options = pubkeys.map(key => ({
+    const options = pubkeys.map((key) => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key
+      value: key,
     }));
 
     const result = await Select.prompt<string>({
@@ -286,7 +301,11 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
 /**
  * Connect to a bunker URL and store credentials
  */
-export async function connectBunker(bunkerUrl?: string, skipProjectInteraction = false, noPersist = false): Promise<void> {
+export async function connectBunker(
+  bunkerUrl?: string,
+  skipProjectInteraction = false,
+  noPersist = false,
+): Promise<void> {
   let signer: NostrConnectSigner | null = null;
   let bunkerPubkey: string | null = null;
   let operationError: Error | null = null;
@@ -306,7 +325,9 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
         const defaultRelays = ["wss://relay.nsec.app"];
 
         const relayInput = await Input.prompt({
-          message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+          message: `Enter relays (comma-separated), or press Enter for default (${
+            defaultRelays.join(", ")
+          }):`,
           default: defaultRelays.join(", "),
         });
 
@@ -314,7 +335,9 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r: string) => r.trim()).filter((r: string) => r.length > 0);
+          chosenRelays = relayInput.split(",").map((r: string) => r.trim()).filter((r: string) =>
+            r.length > 0
+          );
         }
 
         if (chosenRelays.length === 0) {
@@ -322,14 +345,26 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
           chosenRelays = defaultRelays;
         }
 
-        console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+        console.log(
+          colors.cyan(
+            `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+          ),
+        );
         signer = await initiateNostrConnect(appName, chosenRelays);
         log.debug("connectBunker: initiateNostrConnect returned, attempting signer.getPublicKey()");
 
         const getPubkeyPromise = await signer.getPublicKey();
         const pubkeyTimeoutMs = 30000; // 30 seconds
         const pubkeyTimeoutPromise = new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error(`signer.getPublicKey() timed out after ${pubkeyTimeoutMs / 1000} seconds`)), pubkeyTimeoutMs)
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `signer.getPublicKey() timed out after ${pubkeyTimeoutMs / 1000} seconds`,
+                ),
+              ),
+            pubkeyTimeoutMs,
+          )
         );
 
         try {
@@ -344,8 +379,8 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
           message: "Enter the bunker URL (bunker://...):",
           validate: (input: string) => {
             return input.trim().startsWith("bunker://") ||
-                  "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
-          }
+              "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+          },
         });
       } else {
         console.log(colors.yellow("Invalid choice. Exiting."));
@@ -355,9 +390,21 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
 
     if (bunkerUrl && !signer) {
       if (!bunkerUrl.includes("?relay=") && !bunkerUrl.includes("&secret=")) {
-        console.log(colors.yellow("The bunker URL appears to be incomplete. Shell metacharacters like ? and & need to be quoted."));
-        console.log(colors.yellow("Example: nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
-        console.log(colors.yellow("You can also enter the URL interactively to avoid shell escaping issues.\n"));
+        console.log(
+          colors.yellow(
+            "The bunker URL appears to be incomplete. Shell metacharacters like ? and & need to be quoted.",
+          ),
+        );
+        console.log(
+          colors.yellow(
+            "Example: nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'",
+          ),
+        );
+        console.log(
+          colors.yellow(
+            "You can also enter the URL interactively to avoid shell escaping issues.\n",
+          ),
+        );
 
         const retry = await Confirm.prompt({
           message: "Would you like to enter the bunker URL again interactively?",
@@ -389,7 +436,9 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
 
     if (noPersist) {
       console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...`));
-      console.log(colors.yellow("\n⚠️  --no-persist flag used. The nbunksec will NOT be stored.\n"));
+      console.log(
+        colors.yellow("\n⚠️  --no-persist flag used. The nbunksec will NOT be stored.\n"),
+      );
       console.log(colors.cyan("Your nbunksec string (copy it now, it won't be shown again):"));
       console.log(colors.bold(nbunkString));
       console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
@@ -401,7 +450,13 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
       await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
       log.debug("connectBunker: nbunkString stored");
 
-      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...\nGenerated and stored nbunksec string.`));
+      console.log(
+        colors.green(
+          `Successfully connected to bunker ${
+            bunkerPubkey.slice(0, 8)
+          }...\nGenerated and stored nbunksec string.`,
+        ),
+      );
 
       if (!skipProjectInteraction) {
         const useForProject = await Confirm.prompt({
@@ -420,8 +475,14 @@ export async function connectBunker(bunkerUrl?: string, skipProjectInteraction =
     console.log(colors.red(`Failed to connect to bunker: ${errorMessage}`));
 
     if (errorMessage.includes("URL format") || errorMessage.includes("invalid URL")) {
-      console.log(colors.yellow("\nRemember to properly quote URLs with special characters in the shell:"));
-      console.log(colors.cyan("  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"));
+      console.log(
+        colors.yellow("\nRemember to properly quote URLs with special characters in the shell:"),
+      );
+      console.log(
+        colors.cyan(
+          "  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'",
+        ),
+      );
     }
   } finally {
     if (signer) {
@@ -454,9 +515,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
       return;
     }
 
-    const options = pubkeys.map(key => ({
+    const options = pubkeys.map((key) => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key
+      value: key,
     }));
 
     const result = await Select.prompt<string>({
@@ -482,7 +543,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
 
   const config = readProjectFile();
   if (!config) {
-    console.log(colors.red("No project configuration found. Initialize a project first with 'nsyte init'."));
+    console.log(
+      colors.red("No project configuration found. Initialize a project first with 'nsyte init'."),
+    );
     Deno.exit(0);
     return;
   }
@@ -490,7 +553,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   config.bunkerPubkey = pubkey;
   writeProjectFile(config);
 
-  console.log(colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`));
+  console.log(
+    colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`),
+  );
 }
 
 /**
@@ -508,9 +573,9 @@ export async function removeBunker(pubkey?: string): Promise<void> {
       return;
     }
 
-    const options = pubkeys.map(key => ({
+    const options = pubkeys.map((key) => ({
       name: `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key
+      value: key,
     }));
 
     const result = await Select.prompt<string>({
@@ -546,7 +611,8 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     const config = readProjectFile();
     if (config?.bunkerPubkey === pubkey) {
       const removeFromProject = await Confirm.prompt({
-        message: "This bunker is used by the current project. Remove it from project configuration?",
+        message:
+          "This bunker is used by the current project. Remove it from project configuration?",
         default: true,
       });
 

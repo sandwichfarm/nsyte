@@ -3,7 +3,7 @@ import "../test-setup-global.ts";
 
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 import { createMockSecretsManager } from "../mocks/secrets-manager.ts";
 
@@ -22,11 +22,11 @@ describe("Secrets Safe Tests", () => {
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -35,7 +35,7 @@ describe("Secrets Safe Tests", () => {
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
@@ -57,7 +57,7 @@ describe("Secrets Safe Tests", () => {
 
     it("should delete nbunks", async () => {
       await mockSecretsManager.storeNbunk("pubkey123", "nbunksec1test");
-      
+
       const deleted = await mockSecretsManager.deleteNbunk("pubkey123");
       assertEquals(deleted, true);
 
@@ -113,17 +113,17 @@ describe("Secrets Safe Tests", () => {
     it("should load encrypted storage module without system access", async () => {
       // The main goal is to verify the module can be imported without keychain access
       const { EncryptedStorage } = await import("../../src/lib/secrets/encrypted-storage.ts");
-      
+
       // Verify the class exists
       assertExists(EncryptedStorage);
-      
+
       // Try to create an instance (this should not trigger keychain access)
       const tempDir = await Deno.makeTempDir({ prefix: "nsyte_test_" });
-      
+
       try {
         const storage = new EncryptedStorage(tempDir);
         assertExists(storage);
-        
+
         // Try to initialize (this should work without keychain)
         const initialized = await storage.initialize();
         assertEquals(initialized, true);
@@ -139,10 +139,10 @@ describe("Secrets Safe Tests", () => {
 
     it("should handle system config directory functions", async () => {
       const { getSystemConfigDir, getHomeDir } = await import("../../src/lib/secrets/utils.ts");
-      
+
       const homeDir = getHomeDir();
       const configDir = getSystemConfigDir();
-      
+
       // These should return strings or null, not throw errors
       assertEquals(typeof homeDir === "string" || homeDir === null, true);
       assertEquals(typeof configDir === "string" || configDir === null, true);
@@ -152,11 +152,11 @@ describe("Secrets Safe Tests", () => {
       // This tests that the SecretsManager can be created without
       // trying to access the real keychain
       const { SecretsManager } = await import("../../src/lib/secrets/manager.ts");
-      
+
       // The singleton should be creatable without system access
       const instance = SecretsManager.getInstance();
       assertExists(instance);
-      
+
       // Initialize should work (it will use encrypted storage since keychain is blocked)
       const initialized = await instance.initialize();
       assertEquals(initialized, true);
@@ -169,12 +169,12 @@ describe("Secrets Safe Tests", () => {
         "pubkey1": "nbunk1",
         "pubkey2": "nbunk2",
       };
-      
+
       const mock = createMockSecretsManager(initialData);
-      
+
       assertEquals(await mock.getNbunk("pubkey1"), "nbunk1");
       assertEquals(await mock.getNbunk("pubkey2"), "nbunk2");
-      
+
       const pubkeys = await mock.getAllPubkeys();
       assertEquals(pubkeys.sort(), ["pubkey1", "pubkey2"]);
     });
@@ -184,7 +184,7 @@ describe("Secrets Safe Tests", () => {
         "test1": "value1",
         "test2": "value2",
       });
-      
+
       const contents = mockSecretsManager.getStorageContents();
       assertEquals(contents, {
         "test1": "value1",

@@ -3,43 +3,43 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # Run when tag is pushed matching pattern v*, e.g., v1.0.0
+      - "v*" # Run when tag is pushed matching pattern v*, e.g., v1.0.0
 
 jobs:
   build:
     name: Build Binaries
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Set up Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: '2.3.1'
-      
+          deno-version: "2.3.1"
+
       - name: Get version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-      
+
       - name: Build binaries
         run: |
           # Ensure dist directory exists
           mkdir -p dist
-          
+
           # Build all platforms
           deno task compile:linux
           deno task compile:macos
           deno task compile:windows
-      
+
       - name: Rename binaries with version info
         run: |
           cd dist
           cp nsyte-linux nsyte-linux-${{ env.VERSION }}
           cp nsyte-macos nsyte-macos-${{ env.VERSION }}
           cp nsyte-windows.exe nsyte-windows-${{ env.VERSION }}.exe
-      
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -53,22 +53,22 @@ jobs:
 
             ### Changes in this release
             - See the [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details
-            
+
             ### Installation
             Download the appropriate binary for your system and make it executable:
-            
+
             #### Linux
             ```bash
             chmod +x nsyte-linux-${{ env.VERSION }}
             ./nsyte-linux-${{ env.VERSION }}
             ```
-            
+
             #### macOS
             ```bash
             chmod +x nsyte-macos-${{ env.VERSION }}
             ./nsyte-macos-${{ env.VERSION }}
             ```
-            
+
             #### Windows
             Double-click the executable or run from command line:
             ```
@@ -81,6 +81,6 @@ jobs:
             dist/nsyte-linux-${{ env.VERSION }}
             dist/nsyte-macos-${{ env.VERSION }}
             dist/nsyte-windows-${{ env.VERSION }}.exe
-      
+
       - name: Output Release URL
-        run: echo "Release URL -> ${{ steps.create_release.outputs.url }}" 
+        run: echo "Release URL -> ${{ steps.create_release.outputs.url }}"

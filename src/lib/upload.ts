@@ -79,7 +79,7 @@ async function uploadToServer(
 
       log.debug(`Checking if ${file.path} (${blobSha256}) already exists on ${server}`);
       const response = await fetch(`${serverUrl}${blobSha256}`, {
-        method: "HEAD"
+        method: "HEAD",
       });
 
       if (response.ok) {
@@ -284,13 +284,17 @@ export async function processUploads(
   signer: Signer,
   relays: string[],
   concurrency = DEFAULT_CONCURRENCY,
-  progressCallback?: (progress: UploadProgress) => void
+  progressCallback?: (progress: UploadProgress) => void,
 ): Promise<UploadResponse[]> {
   if (!relays || relays.length === 0) {
-    throw new Error("No relays provided for publishing events. Events must be published to relays to make the files accessible.");
+    throw new Error(
+      "No relays provided for publishing events. Events must be published to relays to make the files accessible.",
+    );
   }
 
-  log.info(`Starting upload of ${files.length} files to ${servers.length} servers with concurrency ${concurrency}`);
+  log.info(
+    `Starting upload of ${files.length} files to ${servers.length} servers with concurrency ${concurrency}`,
+  );
 
   const progress: UploadProgress = {
     total: files.length,
@@ -341,7 +345,7 @@ export async function processUploads(
             success: false,
             error: errorMessage,
             serverResults: {},
-            eventPublished: false
+            eventPublished: false,
           };
         }
       }),
@@ -362,8 +366,13 @@ export async function processUploads(
       if (result.success) {
         progress.completed++;
 
-        if (result.error && (result.error.includes("rate-limit") || result.error.includes("noting too much"))) {
-          log.warn(`Upload for ${result.file.path} succeeded but event publishing was rate-limited`);
+        if (
+          result.error &&
+          (result.error.includes("rate-limit") || result.error.includes("noting too much"))
+        ) {
+          log.warn(
+            `Upload for ${result.file.path} succeeded but event publishing was rate-limited`,
+          );
         }
       } else {
         progress.failed++;
@@ -464,7 +473,9 @@ async function uploadFile(
       });
 
       if (allServersHaveFile) {
-        log.info(`File ${file.path} already exists on all servers, skipping upload but publishing events`);
+        log.info(
+          `File ${file.path} already exists on all servers, skipping upload but publishing events`,
+        );
         for (const server of servers) {
           serverResults[server] = { success: true, alreadyExists: true };
         }

@@ -7,19 +7,22 @@ This directory contains the nsyte documentation organized for MkDocs.
 The security documentation has been organized into three comprehensive guides:
 
 ### 1. Security Overview (`guides/security.md`)
+
 - Multi-tier credential storage approach
-- Key management best practices  
+- Key management best practices
 - Deployment security
 - CI/CD integration
 - Testing instructions
 
 ### 2. Platform-Specific Details (`guides/security-platforms.md`)
+
 - Detailed implementation for each OS
 - Native keychain specifics (macOS, Windows, Linux)
 - Encrypted storage fallback details
 - Security considerations and threat model
 
 ### 3. Security Troubleshooting (`guides/security-troubleshooting.md`)
+
 - Common issues and solutions
 - Platform-specific troubleshooting
 - Advanced debugging techniques

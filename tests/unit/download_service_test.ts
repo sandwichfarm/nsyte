@@ -22,11 +22,11 @@ describe("DownloadService - Pure Business Logic Tests", () => {
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -40,7 +40,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
@@ -68,9 +68,9 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       const testData = new Uint8Array([1, 2, 3, 4, 5]);
       globalThis.fetch = async (input: string | Request | URL) => {
         assertEquals(String(input), "https://server.com/abc123");
-        return new Response(testData, { 
+        return new Response(testData, {
           status: 200,
-          headers: { "content-type": "application/octet-stream" }
+          headers: { "content-type": "application/octet-stream" },
         });
       };
 
@@ -110,7 +110,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       await assertRejects(
         () => service.downloadFromServer("https://server.com", "error"),
         Error,
-        "HTTP 500: Internal Server Error"
+        "HTTP 500: Internal Server Error",
       );
     });
 
@@ -123,7 +123,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       await assertRejects(
         () => service.downloadFromServer("https://server.com", "network-fail"),
         Error,
-        "Network connection failed"
+        "Network connection failed",
       );
     });
   });
@@ -131,30 +131,30 @@ describe("DownloadService - Pure Business Logic Tests", () => {
   describe("calculateStats", () => {
     it("should calculate correct statistics for mixed results", () => {
       const service = DownloadService.create();
-      
+
       const results = [
         {
           file: { path: "success1.txt", size: 100 } as FileEntry,
           success: true,
-          savedPath: "/tmp/success1.txt"
+          savedPath: "/tmp/success1.txt",
         },
         {
           file: { path: "success2.txt", size: 200 } as FileEntry,
           success: true,
-          savedPath: "/tmp/success2.txt"
+          savedPath: "/tmp/success2.txt",
         },
         {
           file: { path: "skipped.txt", size: 150 } as FileEntry,
           success: true,
           skipped: true,
           reason: "Already exists",
-          savedPath: "/tmp/skipped.txt"
+          savedPath: "/tmp/skipped.txt",
         },
         {
           file: { path: "failed.txt", size: 300 } as FileEntry,
           success: false,
-          error: "404 Not Found"
-        }
+          error: "404 Not Found",
+        },
       ];
 
       const stats = service.calculateStats(results);
@@ -181,13 +181,13 @@ describe("DownloadService - Pure Business Logic Tests", () => {
 
     it("should handle files without size information", () => {
       const service = DownloadService.create();
-      
+
       const results = [
         {
           file: { path: "no-size.txt" } as FileEntry,
           success: true,
-          savedPath: "/tmp/no-size.txt"
-        }
+          savedPath: "/tmp/no-size.txt",
+        },
       ];
 
       const stats = service.calculateStats(results);
@@ -204,7 +204,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       const result = DownloadService.validateOptions({
         output: "/tmp/downloads",
         overwrite: false,
-        verbose: true
+        verbose: true,
       });
 
       assertEquals(result.valid, true);
@@ -213,7 +213,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
 
     it("should reject missing output directory", () => {
       const result = DownloadService.validateOptions({
-        overwrite: false
+        overwrite: false,
       });
 
       assertEquals(result.valid, false);
@@ -223,7 +223,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
     it("should reject empty output directory", () => {
       const result = DownloadService.validateOptions({
         output: "",
-        overwrite: false
+        overwrite: false,
       });
 
       assertEquals(result.valid, false);
@@ -233,7 +233,7 @@ describe("DownloadService - Pure Business Logic Tests", () => {
     it("should reject whitespace-only output directory", () => {
       const result = DownloadService.validateOptions({
         output: "   ",
-        overwrite: false
+        overwrite: false,
       });
 
       assertEquals(result.valid, false);
@@ -252,13 +252,13 @@ describe("DownloadService - Pure Business Logic Tests", () => {
     const mockFile: FileEntry = {
       path: "test/file.txt",
       size: 100,
-      sha256: "abc123"
+      sha256: "abc123",
     };
 
     const options = {
       output: "/tmp/downloads",
       overwrite: false,
-      verbose: false
+      verbose: false,
     };
 
     it("should skip file if it already exists and overwrite is false", async () => {
@@ -320,13 +320,13 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       const mockFile: FileEntry = {
         path: "test.txt",
         size: 100,
-        sha256: "abc123"
+        sha256: "abc123",
       };
 
       const options = {
         output: "/tmp/downloads",
         overwrite: false,
-        verbose: false
+        verbose: false,
       };
 
       // Mock file doesn't exist
@@ -344,7 +344,10 @@ describe("DownloadService - Pure Business Logic Tests", () => {
       const result = await service.downloadSingleFile(mockFile, servers, options);
 
       assertEquals(result.success, false);
-      assertEquals(result.error, `Failed to download from any server (tried ${servers.length} servers)`);
+      assertEquals(
+        result.error,
+        `Failed to download from any server (tried ${servers.length} servers)`,
+      );
     });
   });
 });

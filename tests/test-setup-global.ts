@@ -20,26 +20,56 @@ const originalDynamicImport = globalThis.import;
         return null;
       },
       MacOSKeychain: class MockMacOSKeychain {
-        async isAvailable() { return false; }
-        async store() { throw new Error("Keychain access blocked in tests"); }
-        async retrieve() { throw new Error("Keychain access blocked in tests"); }
-        async delete() { throw new Error("Keychain access blocked in tests"); }
-        async list() { throw new Error("Keychain access blocked in tests"); }
+        async isAvailable() {
+          return false;
+        }
+        async store() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async retrieve() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async delete() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async list() {
+          throw new Error("Keychain access blocked in tests");
+        }
       },
       WindowsCredentialManager: class MockWindowsCredentialManager {
-        async isAvailable() { return false; }
-        async store() { throw new Error("Keychain access blocked in tests"); }
-        async retrieve() { throw new Error("Keychain access blocked in tests"); }
-        async delete() { throw new Error("Keychain access blocked in tests"); }
-        async list() { throw new Error("Keychain access blocked in tests"); }
+        async isAvailable() {
+          return false;
+        }
+        async store() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async retrieve() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async delete() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async list() {
+          throw new Error("Keychain access blocked in tests");
+        }
       },
       LinuxSecretService: class MockLinuxSecretService {
-        async isAvailable() { return false; }
-        async store() { throw new Error("Keychain access blocked in tests"); }
-        async retrieve() { throw new Error("Keychain access blocked in tests"); }
-        async delete() { throw new Error("Keychain access blocked in tests"); }
-        async list() { throw new Error("Keychain access blocked in tests"); }
-      }
+        async isAvailable() {
+          return false;
+        }
+        async store() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async retrieve() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async delete() {
+          throw new Error("Keychain access blocked in tests");
+        }
+        async list() {
+          throw new Error("Keychain access blocked in tests");
+        }
+      },
     };
   }
   return originalDynamicImport(specifier);
@@ -59,4 +89,4 @@ Deno.Command = class MockCommand extends originalCommand {
 
 console.log("🔒 Test environment setup complete - all keychain access blocked");
 
-export {};  // Make this a module
+export {}; // Make this a module

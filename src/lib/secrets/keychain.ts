@@ -47,27 +47,31 @@ class MacOSKeychain implements KeychainProvider {
     try {
       // First, try to delete any existing credential
       await this.delete(credential.service, credential.account);
-      
+
       const process = new Deno.Command("security", {
         args: [
           "add-generic-password",
-          "-a", credential.account,
-          "-s", credential.service,
-          "-w", credential.password,
+          "-a",
+          credential.account,
+          "-s",
+          credential.service,
+          "-w",
+          credential.password,
           "-U", // Update if exists
-          "-T", "", // Allow access by all applications
+          "-T",
+          "", // Allow access by all applications
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         const error = new TextDecoder().decode(result.stderr);
         log.error(`Failed to store credential in macOS Keychain: ${error}`);
         return false;
       }
-      
+
       log.debug(`Stored credential for ${credential.account} in macOS Keychain`);
       return true;
     } catch (error) {
@@ -81,19 +85,21 @@ class MacOSKeychain implements KeychainProvider {
       const process = new Deno.Command("security", {
         args: [
           "find-generic-password",
-          "-a", account,
-          "-s", service,
+          "-a",
+          account,
+          "-s",
+          service,
           "-w", // Output password only
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         return null;
       }
-      
+
       const password = new TextDecoder().decode(result.stdout).trim();
       return password;
     } catch (error) {
@@ -107,13 +113,15 @@ class MacOSKeychain implements KeychainProvider {
       const process = new Deno.Command("security", {
         args: [
           "delete-generic-password",
-          "-a", account,
-          "-s", service,
+          "-a",
+          account,
+          "-s",
+          service,
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       return result.code === 0;
     } catch {
@@ -127,15 +135,17 @@ class MacOSKeychain implements KeychainProvider {
       const process = new Deno.Command("security", {
         args: [
           "find-generic-password",
-          "-s", service,
-          "-a", "", // Empty account to match all accounts for this service
+          "-s",
+          service,
+          "-a",
+          "", // Empty account to match all accounts for this service
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
-      
+
       // Even if no specific entry is found, we can try a different approach
       // Use dump-keychain and filter for our service
       const dumpProcess = new Deno.Command("security", {
@@ -145,19 +155,19 @@ class MacOSKeychain implements KeychainProvider {
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const dumpResult = await dumpProcess.output();
       if (dumpResult.code !== 0) {
         return [];
       }
-      
+
       const output = new TextDecoder().decode(dumpResult.stdout);
       const accounts: string[] = [];
-      
+
       // Parse the keychain dump to find matching service entries
-      const lines = output.split('\n');
-      let currentService = '';
-      
+      const lines = output.split("\n");
+      let currentService = "";
+
       for (const line of lines) {
         if (line.includes('svce<blob>="')) {
           const match = line.match(/svce<blob>="([^"]+)"/);
@@ -171,7 +181,7 @@ class MacOSKeychain implements KeychainProvider {
           }
         }
       }
-      
+
       return [...new Set(accounts)]; // Remove duplicates
     } catch (error) {
       log.error(`Error listing credentials from macOS Keychain: ${error}`);
@@ -186,7 +196,7 @@ class MacOSKeychain implements KeychainProvider {
 class WindowsCredentialManager implements KeychainProvider {
   async isAvailable(): Promise<boolean> {
     if (Deno.build.os !== "windows") return false;
-    
+
     try {
       const process = new Deno.Command("where", {
         args: ["cmdkey"],
@@ -207,10 +217,10 @@ class WindowsCredentialManager implements KeychainProvider {
   async store(credential: KeychainCredential): Promise<boolean> {
     try {
       const target = this.formatTargetName(credential.service, credential.account);
-      
+
       // First delete any existing credential
       await this.delete(credential.service, credential.account);
-      
+
       const process = new Deno.Command("cmdkey", {
         args: [
           "/add:" + target,
@@ -220,14 +230,14 @@ class WindowsCredentialManager implements KeychainProvider {
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         const error = new TextDecoder().decode(result.stderr);
         log.error(`Failed to store credential in Windows Credential Manager: ${error}`);
         return false;
       }
-      
+
       log.debug(`Stored credential for ${credential.account} in Windows Credential Manager`);
       return true;
     } catch (error) {
@@ -241,7 +251,7 @@ class WindowsCredentialManager implements KeychainProvider {
       // Windows doesn't have a direct way to retrieve passwords via cmdkey
       // We'll need to use PowerShell for this
       const target = this.formatTargetName(service, account);
-      
+
       const script = `
         Add-Type -TypeDefinition @"
         using System;
@@ -290,18 +300,18 @@ class WindowsCredentialManager implements KeychainProvider {
 "@
         [CredentialManager]::GetPassword("${target}")
       `;
-      
+
       const process = new Deno.Command("powershell", {
         args: ["-Command", script],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         return null;
       }
-      
+
       const password = new TextDecoder().decode(result.stdout).trim();
       return password || null;
     } catch (error) {
@@ -313,13 +323,13 @@ class WindowsCredentialManager implements KeychainProvider {
   async delete(service: string, account: string): Promise<boolean> {
     try {
       const target = this.formatTargetName(service, account);
-      
+
       const process = new Deno.Command("cmdkey", {
         args: ["/delete:" + target],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       return result.code === 0;
     } catch {
@@ -334,17 +344,17 @@ class WindowsCredentialManager implements KeychainProvider {
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         return [];
       }
-      
+
       const output = new TextDecoder().decode(result.stdout);
       const accounts: string[] = [];
-      
+
       // Parse cmdkey output to find matching entries
-      const lines = output.split('\n');
+      const lines = output.split("\n");
       for (const line of lines) {
         if (line.includes(`Target: ${service}:`)) {
           const match = line.match(/Target: [^:]+:(.+)/);
@@ -353,7 +363,7 @@ class WindowsCredentialManager implements KeychainProvider {
           }
         }
       }
-      
+
       return accounts;
     } catch (error) {
       log.error(`Error listing credentials from Windows Credential Manager: ${error}`);
@@ -385,27 +395,30 @@ class LinuxSecretService implements KeychainProvider {
       const process = new Deno.Command("secret-tool", {
         args: [
           "store",
-          "--label", `${credential.service} - ${credential.account}`,
-          "service", credential.service,
-          "account", credential.account,
+          "--label",
+          `${credential.service} - ${credential.account}`,
+          "service",
+          credential.service,
+          "account",
+          credential.account,
         ],
         stdin: "piped",
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const proc = process.spawn();
       const writer = proc.stdin.getWriter();
       await writer.write(new TextEncoder().encode(credential.password));
       await writer.close();
-      
+
       const result = await proc.output();
       if (result.code !== 0) {
         const error = new TextDecoder().decode(result.stderr);
         log.error(`Failed to store credential in Linux Secret Service: ${error}`);
         return false;
       }
-      
+
       log.debug(`Stored credential for ${credential.account} in Linux Secret Service`);
       return true;
     } catch (error) {
@@ -419,18 +432,20 @@ class LinuxSecretService implements KeychainProvider {
       const process = new Deno.Command("secret-tool", {
         args: [
           "lookup",
-          "service", service,
-          "account", account,
+          "service",
+          service,
+          "account",
+          account,
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         return null;
       }
-      
+
       const password = new TextDecoder().decode(result.stdout).trim();
       return password || null;
     } catch (error) {
@@ -444,13 +459,15 @@ class LinuxSecretService implements KeychainProvider {
       const process = new Deno.Command("secret-tool", {
         args: [
           "clear",
-          "service", service,
-          "account", account,
+          "service",
+          service,
+          "account",
+          account,
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       return result.code === 0;
     } catch {
@@ -463,31 +480,32 @@ class LinuxSecretService implements KeychainProvider {
       const process = new Deno.Command("secret-tool", {
         args: [
           "search",
-          "service", service,
+          "service",
+          service,
         ],
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code !== 0) {
         return [];
       }
-      
+
       const output = new TextDecoder().decode(result.stdout);
       const accounts: string[] = [];
-      
+
       // Parse secret-tool output to find account attributes
-      const lines = output.split('\n');
+      const lines = output.split("\n");
       for (const line of lines) {
-        if (line.includes('attribute.account =')) {
+        if (line.includes("attribute.account =")) {
           const match = line.match(/attribute\.account = (.+)/);
           if (match) {
             accounts.push(match[1].trim());
           }
         }
       }
-      
+
       return [...new Set(accounts)]; // Remove duplicates
     } catch (error) {
       log.error(`Error listing credentials from Linux Secret Service: ${error}`);
@@ -501,14 +519,16 @@ class LinuxSecretService implements KeychainProvider {
  */
 export async function getKeychainProvider(): Promise<KeychainProvider | null> {
   // Check if keychain is disabled (for testing)
-  if (Deno.env.get("NSYTE_DISABLE_KEYCHAIN") === "true" || 
-      Deno.env.get("NSYTE_TEST_MODE") === "true") {
+  if (
+    Deno.env.get("NSYTE_DISABLE_KEYCHAIN") === "true" ||
+    Deno.env.get("NSYTE_TEST_MODE") === "true"
+  ) {
     log.debug("Keychain access disabled by environment variable");
     return null;
   }
 
   let provider: KeychainProvider | null = null;
-  
+
   switch (Deno.build.os) {
     case "darwin":
       provider = new MacOSKeychain();
@@ -523,12 +543,12 @@ export async function getKeychainProvider(): Promise<KeychainProvider | null> {
       log.warn(`Unsupported platform: ${Deno.build.os}`);
       return null;
   }
-  
+
   const isAvailable = await provider.isAvailable();
   if (!isAvailable) {
     log.debug(`Keychain provider for ${Deno.build.os} is not available`);
     return null;
   }
-  
+
   return provider;
 }

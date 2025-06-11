@@ -282,27 +282,27 @@ Deno.test("createSigner", async (t) => {
 
   await t.step("should handle nbunksec option", async () => {
     const options: ResolverOptions = {
-      nbunksec: "invalid-nbunk-string"
+      nbunksec: "invalid-nbunk-string",
     };
-    
+
     // This should throw for invalid nbunk format
     await assertRejects(
       async () => await createSigner(options, null),
       Error,
-      "Failed to decode nbunksec string"
+      "Failed to decode nbunksec string",
     );
   });
 
   await t.step("should handle bunker URL option", async () => {
     const options: ResolverOptions = {
-      bunker: "invalid-bunker-url"
+      bunker: "invalid-bunker-url",
     };
-    
+
     // This should throw for invalid bunker URL format
     await assertRejects(
       async () => await createSigner(options, null),
       Error,
-      "Failed to connect to bunker"
+      "Failed to connect to bunker",
     );
   });
 });

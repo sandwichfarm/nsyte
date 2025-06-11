@@ -55,7 +55,7 @@ describe("error-utils", () => {
 
       // Logger might also output to console
       assertEquals(consoleErrorStub.calls.length >= 1, true);
-      const errorCall = consoleErrorStub.calls.find(call => 
+      const errorCall = consoleErrorStub.calls.find((call) =>
         String(call.args[0]).includes("Error: Test context: Test error")
       );
       assertExists(errorCall);
@@ -66,7 +66,7 @@ describe("error-utils", () => {
       logError("Test context", error, { showConsole: true });
 
       assertEquals(consoleErrorStub.calls.length >= 1, true);
-      const errorCall = consoleErrorStub.calls.find(call => 
+      const errorCall = consoleErrorStub.calls.find((call) =>
         String(call.args[0]).includes("Error:")
       );
       assertExists(errorCall);
@@ -80,7 +80,7 @@ describe("error-utils", () => {
       logError("Test context", error, { showConsole: true, color: false });
 
       assertEquals(consoleErrorStub.calls.length >= 1, true);
-      const errorCall = consoleErrorStub.calls.find(call => 
+      const errorCall = consoleErrorStub.calls.find((call) =>
         String(call.args[0]).includes("Error: Test context: Test error")
       );
       assertExists(errorCall);

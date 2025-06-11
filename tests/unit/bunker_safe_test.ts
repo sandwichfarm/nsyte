@@ -3,7 +3,7 @@ import "../test-setup-global.ts";
 
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub, type Stub } from "std/testing/mock.ts";
+import { restore, type Stub, stub } from "std/testing/mock.ts";
 
 import {
   exportNbunk,
@@ -15,10 +15,10 @@ import {
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
 
-import { 
+import {
   createMockSecretsManager,
+  type MockSecretsManagerData,
   mockSecretsManagerModule,
-  type MockSecretsManagerData
 } from "../mocks/secrets-manager.ts";
 
 // Test state
@@ -39,24 +39,28 @@ describe("Bunker Command - Safe Tests", () => {
     secretsManagerStub = stub(
       SecretsManagerModule.SecretsManager,
       "getInstance",
-      () => mockSecretsManager as any
+      () => mockSecretsManager as any,
     );
 
     // Setup exit stub
-    exitStub = stub(Deno, "exit", ((code?: number) => {
-      (exitStub as any).lastExitCode = code;
-      return undefined as never;
-    }) as any);
+    exitStub = stub(
+      Deno,
+      "exit",
+      ((code?: number) => {
+        (exitStub as any).lastExitCode = code;
+        return undefined as never;
+      }) as any,
+    );
 
     // Setup console capture
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -65,7 +69,7 @@ describe("Bunker Command - Safe Tests", () => {
   afterEach(() => {
     // Restore all stubs
     restore();
-    
+
     // Restore console
     console.log = originalLog;
     console.error = originalError;
@@ -172,7 +176,7 @@ describe("Bunker Command - Safe Tests", () => {
     it("should export existing bunker", async () => {
       const nbunkString = "nbunksec1test";
       mockSecretsManager.setStorageContents({
-        "pubkey123": nbunkString
+        "pubkey123": nbunkString,
       });
 
       await exportNbunk("pubkey123");
@@ -196,7 +200,7 @@ describe("Bunker Command - Safe Tests", () => {
   describe("useBunkerForProject", () => {
     it("should configure project with bunker", async () => {
       mockSecretsManager.setStorageContents({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
 
       const configModule = await import("../../src/lib/config.ts");
@@ -222,7 +226,7 @@ describe("Bunker Command - Safe Tests", () => {
 
     it("should handle missing project config", async () => {
       mockSecretsManager.setStorageContents({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
 
       const configModule = await import("../../src/lib/config.ts");
@@ -240,7 +244,7 @@ describe("Bunker Command - Safe Tests", () => {
   describe("removeBunker", () => {
     it("should remove bunker with confirmation", async () => {
       mockSecretsManager.setStorageContents({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
 
       // Mock confirm to return true
@@ -273,7 +277,7 @@ describe("Bunker Command - Safe Tests", () => {
 
     it("should handle cancellation", async () => {
       mockSecretsManager.setStorageContents({
-        "pubkey123": "nbunksec1test"
+        "pubkey123": "nbunksec1test",
       });
 
       // Mock confirm to return false

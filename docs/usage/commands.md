@@ -19,13 +19,15 @@ nsyte
 
 ### `nsyte init`
 
-Initialize a new nsyte project. This creates the necessary configuration files and sets up authentication.
+Initialize a new nsyte project. This creates the necessary configuration files and sets up
+authentication.
 
 ```bash
 nsyte init
 ```
 
 The command will interactively:
+
 1. Ask for authentication method
 2. Configure relays and servers
 3. Create `.nsite` directory with configuration
@@ -39,6 +41,7 @@ nsyte upload ./dist [options]
 ```
 
 Options:
+
 - `--force`: Force re-upload of all files
 - `--purge`: Delete files that no longer exist locally
 - `--verbose`: Show detailed progress
@@ -55,6 +58,7 @@ nsyte ls [options]
 ```
 
 Options:
+
 - `--verbose`: Show detailed file information
 - `--format <format>`: Output format (json, table)
 
@@ -67,6 +71,7 @@ nsyte download ./backup [options]
 ```
 
 Options:
+
 - `--force`: Overwrite existing files
 - `--verbose`: Show detailed progress
 
@@ -85,6 +90,7 @@ nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
 ```
 
 Options:
+
 - `--pubkey <pubkey>`: Bunker public key
 - `--relay <relay>`: Relay URL
 - `--secret <secret>`: Connection secret
@@ -115,13 +121,15 @@ nsyte bunker export <pubkey>
 
 ### `nsyte ci`
 
-Generate CI/CD credentials by creating a dedicated nbunksec string for use in automated environments.
+Generate CI/CD credentials by creating a dedicated nbunksec string for use in automated
+environments.
 
 ```bash
 nsyte ci
 ```
 
 This command:
+
 - Guides you through bunker connection
 - Generates a dedicated nbunksec for CI/CD
 - Displays the nbunksec (shown only once!)
@@ -199,4 +207,4 @@ nsyte download ./backup --verbose
 - `NSITE_RELAYS`: Comma-separated list of relay URLs
 - `NSITE_SERVERS`: Comma-separated list of server URLs
 - `NSITE_BUNKER`: Bunker connection string
-- `NSITE_NBUNKSEC`: nbunksec string for authentication 
+- `NSITE_NBUNKSEC`: nbunksec string for authentication

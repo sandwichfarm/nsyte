@@ -193,7 +193,9 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
   // In non-interactive mode, don't proceed with key setup prompts
   if (skipInteractive) {
     if (!config.bunkerPubkey && !privateKey) {
-      log.error("No key configuration found and running in non-interactive mode. Please provide key configuration via CLI arguments.");
+      log.error(
+        "No key configuration found and running in non-interactive mode. Please provide key configuration via CLI arguments.",
+      );
       Deno.exit(1);
     }
     return { config, privateKey };
@@ -214,7 +216,9 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   const defaultRelays = ["wss://relay.nsec.app"];
 
   const relayInput = await Input.prompt({
-    message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+    message: `Enter relays (comma-separated), or press Enter for default (${
+      defaultRelays.join(", ")
+    }):`,
     default: defaultRelays.join(", "),
   });
 
@@ -222,7 +226,7 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
     chosenRelays = defaultRelays;
   } else {
-    chosenRelays = relayInput.split(",").map(r => r.trim()).filter(r => r.length > 0);
+    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
   }
 
   if (chosenRelays.length === 0) {
@@ -230,7 +234,9 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
     chosenRelays = defaultRelays;
   }
 
-  console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+  console.log(
+    colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`),
+  );
   return initiateNostrConnect(appName, chosenRelays);
 }
 
@@ -271,7 +277,11 @@ async function newBunker(
     return signer;
   } catch (error) {
     log.error(`Failed to connect to bunker: ${error}`);
-    console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
+    console.error(
+      colors.red(
+        `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+    );
     Deno.exit(1);
   } finally {
     if (signer) {
@@ -334,7 +344,11 @@ async function selectKeySource(
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
-    console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
+    console.log(
+      colors.yellow(
+        "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
+      ),
+    );
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
     // Note: privateKey is returned but not stored in config, so no config change
   } else if (keyChoice === "existing") {
@@ -348,7 +362,13 @@ async function selectKeySource(
       config.bunkerPubkey = await signer.getPublicKey();
       const nbunkString = getNbunkString(signer);
       await secretsManager.storeNbunk(config.bunkerPubkey, nbunkString);
-      console.log(colors.green(`Successfully connected to bunker ${config.bunkerPubkey.slice(0, 8)}... \nGenerated and stored nbunksec string.`));
+      console.log(
+        colors.green(
+          `Successfully connected to bunker ${
+            config.bunkerPubkey.slice(0, 8)
+          }... \nGenerated and stored nbunksec string.`,
+        ),
+      );
       configChanged = true;
     }
   } else if (keyChoice === "existing_bunker") {
@@ -366,7 +386,9 @@ async function selectKeySource(
     });
 
     config.bunkerPubkey = selectedPubkey;
-    console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
+    console.log(
+      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+    );
     configChanged = originalBunkerPubkey !== selectedPubkey;
   }
 
@@ -377,7 +399,7 @@ async function selectKeySource(
   } else {
     console.log(colors.green("Key configuration completed."));
   }
-  
+
   return { config, privateKey };
 }
 
@@ -422,7 +444,11 @@ async function interactiveSetup(): Promise<ProjectContext> {
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
     console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
-    console.log(colors.yellow("IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!"));
+    console.log(
+      colors.yellow(
+        "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
+      ),
+    );
     console.log(colors.green(`Your public key is: ${keyPair.publicKey}`));
   } else if (keyChoice === "existing") {
     privateKey = await Secret.prompt({
@@ -445,7 +471,9 @@ async function interactiveSetup(): Promise<ProjectContext> {
         const defaultRelays = ["wss://relay.nsec.app"];
 
         const relayInput = await Input.prompt({
-          message: `Enter relays (comma-separated), or press Enter for default (${defaultRelays.join(", ")}):`,
+          message: `Enter relays (comma-separated), or press Enter for default (${
+            defaultRelays.join(", ")
+          }):`,
           default: defaultRelays.join(", "),
         });
 
@@ -461,7 +489,11 @@ async function interactiveSetup(): Promise<ProjectContext> {
           chosenRelays = defaultRelays;
         }
 
-        console.log(colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(', ')}`));
+        console.log(
+          colors.cyan(
+            `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+          ),
+        );
         signer = await initiateNostrConnect(appName, chosenRelays);
       } else {
         const bunkerUrl = await Input.prompt({
@@ -488,7 +520,11 @@ async function interactiveSetup(): Promise<ProjectContext> {
 Generated and stored nbunksec string.`));
     } catch (error) {
       log.error(`Failed to connect to bunker: ${error}`);
-      console.error(colors.red(`Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`));
+      console.error(
+        colors.red(
+          `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
       Deno.exit(1);
     } finally {
       if (signer) {
@@ -516,7 +552,9 @@ Generated and stored nbunksec string.`));
     });
 
     bunkerPubkey = selectedPubkey;
-    console.log(colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`));
+    console.log(
+      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+    );
   }
 
   const projectName = await Input.prompt({
@@ -580,11 +618,17 @@ async function promptForUrls(message: string, suggestions: string[]): Promise<st
 
     if (!url) break;
 
-    if (url.startsWith("http://") || url.startsWith("https://") ||
-        url.startsWith("ws://") || url.startsWith("wss://")) {
+    if (
+      url.startsWith("http://") || url.startsWith("https://") ||
+      url.startsWith("ws://") || url.startsWith("wss://")
+    ) {
       urls.push(url);
     } else {
-      console.log(colors.yellow("Invalid URL format. Please include the protocol (http://, https://, ws://, wss://)"));
+      console.log(
+        colors.yellow(
+          "Invalid URL format. Please include the protocol (http://, https://, ws://, wss://)",
+        ),
+      );
     }
   }
 

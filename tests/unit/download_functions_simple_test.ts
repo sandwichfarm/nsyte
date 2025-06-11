@@ -5,8 +5,8 @@ import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
 
 import {
-  downloadFromServer,
   displayResults,
+  downloadFromServer,
   type DownloadResult,
 } from "../../src/commands/download.ts";
 import { type FileEntry } from "../../src/lib/nostr.ts";
@@ -23,11 +23,11 @@ describe("Download Functions - Simple Unit Tests", () => {
     consoleOutput = { logs: [], errors: [] };
     originalLog = console.log;
     originalError = console.error;
-    
+
     console.log = (...args: unknown[]) => {
       consoleOutput.logs.push(args.map(String).join(" "));
     };
-    
+
     console.error = (...args: unknown[]) => {
       consoleOutput.errors.push(args.map(String).join(" "));
     };
@@ -50,9 +50,9 @@ describe("Download Functions - Simple Unit Tests", () => {
       const testData = new Uint8Array([1, 2, 3, 4, 5]);
       globalThis.fetch = async (input: string | Request | URL) => {
         assertEquals(String(input), "https://server.com/abc123");
-        return new Response(testData, { 
+        return new Response(testData, {
           status: 200,
-          headers: { "content-type": "application/octet-stream" }
+          headers: { "content-type": "application/octet-stream" },
         });
       };
 
@@ -88,7 +88,7 @@ describe("Download Functions - Simple Unit Tests", () => {
       await assertRejects(
         () => downloadFromServer("https://server.com", "error"),
         Error,
-        "HTTP 500: Internal Server Error"
+        "HTTP 500: Internal Server Error",
       );
     });
 
@@ -100,7 +100,7 @@ describe("Download Functions - Simple Unit Tests", () => {
       await assertRejects(
         () => downloadFromServer("https://server.com", "network-fail"),
         Error,
-        "Network connection failed"
+        "Network connection failed",
       );
     });
   });
@@ -111,13 +111,13 @@ describe("Download Functions - Simple Unit Tests", () => {
         {
           file: { path: "file1.txt" } as FileEntry,
           success: true,
-          savedPath: "/tmp/file1.txt"
+          savedPath: "/tmp/file1.txt",
         },
         {
           file: { path: "file2.txt" } as FileEntry,
           success: true,
-          savedPath: "/tmp/file2.txt"
-        }
+          savedPath: "/tmp/file2.txt",
+        },
       ];
 
       displayResults(results);
@@ -137,8 +137,8 @@ describe("Download Functions - Simple Unit Tests", () => {
           success: true,
           skipped: true,
           reason: "File already exists",
-          savedPath: "/tmp/file1.txt"
-        }
+          savedPath: "/tmp/file1.txt",
+        },
       ];
 
       displayResults(results);
@@ -154,8 +154,8 @@ describe("Download Functions - Simple Unit Tests", () => {
         {
           file: { path: "file1.txt" } as FileEntry,
           success: false,
-          error: "Network error"
-        }
+          error: "Network error",
+        },
       ];
 
       displayResults(results);
@@ -171,20 +171,20 @@ describe("Download Functions - Simple Unit Tests", () => {
         {
           file: { path: "success.txt" } as FileEntry,
           success: true,
-          savedPath: "/tmp/success.txt"
+          savedPath: "/tmp/success.txt",
         },
         {
           file: { path: "skipped.txt" } as FileEntry,
           success: true,
           skipped: true,
           reason: "Already exists",
-          savedPath: "/tmp/skipped.txt"
+          savedPath: "/tmp/skipped.txt",
         },
         {
           file: { path: "failed.txt" } as FileEntry,
           success: false,
-          error: "404 Not Found"
-        }
+          error: "404 Not Found",
+        },
       ];
 
       displayResults(results);
@@ -211,8 +211,8 @@ describe("Download Functions - Simple Unit Tests", () => {
         {
           file: { path: "file.txt" } as FileEntry,
           success: true,
-          savedPath: "/custom/output/file.txt"
-        }
+          savedPath: "/custom/output/file.txt",
+        },
       ];
 
       displayResults(results);

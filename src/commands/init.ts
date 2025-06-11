@@ -15,29 +15,29 @@ export function registerInitCommand(program: Command): void {
     .action(async () => {
       try {
         const { config, privateKey } = await setupProject();
-        
+
         if (privateKey || config.bunkerPubkey) {
           const keyType = privateKey ? "private key" : "bunker connection";
           const relayCount = config.relays.length;
           const serverCount = config.servers.length;
-          
+
           console.log(
-            colors.green(`\nProject initialized successfully with:`)
+            colors.green(`\nProject initialized successfully with:`),
           );
           console.log(
-            colors.green(`- Authentication: ${keyType}`)
+            colors.green(`- Authentication: ${keyType}`),
           );
           console.log(
-            colors.green(`- Relays: ${relayCount}`)
+            colors.green(`- Relays: ${relayCount}`),
           );
           console.log(
-            colors.green(`- Blossom servers: ${serverCount}`)
+            colors.green(`- Blossom servers: ${serverCount}`),
           );
           console.log(
-            colors.green(`\nConfiguration saved to .nsite/config.json`)
+            colors.green(`\nConfiguration saved to .nsite/config.json`),
           );
         }
-        
+
         Deno.exit(0);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -45,4 +45,4 @@ export function registerInitCommand(program: Command): void {
         Deno.exit(1);
       }
     });
-} 
+}

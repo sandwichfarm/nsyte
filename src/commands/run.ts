@@ -47,18 +47,18 @@ export function validateNpub(npub: string): boolean {
  */
 export function npubToHex(npub: string): string {
   const decoded = bech32Decode(npub);
-  return Array.from(decoded.data, byte => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(decoded.data, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /**
  * Extract npub from hostname (e.g., "npub123.localhost" -> "npub123")
  */
 function extractNpubFromHost(hostname: string): string | null {
-  const parts = hostname.split('.');
+  const parts = hostname.split(".");
   if (parts.length < 2) return null;
-  
+
   const subdomain = parts[0];
-  if (subdomain.startsWith('npub')) {
+  if (subdomain.startsWith("npub")) {
     return subdomain;
   }
   return null;
@@ -71,7 +71,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
   try {
     const port = options.port || 8080;
     const relays = resolveRelays(options, null, true);
-    
+
     if (relays.length === 0) {
       console.error(colors.red("No relays available. Please configure relays or use -r option."));
       Deno.exit(1);
@@ -85,42 +85,42 @@ export async function runCommand(options: RunOptions): Promise<void> {
     console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
 
     // Cache for file listings
-    const fileCache = new Map<string, { files: any[], timestamp: number }>();
+    const fileCache = new Map<string, { files: any[]; timestamp: number }>();
     const CACHE_TTL = 60000; // 1 minute cache
 
     // Create HTTP handler
     const handler = async (request: Request): Promise<Response> => {
       const url = new URL(request.url);
       const hostname = request.headers.get("host")?.split(":")[0] || "";
-      
+
       // Extract npub from subdomain
       const npub = extractNpubFromHost(hostname);
-      
+
       if (!npub) {
-        return new Response("Invalid request. Use npub subdomain (e.g., npub123.localhost)", { 
+        return new Response("Invalid request. Use npub subdomain (e.g., npub123.localhost)", {
           status: 400,
-          headers: { "Content-Type": "text/plain" }
+          headers: { "Content-Type": "text/plain" },
         });
       }
 
       // Validate npub format
       if (!validateNpub(npub)) {
-        return new Response(`Invalid npub format: ${npub}`, { 
+        return new Response(`Invalid npub format: ${npub}`, {
           status: 400,
-          headers: { "Content-Type": "text/plain" }
+          headers: { "Content-Type": "text/plain" },
         });
       }
 
       try {
         const pubkeyHex = npubToHex(npub);
         const requestedPath = url.pathname === "/" ? "/index.html" : url.pathname;
-        
+
         log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);
 
         // Check cache
         const cached = fileCache.get(npub);
         let remoteFiles;
-        
+
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
           remoteFiles = cached.files;
         } else {
@@ -130,29 +130,29 @@ export async function runCommand(options: RunOptions): Promise<void> {
         }
 
         // Find the requested file
-        const file = remoteFiles.find(f => f.path === requestedPath.slice(1));
-        
+        const file = remoteFiles.find((f) => f.path === requestedPath.slice(1));
+
         if (!file) {
           // Generate directory listing if no specific file requested
           if (requestedPath === "/" || requestedPath === "/index.html") {
             const html = generateDirectoryListing(npub, remoteFiles);
             return new Response(html, {
               status: 200,
-              headers: { "Content-Type": "text/html" }
+              headers: { "Content-Type": "text/html" },
             });
           }
-          
-          return new Response(`File not found: ${requestedPath}`, { 
+
+          return new Response(`File not found: ${requestedPath}`, {
             status: 404,
-            headers: { "Content-Type": "text/plain" }
+            headers: { "Content-Type": "text/plain" },
           });
         }
 
         // Download the file content from blossom servers
         if (!file.sha256) {
-          return new Response("File has no SHA256 hash", { 
+          return new Response("File has no SHA256 hash", {
             status: 500,
-            headers: { "Content-Type": "text/plain" }
+            headers: { "Content-Type": "text/plain" },
           });
         }
 
@@ -160,7 +160,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
         const blossomServers = [
           "https://blossom.primal.net",
           "https://cdn.satellite.earth",
-          "https://blossom.nos.social"
+          "https://blossom.nos.social",
         ];
 
         let fileData: Uint8Array | null = null;
@@ -172,44 +172,42 @@ export async function runCommand(options: RunOptions): Promise<void> {
             log.debug(`Failed to download from ${server}: ${error}`);
           }
         }
-        
+
         if (!fileData) {
-          return new Response("Failed to download file from any blossom server", { 
+          return new Response("Failed to download file from any blossom server", {
             status: 500,
-            headers: { "Content-Type": "text/plain" }
+            headers: { "Content-Type": "text/plain" },
           });
         }
 
         // Determine content type
         const contentType = getContentType(file.path);
-        
+
         return new Response(fileData, {
           status: 200,
-          headers: { 
+          headers: {
             "Content-Type": contentType,
-            "Content-Length": fileData.byteLength.toString()
-          }
+            "Content-Length": fileData.byteLength.toString(),
+          },
         });
-        
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         log.error(`Error handling request: ${errorMessage}`);
-        
-        return new Response(`Error: ${errorMessage}`, { 
+
+        return new Response(`Error: ${errorMessage}`, {
           status: 500,
-          headers: { "Content-Type": "text/plain" }
+          headers: { "Content-Type": "text/plain" },
         });
       }
     };
 
     // Start server using Deno.serve
     await Deno.serve({ port }, handler).finished;
-    
   } catch (error: unknown) {
     handleError("Error running resolver server", error, {
       exit: true,
       showConsole: true,
-      logger: log
+      logger: log,
     });
   }
 }
@@ -218,7 +216,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
  * Generate HTML directory listing
  */
 function generateDirectoryListing(npub: string, files: any[]): string {
-  const fileList = files.map(file => {
+  const fileList = files.map((file) => {
     const size = file.size ? formatFileSize(file.size) : "unknown";
     return `<li><a href="/${file.path}">${file.path}</a> (${size})</li>`;
   }).join("\n");
@@ -244,7 +242,7 @@ function generateDirectoryListing(npub: string, files: any[]): string {
     <strong>Total size:</strong> ${formatFileSize(files.reduce((sum, f) => sum + (f.size || 0), 0))}
   </div>
   <ul>
-    ${fileList || '<li>No files found</li>'}
+    ${fileList || "<li>No files found</li>"}
   </ul>
 </body>
 </html>`;
@@ -254,7 +252,7 @@ function generateDirectoryListing(npub: string, files: any[]): string {
  * Get content type based on file extension
  */
 function getContentType(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
+  const ext = filename.split(".").pop()?.toLowerCase();
   const types: Record<string, string> = {
     html: "text/html",
     htm: "text/html",
@@ -273,9 +271,9 @@ function getContentType(filename: string): string {
     woff: "font/woff",
     woff2: "font/woff2",
     ttf: "font/ttf",
-    otf: "font/otf"
+    otf: "font/otf",
   };
-  
+
   return types[ext || ""] || "application/octet-stream";
 }
 
@@ -285,22 +283,22 @@ function getContentType(filename: string): string {
 async function downloadFromBlossom(server: string, sha256: string): Promise<Uint8Array | null> {
   const serverUrl = server.endsWith("/") ? server : `${server}/`;
   const downloadUrl = `${serverUrl}${sha256}`;
-  
+
   try {
     const response = await fetch(downloadUrl, {
       method: "GET",
       headers: {
-        "Accept": "*/*"
-      }
+        "Accept": "*/*",
+      },
     });
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         return null;
       }
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     const arrayBuffer = await response.arrayBuffer();
     return new Uint8Array(arrayBuffer);
   } catch (error) {
@@ -313,10 +311,10 @@ async function downloadFromBlossom(server: string, sha256: string): Promise<Uint
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
-  
+
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }

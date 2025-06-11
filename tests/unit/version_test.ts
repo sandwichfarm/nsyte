@@ -6,7 +6,11 @@ Deno.test("version", async (t) => {
     // version should match semantic versioning pattern
     const semverPattern = /^\d+\.\d+\.\d+(-[\w.-]+)?(\+[\w.-]+)?$/;
     assertEquals(typeof version, "string");
-    assertEquals(semverPattern.test(version), true, `Version ${version} should match semver pattern`);
+    assertEquals(
+      semverPattern.test(version),
+      true,
+      `Version ${version} should match semver pattern`,
+    );
   });
 
   await t.step("should not be empty", () => {

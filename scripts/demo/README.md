@@ -1,16 +1,19 @@
 # Demo Generation
 
-This directory contains scripts for generating authentic demos that use the actual CLI tool, not mocks.
+This directory contains scripts for generating authentic demos that use the actual CLI tool, not
+mocks.
 
 ## Files
 
 **Scripts (in this directory):**
+
 - `generate-real-demo.ts` - Generates demo sections using actual CLI output
 - `generate-asciinema.ts` - Generates asciinema recordings
 - `nsyte-demo-optimal.sh` - Optimal demo recording script
 - `demo-sections.js` - Demo configuration
 
 **Generated outputs (in static/demo/):**
+
 - `demo-sections.js` - Generated file containing real CLI demo data (do not edit manually)
 - `nsyte-demo.cast` - Asciinema recording for the main demo player
 - `nsyte-demo-output.txt` - Captured CLI output
@@ -24,8 +27,9 @@ deno run --allow-read --allow-write --allow-net --allow-env --allow-run scripts/
 ```
 
 This will:
+
 1. Run actual CLI commands to capture real output
-2. Extract the ASCII header from CLI responses  
+2. Extract the ASCII header from CLI responses
 3. Generate `demo-sections.js` with authentic command examples
 4. Update the splash page demo walkthrough sections
 

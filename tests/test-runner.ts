@@ -9,7 +9,7 @@ import { stub } from "std/testing/mock.ts";
 // Global test setup
 async function setupTestEnvironment() {
   console.log("🔧 Setting up test environment...");
-  
+
   // 1. Mock keychain to always return null (force encrypted storage)
   const keychainModule = await import("../src/lib/secrets/keychain.ts");
   stub(keychainModule, "getKeychainProvider", () => {
@@ -80,7 +80,7 @@ const command = new Deno.Command("deno", {
     "--allow-all",
     "--no-prompt",
     "--no-check", // Skip type checking for now
-    ...testPaths
+    ...testPaths,
   ],
   stdout: "inherit",
   stderr: "inherit",

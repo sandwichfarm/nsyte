@@ -9,11 +9,11 @@ import {
   showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
-import { 
-  stubExit, 
-  createMockSecretsManager, 
+import {
   captureConsole,
+  createMockSecretsManager,
   createTestConfig,
+  stubExit,
 } from "../mocks/index.ts";
 
 Deno.test("Bunker Command - showBunkerHelp", async (t) => {

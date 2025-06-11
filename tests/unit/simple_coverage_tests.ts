@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { spy, stub, restore } from "std/testing/mock.ts";
+import { restore, spy, stub } from "std/testing/mock.ts";
 
 // Test files.ts
 Deno.test("Files - basic file operations", async (t) => {
@@ -64,7 +64,7 @@ Deno.test("DisplayMode - additional coverage", async (t) => {
     assertExists(displayModule.getDisplayMode);
     assertExists(displayModule.setDisplayMode);
     assertExists(displayModule.DisplayMode);
-    
+
     // Test enum values
     assertEquals(displayModule.DisplayMode.Normal, "normal");
     assertEquals(displayModule.DisplayMode.Compact, "compact");
