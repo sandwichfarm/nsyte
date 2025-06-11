@@ -1,0 +1,12 @@
+{
+  "extends": "./deno.json",
+  "test": {
+    "files": {
+      "include": ["tests/"],
+      "exclude": ["tests/test-secrets.ts"]
+    }
+  },
+  "env": {
+    "NSYTE_TEST_MODE": "true"
+  }
+}

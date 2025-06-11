@@ -3,6 +3,8 @@
 # nsyte
 
 ![Coverage](./static/coverage-badge.svg)
+![Line Coverage](./static/coverage-lines-badge.svg)
+![Branch Coverage](./static/coverage-branches-badge.svg)
 
 A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.
