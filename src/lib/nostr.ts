@@ -324,7 +324,6 @@ export async function createDeleteEvent(
 export async function publishEventsToRelays(
   relays: string[],
   events: NostrEvent[],
-  messageCollector?: any,
 ): Promise<boolean> {
   if (events.length === 0) {
     log.warn("No events to publish");
@@ -356,17 +355,6 @@ export async function publishEventsToRelays(
             )
           }`,
         );
-
-        // TODO: find out what this actually does
-        for (const result of results) {
-          if (messageCollector && !result.ok && result.message) {
-            messageCollector.addRelayMessage(
-              "error",
-              result.from,
-              `Failed to publish: ${result.message}`,
-            );
-          }
-        }
 
         const success = results.some((r) => r.ok);
         if (!success) throw new Error(`Failed to publish any relay`);
@@ -401,7 +389,6 @@ export async function purgeRemoteFiles(
   relays: string[],
   files: FileEntry[],
   signer: Signer,
-  messageCollector?: any,
 ): Promise<number> {
   if (files.length === 0) {
     return 0;
@@ -424,7 +411,6 @@ export async function purgeRemoteFiles(
     const success = await publishEventsToRelays(
       [...relays],
       [deleteEvent],
-      messageCollector,
     );
 
     if (success) {
