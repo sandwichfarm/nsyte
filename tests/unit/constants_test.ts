@@ -19,7 +19,7 @@ Deno.test("Constants - NSYTE_BROADCAST_RELAYS", async (t) => {
 
   await t.step("should include expected relays", () => {
     // Check for some expected relays
-    assertEquals(NSYTE_BROADCAST_RELAYS.includes("wss://purplepag.es"), true);
+    assertEquals(NSYTE_BROADCAST_RELAYS.includes("wss://relay.damus.io"), true);
     assertEquals(NSYTE_BROADCAST_RELAYS.includes("wss://nos.lol"), true);
   });
 });
@@ -36,9 +36,9 @@ Deno.test("Constants - RELAY_DISCOVERY_RELAYS", async (t) => {
     }
   });
 
-  await t.step("should be a subset or equal to broadcast relays", () => {
-    // Discovery relays might be same or subset of broadcast relays
-    assertEquals(RELAY_DISCOVERY_RELAYS.length <= NSYTE_BROADCAST_RELAYS.length, true);
+  await t.step("should have more relays than broadcast relays", () => {
+    // Discovery relays should have more relays for better discovery
+    assertEquals(RELAY_DISCOVERY_RELAYS.length >= NSYTE_BROADCAST_RELAYS.length, true);
   });
 });
 

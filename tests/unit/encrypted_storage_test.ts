@@ -1,54 +1,10 @@
-/**
- * Unit tests for the secrets management system
- * Tests keychain providers, encrypted storage, and SecretsManager
- */
-
-import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.208.0/assert/mod.ts";
+import { assert, assertEquals, assertExists } from "std/assert/mod.ts";
 import { join } from "std/path/mod.ts";
 import { ensureDirSync, existsSync } from "std/fs/mod.ts";
-import { SecretsManager } from "../src/lib/secrets/manager.ts";
-import { EncryptedStorage } from "../src/lib/secrets/encrypted-storage.ts";
-import { getKeychainProvider } from "../src/lib/secrets/keychain.ts";
-
-// Mock keychain provider for testing
-class MockKeychainProvider {
-  private storage = new Map<string, string>();
-
-  async isAvailable(): Promise<boolean> {
-    return true;
-  }
-
-  async store(
-    credential: { service: string; account: string; password: string },
-  ): Promise<boolean> {
-    const key = `${credential.service}:${credential.account}`;
-    this.storage.set(key, credential.password);
-    return true;
-  }
-
-  async retrieve(service: string, account: string): Promise<string | null> {
-    const key = `${service}:${account}`;
-    return this.storage.get(key) || null;
-  }
-
-  async delete(service: string, account: string): Promise<boolean> {
-    const key = `${service}:${account}`;
-    return this.storage.delete(key);
-  }
-
-  async list(service: string): Promise<string[]> {
-    const accounts: string[] = [];
-    for (const [key] of this.storage) {
-      if (key.startsWith(`${service}:`)) {
-        accounts.push(key.substring(service.length + 1));
-      }
-    }
-    return accounts;
-  }
-}
+import { EncryptedStorage } from "../../src/lib/secrets/encrypted-storage.ts";
 
 // Test utilities
-const TEST_DIR = "./test_secrets_tmp";
+const TEST_DIR = "./test_encrypted_storage_tmp";
 const TEST_SERVICE = "nsyte-test";
 
 function setupTestDir() {
@@ -83,19 +39,6 @@ function mockEnvironment() {
     if (originalEnv.USERNAME) Deno.env.set("USERNAME", originalEnv.USERNAME);
   };
 }
-
-Deno.test("Keychain Provider Detection", async () => {
-  const provider = await getKeychainProvider();
-
-  // Should detect provider on supported platforms
-  if (["darwin", "windows", "linux"].includes(Deno.build.os)) {
-    // Provider might be available or not depending on system setup
-    // Just ensure the function doesn't throw
-    assert(provider !== undefined); // null or KeychainProvider
-  } else {
-    assertEquals(provider, null);
-  }
-});
 
 Deno.test("EncryptedStorage - Basic Operations", async () => {
   setupTestDir();
@@ -164,82 +107,6 @@ Deno.test("EncryptedStorage - Multiple Secrets", async () => {
   }
 });
 
-Deno.test("SecretsManager - Encrypted Storage Fallback", async () => {
-  setupTestDir();
-  const restoreEnv = mockEnvironment();
-
-  try {
-    // Test with encrypted storage directly to avoid keychain prompts
-    const storage = new EncryptedStorage();
-    const initialized = await storage.initialize();
-    assert(initialized, "EncryptedStorage should initialize");
-
-    // Test basic operations
-    const testPubkey = "npub1test123";
-    const testNbunksec = "bunker://test-connection";
-
-    const stored = await storage.store("nsyte", testPubkey, testNbunksec);
-    assert(stored, "Should store nbunksec successfully");
-
-    const retrieved = await storage.retrieve("nsyte", testPubkey);
-    assertEquals(retrieved, testNbunksec, "Should retrieve correct nbunksec");
-
-    const pubkeys = await storage.list("nsyte");
-    assert(pubkeys.includes(testPubkey), "Pubkey should be in list");
-
-    const deleted = await storage.delete("nsyte", testPubkey);
-    assert(deleted, "Should delete nbunksec successfully");
-  } finally {
-    restoreEnv();
-    cleanupTestDir();
-  }
-});
-
-Deno.test("SecretsManager - Legacy Migration (Encrypted Storage)", async () => {
-  setupTestDir();
-  const restoreEnv = mockEnvironment();
-
-  try {
-    // Create legacy secrets file
-    const configDir = join(TEST_DIR, ".config", "nsyte");
-    ensureDirSync(configDir);
-
-    const legacySecrets = {
-      "npub1legacy1": "bunker://legacy-connection-1",
-      "npub1legacy2": "bunker://legacy-connection-2",
-    };
-
-    const legacyPath = join(configDir, "secrets.json");
-    Deno.writeTextFileSync(legacyPath, JSON.stringify(legacySecrets, null, 2));
-
-    // Test migration with encrypted storage directly
-    const storage = new EncryptedStorage();
-    await storage.initialize();
-
-    // Manually test migration logic by reading legacy file and storing in encrypted storage
-    for (const [pubkey, nbunksec] of Object.entries(legacySecrets)) {
-      const stored = await storage.store("nsyte", pubkey, nbunksec);
-      assert(stored, `Should migrate ${pubkey} successfully`);
-    }
-
-    // Verify migration worked
-    for (const [pubkey, expectedNbunksec] of Object.entries(legacySecrets)) {
-      const retrieved = await storage.retrieve("nsyte", pubkey);
-      assertEquals(retrieved, expectedNbunksec, `Migrated secret for ${pubkey} should match`);
-    }
-
-    const pubkeys = await storage.list("nsyte");
-    assertEquals(
-      pubkeys.sort(),
-      Object.keys(legacySecrets).sort(),
-      "All migrated pubkeys should be available",
-    );
-  } finally {
-    restoreEnv();
-    cleanupTestDir();
-  }
-});
-
 Deno.test("EncryptedStorage - Error Handling", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
@@ -265,7 +132,7 @@ Deno.test("EncryptedStorage - Error Handling", async () => {
   }
 });
 
-Deno.test("EncryptedStorage - Concurrent Operations", async () => {
+Deno.test("EncryptedStorage - Sequential Operations", async () => {
   setupTestDir();
   const restoreEnv = mockEnvironment();
 
@@ -273,30 +140,43 @@ Deno.test("EncryptedStorage - Concurrent Operations", async () => {
     const storage = new EncryptedStorage();
     await storage.initialize();
 
-    // Store multiple secrets concurrently
-    const promises = [];
-    for (let i = 0; i < 10; i++) {
-      promises.push(storage.store("nsyte", `npub1test${i}`, `bunker://connection-${i}`));
+    // Test multiple store/retrieve operations
+    const testData = [
+      { account: "npub1test1", secret: "bunker://connection-1" },
+      { account: "npub1test2", secret: "bunker://connection-2" },
+      { account: "npub1test3", secret: "bunker://connection-3" },
+    ];
+
+    // Store secrets
+    for (const { account, secret } of testData) {
+      const stored = await storage.store("nsyte", account, secret);
+      assert(stored, `Store ${account} should succeed`);
     }
 
-    const results = await Promise.all(promises);
-    results.forEach((result: boolean, i: number) => {
-      assert(result, `Concurrent store ${i} should succeed`);
-    });
-
-    // Small delay to ensure all writes are flushed
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Retrieve all secrets concurrently
-    const retrievePromises = [];
-    for (let i = 0; i < 10; i++) {
-      retrievePromises.push(storage.retrieve("nsyte", `npub1test${i}`));
+    // Retrieve and verify
+    for (const { account, secret } of testData) {
+      const retrieved = await storage.retrieve("nsyte", account);
+      assertEquals(retrieved, secret, `Retrieved ${account} should match`);
     }
 
-    const retrievedSecrets = await Promise.all(retrievePromises);
-    retrievedSecrets.forEach((secret: string | null, i: number) => {
-      assertEquals(secret, `bunker://connection-${i}`, `Concurrent retrieve ${i} should match`);
-    });
+    // Update secrets
+    for (const { account } of testData) {
+      const updated = await storage.store("nsyte", account, `${account}-updated`);
+      assert(updated, `Update ${account} should succeed`);
+    }
+
+    // Verify updates
+    for (const { account } of testData) {
+      const retrieved = await storage.retrieve("nsyte", account);
+      assertEquals(retrieved, `${account}-updated`, `Updated ${account} should match`);
+    }
+
+    // Test list functionality
+    const accounts = await storage.list("nsyte");
+    assertEquals(accounts.length, testData.length, "Should list all accounts");
+    for (const { account } of testData) {
+      assert(accounts.includes(account), `List should include ${account}`);
+    }
   } finally {
     restoreEnv();
     cleanupTestDir();

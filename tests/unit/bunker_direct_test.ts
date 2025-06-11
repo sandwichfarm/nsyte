@@ -9,6 +9,12 @@ import {
   showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
+import { 
+  stubExit, 
+  createMockSecretsManager, 
+  captureConsole,
+  createTestConfig,
+} from "../mocks/index.ts";
 
 Deno.test("Bunker Command - showBunkerHelp", async (t) => {
   await t.step("should display help information", async () => {
@@ -42,17 +48,15 @@ Deno.test("Bunker Command - showBunkerHelp", async (t) => {
 Deno.test("Bunker Command - listBunkers", async (t) => {
   await t.step("should handle no bunkers found", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager to return empty list
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-    const mockInstance = {
-      getAllPubkeys: () => Promise.resolve([]),
-    };
+    const mockSecretsManager = createMockSecretsManager();
     const getInstanceStub = stub(
       SecretsManagerModule.SecretsManager,
       "getInstance",
-      () => mockInstance,
+      () => mockSecretsManager as any,
     );
 
     // Mock readProjectFile to return null
@@ -86,14 +90,11 @@ Deno.test("Bunker Command - listBunkers", async (t) => {
     ]);
 
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
-    const mockInstance = {
-      getAllPubkeys: () => Promise.resolve(mockPubkeys),
-      getNbunk: (pubkey: string) => Promise.resolve(mockNbunks.get(pubkey)),
-    };
+    const mockSecretsManager = createMockSecretsManager(Object.fromEntries(mockNbunks));
     const getInstanceStub = stub(
       SecretsManagerModule.SecretsManager,
       "getInstance",
-      () => mockInstance,
+      () => mockSecretsManager as any,
     );
 
     // Mock decodeBunkerInfo
@@ -139,7 +140,7 @@ Deno.test("Bunker Command - listBunkers", async (t) => {
 Deno.test("Bunker Command - useBunkerForProject", async (t) => {
   await t.step("should configure project with provided pubkey", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
@@ -179,7 +180,7 @@ Deno.test("Bunker Command - useBunkerForProject", async (t) => {
 
   await t.step("should handle missing project config", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
@@ -216,7 +217,7 @@ Deno.test("Bunker Command - useBunkerForProject", async (t) => {
 Deno.test("Bunker Command - exportNbunk", async (t) => {
   await t.step("should export bunker with provided pubkey", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     const nbunkString = "nbunksec1validexportstring";
 
@@ -250,7 +251,7 @@ Deno.test("Bunker Command - exportNbunk", async (t) => {
 
   await t.step("should handle missing bunker", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager to return null
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
@@ -282,7 +283,7 @@ Deno.test("Bunker Command - handleBunkerCommand", async (t) => {
   await t.step("should show help for -h flag", async () => {
     const originalArgs = Deno.args;
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     try {
       // Mock Deno.args
@@ -311,7 +312,7 @@ Deno.test("Bunker Command - handleBunkerCommand", async (t) => {
   await t.step("should handle unknown subcommand", async () => {
     const originalArgs = Deno.args;
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     try {
       // Mock Deno.args
@@ -344,7 +345,7 @@ Deno.test("Bunker Command - handleBunkerCommand", async (t) => {
   await t.step("should handle list subcommand", async () => {
     const originalArgs = Deno.args;
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
@@ -389,7 +390,7 @@ Deno.test("Bunker Command - handleBunkerCommand", async (t) => {
 Deno.test("Bunker Command - removeBunker", async (t) => {
   await t.step("should remove bunker with confirmation", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock SecretsManager
     const SecretsManagerModule = await import("../../src/lib/secrets/mod.ts");
@@ -430,7 +431,7 @@ Deno.test("Bunker Command - removeBunker", async (t) => {
 
   await t.step("should handle cancellation", async () => {
     const consoleLogSpy = spy(console, "log");
-    const exitStub = stub(Deno, "exit", () => {});
+    const exitStub = stubExit();
 
     // Mock Confirm prompt to return false
     const promptModule = await import("@cliffy/prompt");
