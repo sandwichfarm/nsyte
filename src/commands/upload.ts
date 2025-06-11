@@ -1072,7 +1072,7 @@ async function maybePublishMetadata(): Promise<void> {
       try {
         const profileEvent = await createProfileEvent(signer, config.profile);
         log.debug(`Created profile event for publishing: ${JSON.stringify(profileEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [profileEvent], messageCollector);
+        await publishEventsToRelays(resolvedRelays, [profileEvent]);
         statusDisplay.success(
           `Profile published for ${config.profile.name || await signer.getPublicKey()}`,
         );
@@ -1087,7 +1087,7 @@ async function maybePublishMetadata(): Promise<void> {
       try {
         const relayListEvent = await createRelayListEvent(signer, resolvedRelays);
         log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [relayListEvent], messageCollector);
+        await publishEventsToRelays(resolvedRelays, [relayListEvent]);
         statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);
@@ -1104,7 +1104,7 @@ async function maybePublishMetadata(): Promise<void> {
           options.servers?.split(",") || config.servers || [],
         );
         log.debug(`Created server list event: ${JSON.stringify(serverListEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [serverListEvent], messageCollector);
+        await publishEventsToRelays(resolvedRelays, [serverListEvent]);
         statusDisplay.success(`Server list published`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish server list: ${getErrorMessage(e)}`);

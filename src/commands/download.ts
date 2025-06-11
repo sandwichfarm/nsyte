@@ -12,6 +12,7 @@ import {
 import { readProjectFile } from "../lib/config.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import { type DownloadResult, DownloadService } from "../lib/download.ts";
+import type { FileEntry } from "../lib/nostr.ts";
 
 const log = createLogger("download");
 
@@ -126,7 +127,7 @@ export async function downloadFiles(
     overwrite: options.overwrite,
     verbose: options.verbose,
   };
-  return downloadService.downloadFiles(files, servers, downloadOptions);
+  return await downloadService.downloadFiles(files, servers, downloadOptions);
 }
 
 // Legacy functions for backward compatibility and testing
@@ -147,7 +148,7 @@ export async function downloadSingleFile(
     overwrite: options.overwrite,
     verbose: options.verbose,
   };
-  return downloadService.downloadSingleFile(file, servers, downloadOptions);
+  return await downloadService.downloadSingleFile(file, servers, downloadOptions);
 }
 
 /**
@@ -159,7 +160,7 @@ export async function downloadFromServer(
   sha256: string,
 ): Promise<Uint8Array | null> {
   const downloadService = DownloadService.create();
-  return downloadService.downloadFromServer(server, sha256);
+  return await downloadService.downloadFromServer(server, sha256);
 }
 
 /**
