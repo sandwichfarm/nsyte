@@ -56,7 +56,6 @@ async function getCoveragePercentage(): Promise<number> {
     } catch {
       throw new Error("Could not find coverage data");
     }
-  }
 }
 
 function parseLcovCoverage(lcovContent: string): number {
