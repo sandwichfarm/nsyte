@@ -4,10 +4,10 @@
  * Safe test runner that prevents keychain access
  */
 
-// Set environment variable before any imports
-Deno.env.set("NSYTE_DISABLE_KEYCHAIN", "true");
+// Import global test setup FIRST to block all system access
+await import("./test-setup-global.ts");
 
-console.log("🔒 Running tests with keychain access disabled");
+console.log("🔒 Running tests with ALL system access blocked");
 
 // Get test paths from arguments
 const args = Deno.args;

@@ -2,6 +2,9 @@ import { stub, type Stub } from "std/testing/mock.ts";
 import type { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 
+// Import the comprehensive mock
+export * from "./secrets-manager.ts";
+
 /**
  * Stub Deno.exit properly with correct typing
  */

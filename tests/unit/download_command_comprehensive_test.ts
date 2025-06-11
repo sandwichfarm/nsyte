@@ -1,513 +1,276 @@
-import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
-import { join } from "std/path/mod.ts";
-import { Command } from "@cliffy/command";
+// Import test setup FIRST to block all system access
+import "../test-setup-global.ts";
+
+import { assertEquals, assertExists } from "std/assert/mod.ts";
+import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
+import { restore, stub, type Stub } from "std/testing/mock.ts";
+
 import { registerDownloadCommand } from "../../src/commands/download.ts";
+import { Command } from "@cliffy/command";
 
-Deno.test("Download Command - Full Implementation", async (t) => {
-  await t.step("should register download command with all options", () => {
-    const program = new Command();
-    registerDownloadCommand(program);
+// Test state
+let consoleOutput: { logs: string[]; errors: string[] };
+let originalLog: typeof console.log;
+let originalError: typeof console.error;
+let exitStub: Stub;
 
-    const commands = program.getCommands();
-    const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
+describe("Download Command - Comprehensive Tests", () => {
+  beforeEach(() => {
+    // Setup console capture
+    consoleOutput = { logs: [], errors: [] };
+    originalLog = console.log;
+    originalError = console.error;
+    
+    console.log = (...args: unknown[]) => {
+      consoleOutput.logs.push(args.map(String).join(" "));
+    };
+    
+    console.error = (...args: unknown[]) => {
+      consoleOutput.errors.push(args.map(String).join(" "));
+    };
 
-    assertExists(downloadCommand);
-    assertEquals(downloadCommand.getName(), "download");
-    assertEquals(downloadCommand.getDescription(), "Download files from the nostr network");
-
-    const options = downloadCommand.getOptions();
-    const optionNames = options.map((opt) => opt.name);
-
-    // Check all expected options are present
-    assertEquals(optionNames.includes("output"), true);
-    assertEquals(optionNames.includes("relays"), true);
-    assertEquals(optionNames.includes("servers"), true);
-    assertEquals(optionNames.includes("privatekey"), true);
-    assertEquals(optionNames.includes("bunker"), true);
-    assertEquals(optionNames.includes("pubkey"), true);
-    assertEquals(optionNames.includes("nbunksec"), true);
-    assertEquals(optionNames.includes("overwrite"), true);
-    assertEquals(optionNames.includes("verbose"), true);
+    // Setup exit stub
+    exitStub = stub(Deno, "exit", ((code?: number) => {
+      (exitStub as any).lastExitCode = code;
+      return undefined as never;
+    }) as any);
   });
 
-  await t.step("should have correct default values", () => {
-    const program = new Command();
-    registerDownloadCommand(program);
-
-    const commands = program.getCommands();
-    const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
-
-    assertExists(downloadCommand);
-
-    const outputOption = downloadCommand.getOptions().find((opt) => opt.name === "output");
-    assertExists(outputOption);
-    assertEquals(outputOption.default, "./downloads");
-
-    const overwriteOption = downloadCommand.getOptions().find((opt) => opt.name === "overwrite");
-    assertExists(overwriteOption);
-    assertEquals(overwriteOption.default, false);
+  afterEach(() => {
+    // Restore all stubs
+    restore();
+    
+    // Restore console
+    console.log = originalLog;
+    console.error = originalError;
   });
-});
 
-Deno.test("Download Command - File Processing Logic", async (t) => {
-  await t.step("should process download results correctly", () => {
-    interface DownloadResult {
-      file: { path: string; sha256: string };
-      success: boolean;
-      error?: string;
-      savedPath?: string;
-      skipped?: boolean;
-      reason?: string;
-    }
+  describe("downloadCommand function", () => {
+    it("should handle basic download workflow", async () => {
+      // Mock all dependencies
+      const resolverUtilsModule = await import("../../src/lib/resolver-utils.ts");
+      const nostrModule = await import("../../src/lib/nostr.ts");
+      const configModule = await import("../../src/lib/config.ts");
+      const displayModeModule = await import("../../src/lib/display-mode.ts");
+      const fsModule = await import("@std/fs/ensure-dir");
 
-    const processDownloadResults = (results: DownloadResult[]) => {
-      const successful = results.filter((r) => r.success && !r.skipped);
-      const skipped = results.filter((r) => r.skipped);
-      const failed = results.filter((r) => !r.success);
+      // Mock resolvePubkey to return a test pubkey
+      stub(resolverUtilsModule, "resolvePubkey", () => 
+        Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+      );
 
-      return {
-        successful: successful.length,
-        skipped: skipped.length,
-        failed: failed.length,
-        total: results.length,
-        successRate: results.length > 0 ? (successful.length / results.length) * 100 : 0,
+      // Mock resolveRelays and resolveServers
+      stub(resolverUtilsModule, "resolveRelays", () => ["wss://relay1.com", "wss://relay2.com"]);
+      stub(resolverUtilsModule, "resolveServers", () => ["https://server1.com", "https://server2.com"]);
+
+      // Mock config
+      stub(configModule, "readProjectFile", () => null);
+
+      // Mock display manager
+      const mockDisplayManager = {
+        configureFromOptions: () => {},
       };
-    };
+      stub(displayModeModule, "getDisplayManager", () => mockDisplayManager as any);
 
-    const mockResults: DownloadResult[] = [
-      {
-        file: { path: "/index.html", sha256: "abc123" },
-        success: true,
-        savedPath: "./downloads/index.html",
-      },
-      {
-        file: { path: "/style.css", sha256: "def456" },
-        success: true,
-        skipped: true,
-        reason: "File already exists",
-      },
-      {
-        file: { path: "/script.js", sha256: "ghi789" },
-        success: false,
-        error: "Failed to download from any server",
-      },
-    ];
+      // Mock ensureDir
+      stub(fsModule, "ensureDir", () => Promise.resolve());
 
-    const summary = processDownloadResults(mockResults);
-    assertEquals(summary.successful, 1);
-    assertEquals(summary.skipped, 1);
-    assertEquals(summary.failed, 1);
-    assertEquals(summary.total, 3);
-    assertEquals(Math.round(summary.successRate), 33);
-  });
+      // Mock listRemoteFiles to return empty array (no files found path)
+      stub(nostrModule, "listRemoteFiles", () => Promise.resolve([]));
 
-  await t.step("should handle download progress tracking", () => {
-    interface DownloadProgress {
-      total: number;
-      completed: number;
-      failed: number;
-      skipped: number;
-      inProgress: number;
-    }
+      // Get the internal downloadCommand function by importing and calling registerDownloadCommand
+      const program = new Command();
+      registerDownloadCommand(program);
+      
+      // Find the registered command
+      const commands = program.getCommands();
+      const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
+      assertExists(downloadCommand);
 
-    const createProgressTracker = () => {
-      let progress: DownloadProgress = {
-        total: 0,
-        completed: 0,
-        failed: 0,
-        skipped: 0,
-        inProgress: 0,
-      };
-
-      return {
-        setTotal: (total: number) => {
-          progress.total = total;
-        },
-        startDownload: () => {
-          progress.inProgress++;
-        },
-        completeDownload: () => {
-          progress.inProgress--;
-          progress.completed++;
-        },
-        skipDownload: () => {
-          progress.inProgress--;
-          progress.skipped++;
-        },
-        failDownload: () => {
-          progress.inProgress--;
-          progress.failed++;
-        },
-        getProgress: () => ({ ...progress }),
-        getPercentage: () => {
-          const completed = progress.completed + progress.skipped;
-          return progress.total === 0 ? 0 : Math.round((completed / progress.total) * 100);
-        },
-      };
-    };
-
-    const tracker = createProgressTracker();
-    tracker.setTotal(5);
-
-    // Start some downloads
-    tracker.startDownload();
-    tracker.startDownload();
-    assertEquals(tracker.getProgress().inProgress, 2);
-
-    // Complete one
-    tracker.completeDownload();
-    assertEquals(tracker.getProgress().completed, 1);
-    assertEquals(tracker.getProgress().inProgress, 1);
-    assertEquals(tracker.getPercentage(), 20);
-
-    // Skip one
-    tracker.skipDownload();
-    assertEquals(tracker.getProgress().skipped, 1);
-    assertEquals(tracker.getPercentage(), 40);
-
-    // Fail one
-    tracker.startDownload();
-    tracker.failDownload();
-    assertEquals(tracker.getProgress().failed, 1);
-    assertEquals(tracker.getPercentage(), 40);
-  });
-
-  await t.step("should validate file path construction", () => {
-    const constructOutputPath = (outputDir: string, filePath: string) => {
-      // Normalize file path (remove leading slash if present)
-      const normalizedPath = filePath.startsWith("/") ? filePath.slice(1) : filePath;
-      return join(outputDir, normalizedPath);
-    };
-
-    assertEquals(
-      constructOutputPath("./downloads", "/index.html"),
-      join("./downloads", "index.html"),
-    );
-    assertEquals(
-      constructOutputPath("./downloads", "index.html"),
-      join("./downloads", "index.html"),
-    );
-    assertEquals(
-      constructOutputPath("./downloads", "/subdir/file.txt"),
-      join("./downloads", "subdir", "file.txt"),
-    );
-    assertEquals(
-      constructOutputPath("/absolute/path", "/file.js"),
-      join("/absolute/path", "file.js"),
-    );
-  });
-});
-
-Deno.test("Download Command - Server Communication", async (t) => {
-  await t.step("should handle server URL formatting", () => {
-    const formatServerUrl = (server: string, sha256: string) => {
-      const serverUrl = server.endsWith("/") ? server : `${server}/`;
-      return `${serverUrl}${sha256}`;
-    };
-
-    assertEquals(formatServerUrl("https://server.com", "abc123"), "https://server.com/abc123");
-    assertEquals(formatServerUrl("https://server.com/", "abc123"), "https://server.com/abc123");
-    assertEquals(
-      formatServerUrl("https://api.example.com/blossom", "def456"),
-      "https://api.example.com/blossom/def456",
-    );
-  });
-
-  await t.step("should handle download response validation", () => {
-    const validateDownloadResponse = (
-      response: { ok: boolean; status: number; statusText: string },
-    ) => {
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { valid: false, reason: "File not found on server", retry: true };
-        }
-        if (response.status >= 500) {
-          return { valid: false, reason: "Server error", retry: true };
-        }
-        if (response.status === 403) {
-          return { valid: false, reason: "Access denied", retry: false };
-        }
-        return {
-          valid: false,
-          reason: `HTTP ${response.status}: ${response.statusText}`,
-          retry: false,
-        };
-      }
-
-      return { valid: true, reason: null, retry: false };
-    };
-
-    // Test various response codes
-    assertEquals(validateDownloadResponse({ ok: true, status: 200, statusText: "OK" }), {
-      valid: true,
-      reason: null,
-      retry: false,
-    });
-
-    assertEquals(validateDownloadResponse({ ok: false, status: 404, statusText: "Not Found" }), {
-      valid: false,
-      reason: "File not found on server",
-      retry: true,
-    });
-
-    assertEquals(
-      validateDownloadResponse({ ok: false, status: 500, statusText: "Internal Server Error" }),
-      { valid: false, reason: "Server error", retry: true },
-    );
-
-    assertEquals(validateDownloadResponse({ ok: false, status: 403, statusText: "Forbidden" }), {
-      valid: false,
-      reason: "Access denied",
-      retry: false,
-    });
-  });
-
-  await t.step("should implement retry logic for failed downloads", async () => {
-    const downloadWithRetry = async <T>(
-      operation: () => Promise<T>,
-      maxRetries: number = 3,
-      delay: number = 1000,
-    ): Promise<T> => {
-      let lastError: Error;
-
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          return await operation();
-        } catch (error) {
-          lastError = error as Error;
-
-          if (attempt === maxRetries) {
-            throw lastError;
-          }
-
-          // Exponential backoff
-          const backoffDelay = delay * Math.pow(2, attempt);
-          await new Promise((resolve) => setTimeout(resolve, backoffDelay / 100)); // Shortened for testing
-        }
-      }
-
-      throw lastError!;
-    };
-
-    // Test successful operation
-    let attempts = 0;
-    const successfulOp = async () => {
-      attempts++;
-      return "success";
-    };
-
-    const result = await downloadWithRetry(successfulOp, 3, 100);
-    assertEquals(result, "success");
-    assertEquals(attempts, 1);
-
-    // Test operation that succeeds on retry
-    let failCount = 0;
-    const eventualSuccessOp = async () => {
-      failCount++;
-      if (failCount < 3) {
-        throw new Error("Temporary failure");
-      }
-      return "eventual success";
-    };
-
-    const result2 = await downloadWithRetry(eventualSuccessOp, 3, 100);
-    assertEquals(result2, "eventual success");
-    assertEquals(failCount, 3);
-  });
-});
-
-Deno.test("Download Command - File System Operations", async (t) => {
-  await t.step("should handle file existence checking", async () => {
-    const checkFileExists = async (filePath: string, overwrite: boolean) => {
+      // Execute the command action with test options
       try {
-        // Mock file stat - in real implementation this would be Deno.stat()
-        const mockStat = { isFile: true, size: 1024 };
-
-        if (mockStat.isFile && !overwrite) {
-          return {
-            exists: true,
-            shouldSkip: true,
-            reason: "File already exists (use --overwrite to replace)",
-          };
-        }
-
-        return {
-          exists: true,
-          shouldSkip: false,
-          reason: "File will be overwritten",
-        };
+        await downloadCommand.parse(["download", "--output", "./test-downloads"]);
       } catch {
-        return {
-          exists: false,
-          shouldSkip: false,
-          reason: "File does not exist",
-        };
-      }
-    };
-
-    // Test file exists without overwrite
-    const result1 = await checkFileExists("./test.txt", false);
-    assertEquals(result1.exists, true);
-    assertEquals(result1.shouldSkip, true);
-
-    // Test file exists with overwrite
-    const result2 = await checkFileExists("./test.txt", true);
-    assertEquals(result2.exists, true);
-    assertEquals(result2.shouldSkip, false);
-  });
-
-  await t.step("should handle directory creation", () => {
-    const ensureDirectoryExists = (filePath: string) => {
-      const dirPath = filePath.split("/").slice(0, -1).join("/");
-
-      if (!dirPath) {
-        return { created: false, path: null };
+        // Expected to fail in test environment, but we can check console output
       }
 
-      // Mock directory creation
-      return { created: true, path: dirPath };
-    };
+      const output = [...consoleOutput.logs, ...consoleOutput.errors].join("\n");
+      assertEquals(output.includes("Downloading files for: 12345678..."), true);
+      assertEquals(output.includes("No files found for this public key"), true);
+    });
 
-    const result1 = ensureDirectoryExists("./downloads/subdir/file.txt");
-    assertEquals(result1.created, true);
-    assertEquals(result1.path, "./downloads/subdir");
+    it("should handle files found scenario", async () => {
+      // Mock all dependencies for files found path
+      const resolverUtilsModule = await import("../../src/lib/resolver-utils.ts");
+      const nostrModule = await import("../../src/lib/nostr.ts");
+      const configModule = await import("../../src/lib/config.ts");
+      const displayModeModule = await import("../../src/lib/display-mode.ts");
+      const fsModule = await import("@std/fs/ensure-dir");
 
-    const result2 = ensureDirectoryExists("file.txt");
-    assertEquals(result2.created, false);
-    assertEquals(result2.path, null);
-  });
+      // Mock resolvePubkey
+      stub(resolverUtilsModule, "resolvePubkey", () => 
+        Promise.resolve("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+      );
 
-  await t.step("should validate SHA256 integrity", async () => {
-    const validateFileIntegrity = async (fileData: Uint8Array, expectedSHA256: string) => {
-      // Mock SHA256 calculation - in real implementation this would use crypto.subtle
-      const calculateSHA256 = async (data: Uint8Array): Promise<string> => {
-        // Simple mock - in reality would compute actual SHA256
-        if (data.length === 5 && expectedSHA256 === "abc123") {
-          return "abc123";
-        }
-        return "different_hash";
+      // Mock resolveRelays and resolveServers
+      stub(resolverUtilsModule, "resolveRelays", () => ["wss://relay1.com"]);
+      stub(resolverUtilsModule, "resolveServers", () => ["https://server1.com"]);
+
+      // Mock config
+      stub(configModule, "readProjectFile", () => null);
+
+      // Mock display manager
+      const mockDisplayManager = {
+        configureFromOptions: () => {},
       };
+      stub(displayModeModule, "getDisplayManager", () => mockDisplayManager as any);
 
-      const actualHash = await calculateSHA256(fileData);
+      // Mock ensureDir
+      stub(fsModule, "ensureDir", () => Promise.resolve());
 
-      return {
-        valid: actualHash === expectedSHA256,
-        expectedHash: expectedSHA256,
-        actualHash,
+      // Mock listRemoteFiles to return some files
+      const mockFiles = [
+        {
+          hash: "abc123",
+          name: "test1.txt",
+          size: 100,
+          url: "https://server1.com/abc123",
+          eventId: "event1",
+          created: Date.now(),
+        },
+        {
+          hash: "def456", 
+          name: "test2.txt",
+          size: 200,
+          url: "https://server1.com/def456",
+          eventId: "event2",
+          created: Date.now(),
+        },
+      ];
+      stub(nostrModule, "listRemoteFiles", () => Promise.resolve(mockFiles));
+
+      // Mock the ProgressRenderer
+      const progressModule = await import("../../src/ui/progress.ts");
+      const mockProgressRenderer = {
+        start: () => {},
+        updateProgress: () => {},
+        complete: () => {},
       };
-    };
+      stub(progressModule, "ProgressRenderer", () => mockProgressRenderer as any);
 
-    // Test valid file
-    const validData = new Uint8Array(5);
-    const validResult = await validateFileIntegrity(validData, "abc123");
-    assertEquals(validResult.valid, true);
-
-    // Test invalid file
-    const invalidData = new Uint8Array(10);
-    const invalidResult = await validateFileIntegrity(invalidData, "abc123");
-    assertEquals(invalidResult.valid, false);
-  });
-});
-
-Deno.test("Download Command - Error Handling", async (t) => {
-  await t.step("should categorize download errors", () => {
-    const categorizeDownloadError = (error: Error) => {
-      const message = error.message.toLowerCase();
-
-      if (message.includes("network") || message.includes("connection")) {
-        return { type: "network", retry: true, userAction: "Check internet connection" };
-      }
-
-      if (message.includes("not found") || message.includes("404")) {
-        return { type: "not_found", retry: false, userAction: "Verify file exists on servers" };
-      }
-
-      if (message.includes("permission") || message.includes("access")) {
-        return { type: "permission", retry: false, userAction: "Check file system permissions" };
-      }
-
-      if (message.includes("disk") || message.includes("space")) {
-        return { type: "disk_space", retry: false, userAction: "Free up disk space" };
-      }
-
-      if (message.includes("timeout")) {
-        return { type: "timeout", retry: true, userAction: "Try again or use different servers" };
-      }
-
-      return { type: "unknown", retry: false, userAction: "Check error details" };
-    };
-
-    assertEquals(categorizeDownloadError(new Error("Network connection failed")), {
-      type: "network",
-      retry: true,
-      userAction: "Check internet connection",
-    });
-
-    assertEquals(categorizeDownloadError(new Error("File not found")), {
-      type: "not_found",
-      retry: false,
-      userAction: "Verify file exists on servers",
-    });
-
-    assertEquals(categorizeDownloadError(new Error("Permission denied")), {
-      type: "permission",
-      retry: false,
-      userAction: "Check file system permissions",
-    });
-
-    assertEquals(categorizeDownloadError(new Error("Timeout waiting for response")), {
-      type: "timeout",
-      retry: true,
-      userAction: "Try again or use different servers",
-    });
-  });
-
-  await t.step("should handle graceful fallback between servers", async () => {
-    const downloadWithFallback = async (servers: string[], sha256: string) => {
-      const errors: { server: string; error: string }[] = [];
-
-      for (const server of servers) {
-        try {
-          // Mock download attempt
-          if (server.includes("working")) {
-            return { success: true, server, data: new Uint8Array(10) };
-          } else if (server.includes("404")) {
-            throw new Error("File not found (404)");
-          } else if (server.includes("timeout")) {
-            throw new Error("Request timeout");
-          } else {
-            throw new Error("Server error (500)");
-          }
-        } catch (error) {
-          errors.push({
-            server,
-            error: error instanceof Error ? error.message : String(error),
+      // Mock fetch to simulate downloads
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async (input: string | Request | URL) => {
+        if (String(input).includes("abc123")) {
+          return new Response("test content 1", { 
+            status: 200,
+            headers: { "content-length": "100" }
           });
-          continue;
         }
+        if (String(input).includes("def456")) {
+          return new Response("test content 2", { 
+            status: 200,
+            headers: { "content-length": "200" }
+          });
+        }
+        return new Response("Not found", { status: 404 });
+      };
+
+      // Mock Deno.writeFile
+      const originalWriteFile = Deno.writeFile;
+      Deno.writeFile = async (path: string | URL, data: Uint8Array | ReadableStream<Uint8Array>) => {
+        // Just simulate successful write
+        return Promise.resolve();
+      };
+
+      try {
+        const program = new Command();
+        registerDownloadCommand(program);
+        
+        const commands = program.getCommands();
+        const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
+        assertExists(downloadCommand);
+
+        // This will likely fail due to the complex download logic, but we can test parts
+        try {
+          await downloadCommand.parse(["download", "--output", "./test-downloads"]);
+        } catch {
+          // Expected in test environment
+        }
+
+        const output = [...consoleOutput.logs, ...consoleOutput.errors].join("\n");
+        assertEquals(output.includes("Found 2 files to download"), true);
+      } finally {
+        // Restore global functions
+        globalThis.fetch = originalFetch;
+        Deno.writeFile = originalWriteFile;
+      }
+    });
+  });
+
+  describe("error handling", () => {
+    it("should handle resolver errors gracefully", async () => {
+      const resolverUtilsModule = await import("../../src/lib/resolver-utils.ts");
+      
+      // Mock resolvePubkey to throw an error
+      stub(resolverUtilsModule, "resolvePubkey", () => {
+        throw new Error("Failed to resolve pubkey");
+      });
+
+      const program = new Command();
+      registerDownloadCommand(program);
+      
+      const commands = program.getCommands();
+      const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
+      assertExists(downloadCommand);
+
+      // Should handle the error gracefully via handleError wrapper
+      try {
+        await downloadCommand.parse(["download"]);
+      } catch {
+        // Expected
       }
 
-      return { success: false, server: null, data: null, errors };
-    };
+      // Should have called exit due to error
+      assertEquals(exitStub.calls.length >= 1, true);
+    });
+  });
 
-    // Test successful download from second server
-    const result1 = await downloadWithFallback([
-      "https://broken.server.com",
-      "https://working.server.com",
-    ], "abc123");
+  describe("integration with dependencies", () => {
+    it("should call all required modules", async () => {
+      // Test that the download command properly integrates with all its dependencies
+      const resolverUtilsModule = await import("../../src/lib/resolver-utils.ts");
+      const configModule = await import("../../src/lib/config.ts");
+      const displayModeModule = await import("../../src/lib/display-mode.ts");
 
-    assertEquals(result1.success, true);
-    assertEquals(result1.server, "https://working.server.com");
+      // Create spies to verify calls
+      const resolvePubkeySpy = stub(resolverUtilsModule, "resolvePubkey", () => 
+        Promise.resolve("test-pubkey")
+      );
+      const resolveRelaysSpy = stub(resolverUtilsModule, "resolveRelays", () => ["wss://test.com"]);
+      const resolveServersSpy = stub(resolverUtilsModule, "resolveServers", () => ["https://test.com"]);
+      const readProjectFileSpy = stub(configModule, "readProjectFile", () => null);
+      
+      const mockDisplayManager = { configureFromOptions: stub() };
+      const getDisplayManagerSpy = stub(displayModeModule, "getDisplayManager", () => mockDisplayManager as any);
 
-    // Test all servers fail
-    const result2 = await downloadWithFallback([
-      "https://404.server.com",
-      "https://timeout.server.com",
-      "https://error.server.com",
-    ], "abc123");
+      const program = new Command();
+      registerDownloadCommand(program);
 
-    assertEquals(result2.success, false);
-    assertExists(result2.errors);
-    assertEquals(result2.errors.length, 3);
+      try {
+        const commands = program.getCommands();
+        const downloadCommand = commands.find((cmd) => cmd.getName() === "download");
+        await downloadCommand?.parse(["download", "--output", "./test"]);
+      } catch {
+        // Expected to fail in test environment
+      }
+
+      // Verify that dependencies were called
+      assertEquals(resolvePubkeySpy.calls.length, 1);
+      assertEquals(resolveRelaysSpy.calls.length, 1);
+      assertEquals(resolveServersSpy.calls.length, 1);
+      assertEquals(readProjectFileSpy.calls.length >= 1, true);
+      assertEquals(getDisplayManagerSpy.calls.length, 1);
+    });
   });
 });

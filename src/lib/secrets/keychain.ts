@@ -501,7 +501,8 @@ class LinuxSecretService implements KeychainProvider {
  */
 export async function getKeychainProvider(): Promise<KeychainProvider | null> {
   // Check if keychain is disabled (for testing)
-  if (Deno.env.get("NSYTE_DISABLE_KEYCHAIN") === "true") {
+  if (Deno.env.get("NSYTE_DISABLE_KEYCHAIN") === "true" || 
+      Deno.env.get("NSYTE_TEST_MODE") === "true") {
     log.debug("Keychain access disabled by environment variable");
     return null;
   }

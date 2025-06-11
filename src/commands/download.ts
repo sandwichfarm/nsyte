@@ -1,39 +1,23 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { join, dirname } from "@std/path";
-import { ensureDir } from "@std/fs/ensure-dir";
+import { dirname } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { resolvePubkey, resolveRelays, resolveServers, type ResolverOptions } from "../lib/resolver-utils.ts";
-import { listRemoteFiles, type FileEntry } from "../lib/nostr.ts";
 import { readProjectFile } from "../lib/config.ts";
-import { ProgressRenderer } from "../ui/progress.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
+import { DownloadService, type DownloadResult } from "../lib/download.ts";
 
 const log = createLogger("download");
 
-interface DownloadOptions extends ResolverOptions {
+export interface DownloadOptions extends ResolverOptions {
   output?: string;
   overwrite?: boolean;
   verbose?: boolean;
 }
 
-interface DownloadResult {
-  file: FileEntry;
-  success: boolean;
-  error?: string;
-  savedPath?: string;
-  skipped?: boolean;
-  reason?: string;
-}
-
-interface DownloadProgress {
-  total: number;
-  completed: number;
-  failed: number;
-  skipped: number;
-  inProgress: number;
-}
+// Re-export types from the service
+export type { DownloadResult, DownloadProgress, DownloadStats } from "../lib/download.ts";
 
 /**
  * Register the download command
@@ -83,12 +67,12 @@ async function downloadCommand(options: DownloadOptions): Promise<void> {
   console.log(colors.gray(`Using servers: ${servers.join(", ")}`));
   console.log(colors.gray(`Output directory: ${options.output}`));
   
-  // Ensure output directory exists
-  await ensureDir(options.output!);
+  // Create download service
+  const downloadService = DownloadService.create({ concurrency: 3 });
   
   // Fetch file list from relays
   console.log(colors.yellow("Fetching file list from relays..."));
-  const remoteFiles = await listRemoteFiles(relays, pubkey);
+  const remoteFiles = await downloadService.fetchFileList(relays, pubkey);
   
   if (remoteFiles.length === 0) {
     console.log(colors.yellow("No files found for this public key."));
@@ -101,8 +85,14 @@ async function downloadCommand(options: DownloadOptions): Promise<void> {
   
   console.log(colors.green(`Found ${remoteFiles.length} files to download.`));
   
-  // Download files
-  const results = await downloadFiles(remoteFiles, servers, options);
+  // Download files using the service
+  const downloadOptions = {
+    output: options.output!,
+    overwrite: options.overwrite,
+    verbose: options.verbose
+  };
+  
+  const results = await downloadService.downloadFiles(remoteFiles, servers, downloadOptions);
   
   // Display results
   displayResults(results);
@@ -110,184 +100,56 @@ async function downloadCommand(options: DownloadOptions): Promise<void> {
 
 /**
  * Download multiple files with progress tracking
+ * @deprecated Use DownloadService.downloadFiles instead
  */
-async function downloadFiles(
+export async function downloadFiles(
   files: FileEntry[],
   servers: string[],
   options: DownloadOptions
 ): Promise<DownloadResult[]> {
-  const progress: DownloadProgress = {
-    total: files.length,
-    completed: 0,
-    failed: 0,
-    skipped: 0,
-    inProgress: 0
+  const downloadService = DownloadService.create();
+  const downloadOptions = {
+    output: options.output!,
+    overwrite: options.overwrite,
+    verbose: options.verbose
   };
-  
-  const progressRenderer = new ProgressRenderer(files.length);
-  progressRenderer.start();
-  
-  const results: DownloadResult[] = [];
-  const concurrency = 3; // Limit concurrent downloads
-  
-  // Process files in batches
-  for (let i = 0; i < files.length; i += concurrency) {
-    const batch = files.slice(i, i + concurrency);
-    progress.inProgress = batch.length;
-    
-    const batchResults = await Promise.all(
-      batch.map(async (file) => {
-        try {
-          return await downloadSingleFile(file, servers, options);
-        } catch (error) {
-          return {
-            file,
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-          };
-        }
-      })
-    );
-    
-    for (const result of batchResults) {
-      results.push(result);
-      
-      if (result.success) {
-        if (result.skipped) {
-          progress.skipped++;
-        } else {
-          progress.completed++;
-        }
-      } else {
-        progress.failed++;
-      }
-      
-      progress.inProgress--;
-      
-      // Update progress
-      progressRenderer.update({
-        total: progress.total,
-        completed: progress.completed + progress.skipped,
-        failed: progress.failed,
-        inProgress: progress.inProgress
-      });
-    }
-  }
-  
-  progressRenderer.complete(
-    progress.failed === 0,
-    `Downloaded ${progress.completed} files, skipped ${progress.skipped}, failed ${progress.failed}`
-  );
-  
-  return results;
+  return downloadService.downloadFiles(files, servers, downloadOptions);
 }
+
+// Legacy functions for backward compatibility and testing
+// Note: These are now implemented in the DownloadService class
 
 /**
  * Download a single file from blossom servers
+ * @deprecated Use DownloadService.downloadSingleFile instead
  */
-async function downloadSingleFile(
+export async function downloadSingleFile(
   file: FileEntry,
   servers: string[],
   options: DownloadOptions
 ): Promise<DownloadResult> {
-  const outputPath = join(options.output!, file.path);
-  
-  // Check if file already exists
-  try {
-    const stat = await Deno.stat(outputPath);
-    if (stat.isFile && !options.overwrite) {
-      return {
-        file,
-        success: true,
-        skipped: true,
-        reason: "File already exists (use --overwrite to replace)",
-        savedPath: outputPath
-      };
-    }
-  } catch {
-    // File doesn't exist, continue with download
-  }
-  
-  if (!file.sha256) {
-    return {
-      file,
-      success: false,
-      error: "No SHA256 hash found for file"
-    };
-  }
-  
-  // Try to download from each server until one succeeds
-  for (const server of servers) {
-    try {
-      const fileData = await downloadFromServer(server, file.sha256);
-      
-      if (fileData) {
-        // Ensure directory exists
-        await ensureDir(dirname(outputPath));
-        
-        // Save file
-        await Deno.writeFile(outputPath, fileData);
-        
-        if (options.verbose) {
-          log.info(`Downloaded ${file.path} from ${server}`);
-        }
-        
-        return {
-          file,
-          success: true,
-          savedPath: outputPath
-        };
-      }
-    } catch (error) {
-      if (options.verbose) {
-        log.debug(`Failed to download ${file.path} from ${server}: ${error}`);
-      }
-      continue;
-    }
-  }
-  
-  return {
-    file,
-    success: false,
-    error: `Failed to download from any server (tried ${servers.length} servers)`
+  const downloadService = DownloadService.create();
+  const downloadOptions = {
+    output: options.output!,
+    overwrite: options.overwrite,
+    verbose: options.verbose
   };
+  return downloadService.downloadSingleFile(file, servers, downloadOptions);
 }
 
 /**
  * Download file data from a blossom server
+ * @deprecated Use DownloadService.downloadFromServer instead
  */
-async function downloadFromServer(server: string, sha256: string): Promise<Uint8Array | null> {
-  const serverUrl = server.endsWith("/") ? server : `${server}/`;
-  const downloadUrl = `${serverUrl}${sha256}`;
-  
-  try {
-    const response = await fetch(downloadUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "*/*"
-      }
-    });
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        log.debug(`File ${sha256} not found on server ${server}`);
-        return null;
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
-  } catch (error) {
-    log.debug(`Error downloading from ${server}: ${error}`);
-    throw error;
-  }
+export async function downloadFromServer(server: string, sha256: string): Promise<Uint8Array | null> {
+  const downloadService = DownloadService.create();
+  return downloadService.downloadFromServer(server, sha256);
 }
 
 /**
  * Display download results summary
  */
-function displayResults(results: DownloadResult[]): void {
+export function displayResults(results: DownloadResult[]): void {
   const successful = results.filter(r => r.success && !r.skipped);
   const skipped = results.filter(r => r.skipped);
   const failed = results.filter(r => !r.success);
