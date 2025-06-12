@@ -1,5 +1,7 @@
 {% extends "base.html" %} {% block header %} {% include "partials/header.html" %} {% endblock %} {%
-block extrahead %} {{ super() }} {% if page.title == "nsyte - Decentralized Website Publishing" %}
+block extrahead %} {{ super() }}
+<base href="/docs/">
+{% if page.title == "nsyte - Decentralized Website Publishing" %}
 <style>
   /* Hide TOC on splash page */
   .md-sidebar--secondary {
