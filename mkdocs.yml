@@ -1,4 +1,5 @@
 site_name: nsyte
+site_url: https://nsyte.run/docs/
 site_description: Documentation for nsyte - publish your site to nostr and blossom servers
 site_author: sandwichfarm
 site_dir: ./dist/docs
