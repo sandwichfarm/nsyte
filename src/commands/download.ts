@@ -12,6 +12,7 @@ import {
 import { readProjectFile } from "../lib/config.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import { type DownloadResult, DownloadService } from "../lib/download.ts";
+import type { FileEntry } from "../lib/nostr.ts";
 
 const log = createLogger("download");
 

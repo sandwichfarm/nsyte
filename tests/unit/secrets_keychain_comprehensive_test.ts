@@ -1,10 +1,10 @@
 import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import {
   getKeychainProvider,
-  type KeychainProvider,
   type KeychainCredential,
+  type KeychainProvider,
 } from "../../src/lib/secrets/keychain.ts";
 
 describe("keychain - comprehensive branch coverage", () => {
@@ -38,60 +38,64 @@ describe("keychain - comprehensive branch coverage", () => {
 
   const mockCommand = (
     expectedCmd: string,
-    responses: Record<string, { code: number; stdout?: string; stderr?: string }>
+    responses: Record<string, { code: number; stdout?: string; stderr?: string }>,
   ) => {
     if (commandStub) commandStub.restore();
-    
-    commandStub = stub(Deno, "Command", class MockCommand {
-      constructor(public cmd: string, public options?: any) {}
-      
-      async output() {
-        const args = this.options?.args || [];
-        const key = `${this.cmd}:${args.join(":")}`;
-        
-        // Check for exact match first
-        if (responses[key]) {
-          const response = responses[key];
-          return {
-            code: response.code,
-            stdout: new TextEncoder().encode(response.stdout || ""),
-            stderr: new TextEncoder().encode(response.stderr || ""),
-          };
-        }
-        
-        // Check for partial matches
-        for (const [pattern, response] of Object.entries(responses)) {
-          if (key.startsWith(pattern)) {
+
+    commandStub = stub(
+      Deno,
+      "Command",
+      class MockCommand {
+        constructor(public cmd: string, public options?: any) {}
+
+        async output() {
+          const args = this.options?.args || [];
+          const key = `${this.cmd}:${args.join(":")}`;
+
+          // Check for exact match first
+          if (responses[key]) {
+            const response = responses[key];
             return {
               code: response.code,
               stdout: new TextEncoder().encode(response.stdout || ""),
               stderr: new TextEncoder().encode(response.stderr || ""),
             };
           }
+
+          // Check for partial matches
+          for (const [pattern, response] of Object.entries(responses)) {
+            if (key.startsWith(pattern)) {
+              return {
+                code: response.code,
+                stdout: new TextEncoder().encode(response.stdout || ""),
+                stderr: new TextEncoder().encode(response.stderr || ""),
+              };
+            }
+          }
+
+          // Default response
+          return {
+            code: 1,
+            stdout: new Uint8Array(),
+            stderr: new TextEncoder().encode("Command not found"),
+          };
         }
-        
-        // Default response
-        return {
-          code: 1,
-          stdout: new Uint8Array(),
-          stderr: new TextEncoder().encode("Command not found"),
-        };
-      }
-      
-      spawn() {
-        const stdin = {
-          getWriter: () => ({
-            write: async () => {},
-            close: async () => {},
-          }),
-        };
-        
-        return {
-          stdin,
-          output: async () => this.output(),
-        };
-      }
-    } as any);
+
+        spawn() {
+          const stdin = {
+            getWriter: () => ({
+              write: async () => {},
+              close: async () => {},
+            }),
+          };
+
+          return {
+            stdin,
+            output: async () => this.output(),
+          };
+        }
+      } as any,
+    );
   };
 
   describe("getKeychainProvider", () => {
@@ -119,7 +123,7 @@ describe("keychain - comprehensive branch coverage", () => {
 
     it("should return null for unsupported OS", async () => {
       mockOS("freebsd");
-      
+
       const provider = await getKeychainProvider();
       assertEquals(provider, null);
     });
@@ -195,16 +199,16 @@ describe("keychain - comprehensive branch coverage", () => {
         mockCommand("which", {
           "which:security": { code: 0 },
         });
-        
+
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         // Mock command to throw
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const available = await provider.isAvailable();
         assertEquals(available, false);
       });
@@ -220,13 +224,13 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, true);
       });
@@ -235,21 +239,21 @@ describe("keychain - comprehensive branch coverage", () => {
         mockCommand("security", {
           "which:security": { code: 0 },
           "security:delete-generic-password": { code: 1 },
-          "security:add-generic-password": { 
-            code: 1, 
-            stderr: "Failed to add password" 
+          "security:add-generic-password": {
+            code: 1,
+            stderr: "Failed to add password",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -261,28 +265,32 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         // Mock command to throw on add-generic-password
         commandStub.restore();
         let callCount = 0;
-        commandStub = stub(Deno, "Command", class {
-          constructor(public cmd: string, public options?: any) {}
-          async output() {
-            callCount++;
-            if (callCount === 1) {
-              // First call is delete (let it succeed)
-              return { code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() };
+        commandStub = stub(
+          Deno,
+          "Command",
+          class {
+            constructor(public cmd: string, public options?: any) {}
+            async output() {
+              callCount++;
+              if (callCount === 1) {
+                // First call is delete (let it succeed)
+                return { code: 0, stdout: new Uint8Array(), stderr: new Uint8Array() };
+              }
+              throw new Error("Command error");
             }
-            throw new Error("Command error");
-          }
-        } as any);
-        
+          } as any,
+        );
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -292,15 +300,15 @@ describe("keychain - comprehensive branch coverage", () => {
       it("should retrieve password successfully", async () => {
         mockCommand("security", {
           "which:security": { code: 0 },
-          "security:find-generic-password": { 
-            code: 0, 
-            stdout: "test-password\n" 
+          "security:find-generic-password": {
+            code: 0,
+            stdout: "test-password\n",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, "test-password");
       });
@@ -313,7 +321,7 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -325,12 +333,12 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -345,7 +353,7 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, true);
       });
@@ -358,7 +366,7 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, false);
       });
@@ -370,12 +378,12 @@ describe("keychain - comprehensive branch coverage", () => {
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, false);
       });
@@ -407,7 +415,7 @@ attributes:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts.length, 2);
         assertEquals(accounts.includes("account1"), true);
@@ -423,7 +431,7 @@ attributes:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });
@@ -435,12 +443,12 @@ attributes:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });
@@ -461,7 +469,7 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts.length, 1);
         assertEquals(accounts[0], "account1");
@@ -498,15 +506,15 @@ acct<blob>="account1"
         mockCommand("where", {
           "where:cmdkey": { code: 0 },
         });
-        
+
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const available = await provider.isAvailable();
         assertEquals(available, false);
       });
@@ -522,13 +530,13 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, true);
       });
@@ -537,21 +545,21 @@ acct<blob>="account1"
         mockCommand("cmdkey", {
           "where:cmdkey": { code: 0 },
           "cmdkey:/delete:test-service:test-account": { code: 1 },
-          "cmdkey:/add:test-service:test-account": { 
-            code: 1, 
-            stderr: "Access denied" 
+          "cmdkey:/add:test-service:test-account": {
+            code: 1,
+            stderr: "Access denied",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -563,18 +571,18 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -584,15 +592,15 @@ acct<blob>="account1"
       it("should retrieve password successfully", async () => {
         mockCommand("powershell", {
           "where:cmdkey": { code: 0 },
-          "powershell:-Command": { 
-            code: 0, 
-            stdout: "test-password\n" 
+          "powershell:-Command": {
+            code: 0,
+            stdout: "test-password\n",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, "test-password");
       });
@@ -605,7 +613,7 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -618,7 +626,7 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -630,12 +638,12 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -650,7 +658,7 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, true);
       });
@@ -662,12 +670,12 @@ acct<blob>="account1"
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, false);
       });
@@ -698,7 +706,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts.length, 2);
         assertEquals(accounts.includes("account1"), true);
@@ -713,7 +721,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });
@@ -725,12 +733,12 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });
@@ -756,15 +764,15 @@ Currently stored credentials:
         mockCommand("which", {
           "which:secret-tool": { code: 0 },
         });
-        
+
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const available = await provider.isAvailable();
         assertEquals(available, false);
       });
@@ -779,13 +787,13 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, true);
       });
@@ -793,21 +801,21 @@ Currently stored credentials:
       it("should handle store failure", async () => {
         mockCommand("secret-tool", {
           "which:secret-tool": { code: 0 },
-          "secret-tool:store": { 
-            code: 1, 
-            stderr: "Failed to store secret" 
+          "secret-tool:store": {
+            code: 1,
+            stderr: "Failed to store secret",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -819,18 +827,18 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const credential: KeychainCredential = {
           service: "test-service",
           account: "test-account",
           password: "test-password",
         };
-        
+
         const result = await provider.store(credential);
         assertEquals(result, false);
       });
@@ -840,15 +848,15 @@ Currently stored credentials:
       it("should retrieve password successfully", async () => {
         mockCommand("secret-tool", {
           "which:secret-tool": { code: 0 },
-          "secret-tool:lookup": { 
-            code: 0, 
-            stdout: "test-password\n" 
+          "secret-tool:lookup": {
+            code: 0,
+            stdout: "test-password\n",
           },
         });
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, "test-password");
       });
@@ -861,7 +869,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -874,7 +882,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -886,12 +894,12 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const password = await provider.retrieve("test-service", "test-account");
         assertEquals(password, null);
       });
@@ -906,7 +914,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, true);
       });
@@ -919,7 +927,7 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, false);
       });
@@ -931,12 +939,12 @@ Currently stored credentials:
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const result = await provider.delete("test-service", "test-account");
         assertEquals(result, false);
       });
@@ -971,7 +979,7 @@ attribute.account = account2
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts.length, 2);
         assertEquals(accounts.includes("account1"), true);
@@ -986,7 +994,7 @@ attribute.account = account2
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });
@@ -1004,7 +1012,7 @@ attribute.account = account1
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts.length, 1);
         assertEquals(accounts[0], "account1");
@@ -1017,12 +1025,12 @@ attribute.account = account1
 
         const provider = await getKeychainProvider();
         assertExists(provider);
-        
+
         commandStub.restore();
         commandStub = stub(Deno, "Command", () => {
           throw new Error("Command error");
         });
-        
+
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
       });

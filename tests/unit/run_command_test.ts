@@ -1,14 +1,12 @@
 import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
 
 // Import the functions to test
-import { bech32Decode } from "../../src/lib/utils.ts";
-import { formatFileSize, npubToHex, runCommand, validateNpub } from "../../src/commands/run.ts";
+import { formatFileSize, runCommand, validateNpub } from "../../src/commands/run.ts";
+import { normalizeToPubkey } from "applesauce-core/helpers";
 
 // Test utilities
 function generateValidNpub(): string {
   // Generate a deterministic valid npub for testing
-  const pubkeyHex = "7d0c2c8c1e8b4f5a6b3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b";
-  const decoded = bech32Decode(`npub105xzerq73d8456ea9c0s4xuv04h97j3m9swsa8u20dk96n3l9gdslddae9`);
   return "npub105xzerq73d8456ea9c0s4xuv04h97j3m9swsa8u20dk96n3l9gdslddae9";
 }
 
@@ -71,20 +69,6 @@ Deno.test("Run Command - Npub Validation", async (t) => {
 
   await t.step("should reject strings not starting with npub", () => {
     assertEquals(validateNpub("invalid_prefix_test"), false);
-  });
-});
-
-Deno.test("Run Command - Npub to Hex Conversion", async (t) => {
-  await t.step("should convert valid npub to hex", () => {
-    const validNpub = generateValidNpub();
-    const hex = npubToHex(validNpub);
-    assertEquals(hex.length, 64); // 32 bytes = 64 hex characters
-    assertEquals(/^[0-9a-f]+$/i.test(hex), true); // Should be valid hex
-  });
-
-  await t.step("should throw on invalid npub", () => {
-    const invalidNpub = generateInvalidNpub();
-    assertThrows(() => npubToHex(invalidNpub));
   });
 });
 
@@ -169,13 +153,6 @@ Deno.test("Run Command - Edge Cases", async (t) => {
 });
 
 Deno.test("Run Command - Workflow Logic", async (t) => {
-  await t.step("should validate workflow components exist", () => {
-    // Test that the main workflow functions are available and callable
-    assertEquals(typeof validateNpub, "function");
-    assertEquals(typeof npubToHex, "function");
-    assertEquals(typeof formatFileSize, "function");
-  });
-
   await t.step("should handle npub workflow", () => {
     const validNpub = generateValidNpub();
 
@@ -184,7 +161,7 @@ Deno.test("Run Command - Workflow Logic", async (t) => {
     assertEquals(isValid, true);
 
     // 2. Convert to hex
-    const pubkeyHex = npubToHex(validNpub);
+    const pubkeyHex = normalizeToPubkey(validNpub);
     assertEquals(pubkeyHex.length, 64);
     assertEquals(/^[0-9a-f]+$/i.test(pubkeyHex), true);
   });
@@ -209,7 +186,6 @@ Deno.test("Run Command - Command Function Integration", async (t) => {
   await t.step("should export all required functions", () => {
     // Test that the run command module exports are correct
     assertEquals(typeof validateNpub, "function");
-    assertEquals(typeof npubToHex, "function");
     assertEquals(typeof formatFileSize, "function");
     assertEquals(typeof runCommand, "function");
   });

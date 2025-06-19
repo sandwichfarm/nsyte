@@ -1,11 +1,6 @@
 import { assertEquals, assertExists, assertThrows } from "std/assert/mod.ts";
 import { Command } from "@cliffy/command";
-import {
-  bech32Decode,
-  createGroupedCommand,
-  extractTagValue,
-  npubEncode,
-} from "../../src/lib/utils.ts";
+import { createGroupedCommand, extractTagValue, npubEncode } from "../../src/lib/utils.ts";
 import type { NostrEvent } from "../../src/lib/nostr.ts";
 
 Deno.test("extractTagValue", async (t) => {
@@ -140,67 +135,6 @@ Deno.test("npubEncode", async (t) => {
     assertThrows(() => {
       npubEncode("gg0123456789abcdef0123456789abcdef0123456789abcdef0123456789"); // Invalid hex chars
     });
-  });
-});
-
-Deno.test("bech32Decode", async (t) => {
-  await t.step("should decode npub", () => {
-    const pubkeyHex = "7d0c2c8c1e8b4f5a6b3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b";
-    const npub = npubEncode(pubkeyHex);
-
-    const decoded = bech32Decode(npub);
-
-    assertEquals(decoded.prefix, "npub");
-    assertExists(decoded.data);
-    assertEquals(decoded.data instanceof Uint8Array, true);
-    assertEquals(decoded.data.length, 32); // Public key should be 32 bytes
-  });
-
-  await t.step("should decode nsec", async () => {
-    // Create a fake nsec for testing
-    const secretHex = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-    const secretBytes = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-      secretBytes[i] = parseInt(secretHex.substr(i * 2, 2), 16);
-    }
-
-    // Manual bech32 encoding for nsec
-    const { bech32 } = await import("@scure/base");
-    const nsec = bech32.encode("nsec", bech32.toWords(secretBytes));
-
-    const decoded = bech32Decode(nsec);
-
-    assertEquals(decoded.prefix, "nsec");
-    assertEquals(decoded.data.length, 32);
-  });
-
-  await t.step("should throw on invalid bech32", () => {
-    assertThrows(() => {
-      bech32Decode("invalid-bech32");
-    });
-
-    assertThrows(() => {
-      bech32Decode("npub123"); // Too short
-    });
-
-    assertThrows(() => {
-      bech32Decode(""); // Empty string
-    });
-  });
-
-  await t.step("should round-trip encode/decode", () => {
-    const pubkeyHex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    const npub = npubEncode(pubkeyHex);
-    const decoded = bech32Decode(npub);
-
-    assertEquals(decoded.prefix, "npub");
-
-    // Convert decoded data back to hex
-    const decodedHex = Array.from(decoded.data)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    assertEquals(decodedHex, pubkeyHex);
   });
 });
 

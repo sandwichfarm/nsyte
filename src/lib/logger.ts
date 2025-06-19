@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import { DisplayMode, getDisplayManager } from "./display-mode.ts";
+import { getDisplayManager } from "./display-mode.ts";
 
 let inProgressMode = false;
 

@@ -1,6 +1,6 @@
 import { assertEquals } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import { createNbunksecForCI, registerCICommand } from "../../src/commands/ci.ts";
 import { Command } from "@cliffy/command";
 
@@ -14,7 +14,7 @@ describe("CI command - comprehensive branch coverage", () => {
     // Mock console methods
     consoleLogStub = stub(console, "log", () => {});
     consoleErrorStub = stub(console, "error", () => {});
-    
+
     // Mock Deno.exit
     denoExitStub = stub(Deno, "exit", () => {});
   });
@@ -29,7 +29,7 @@ describe("CI command - comprehensive branch coverage", () => {
         if (shouldThrow) {
           throw new Error(errorMessage || "Connection failed");
         }
-      }
+      },
     };
   };
 
@@ -39,24 +39,24 @@ describe("CI command - comprehensive branch coverage", () => {
       // This tests the console output and main logic flow
       const mockConsoleLog = stub(console, "log", () => {});
       const mockConsoleError = stub(console, "error", () => {});
-      
+
       // Create a minimal test that calls the function but catches the import error
       try {
         await createNbunksecForCI();
       } catch (error) {
         // Expected due to bunker import, but we can still test the basic flow
       }
-      
+
       // Verify some console output happened (either success messages or error handling)
       assertEquals(mockConsoleLog.calls.length >= 1 || mockConsoleError.calls.length >= 1, true);
-      
+
       mockConsoleLog.restore();
       mockConsoleError.restore();
     });
 
     it("should handle URL parameter passing", async () => {
       const testUrl = "bunker://pubkey?relay=wss://test&secret=xxx";
-      
+
       try {
         await createNbunksecForCI(testUrl);
       } catch (error) {
@@ -74,7 +74,7 @@ describe("CI command - comprehensive branch coverage", () => {
       } catch (error) {
         // This will throw due to import issues, but we can test error handling logic
       }
-      
+
       // The function should handle errors gracefully
       assertEquals(true, true); // Basic assertion that we reached this point
     });
@@ -83,10 +83,10 @@ describe("CI command - comprehensive branch coverage", () => {
       // Test the error message conversion logic
       const testError1 = new Error("Test error message");
       const testError2 = "String error";
-      
+
       const errorMessage1 = testError1 instanceof Error ? testError1.message : String(testError1);
       const errorMessage2 = testError2 instanceof Error ? testError2.message : String(testError2);
-      
+
       assertEquals(errorMessage1, "Test error message");
       assertEquals(errorMessage2, "String error");
     });
@@ -94,15 +94,18 @@ describe("CI command - comprehensive branch coverage", () => {
     it("should check URL format error patterns", () => {
       const testMessages = [
         "URL format is invalid",
-        "invalid URL structure", 
-        "Network connection failed"
+        "invalid URL structure",
+        "Network connection failed",
       ];
-      
+
       // Test the URL error detection logic
-      const hasUrlError1 = testMessages[0].includes("URL format") || testMessages[0].includes("invalid URL");
-      const hasUrlError2 = testMessages[1].includes("URL format") || testMessages[1].includes("invalid URL");
-      const hasUrlError3 = testMessages[2].includes("URL format") || testMessages[2].includes("invalid URL");
-      
+      const hasUrlError1 = testMessages[0].includes("URL format") ||
+        testMessages[0].includes("invalid URL");
+      const hasUrlError2 = testMessages[1].includes("URL format") ||
+        testMessages[1].includes("invalid URL");
+      const hasUrlError3 = testMessages[2].includes("URL format") ||
+        testMessages[2].includes("invalid URL");
+
       assertEquals(hasUrlError1, true);
       assertEquals(hasUrlError2, true);
       assertEquals(hasUrlError3, false);
@@ -129,7 +132,7 @@ describe("CI command - comprehensive branch coverage", () => {
 
     it("should set up action callback correctly", () => {
       let actionCallback: Function | null = null;
-      
+
       const mockCommand = {
         command: () => mockCommand,
         description: () => mockCommand,
@@ -144,7 +147,7 @@ describe("CI command - comprehensive branch coverage", () => {
 
       // Verify callback was set
       assertEquals(typeof actionCallback, "function");
-      
+
       // Test callback execution (will throw due to bunker import, but that's expected)
       if (actionCallback) {
         try {
@@ -167,7 +170,7 @@ describe("CI command - comprehensive branch coverage", () => {
       // Test parameter validation logic
       const testUrl = "bunker://test";
       const undefinedUrl = undefined;
-      
+
       // These would be passed to connectBunker in real execution
       assertEquals(typeof testUrl, "string");
       assertEquals(typeof undefinedUrl, "undefined");
@@ -182,9 +185,9 @@ describe("CI command - comprehensive branch coverage", () => {
         "Usage in CI/CD:",
         "nsyte upload ./dist --nbunksec ${NBUNK_SECRET}",
         "Remember to properly quote URLs with special characters in the shell:",
-        "nsyte ci 'bunker://pubkey?relay=wss://relay.example&secret=xxx'"
+        "nsyte ci 'bunker://pubkey?relay=wss://relay.example&secret=xxx'",
       ];
-      
+
       // Verify message content patterns
       assertEquals(messages[0].includes("Connecting to bunker"), true);
       assertEquals(messages[1].includes("never stored to disk"), true);
@@ -200,13 +203,13 @@ describe("CI command - comprehensive branch coverage", () => {
       const errors = [
         new Error("Connection failed"),
         "String error message",
-        { message: "Object error" }
+        { message: "Object error" },
       ];
-      
+
       const formatError = (error: unknown): string => {
         return error instanceof Error ? error.message : String(error);
       };
-      
+
       assertEquals(formatError(errors[0]), "Connection failed");
       assertEquals(formatError(errors[1]), "String error message");
       assertEquals(formatError(errors[2]), "[object Object]");
@@ -215,15 +218,15 @@ describe("CI command - comprehensive branch coverage", () => {
     it("should test URL guidance logic", () => {
       const errorMessages = [
         "URL format is invalid",
-        "invalid URL detected", 
+        "invalid URL detected",
         "Connection timeout",
-        "Network error"
+        "Network error",
       ];
-      
+
       const shouldShowGuidance = (message: string): boolean => {
         return message.includes("URL format") || message.includes("invalid URL");
       };
-      
+
       assertEquals(shouldShowGuidance(errorMessages[0]), true);
       assertEquals(shouldShowGuidance(errorMessages[1]), true);
       assertEquals(shouldShowGuidance(errorMessages[2]), false);
@@ -236,10 +239,10 @@ describe("CI command - comprehensive branch coverage", () => {
       // Test the import.meta.main branch logic
       const args = ["test-url"];
       const noArgs: string[] = [];
-      
+
       // Logic that would be in the main branch
       const getUrl = (args: string[]) => args.length > 0 ? args[0] : undefined;
-      
+
       assertEquals(getUrl(args), "test-url");
       assertEquals(getUrl(noArgs), undefined);
     });

@@ -1,18 +1,18 @@
 import { assertEquals, assertExists, assertMatch } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import {
   displayColorfulHeader,
-  getHeader,
   displayUploadConfigTable,
-  getUploadSections,
-  formatUploadResults,
-  formatServerResult,
   formatEventsResult,
-  getUploadCompleteMessage,
-  getSuccessMessage,
   formatHelpOutput,
+  formatServerResult,
+  formatUploadResults,
+  getHeader,
   getQRMessages,
+  getSuccessMessage,
+  getUploadCompleteMessage,
+  getUploadSections,
 } from "../../src/ui/output-helpers.ts";
 
 describe("Output Helpers - comprehensive branch coverage", () => {
@@ -37,16 +37,16 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
     it("should use different colors with different random values", () => {
       const results = [];
-      
+
       // Test different random values to cover different color branches
       for (let i = 0; i < 12; i++) {
         mathRandomStub.restore();
         mathRandomStub = stub(Math, "random", () => i / 12);
         results.push(displayColorfulHeader());
       }
-      
+
       // All results should be strings
-      results.forEach(result => {
+      results.forEach((result) => {
         assertEquals(typeof result, "string");
         assertEquals(result.length > 0, true);
       });
@@ -54,11 +54,11 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
     it("should handle edge case random values", () => {
       const edgeCases = [0, 0.99999, 0.5];
-      
-      edgeCases.forEach(randomValue => {
+
+      edgeCases.forEach((randomValue) => {
         mathRandomStub.restore();
         mathRandomStub = stub(Math, "random", () => randomValue);
-        
+
         const result = displayColorfulHeader();
         assertExists(result);
         assertEquals(typeof result, "string");
@@ -68,7 +68,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should always return the same base header content", () => {
       const header1 = displayColorfulHeader();
       const header2 = displayColorfulHeader();
-      
+
       // Both should be strings of same length (same content, different colors)
       assertEquals(typeof header1, "string");
       assertEquals(typeof header2, "string");
@@ -114,10 +114,10 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       };
 
       const result = displayUploadConfigTable(config);
-      
+
       assertEquals(Array.isArray(result), true);
       assertEquals(result.length > 10, true); // Should have multiple lines
-      
+
       // Check for required content
       const content = result.join(" ");
       assertEquals(content.includes("Upload Configuration"), true);
@@ -140,10 +140,10 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       };
 
       const result = displayUploadConfigTable(config);
-      
+
       assertEquals(Array.isArray(result), true);
       assertEquals(result.length > 5, true);
-      
+
       const content = result.join(" ");
       assertEquals(content.includes("npub1minimal"), true);
     });
@@ -162,7 +162,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       };
 
       const result = displayUploadConfigTable(config);
-      
+
       assertEquals(Array.isArray(result), true);
       const content = result.join(" ");
       assertEquals(content.includes("None"), true);
@@ -176,7 +176,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         { force: false, purge: true, publishRelayList: false },
       ];
 
-      booleanCombinations.forEach(booleans => {
+      booleanCombinations.forEach((booleans) => {
         const config = {
           publisherPubkey: "npub1test",
           relays: ["wss://relay.com"],
@@ -184,7 +184,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           concurrency: 4,
           publishServerList: false,
           publishProfile: false,
-          ...booleans
+          ...booleans,
         };
 
         const result = displayUploadConfigTable(config);
@@ -201,7 +201,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         { concurrency: 16 }, // high
       ];
 
-      configs.forEach(concurrencyConfig => {
+      configs.forEach((concurrencyConfig) => {
         const config = {
           publisherPubkey: "npub1test",
           relays: ["wss://relay.com"],
@@ -211,12 +211,12 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           publishRelayList: false,
           publishServerList: false,
           publishProfile: false,
-          ...concurrencyConfig
+          ...concurrencyConfig,
         };
 
         const result = displayUploadConfigTable(config);
         assertEquals(Array.isArray(result), true);
-        
+
         const content = result.join(" ");
         assertEquals(content.includes(concurrencyConfig.concurrency.toString()), true);
       });
@@ -226,16 +226,16 @@ describe("Output Helpers - comprehensive branch coverage", () => {
   describe("getUploadSections", () => {
     it("should return upload section headers", () => {
       const result = getUploadSections();
-      
+
       assertExists(result);
       assertExists(result.blobsHeader);
       assertExists(result.serverHeader);
       assertExists(result.eventsHeader);
-      
+
       assertEquals(typeof result.blobsHeader, "string");
       assertEquals(typeof result.serverHeader, "string");
       assertEquals(typeof result.eventsHeader, "string");
-      
+
       // Check for expected content
       assertEquals(result.blobsHeader.includes("Blobs Upload"), true);
       assertEquals(result.blobsHeader.includes("Blossom"), true);
@@ -247,7 +247,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should return consistent sections", () => {
       const result1 = getUploadSections();
       const result2 = getUploadSections();
-      
+
       assertEquals(result1.blobsHeader, result2.blobsHeader);
       assertEquals(result1.serverHeader, result2.serverHeader);
       assertEquals(result1.eventsHeader, result2.eventsHeader);
@@ -281,7 +281,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should handle single file scenarios", () => {
       const successResult = formatUploadResults(1, 1);
       const failResult = formatUploadResults(0, 1);
-      
+
       assertEquals(successResult.includes("All 1 files"), true);
       assertEquals(failResult.includes("0/1"), true);
     });
@@ -380,7 +380,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should handle single event", () => {
       const successResult = formatEventsResult(1, 1);
       const failResult = formatEventsResult(0, 1);
-      
+
       assertEquals(successResult.includes("All 1 file events"), true);
       assertEquals(failResult.includes("0/1"), true);
     });
@@ -421,10 +421,10 @@ describe("Output Helpers - comprehensive branch coverage", () => {
   describe("formatHelpOutput", () => {
     it("should return comprehensive help", () => {
       const result = formatHelpOutput();
-      
+
       assertEquals(Array.isArray(result), true);
       assertEquals(result.length > 15, true);
-      
+
       const content = result.join(" ");
       assertEquals(content.includes("nsyte"), true);
       assertEquals(content.includes("Commands:"), true);
@@ -435,9 +435,9 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should include all main commands", () => {
       const result = formatHelpOutput();
       const content = result.join(" ");
-      
+
       const commands = ["init", "upload", "ls", "download", "bunker", "ci"];
-      commands.forEach(command => {
+      commands.forEach((command) => {
         assertEquals(content.includes(command), true);
       });
     });
@@ -445,7 +445,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should include usage examples", () => {
       const result = formatHelpOutput();
       const content = result.join(" ");
-      
+
       assertEquals(content.includes("nsyte init"), true);
       assertEquals(content.includes("nsyte upload"), true);
       assertEquals(content.includes("nsyte ls"), true);
@@ -455,7 +455,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should include common options", () => {
       const result = formatHelpOutput();
       const content = result.join(" ");
-      
+
       assertEquals(content.includes("--help"), true);
       assertEquals(content.includes("--version"), true);
     });
@@ -464,7 +464,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
   describe("getQRMessages", () => {
     it("should return QR message object", () => {
       const result = getQRMessages();
-      
+
       assertExists(result);
       assertExists(result.connecting);
       assertExists(result.instruction);
@@ -479,8 +479,8 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
     it("should have string values for all messages", () => {
       const result = getQRMessages();
-      
-      Object.values(result).forEach(message => {
+
+      Object.values(result).forEach((message) => {
         assertEquals(typeof message, "string");
         assertEquals(message.length > 0, true);
       });
@@ -488,7 +488,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
     it("should include expected QR content", () => {
       const result = getQRMessages();
-      
+
       assertEquals(result.connecting.includes("Nostr Connect"), true);
       assertEquals(result.instruction.includes("QR code"), true);
       assertEquals(result.uri.includes("nostr+walletconnect"), true);
@@ -501,8 +501,8 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should return consistent messages", () => {
       const result1 = getQRMessages();
       const result2 = getQRMessages();
-      
-      Object.keys(result1).forEach(key => {
+
+      Object.keys(result1).forEach((key) => {
         assertEquals(result1[key as keyof typeof result1], result2[key as keyof typeof result2]);
       });
     });
@@ -512,17 +512,20 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should validate all functions return correct types", () => {
       assertEquals(typeof displayColorfulHeader(), "string");
       assertEquals(typeof getHeader(), "string");
-      assertEquals(Array.isArray(displayUploadConfigTable({
-        publisherPubkey: "test",
-        relays: [],
-        servers: [],
-        force: false,
-        purge: false,
-        concurrency: 4,
-        publishRelayList: false,
-        publishServerList: false,
-        publishProfile: false,
-      })), true);
+      assertEquals(
+        Array.isArray(displayUploadConfigTable({
+          publisherPubkey: "test",
+          relays: [],
+          servers: [],
+          force: false,
+          purge: false,
+          concurrency: 4,
+          publishRelayList: false,
+          publishServerList: false,
+          publishProfile: false,
+        })),
+        true,
+      );
       assertEquals(typeof getUploadSections(), "object");
       assertEquals(typeof formatUploadResults(1, 1), "string");
       assertEquals(typeof formatServerResult("test", 1, 1), "string");
@@ -536,9 +539,14 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     it("should handle various input ranges", () => {
       // Test formatUploadResults with different ranges
       const uploadTestCases = [
-        [0, 0], [0, 1], [1, 1], [1, 2], [50, 100], [100, 100]
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 2],
+        [50, 100],
+        [100, 100],
       ];
-      
+
       uploadTestCases.forEach(([uploaded, total]) => {
         const result = formatUploadResults(uploaded, total);
         assertEquals(typeof result, "string");
@@ -547,9 +555,14 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
       // Test formatServerResult with different success rates
       const serverTestCases = [
-        [0, 1], [1, 1], [1, 3], [2, 3], [10, 20], [100, 100]
+        [0, 1],
+        [1, 1],
+        [1, 3],
+        [2, 3],
+        [10, 20],
+        [100, 100],
       ];
-      
+
       serverTestCases.forEach(([success, total]) => {
         const result = formatServerResult("https://test.com", success, total);
         assertEquals(typeof result, "string");

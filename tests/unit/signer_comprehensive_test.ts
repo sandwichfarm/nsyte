@@ -23,7 +23,7 @@ describe("signer - comprehensive branch coverage", () => {
       assertThrows(
         () => new PrivateKeySigner(shortHex),
         Error,
-        "Private key must be a 64-character hex string"
+        "Private key must be a 64-character hex string",
       );
     });
 
@@ -32,7 +32,7 @@ describe("signer - comprehensive branch coverage", () => {
       assertThrows(
         () => new PrivateKeySigner(longHex),
         Error,
-        "Private key must be a 64-character hex string"
+        "Private key must be a 64-character hex string",
       );
     });
 
@@ -41,7 +41,7 @@ describe("signer - comprehensive branch coverage", () => {
       assertThrows(
         () => new PrivateKeySigner(invalidHex),
         Error,
-        "Private key must be a 64-character hex string"
+        "Private key must be a 64-character hex string",
       );
     });
 
@@ -49,7 +49,7 @@ describe("signer - comprehensive branch coverage", () => {
       const invalidNsec = "nsec1invalid"; // Too short and invalid chars
       assertThrows(
         () => new PrivateKeySigner(invalidNsec),
-        Error
+        Error,
       );
     });
 
@@ -58,7 +58,7 @@ describe("signer - comprehensive branch coverage", () => {
       const wrongPrefix = "npub1qyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqsz5v4gk";
       assertThrows(
         () => new PrivateKeySigner(wrongPrefix),
-        Error
+        Error,
       );
     });
 
@@ -72,49 +72,49 @@ describe("signer - comprehensive branch coverage", () => {
       assertThrows(
         () => new PrivateKeySigner(""),
         Error,
-        "Private key must be a 64-character hex string"
+        "Private key must be a 64-character hex string",
       );
     });
 
     it("should throw on whitespace-only string", () => {
       assertThrows(
         () => new PrivateKeySigner("   "),
-        Error
+        Error,
       );
     });
 
     it("should throw on null input", () => {
       assertThrows(
         () => new PrivateKeySigner(null as any),
-        Error
+        Error,
       );
     });
 
     it("should throw on undefined input", () => {
       assertThrows(
         () => new PrivateKeySigner(undefined as any),
-        Error
+        Error,
       );
     });
 
     it("should throw on number input", () => {
       assertThrows(
         () => new PrivateKeySigner(123456 as any),
-        Error
+        Error,
       );
     });
 
     it("should throw on object input", () => {
       assertThrows(
         () => new PrivateKeySigner({} as any),
-        Error
+        Error,
       );
     });
 
     it("should throw on array input", () => {
       assertThrows(
         () => new PrivateKeySigner([] as any),
-        Error
+        Error,
       );
     });
   });
@@ -123,7 +123,7 @@ describe("signer - comprehensive branch coverage", () => {
     it("should inherit getPublicKey from SimpleSigner", async () => {
       const privateKey = "1111111111111111111111111111111111111111111111111111111111111111";
       const signer = new PrivateKeySigner(privateKey);
-      
+
       const pubkey = await signer.getPublicKey();
       assertExists(pubkey);
       assertEquals(typeof pubkey, "string");
@@ -134,16 +134,16 @@ describe("signer - comprehensive branch coverage", () => {
     it("should inherit signEvent from SimpleSigner", async () => {
       const privateKey = "2222222222222222222222222222222222222222222222222222222222222222";
       const signer = new PrivateKeySigner(privateKey);
-      
+
       const template: NostrEventTemplate = {
         kind: 1,
         created_at: Math.floor(Date.now() / 1000),
         tags: [],
-        content: "Test message"
+        content: "Test message",
       };
-      
+
       const signedEvent = await signer.signEvent(template);
-      
+
       assertExists(signedEvent);
       assertExists(signedEvent.id);
       assertExists(signedEvent.pubkey);
@@ -156,30 +156,31 @@ describe("signer - comprehensive branch coverage", () => {
       const privateKey = "3333333333333333333333333333333333333333333333333333333333333333";
       const signer1 = new PrivateKeySigner(privateKey);
       const signer2 = new PrivateKeySigner(privateKey);
-      
+
       const pubkey1 = await signer1.getPublicKey();
       const pubkey2 = await signer2.getPublicKey();
-      
+
       assertEquals(pubkey1, pubkey2);
     });
 
     it("should produce different public keys for different private keys", async () => {
       const privateKey1 = "4444444444444444444444444444444444444444444444444444444444444444";
       const privateKey2 = "5555555555555555555555555555555555555555555555555555555555555555";
-      
+
       const signer1 = new PrivateKeySigner(privateKey1);
       const signer2 = new PrivateKeySigner(privateKey2);
-      
+
       const pubkey1 = await signer1.getPublicKey();
       const pubkey2 = await signer2.getPublicKey();
-      
+
       assertEquals(pubkey1 !== pubkey2, true);
     });
   });
 
   describe("Edge cases with normalizeToSecretKey", () => {
     it("should handle hex key with leading zeros", () => {
-      const keyWithLeadingZeros = "0000000000000000000000000000000000000000000000000000000000000001";
+      const keyWithLeadingZeros =
+        "0000000000000000000000000000000000000000000000000000000000000001";
       const signer = new PrivateKeySigner(keyWithLeadingZeros);
       assertExists(signer);
     });

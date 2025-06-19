@@ -5,10 +5,10 @@
 import { qrcode as generateQrCodeForTerminal } from "@libs/qrcode";
 import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { bech32 } from "@scure/base";
-import { RelayPool } from "applesauce-relay";
 import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { SecretsManager } from "./secrets/mod.ts";
+import { pool } from "./nostr.ts";
 
 const log = createLogger("nip46");
 
@@ -18,8 +18,6 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   24242,
   34128,
 ]);
-
-const pool = new RelayPool();
 
 /** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
 NostrConnectSigner.subscriptionMethod = pool.subscription.bind(pool);
