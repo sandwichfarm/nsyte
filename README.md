@@ -101,10 +101,14 @@ Use your own nostr private key.
 Recommended for maximum security - keep keys on a separate device.
 
 ```bash
-# Connect to bunker
-nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'
+# Connect to bunker...
 
-# Alternative syntax to avoid shell escaping issues
+# interactively
+nsyte bunker connect
+
+# non-interactively
+nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'
+# or
 nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
 
 # List bunkers
