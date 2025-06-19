@@ -1,6 +1,6 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import { SecretsManager } from "../../src/lib/secrets/manager.ts";
 import * as utils from "../../src/lib/secrets/utils.ts";
 import * as keychain from "../../src/lib/secrets/keychain.ts";
@@ -50,41 +50,41 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       delete: async () => true,
       list: async () => ["test-pubkey"],
     };
-    
+
     encryptedStorageStub = stub(EncryptedStorage.prototype, "initialize", async () => initSuccess);
     stub(EncryptedStorage.prototype, "store", async () => true);
     stub(EncryptedStorage.prototype, "retrieve", async () => "test-value");
     stub(EncryptedStorage.prototype, "delete", async () => true);
     stub(EncryptedStorage.prototype, "list", async () => ["test-pubkey"]);
-    
+
     return mockStorage;
   };
 
   const mockFileSystem = (
-    fileContent: string = '{}',
+    fileContent: string = "{}",
     fileExists: boolean = false,
     readSuccess: boolean = true,
-    writeSuccess: boolean = true
+    writeSuccess: boolean = true,
   ) => {
     fileExistsStub?.restore();
     fileExistsStub = stub(utils, "fileExists", () => fileExists);
-    
+
     readTextFileStub = stub(Deno, "readTextFile", async () => {
       if (!readSuccess) throw new Error("Read failed");
       return fileContent;
     });
-    
+
     writeTextFileStub = stub(Deno, "writeTextFile", async () => {
       if (!writeSuccess) throw new Error("Write failed");
     });
-    
+
     removeStub = stub(Deno, "remove", async () => {});
-    
+
     readTextFileSyncStub = stub(Deno, "readTextFileSync", () => {
       if (!readSuccess) throw new Error("Read failed");
       return fileContent;
     });
-    
+
     writeTextFileSyncStub = stub(Deno, "writeTextFileSync", () => {
       if (!writeSuccess) throw new Error("Write failed");
     });
@@ -100,7 +100,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should create new instance on first call", () => {
       // Reset static instance
       (SecretsManager as any).instance = undefined;
-      
+
       const instance = SecretsManager.getInstance();
       assertExists(instance);
     });
@@ -109,14 +109,14 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("initialize", () => {
     it("should return true if already initialized", async () => {
       (manager as any).initialized = true;
-      
+
       const result = await manager.initialize();
       assertEquals(result, true);
     });
 
     it("should return false when no config directory", async () => {
       mockUtils(null);
-      
+
       const result = await manager.initialize();
       assertEquals(result, false);
     });
@@ -128,14 +128,14 @@ describe("secrets/manager - comprehensive branch coverage", () => {
         delete: async () => true,
         list: async () => ["pubkey"],
       };
-      
+
       mockUtils("/test/config");
       mockKeychain(mockProvider);
-      mockFileSystem('{}', false);
-      
+      mockFileSystem("{}", false);
+
       const result = await manager.initialize();
       assertEquals(result, true);
-      
+
       // Should use keychain backend
       const backend = (manager as any).storageBackend;
       assertExists(backend);
@@ -145,11 +145,11 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
-      mockFileSystem('{}', false);
-      
+      mockFileSystem("{}", false);
+
       const result = await manager.initialize();
       assertEquals(result, true);
-      
+
       // Should use encrypted backend
       const backend = (manager as any).storageBackend;
       assertExists(backend);
@@ -159,8 +159,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(false);
-      mockFileSystem('{}', false);
-      
+      mockFileSystem("{}", false);
+
       const result = await manager.initialize();
       assertEquals(result, true);
       assertEquals((manager as any).legacyMode, true);
@@ -168,12 +168,12 @@ describe("secrets/manager - comprehensive branch coverage", () => {
 
     it("should migrate legacy secrets after initialization", async () => {
       const legacyContent = '{"pubkey1": "nbunksec1", "pubkey2": "nbunksec2"}';
-      
+
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem(legacyContent, true);
-      
+
       const result = await manager.initialize();
       assertEquals(result, true);
     });
@@ -182,15 +182,15 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("migrateLegacySecrets", () => {
     it("should skip migration when no secrets path", async () => {
       (manager as any).secretsPath = null;
-      
+
       await (manager as any).migrateLegacySecrets();
       // No error should occur
     });
 
     it("should skip migration when file doesn't exist", async () => {
       (manager as any).secretsPath = "/test/secrets.json";
-      mockFileSystem('{}', false);
-      
+      mockFileSystem("{}", false);
+
       await (manager as any).migrateLegacySecrets();
       // No error should occur
     });
@@ -198,8 +198,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should skip migration in legacy mode", async () => {
       (manager as any).secretsPath = "/test/secrets.json";
       (manager as any).legacyMode = true;
-      mockFileSystem('{}', true);
-      
+      mockFileSystem("{}", true);
+
       await (manager as any).migrateLegacySecrets();
       // No error should occur
     });
@@ -212,8 +212,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
         delete: async () => true,
         list: async () => [],
       };
-      mockFileSystem('{}', true);
-      
+      mockFileSystem("{}", true);
+
       await (manager as any).migrateLegacySecrets();
       // No error should occur
     });
@@ -221,17 +221,20 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should migrate all secrets successfully", async () => {
       const legacyContent = '{"pubkey1": "nbunksec1", "pubkey2": "nbunksec2"}';
       (manager as any).secretsPath = "/test/secrets.json";
-      
+
       let storeCount = 0;
       (manager as any).storageBackend = {
-        store: async () => { storeCount++; return true; },
+        store: async () => {
+          storeCount++;
+          return true;
+        },
         retrieve: async () => null,
         delete: async () => true,
         list: async () => [],
       };
-      
+
       mockFileSystem(legacyContent, true);
-      
+
       await (manager as any).migrateLegacySecrets();
       assertEquals(storeCount, 2);
     });
@@ -239,20 +242,20 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should handle partial migration failure", async () => {
       const legacyContent = '{"pubkey1": "nbunksec1", "pubkey2": "nbunksec2"}';
       (manager as any).secretsPath = "/test/secrets.json";
-      
+
       let storeCount = 0;
       (manager as any).storageBackend = {
-        store: async () => { 
-          storeCount++; 
+        store: async () => {
+          storeCount++;
           return storeCount === 1; // Only first store succeeds
         },
         retrieve: async () => null,
         delete: async () => true,
         list: async () => [],
       };
-      
+
       mockFileSystem(legacyContent, true);
-      
+
       await (manager as any).migrateLegacySecrets();
       assertEquals(storeCount, 2);
     });
@@ -260,8 +263,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should handle JSON parse error", async () => {
       (manager as any).secretsPath = "/test/secrets.json";
       (manager as any).storageBackend = { store: async () => true };
-      mockFileSystem('invalid json', true);
-      
+      mockFileSystem("invalid json", true);
+
       await (manager as any).migrateLegacySecrets();
       // Should not throw
     });
@@ -269,8 +272,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     it("should handle file read error", async () => {
       (manager as any).secretsPath = "/test/secrets.json";
       (manager as any).storageBackend = { store: async () => true };
-      mockFileSystem('{}', true, false);
-      
+      mockFileSystem("{}", true, false);
+
       await (manager as any).migrateLegacySecrets();
       // Should not throw
     });
@@ -281,13 +284,13 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       (manager as any).storageBackend = {
         store: async () => true,
       };
-      
+
       mockFileSystem(legacyContent, true);
       removeStub?.restore();
       removeStub = stub(Deno, "remove", async () => {
         throw new Error("Remove failed");
       });
-      
+
       await (manager as any).migrateLegacySecrets();
       // Should not throw even if remove fails
     });
@@ -300,8 +303,8 @@ describe("secrets/manager - comprehensive branch coverage", () => {
 
     describe("loadLegacySecrets", () => {
       it("should load empty object when no file", () => {
-        mockFileSystem('{}', false);
-        
+        mockFileSystem("{}", false);
+
         (manager as any).loadLegacySecrets();
         assertEquals((manager as any).legacySecrets, {});
       });
@@ -309,21 +312,21 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       it("should load secrets from file", () => {
         const content = '{"pubkey1": "nbunksec1"}';
         mockFileSystem(content, true);
-        
+
         (manager as any).loadLegacySecrets();
         assertEquals((manager as any).legacySecrets, { pubkey1: "nbunksec1" });
       });
 
       it("should handle JSON parse error", () => {
-        mockFileSystem('invalid json', true);
-        
+        mockFileSystem("invalid json", true);
+
         (manager as any).loadLegacySecrets();
         assertEquals((manager as any).legacySecrets, {});
       });
 
       it("should handle file read error", () => {
-        mockFileSystem('{}', true, false);
-        
+        mockFileSystem("{}", true, false);
+
         (manager as any).loadLegacySecrets();
         assertEquals((manager as any).legacySecrets, {});
       });
@@ -332,7 +335,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
     describe("saveLegacySecrets", () => {
       it("should skip save when no secrets path", () => {
         (manager as any).secretsPath = null;
-        
+
         (manager as any).saveLegacySecrets();
         // Should not throw
       });
@@ -340,15 +343,15 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       it("should save secrets to file", () => {
         (manager as any).legacySecrets = { pubkey1: "nbunksec1" };
         mockFileSystem();
-        
+
         (manager as any).saveLegacySecrets();
         // Should complete without error
       });
 
       it("should handle write error", () => {
         (manager as any).legacySecrets = { pubkey1: "nbunksec1" };
-        mockFileSystem('{}', false, true, false);
-        
+        mockFileSystem("{}", false, true, false);
+
         (manager as any).saveLegacySecrets();
         // Should not throw
       });
@@ -358,7 +361,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("storeNbunk", () => {
     it("should return false when initialization fails", async () => {
       mockUtils(null);
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, false);
     });
@@ -369,10 +372,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, true);
     });
@@ -383,10 +386,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, false);
     });
@@ -396,9 +399,9 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(false);
       mockFileSystem();
-      
+
       await manager.initialize();
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, true);
       assertEquals((manager as any).legacySecrets.pubkey, "nbunksec");
@@ -409,27 +412,29 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = null;
       (manager as any).legacyMode = false;
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, false);
     });
 
     it("should handle backend exception", async () => {
-      const mockBackend = { 
-        store: async () => { throw new Error("Store failed"); }
+      const mockBackend = {
+        store: async () => {
+          throw new Error("Store failed");
+        },
       };
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.storeNbunk("pubkey", "nbunksec");
       assertEquals(result, false);
     });
@@ -438,7 +443,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("getNbunk", () => {
     it("should return null when initialization fails", async () => {
       mockUtils(null);
-      
+
       const result = await manager.getNbunk("pubkey");
       assertEquals(result, null);
     });
@@ -449,10 +454,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.getNbunk("pubkey");
       assertEquals(result, "nbunksec");
     });
@@ -462,9 +467,9 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(false);
       mockFileSystem('{"pubkey": "nbunksec"}', true);
-      
+
       await manager.initialize();
-      
+
       const result = await manager.getNbunk("pubkey");
       assertEquals(result, "nbunksec");
     });
@@ -473,10 +478,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(false);
-      mockFileSystem('{}', true);
-      
+      mockFileSystem("{}", true);
+
       await manager.initialize();
-      
+
       const result = await manager.getNbunk("missing-pubkey");
       assertEquals(result, null);
     });
@@ -486,27 +491,29 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = null;
       (manager as any).legacyMode = false;
-      
+
       const result = await manager.getNbunk("pubkey");
       assertEquals(result, null);
     });
 
     it("should handle backend exception", async () => {
-      const mockBackend = { 
-        retrieve: async () => { throw new Error("Retrieve failed"); }
+      const mockBackend = {
+        retrieve: async () => {
+          throw new Error("Retrieve failed");
+        },
       };
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.getNbunk("pubkey");
       assertEquals(result, null);
     });
@@ -515,7 +522,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("getAllPubkeys", () => {
     it("should return empty array when initialization fails", async () => {
       mockUtils(null);
-      
+
       const result = await manager.getAllPubkeys();
       assertEquals(result, []);
     });
@@ -526,10 +533,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.getAllPubkeys();
       assertEquals(result, ["pubkey1", "pubkey2"]);
     });
@@ -539,9 +546,9 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(false);
       mockFileSystem('{"pubkey1": "nbunksec1", "pubkey2": "nbunksec2"}', true);
-      
+
       await manager.initialize();
-      
+
       const result = await manager.getAllPubkeys();
       assertEquals(result, ["pubkey1", "pubkey2"]);
     });
@@ -551,27 +558,29 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = null;
       (manager as any).legacyMode = false;
-      
+
       const result = await manager.getAllPubkeys();
       assertEquals(result, []);
     });
 
     it("should handle backend exception", async () => {
-      const mockBackend = { 
-        list: async () => { throw new Error("List failed"); }
+      const mockBackend = {
+        list: async () => {
+          throw new Error("List failed");
+        },
       };
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.getAllPubkeys();
       assertEquals(result, []);
     });
@@ -580,7 +589,7 @@ describe("secrets/manager - comprehensive branch coverage", () => {
   describe("deleteNbunk", () => {
     it("should return false when initialization fails", async () => {
       mockUtils(null);
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, false);
     });
@@ -591,10 +600,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, true);
     });
@@ -605,10 +614,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, false);
     });
@@ -618,9 +627,9 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(false);
       mockFileSystem('{"pubkey": "nbunksec"}', true);
-      
+
       await manager.initialize();
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, true);
       assertEquals((manager as any).legacySecrets.pubkey, undefined);
@@ -630,10 +639,10 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(false);
-      mockFileSystem('{}', true);
-      
+      mockFileSystem("{}", true);
+
       await manager.initialize();
-      
+
       const result = await manager.deleteNbunk("missing-pubkey");
       assertEquals(result, false);
     });
@@ -643,27 +652,29 @@ describe("secrets/manager - comprehensive branch coverage", () => {
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = null;
       (manager as any).legacyMode = false;
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, false);
     });
 
     it("should handle backend exception", async () => {
-      const mockBackend = { 
-        delete: async () => { throw new Error("Delete failed"); }
+      const mockBackend = {
+        delete: async () => {
+          throw new Error("Delete failed");
+        },
       };
       mockUtils("/test/config");
       mockKeychain(null);
       mockEncryptedStorage(true);
       mockFileSystem();
-      
+
       await manager.initialize();
       (manager as any).storageBackend = mockBackend;
-      
+
       const result = await manager.deleteNbunk("pubkey");
       assertEquals(result, false);
     });
@@ -677,12 +688,13 @@ describe("secrets/manager - comprehensive branch coverage", () => {
         delete: async () => true,
         list: async () => ["pubkey1", "pubkey2"],
       };
-      
+
       // Access the internal KeychainBackend class
-      const KeychainBackend = (await import("../../src/lib/secrets/manager.ts") as any).KeychainBackend;
+      const KeychainBackend =
+        (await import("../../src/lib/secrets/manager.ts") as any).KeychainBackend;
       if (KeychainBackend) {
         const backend = new KeychainBackend(mockProvider);
-        
+
         assertEquals(await backend.store("pubkey", "nbunksec"), true);
         assertEquals(await backend.retrieve("pubkey"), "test-value");
         assertEquals(await backend.delete("pubkey"), true);
@@ -697,12 +709,13 @@ describe("secrets/manager - comprehensive branch coverage", () => {
         delete: async () => true,
         list: async () => ["pubkey1", "pubkey2"],
       };
-      
+
       // Access the internal EncryptedBackend class
-      const EncryptedBackend = (await import("../../src/lib/secrets/manager.ts") as any).EncryptedBackend;
+      const EncryptedBackend =
+        (await import("../../src/lib/secrets/manager.ts") as any).EncryptedBackend;
       if (EncryptedBackend) {
         const backend = new EncryptedBackend(mockStorage);
-        
+
         assertEquals(await backend.store("pubkey", "nbunksec"), true);
         assertEquals(await backend.retrieve("pubkey"), "test-value");
         assertEquals(await backend.delete("pubkey"), true);

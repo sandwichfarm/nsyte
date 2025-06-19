@@ -19,6 +19,7 @@ export const NSYTE_BROADCAST_RELAYS = [
   "wss://nos.lol",
   "wss://nostr.wine",
   "wss://relay.snort.social",
+  "wss://relay.nsite.lol",
 ];
 
 /**

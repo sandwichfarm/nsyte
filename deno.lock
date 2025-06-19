@@ -47,6 +47,7 @@
     "npm:applesauce-core@2": "2.0.0",
     "npm:applesauce-relay@2": "2.0.0",
     "npm:applesauce-signers@2": "2.0.0",
+    "npm:nostr-tools@^2.15.0": "2.15.0",
     "npm:rxjs@^7.8.2": "7.8.2"
   },
   "jsr": {
@@ -626,6 +627,7 @@
       "npm:applesauce-core@2",
       "npm:applesauce-relay@2",
       "npm:applesauce-signers@2",
+      "npm:nostr-tools@^2.15.0",
       "npm:rxjs@^7.8.2"
     ]
   }

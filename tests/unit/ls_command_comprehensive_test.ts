@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
-import { registerLsCommand, command } from "../../src/commands/ls.ts";
+import { restore, stub } from "jsr:@std/testing/mock";
+import { command, registerLsCommand } from "../../src/commands/ls.ts";
 import { Command } from "@cliffy/command";
 
 describe("LS command - comprehensive branch coverage", () => {
@@ -20,11 +20,15 @@ describe("LS command - comprehensive branch coverage", () => {
   beforeEach(() => {
     // Mock console methods
     consoleLogStub = stub(console, "log", () => {});
-    
+
     // Mock Deno APIs
     denoCwdStub = stub(Deno, "cwd", () => "/test/cwd");
     denoExitStub = stub(Deno, "exit", () => {});
-    denoReadTextFileStub = stub(Deno, "readTextFile", async () => "# test ignore\n*.tmp\nnode_modules/");
+    denoReadTextFileStub = stub(
+      Deno,
+      "readTextFile",
+      async () => "# test ignore\n*.tmp\nnode_modules/",
+    );
   });
 
   afterEach(() => {
@@ -47,7 +51,7 @@ describe("LS command - comprehensive branch coverage", () => {
       files = [],
       ignoreRules = [],
       shouldThrow = false,
-      throwMessage = "Mock error"
+      throwMessage = "Mock error",
     } = options;
 
     try {
@@ -60,7 +64,7 @@ describe("LS command - comprehensive branch coverage", () => {
         if (shouldThrow) throw new Error(throwMessage);
         return pubkey;
       });
-      
+
       resolveRelaysStub = stub(globalThis, "resolveRelays" as any, () => {
         if (shouldThrow) throw new Error(throwMessage);
         return relays;
@@ -114,7 +118,7 @@ describe("LS command - comprehensive branch coverage", () => {
       // Check that all options were registered
       const optionCalls = mockCommand.option.calls;
       assertEquals(optionCalls.length, 3);
-      
+
       // Verify option configurations
       assertEquals(optionCalls[0].args[0].includes("relays"), true);
       assertEquals(optionCalls[1].args[0].includes("privatekey"), true);
@@ -126,7 +130,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle successful file listing with no files", async () => {
       mockDependencies({
         existsIgnoreFile: false,
-        files: []
+        files: [],
       });
 
       try {
@@ -143,12 +147,12 @@ describe("LS command - comprehensive branch coverage", () => {
       const mockFiles = [
         { path: "/index.html" },
         { path: "/assets/style.css" },
-        { path: "/images/logo.png" }
+        { path: "/images/logo.png" },
       ];
 
       mockDependencies({
         existsIgnoreFile: false,
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -164,12 +168,12 @@ describe("LS command - comprehensive branch coverage", () => {
       const mockFiles = [
         { path: "/index.html" },
         { path: "/temp.tmp" },
-        { path: "/node_modules/package.json" }
+        { path: "/node_modules/package.json" },
       ];
 
       mockDependencies({
         existsIgnoreFile: true,
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -189,7 +193,7 @@ describe("LS command - comprehensive branch coverage", () => {
 
       mockDependencies({
         existsIgnoreFile: true,
-        files: [{ path: "/test.html" }]
+        files: [{ path: "/test.html" }],
       });
 
       try {
@@ -204,7 +208,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle pubkey resolution error", async () => {
       mockDependencies({
         shouldThrow: true,
-        throwMessage: "Invalid pubkey"
+        throwMessage: "Invalid pubkey",
       });
 
       try {
@@ -219,7 +223,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle relay resolution error", async () => {
       mockDependencies({
         shouldThrow: true,
-        throwMessage: "Invalid relays"
+        throwMessage: "Invalid relays",
       });
 
       try {
@@ -234,7 +238,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle remote file listing error", async () => {
       mockDependencies({
         shouldThrow: true,
-        throwMessage: "Network error"
+        throwMessage: "Network error",
       });
 
       try {
@@ -250,11 +254,11 @@ describe("LS command - comprehensive branch coverage", () => {
       const mockFiles = [
         { path: "/zebra.html" },
         { path: "/alpha.css" },
-        { path: "/beta.js" }
+        { path: "/beta.js" },
       ];
 
       mockDependencies({
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -270,11 +274,11 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle file path normalization", async () => {
       const mockFiles = [
         { path: "/leading/slash.html" },
-        { path: "no/leading/slash.css" }
+        { path: "no/leading/slash.css" },
       ];
 
       mockDependencies({
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -290,7 +294,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should handle ignored files", async () => {
       const mockFiles = [
         { path: "/keep.html" },
-        { path: "/ignore.tmp" }
+        { path: "/ignore.tmp" },
       ];
 
       // Mock isIgnored to return true for .tmp files
@@ -304,7 +308,7 @@ describe("LS command - comprehensive branch coverage", () => {
       }
 
       mockDependencies({
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -320,11 +324,11 @@ describe("LS command - comprehensive branch coverage", () => {
       const mockFiles = [
         { path: "/file1.html" },
         { path: "/file2.tmp" },
-        { path: "/file3.tmp" }
+        { path: "/file3.tmp" },
       ];
 
       mockDependencies({
-        files: mockFiles
+        files: mockFiles,
       });
 
       try {
@@ -343,13 +347,13 @@ describe("LS command - comprehensive branch coverage", () => {
         "/absolute/path.html",
         "relative/path.css",
         "/index.html",
-        "assets/script.js"
+        "assets/script.js",
       ];
 
-      testPaths.forEach(path => {
+      testPaths.forEach((path) => {
         const relativePath = path.startsWith("/") ? path.substring(1) : path;
         assertEquals(typeof relativePath, "string");
-        
+
         if (path.startsWith("/")) {
           assertEquals(relativePath, path.substring(1));
         } else {
@@ -362,11 +366,11 @@ describe("LS command - comprehensive branch coverage", () => {
       const files = [
         { path: "/zebra.html" },
         { path: "/alpha.css" },
-        { path: "/beta.js" }
+        { path: "/beta.js" },
       ];
 
       const sortedFiles = files.sort((a, b) => a.path.localeCompare(b.path));
-      
+
       assertEquals(sortedFiles[0].path, "/alpha.css");
       assertEquals(sortedFiles[1].path, "/beta.js");
       assertEquals(sortedFiles[2].path, "/zebra.html");
@@ -374,8 +378,10 @@ describe("LS command - comprehensive branch coverage", () => {
 
     it("should validate ignore content parsing", () => {
       const ignoreContent = "# Comment\n*.tmp\nnode_modules/\n\n# Another comment\n*.log";
-      const lines = ignoreContent.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#"));
-      
+      const lines = ignoreContent.split("\n").map((l) => l.trim()).filter((l) =>
+        l && !l.startsWith("#")
+      );
+
       assertEquals(lines.length, 3);
       assertEquals(lines[0], "*.tmp");
       assertEquals(lines[1], "node_modules/");
@@ -389,10 +395,10 @@ describe("LS command - comprehensive branch coverage", () => {
         "Listing files for test-pubkey using relays:",
         "No files found for this user.",
         "Found 5 files:",
-        "file(s) marked red would be ignored by local .nsite-ignore rules"
+        "file(s) marked red would be ignored by local .nsite-ignore rules",
       ];
 
-      messages.forEach(message => {
+      messages.forEach((message) => {
         assertEquals(typeof message, "string");
         assertEquals(message.length > 0, true);
       });
@@ -402,10 +408,10 @@ describe("LS command - comprehensive branch coverage", () => {
       // Test that the module uses appropriate colors for different states
       const fileStates = {
         normal: "white",
-        ignored: "red", 
+        ignored: "red",
         info: "cyan",
         warning: "yellow",
-        success: "green"
+        success: "green",
       };
 
       Object.entries(fileStates).forEach(([state, color]) => {
@@ -420,10 +426,10 @@ describe("LS command - comprehensive branch coverage", () => {
       const errors = [
         new Error("Network timeout"),
         "String error",
-        { message: "Object error" }
+        { message: "Object error" },
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         const message = error instanceof Error ? error.message : String(error);
         assertEquals(typeof message, "string");
       });
@@ -433,7 +439,7 @@ describe("LS command - comprehensive branch coverage", () => {
       const errorOptions = {
         showConsole: true,
         exit: true,
-        exitCode: 1
+        exitCode: 1,
       };
 
       assertEquals(typeof errorOptions.showConsole, "boolean");
@@ -447,7 +453,7 @@ describe("LS command - comprehensive branch coverage", () => {
       const options = {
         relays: "wss://relay1.com,wss://relay2.com",
         privatekey: "nsec1test",
-        pubkey: "npub1test"
+        pubkey: "npub1test",
       };
 
       Object.entries(options).forEach(([key, value]) => {
@@ -459,7 +465,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should validate relay parsing", () => {
       const relayString = "wss://relay1.com,wss://relay2.com";
       const relays = relayString.split(",");
-      
+
       assertEquals(relays.length, 2);
       assertEquals(relays[0], "wss://relay1.com");
       assertEquals(relays[1], "wss://relay2.com");
@@ -476,7 +482,7 @@ describe("LS command - comprehensive branch coverage", () => {
     it("should validate ignore file path construction", () => {
       const cwd = "/test/directory";
       const ignoreFilePath = `${cwd}/.nsite-ignore`;
-      
+
       assertEquals(ignoreFilePath, "/test/directory/.nsite-ignore");
       assertEquals(ignoreFilePath.endsWith(".nsite-ignore"), true);
     });

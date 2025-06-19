@@ -1,11 +1,11 @@
 import { assertEquals, assertExists, assertThrows } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import {
-  getHomeDir,
-  getSystemConfigDir,
   ensureSystemConfigDir,
   fileExists,
+  getHomeDir,
+  getSystemConfigDir,
 } from "../../src/lib/secrets/utils.ts";
 import * as fs from "@std/fs/ensure-dir";
 
@@ -14,16 +14,16 @@ describe("secrets/utils - comprehensive branch coverage", () => {
   const originalBuildOS = Deno.build.os;
   let envGetStub: any;
   let buildStub: any;
-  
+
   beforeEach(() => {
     // Create a map for environment variables
     const envVars = new Map<string, string>();
-    
+
     // Mock Deno.env.get
     envGetStub = stub(Deno.env, "get", (key: string) => {
       return envVars.get(key) || undefined;
     });
-    
+
     // Helper to set env vars in our mock
     (globalThis as any).mockEnv = (key: string, value: string | undefined) => {
       if (value === undefined) {
@@ -49,7 +49,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       ...Deno.build,
       os: os as typeof Deno.build.os,
     };
-    
+
     // Stub the entire build object
     if (buildStub) {
       buildStub.restore();
@@ -61,7 +61,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return USERPROFILE on Windows", () => {
       mockOS("windows");
       (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\TestUser");
-      
+
       const result = getHomeDir();
       assertEquals(result, "C:\\Users\\TestUser");
     });
@@ -69,7 +69,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return null when USERPROFILE not set on Windows", () => {
       mockOS("windows");
       (globalThis as any).mockEnv("USERPROFILE", undefined);
-      
+
       const result = getHomeDir();
       assertEquals(result, null);
     });
@@ -77,7 +77,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return HOME on Linux", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "/home/testuser");
-      
+
       const result = getHomeDir();
       assertEquals(result, "/home/testuser");
     });
@@ -85,7 +85,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return HOME on macOS", () => {
       mockOS("darwin");
       (globalThis as any).mockEnv("HOME", "/Users/testuser");
-      
+
       const result = getHomeDir();
       assertEquals(result, "/Users/testuser");
     });
@@ -93,7 +93,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return null when HOME not set on non-Windows", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", undefined);
-      
+
       const result = getHomeDir();
       assertEquals(result, null);
     });
@@ -101,7 +101,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should handle other OS types", () => {
       mockOS("freebsd" as any);
       (globalThis as any).mockEnv("HOME", "/home/freebsduser");
-      
+
       const result = getHomeDir();
       assertEquals(result, "/home/freebsduser");
     });
@@ -111,7 +111,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return null when home dir is not available", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", undefined);
-      
+
       const result = getSystemConfigDir();
       assertEquals(result, null);
     });
@@ -121,7 +121,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         mockOS("linux");
         (globalThis as any).mockEnv("HOME", "/home/user");
         (globalThis as any).mockEnv("XDG_CONFIG_HOME", "/custom/config");
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "/custom/config/nsite");
       });
@@ -130,7 +130,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         mockOS("linux");
         (globalThis as any).mockEnv("HOME", "/home/user");
         (globalThis as any).mockEnv("XDG_CONFIG_HOME", undefined);
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "/home/user/.config/nsite");
       });
@@ -140,7 +140,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       it("should use Library/Application Support", () => {
         mockOS("darwin");
         (globalThis as any).mockEnv("HOME", "/Users/testuser");
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "/Users/testuser/Library/Application Support/nsyte");
       });
@@ -151,7 +151,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         mockOS("windows");
         (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\TestUser");
         (globalThis as any).mockEnv("APPDATA", "C:\\Users\\TestUser\\AppData\\Roaming");
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "C:\\Users\\TestUser\\AppData\\Roaming\\nsite");
       });
@@ -160,7 +160,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         mockOS("windows");
         (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\TestUser");
         (globalThis as any).mockEnv("APPDATA", undefined);
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "C:\\Users\\TestUser\\AppData\\Roaming\\nsite");
       });
@@ -170,7 +170,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       it("should use ~/.nsite for unknown OS", () => {
         mockOS("freebsd" as any);
         (globalThis as any).mockEnv("HOME", "/home/freebsduser");
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "/home/freebsduser/.nsite");
       });
@@ -178,7 +178,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       it("should handle custom OS types", () => {
         mockOS("android" as any);
         (globalThis as any).mockEnv("HOME", "/data/user");
-        
+
         const result = getSystemConfigDir();
         assertEquals(result, "/data/user/.nsite");
       });
@@ -189,7 +189,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should return null when config dir cannot be determined", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", undefined);
-      
+
       const result = ensureSystemConfigDir();
       assertEquals(result, null);
     });
@@ -197,9 +197,9 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should create directory and return path on success", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "/home/user");
-      
+
       const ensureDirStub = stub(fs, "ensureDirSync", () => {});
-      
+
       const result = ensureSystemConfigDir();
       assertEquals(result, "/home/user/.config/nsite");
       assertEquals(ensureDirStub.calls.length, 1);
@@ -209,11 +209,11 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should handle permission errors", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "/home/user");
-      
+
       const ensureDirStub = stub(fs, "ensureDirSync", () => {
         throw new Deno.errors.PermissionDenied("Permission denied");
       });
-      
+
       const result = ensureSystemConfigDir();
       assertEquals(result, null);
     });
@@ -221,11 +221,11 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should handle file system errors", () => {
       mockOS("darwin");
       (globalThis as any).mockEnv("HOME", "/Users/test");
-      
+
       const ensureDirStub = stub(fs, "ensureDirSync", () => {
         throw new Error("Disk full");
       });
-      
+
       const result = ensureSystemConfigDir();
       assertEquals(result, null);
     });
@@ -234,11 +234,11 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       mockOS("windows");
       (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\Test");
       (globalThis as any).mockEnv("APPDATA", "C:\\Users\\Test\\AppData\\Roaming");
-      
+
       const ensureDirStub = stub(fs, "ensureDirSync", () => {
         throw "String error";
       });
-      
+
       const result = ensureSystemConfigDir();
       assertEquals(result, null);
     });
@@ -258,12 +258,12 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         } else {
           (globalThis as any).mockEnv("HOME", os === "darwin" ? "/Users/user" : "/home/user");
         }
-        
+
         const ensureDirStub = stub(fs, "ensureDirSync", () => {});
-        
+
         const result = ensureSystemConfigDir();
         assertEquals(result, path);
-        
+
         ensureDirStub.restore();
       }
     });
@@ -289,7 +289,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         blksize: 0,
         blocks: 0,
       }));
-      
+
       const result = fileExists("/path/to/file.txt");
       assertEquals(result, true);
       assertEquals(statStub.calls.length, 1);
@@ -315,7 +315,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         blksize: 0,
         blocks: 0,
       }));
-      
+
       const result = fileExists("/path/to/directory");
       assertEquals(result, false);
     });
@@ -324,7 +324,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       const statStub = stub(Deno, "statSync", () => {
         throw new Deno.errors.NotFound("File not found");
       });
-      
+
       const result = fileExists("/non/existent/file.txt");
       assertEquals(result, false);
     });
@@ -333,11 +333,11 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       const statStub = stub(Deno, "statSync", () => {
         throw new Deno.errors.PermissionDenied("Permission denied");
       });
-      
+
       assertThrows(
         () => fileExists("/protected/file.txt"),
         Deno.errors.PermissionDenied,
-        "Permission denied"
+        "Permission denied",
       );
     });
 
@@ -345,11 +345,11 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       const statStub = stub(Deno, "statSync", () => {
         throw new Error("Generic error");
       });
-      
+
       assertThrows(
         () => fileExists("/error/file.txt"),
         Error,
-        "Generic error"
+        "Generic error",
       );
     });
 
@@ -372,7 +372,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         blksize: 0,
         blocks: 0,
       }));
-      
+
       const result = fileExists("/path/to/symlink");
       assertEquals(result, false);
     });
@@ -382,10 +382,10 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should handle empty strings", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "");
-      
+
       const homeDir = getHomeDir();
       assertEquals(homeDir, "");
-      
+
       // Empty home should lead to paths starting with /
       const configDir = getSystemConfigDir();
       assertExists(configDir);
@@ -395,7 +395,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       mockOS("windows");
       (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\Test User");
       (globalThis as any).mockEnv("APPDATA", "C:\\Users\\Test User\\AppData\\Roaming");
-      
+
       const configDir = getSystemConfigDir();
       assertEquals(configDir, "C:\\Users\\Test User\\AppData\\Roaming\\nsite");
     });
@@ -403,7 +403,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     it("should handle Unicode in paths", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "/home/用户");
-      
+
       const configDir = getSystemConfigDir();
       assertEquals(configDir, "/home/用户/.config/nsite");
     });
@@ -412,7 +412,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       const longPath = "/home/" + "a".repeat(200);
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", longPath);
-      
+
       const configDir = getSystemConfigDir();
       assertEquals(configDir, longPath + "/.config/nsite");
     });

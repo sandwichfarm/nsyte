@@ -4,8 +4,9 @@ import type { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
-import { bech32Decode } from "../lib/utils.ts";
 import { listRemoteFiles } from "../lib/nostr.ts";
+import { decode } from "nostr-tools/nip19";
+import { normalizeToPubkey } from "applesauce-core/helpers";
 
 const log = createLogger("run");
 
@@ -35,19 +36,11 @@ export function registerRunCommand(program: Command): void {
  */
 export function validateNpub(npub: string): boolean {
   try {
-    const decoded = bech32Decode(npub);
-    return decoded.prefix === "npub" && decoded.data.length === 32;
+    const decoded = decode(npub);
+    return decoded.type === "npub";
   } catch {
     return false;
   }
-}
-
-/**
- * Converts npub to hex pubkey
- */
-export function npubToHex(npub: string): string {
-  const decoded = bech32Decode(npub);
-  return Array.from(decoded.data, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -112,7 +105,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
       }
 
       try {
-        const pubkeyHex = npubToHex(npub);
+        const pubkeyHex = normalizeToPubkey(npub);
         const requestedPath = url.pathname === "/" ? "/index.html" : url.pathname;
 
         log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);

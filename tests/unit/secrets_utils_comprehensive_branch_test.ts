@@ -1,11 +1,11 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
+import { restore, stub } from "jsr:@std/testing/mock";
 import {
-  getHomeDir,
-  getSystemConfigDir,
   ensureSystemConfigDir,
   fileExists,
+  getHomeDir,
+  getSystemConfigDir,
 } from "../../src/lib/secrets/utils.ts";
 
 describe("Secrets Utils - comprehensive branch coverage", () => {
@@ -48,7 +48,7 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
         if (shouldThrow) {
           throw new Error(errorMessage);
         }
-      }
+      },
     );
   };
 
@@ -129,9 +129,9 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
 
     it("should return Windows config directory with APPDATA", () => {
       mockOS("windows");
-      mockEnv({ 
-        USERPROFILE: "C:\\Users\\user", 
-        APPDATA: "C:\\Users\\user\\AppData\\Roaming" 
+      mockEnv({
+        USERPROFILE: "C:\\Users\\user",
+        APPDATA: "C:\\Users\\user\\AppData\\Roaming",
       });
 
       const result = getSystemConfigDir();
@@ -140,9 +140,9 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
 
     it("should return Windows config directory without APPDATA", () => {
       mockOS("windows");
-      mockEnv({ 
-        USERPROFILE: "C:\\Users\\user", 
-        APPDATA: undefined 
+      mockEnv({
+        USERPROFILE: "C:\\Users\\user",
+        APPDATA: undefined,
       });
 
       const result = getSystemConfigDir();
@@ -175,9 +175,9 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
 
     it("should handle empty APPDATA on Windows", () => {
       mockOS("windows");
-      mockEnv({ 
-        USERPROFILE: "C:\\Users\\user", 
-        APPDATA: "" 
+      mockEnv({
+        USERPROFILE: "C:\\Users\\user",
+        APPDATA: "",
       });
 
       const result = getSystemConfigDir();
@@ -189,7 +189,7 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
     it("should create and return config directory successfully", () => {
       mockOS("linux");
       mockEnv({ HOME: "/home/user" });
-      
+
       // Mock successful directory creation
       try {
         const result = ensureSystemConfigDir();
@@ -211,7 +211,7 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
     it("should handle directory creation errors", () => {
       mockOS("linux");
       mockEnv({ HOME: "/home/user" });
-      
+
       try {
         const result = ensureSystemConfigDir();
         // Should either succeed or handle error gracefully
@@ -430,10 +430,10 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
         { os: "freebsd", env: { HOME: "/usr/home/user4" } },
       ];
 
-      scenarios.forEach(scenario => {
+      scenarios.forEach((scenario) => {
         mockOS(scenario.os);
         mockEnv(scenario.env);
-        
+
         const result = getSystemConfigDir();
         assertExists(result);
         assertEquals(typeof result, "string");
@@ -449,10 +449,10 @@ describe("Secrets Utils - comprehensive branch coverage", () => {
         new Deno.errors.NotFound("File not found"),
         "String error",
         { message: "Object error" },
-        42
+        42,
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         if (error instanceof Error) {
           assertEquals(typeof error.message, "string");
         } else {

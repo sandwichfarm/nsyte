@@ -3,7 +3,6 @@ import { restore, stub } from "std/testing/mock.ts";
 import { Command } from "@cliffy/command";
 import {
   formatFileSize,
-  npubToHex,
   registerRunCommand,
   runCommand,
   validateNpub,
@@ -54,25 +53,6 @@ Deno.test("Run Command - Utility Functions", async (t) => {
       false,
     );
     assertEquals(validateNpub(""), false);
-  });
-
-  await t.step("npubToHex - should convert npub to hex", async () => {
-    // Mock the bech32Decode function
-    const bech32DecodeStub = stub(
-      await import("../../src/lib/utils.ts"),
-      "bech32Decode",
-      () => ({
-        prefix: "npub",
-        data: new Uint8Array([1, 2, 3, 4, 5]),
-      }),
-    );
-
-    try {
-      const result = npubToHex("npub1test");
-      assertEquals(result, "0102030405");
-    } finally {
-      bech32DecodeStub.restore();
-    }
   });
 
   await t.step("formatFileSize - should format file sizes correctly", () => {

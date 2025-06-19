@@ -6,8 +6,8 @@ import {
   parseCommaSeparated,
   resolvePubkey,
   resolveRelays,
-  resolveServers,
   type ResolverOptions,
+  resolveServers,
 } from "../../src/lib/resolver-utils.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "../../src/lib/constants.ts";
@@ -15,13 +15,13 @@ import * as config from "../../src/lib/config.ts";
 import * as nostr from "../../src/lib/nostr.ts";
 import * as nip46 from "../../src/lib/nip46.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
-import { Select, Secret } from "@cliffy/prompt";
+import { Secret, Select } from "@cliffy/prompt";
 
 describe("resolver-utils - comprehensive branch coverage", () => {
   let consoleLogStub: any;
   let consoleErrorStub: any;
   let exitStub: any;
-  
+
   beforeEach(() => {
     consoleLogStub = stub(console, "log");
     consoleErrorStub = stub(console, "error");
@@ -38,32 +38,32 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       assertEquals(parseCommaSeparated(""), []);
       assertEquals(parseCommaSeparated("   "), []);
       assertEquals(parseCommaSeparated("\t\n"), []);
-      
+
       // Single values with various whitespace
       assertEquals(parseCommaSeparated("single"), ["single"]);
       assertEquals(parseCommaSeparated("  single  "), ["single"]);
       assertEquals(parseCommaSeparated("\tsingle\n"), ["single"]);
-      
+
       // Multiple values with various separators
       assertEquals(parseCommaSeparated("a,b,c"), ["a", "b", "c"]);
       assertEquals(parseCommaSeparated("a, b, c"), ["a", "b", "c"]);
       assertEquals(parseCommaSeparated("  a  ,  b  ,  c  "), ["a", "b", "c"]);
-      
+
       // Empty values between commas
       assertEquals(parseCommaSeparated("a,,b"), ["a", "b"]);
       assertEquals(parseCommaSeparated(",a,b,"), ["a", "b"]);
       assertEquals(parseCommaSeparated(",,a,,b,,"), ["a", "b"]);
       assertEquals(parseCommaSeparated(",,,"), []);
-      
+
       // URLs and special characters
       assertEquals(parseCommaSeparated("https://example.com,wss://relay.com:8080"), [
         "https://example.com",
-        "wss://relay.com:8080"
+        "wss://relay.com:8080",
       ]);
-      
+
       // Unicode and special chars
       assertEquals(parseCommaSeparated("test🚀,emoji✨,unicode"), ["test🚀", "emoji✨", "unicode"]);
-      
+
       // Undefined and null-like strings
       assertEquals(parseCommaSeparated(undefined), []);
       assertEquals(parseCommaSeparated("null"), ["null"]);
@@ -81,15 +81,15 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         bunkerPubkey: undefined,
       };
       assertEquals(resolveRelays(options1, config1), ["wss://opt1.com", "wss://opt2.com"]);
-      
+
       // Branch 2: Empty string in options (still takes priority)
       const options2: ResolverOptions = { relays: "" };
       assertEquals(resolveRelays(options2, config1), []);
-      
+
       // Branch 3: Options undefined, use config
       const options3: ResolverOptions = {};
       assertEquals(resolveRelays(options3, config1), ["wss://cfg1.com"]);
-      
+
       // Branch 4: No options, empty config relays, use defaults
       const config2: ProjectConfig = {
         relays: [],
@@ -98,12 +98,12 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       };
       assertEquals(resolveRelays(options3, config2, false), NSYTE_BROADCAST_RELAYS);
       assertEquals(resolveRelays(options3, config2, true), RELAY_DISCOVERY_RELAYS);
-      
+
       // Branch 5: No options, null config, read from file
       const readProjectFileStub = stub(config, "readProjectFile", () => null);
       assertEquals(resolveRelays(options3, undefined), NSYTE_BROADCAST_RELAYS);
       readProjectFileStub.restore();
-      
+
       // Branch 6: No options, no config param, file has relays
       const fileConfig: ProjectConfig = {
         relays: ["wss://file-relay.com"],
@@ -131,15 +131,15 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         bunkerPubkey: undefined,
       };
       assertEquals(resolveServers(options1, config1), ["https://srv1.com", "https://srv2.com"]);
-      
+
       // Branch 2: Empty string in options
       const options2: ResolverOptions = { servers: "" };
       assertEquals(resolveServers(options2, config1), []);
-      
+
       // Branch 3: Options undefined, use config
       const options3: ResolverOptions = {};
       assertEquals(resolveServers(options3, config1), ["https://cfg-srv.com"]);
-      
+
       // Branch 4: No options, empty config servers
       const config2: ProjectConfig = {
         relays: [],
@@ -147,12 +147,12 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         bunkerPubkey: undefined,
       };
       assertEquals(resolveServers(options3, config2), []);
-      
+
       // Branch 5: No options, null config, read from file
       const readProjectFileStub = stub(config, "readProjectFile", () => null);
       assertEquals(resolveServers(options3, undefined), []);
       readProjectFileStub.restore();
-      
+
       // Branch 6: No options, no config param, file has servers
       const fileConfig: ProjectConfig = {
         relays: [],
@@ -174,7 +174,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
 
     it("should derive pubkey from private key", async () => {
       const options: ResolverOptions = {
-        privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
       };
       const result = await resolvePubkey(options, null, false);
       assertExists(result);
@@ -186,13 +186,13 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getPublicKey: async () => "nbunk-derived-pubkey",
         close: async () => {},
       };
-      
+
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = { nbunksec: "nbunksec1..." };
       const result = await resolvePubkey(options, null, false);
       assertEquals(result, "nbunk-derived-pubkey");
-      
+
       importStub.restore();
     });
 
@@ -200,14 +200,14 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       const importStub = stub(nip46, "importFromNbunk", async () => {
         throw new Error("Invalid nbunksec format");
       });
-      
+
       const options: ResolverOptions = { nbunksec: "invalid-nbunksec" };
       await assertRejects(
         () => resolvePubkey(options, null, false),
         Error,
-        "Invalid nbunksec format"
+        "Invalid nbunksec format",
       );
-      
+
       importStub.restore();
     });
 
@@ -215,13 +215,13 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       const mockSigner = {
         getPublicKey: async () => "nbunk-derived-pubkey-no-close",
       };
-      
+
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = { nbunksec: "nbunksec1..." };
       const result = await resolvePubkey(options, null, false);
       assertEquals(result, "nbunk-derived-pubkey-no-close");
-      
+
       importStub.restore();
     });
 
@@ -230,16 +230,16 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getPublicKey: async () => "bunker-derived-pubkey",
         close: async () => {},
       };
-      
+
       const createStub = stub(nostr, "createNip46ClientFromUrl", async () => ({
         client: mockClient as any,
         userPubkey: "test-user-pubkey",
       }));
-      
+
       const options: ResolverOptions = { bunker: "bunker://pubkey?relay=wss://relay.com" };
       const result = await resolvePubkey(options, null, false);
       assertEquals(result, "bunker-derived-pubkey");
-      
+
       createStub.restore();
     });
 
@@ -247,14 +247,14 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       const createStub = stub(nostr, "createNip46ClientFromUrl", async () => {
         throw new Error("Failed to connect to bunker");
       });
-      
+
       const options: ResolverOptions = { bunker: "invalid-bunker-url" };
       await assertRejects(
         () => resolvePubkey(options, null, false),
         Error,
-        "Failed to connect to bunker"
+        "Failed to connect to bunker",
       );
-      
+
       createStub.restore();
     });
 
@@ -262,16 +262,16 @@ describe("resolver-utils - comprehensive branch coverage", () => {
       const mockClient = {
         getPublicKey: async () => "bunker-pubkey-no-close",
       };
-      
+
       const createStub = stub(nostr, "createNip46ClientFromUrl", async () => ({
         client: mockClient as any,
         userPubkey: "test-user-pubkey",
       }));
-      
+
       const options: ResolverOptions = { bunker: "bunker://pubkey?relay=wss://relay.com" };
       const result = await resolvePubkey(options, null, false);
       assertEquals(result, "bunker-pubkey-no-close");
-      
+
       createStub.restore();
     });
 
@@ -282,7 +282,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         servers: [],
         bunkerPubkey: "config-bunker-pubkey-123",
       };
-      
+
       const result = await resolvePubkey(options, configData, false);
       assertEquals(result, "config-bunker-pubkey-123");
     });
@@ -296,24 +296,24 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         publishRelayList: false,
       };
       const readStub = stub(config, "readProjectFile", () => fileConfig);
-      
+
       const options: ResolverOptions = {};
       const result = await resolvePubkey(options, undefined, false);
       assertEquals(result, "file-bunker-pubkey");
-      
+
       readStub.restore();
     });
 
     it("should use default config when file returns null", async () => {
       const readStub = stub(config, "readProjectFile", () => null);
-      
+
       const options: ResolverOptions = {};
       await assertRejects(
         () => resolvePubkey(options, undefined, false),
         Error,
-        "No public key available"
+        "No public key available",
       );
-      
+
       readStub.restore();
     });
 
@@ -324,11 +324,11 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       await assertRejects(
         () => resolvePubkey(options, configData, false),
         Error,
-        "No public key available"
+        "No public key available",
       );
     });
 
@@ -339,41 +339,43 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         publicKey: "generated-public-key",
       };
       const generateStub = stub(nostr, "generateKeyPair", () => keyPair);
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       const result = await resolvePubkey(options, configData, true);
       assertEquals(result, "generated-public-key");
-      
+
       // Check console output
       assertEquals(consoleLogStub.calls.length >= 3, true);
-      
+
       selectStub.restore();
       generateStub.restore();
     });
 
     it("should handle interactive mode with existing private key", async () => {
       const selectStub = stub(Select, "prompt", async () => "existing" as any);
-      const secretStub = stub(Secret, "prompt", async () => 
-        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      const secretStub = stub(
+        Secret,
+        "prompt",
+        async () => "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
       );
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       const result = await resolvePubkey(options, configData, true);
       assertExists(result);
       assertEquals(result.length, 64);
-      
+
       selectStub.restore();
       secretStub.restore();
     });
@@ -384,27 +386,27 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getNbunk: async () => "nbunksec1...",
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const selectStub = stub(Select, "prompt");
       selectStub.onFirstCall().resolves("existing_bunker" as any);
       selectStub.onSecondCall().resolves("existing-bunker-pubkey-1" as any);
-      
+
       const mockSigner = {
         getPublicKey: async () => "bunker-user-pubkey",
         close: async () => {},
       };
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       const result = await resolvePubkey(options, configData, true);
       assertEquals(result, "bunker-user-pubkey");
-      
+
       getInstanceStub.restore();
       selectStub.restore();
       importStub.restore();
@@ -416,31 +418,31 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getNbunk: async () => "nbunksec1...",
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const selectStub = stub(Select, "prompt");
       selectStub.onFirstCall().resolves("existing_bunker" as any);
       selectStub.onSecondCall().resolves("existing-bunker-pubkey" as any);
-      
+
       const importStub = stub(nip46, "importFromNbunk", async () => {
         throw new Error("Connection failed");
       });
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       await assertRejects(
         () => resolvePubkey(options, configData, true),
-        Error
+        Error,
       );
-      
+
       // Check error output
       assertEquals(consoleErrorStub.calls.length >= 1, true);
       assertEquals(exitStub.calls[0].args[0], 1);
-      
+
       getInstanceStub.restore();
       selectStub.restore();
       importStub.restore();
@@ -451,25 +453,25 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getAllPubkeys: async () => [],
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const selectStub = stub(Select, "prompt", async () => "new_bunker" as any);
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       await assertRejects(
         () => resolvePubkey(options, configData, true),
-        Error
+        Error,
       );
-      
+
       // Check console output
       assertEquals(consoleErrorStub.calls.length >= 1, true);
       assertEquals(exitStub.calls[0].args[0], 1);
-      
+
       getInstanceStub.restore();
       selectStub.restore();
     });
@@ -479,24 +481,24 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getAllPubkeys: async () => [],
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       // Simulate user cancelling the selection
       const selectStub = stub(Select, "prompt", async () => {
         throw new Error("User cancelled");
       });
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       await assertRejects(
         () => resolvePubkey(options, configData, true),
-        Error
+        Error,
       );
-      
+
       getInstanceStub.restore();
       selectStub.restore();
     });
@@ -506,30 +508,32 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getAllPubkeys: async () => [],
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const selectStub = stub(Select, "prompt", async () => "generate" as any);
       const keyPair = {
         privateKey: "generated-private-key",
         publicKey: "generated-public-key-with-close-error",
       };
       const generateStub = stub(nostr, "generateKeyPair", () => keyPair);
-      
+
       // Mock a signer that throws on close
       const mockSigner = {
         getPublicKey: async () => keyPair.publicKey,
-        close: async () => { throw new Error("Close failed"); },
+        close: async () => {
+          throw new Error("Close failed");
+        },
       };
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       const result = await resolvePubkey(options, configData, true);
       assertEquals(result, "generated-public-key-with-close-error");
-      
+
       getInstanceStub.restore();
       selectStub.restore();
       generateStub.restore();
@@ -543,13 +547,13 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         signEvent: async () => ({} as any),
       };
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = { nbunksec: "nbunksec1..." };
       const signer = await createSigner(options);
-      
+
       assertExists(signer);
       assertEquals(await signer!.getPublicKey(), "nbunk-signer-pubkey");
-      
+
       importStub.restore();
     });
 
@@ -562,22 +566,22 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         client: mockClient as any,
         userPubkey: "test-user-pubkey",
       }));
-      
+
       const options: ResolverOptions = { bunker: "bunker://pubkey?relay=wss://relay.com" };
       const signer = await createSigner(options);
-      
+
       assertExists(signer);
       assertEquals(await signer!.getPublicKey(), "bunker-signer-pubkey");
-      
+
       createStub.restore();
     });
 
     it("should create signer from private key", async () => {
       const options: ResolverOptions = {
-        privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        privatekey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
       };
       const signer = await createSigner(options);
-      
+
       assertExists(signer);
       assertExists(await signer!.getPublicKey());
     });
@@ -587,13 +591,13 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getNbunk: async () => "nbunksec1-from-config",
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const mockSigner = {
         getPublicKey: async () => "config-bunker-signer-pubkey",
         signEvent: async () => ({} as any),
       };
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
@@ -602,12 +606,12 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         publishServerList: false,
         publishRelayList: false,
       };
-      
+
       const signer = await createSigner(options, configData);
-      
+
       assertExists(signer);
       assertEquals(await signer!.getPublicKey(), "config-bunker-signer-pubkey");
-      
+
       getInstanceStub.restore();
       importStub.restore();
     });
@@ -617,7 +621,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getNbunk: async () => "nbunksec1-from-file",
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const fileConfig: ProjectConfig = {
         relays: [],
         servers: [],
@@ -626,19 +630,19 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         publishRelayList: false,
       };
       const readStub = stub(config, "readProjectFile", () => fileConfig);
-      
+
       const mockSigner = {
         getPublicKey: async () => "file-bunker-signer-pubkey",
         signEvent: async () => ({} as any),
       };
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = {};
       const signer = await createSigner(options);
-      
+
       assertExists(signer);
       assertEquals(await signer!.getPublicKey(), "file-bunker-signer-pubkey");
-      
+
       getInstanceStub.restore();
       readStub.restore();
       importStub.restore();
@@ -649,7 +653,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         getNbunk: async () => null,
       };
       const getInstanceStub = stub(SecretsManager, "getInstance", () => mockSecretsManager as any);
-      
+
       const options: ResolverOptions = {};
       const configData: ProjectConfig = {
         relays: [],
@@ -658,10 +662,10 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         publishServerList: false,
         publishRelayList: false,
       };
-      
+
       const signer = await createSigner(options, configData);
       assertEquals(signer, null);
-      
+
       getInstanceStub.restore();
     });
 
@@ -672,7 +676,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         servers: [],
         bunkerPubkey: undefined,
       };
-      
+
       const signer = await createSigner(options, configData);
       assertEquals(signer, null);
     });
@@ -683,7 +687,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         signEvent: async () => ({} as any),
       };
       const importStub = stub(nip46, "importFromNbunk", async () => mockSigner as any);
-      
+
       const options: ResolverOptions = {
         nbunksec: "nbunksec1...",
         bunker: "bunker://pubkey",
@@ -694,13 +698,13 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         servers: [],
         bunkerPubkey: "config-bunker",
       };
-      
+
       const signer = await createSigner(options, configData);
-      
+
       // Should use nbunksec (highest priority)
       assertExists(signer);
       assertEquals(await signer!.getPublicKey(), "nbunksec-priority-pubkey");
-      
+
       importStub.restore();
     });
   });

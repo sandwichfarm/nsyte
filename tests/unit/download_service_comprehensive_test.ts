@@ -1,10 +1,10 @@
 import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore } from "jsr:@std/testing/mock";
-import { 
-  DownloadService,
+import { restore, stub } from "jsr:@std/testing/mock";
+import {
   type DownloadOptions,
-  type DownloadResult
+  type DownloadResult,
+  DownloadService,
 } from "../../src/lib/download.ts";
 import { type FileEntry } from "../../src/lib/nostr.ts";
 
@@ -20,9 +20,9 @@ describe("DownloadService - comprehensive branch coverage", () => {
   beforeEach(() => {
     // Mock fetch API
     fetchStub = stub(globalThis, "fetch", async () => {
-      return new Response(new ArrayBuffer(1024), { 
-        status: 200, 
-        statusText: "OK" 
+      return new Response(new ArrayBuffer(1024), {
+        status: 200,
+        statusText: "OK",
       });
     });
 
@@ -30,26 +30,26 @@ describe("DownloadService - comprehensive branch coverage", () => {
     denoStatStub = stub(Deno, "stat", async () => {
       throw new Deno.errors.NotFound("File not found");
     });
-    
+
     denoWriteFileStub = stub(Deno, "writeFile", async () => {});
 
     // Mock external modules
     try {
       ensureDirStub = stub(globalThis, "ensureDir" as any, async () => {});
       listRemoteFilesStub = stub(globalThis, "listRemoteFiles" as any, async () => []);
-      
+
       // Mock ProgressRenderer
       progressRendererStub = {
         start: () => {},
         update: () => {},
-        complete: () => {}
+        complete: () => {},
       };
-      
+
       // Mock logger
       logStub = {
         debug: () => {},
         info: () => {},
-        error: () => {}
+        error: () => {},
       };
     } catch (error) {
       // Expected mocking limitation
@@ -86,7 +86,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should fetch file list successfully", async () => {
       const mockFiles = [
         { path: "/index.html", sha256: "abc123" },
-        { path: "/style.css", sha256: "def456" }
+        { path: "/style.css", sha256: "def456" },
       ];
 
       try {
@@ -96,11 +96,11 @@ describe("DownloadService - comprehensive branch coverage", () => {
       }
 
       const service = new DownloadService();
-      
+
       try {
         const result = await service.fetchFileList(
-          ["wss://relay.example.com"], 
-          "test-pubkey"
+          ["wss://relay.example.com"],
+          "test-pubkey",
         );
         // If mocking works, verify result
       } catch (error) {
@@ -117,7 +117,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       }
 
       const service = new DownloadService();
-      
+
       try {
         await service.fetchFileList(["wss://relay.example.com"], "test-pubkey");
       } catch (error) {
@@ -127,7 +127,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle empty relay list", async () => {
       const service = new DownloadService();
-      
+
       try {
         const result = await service.fetchFileList([], "test-pubkey");
         assertEquals(Array.isArray(result), true);
@@ -142,9 +142,9 @@ describe("DownloadService - comprehensive branch coverage", () => {
       const relays = [
         "wss://relay1.example.com",
         "wss://relay2.example.com",
-        "wss://relay3.example.com"
+        "wss://relay3.example.com",
       ];
-      
+
       try {
         await service.fetchFileList(relays, "test-pubkey");
       } catch (error) {
@@ -160,16 +160,16 @@ describe("DownloadService - comprehensive branch coverage", () => {
         { path: "/file1.html", sha256: "hash1" },
         { path: "/file2.css", sha256: "hash2" },
         { path: "/file3.js", sha256: "hash3" },
-        { path: "/file4.png", sha256: "hash4" }
+        { path: "/file4.png", sha256: "hash4" },
       ];
 
       const options: DownloadOptions = {
         output: "/test/output",
-        overwrite: false
+        overwrite: false,
       };
 
       const service = new DownloadService({ concurrency: 2 });
-      
+
       try {
         const results = await service.downloadFiles(mockFiles, ["https://server.com"], options);
         assertEquals(Array.isArray(results), true);
@@ -182,7 +182,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle empty file list", async () => {
       const service = new DownloadService();
       const options: DownloadOptions = { output: "/test/output" };
-      
+
       const results = await service.downloadFiles([], ["https://server.com"], options);
       assertEquals(results.length, 0);
     });
@@ -190,12 +190,12 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should track progress correctly", async () => {
       const mockFiles: FileEntry[] = [
         { path: "/file1.html", sha256: "hash1" },
-        { path: "/file2.css", sha256: "hash2" }
+        { path: "/file2.css", sha256: "hash2" },
       ];
 
       const options: DownloadOptions = { output: "/test/output" };
       const service = new DownloadService();
-      
+
       try {
         await service.downloadFiles(mockFiles, ["https://server.com"], options);
       } catch (error) {
@@ -206,7 +206,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle download errors gracefully", async () => {
       const mockFiles: FileEntry[] = [
-        { path: "/file1.html", sha256: "hash1" }
+        { path: "/file1.html", sha256: "hash1" },
       ];
 
       // Mock downloadSingleFile to throw error
@@ -217,7 +217,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       };
 
       const options: DownloadOptions = { output: "/test/output" };
-      
+
       const results = await service.downloadFiles(mockFiles, ["https://server.com"], options);
       assertEquals(Array.isArray(results), true);
       assertEquals(results[0].success, false);
@@ -227,7 +227,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle mixed success and failure results", async () => {
       const mockFiles: FileEntry[] = [
         { path: "/success.html", sha256: "hash1" },
-        { path: "/failure.css", sha256: "hash2" }
+        { path: "/failure.css", sha256: "hash2" },
       ];
 
       const service = new DownloadService();
@@ -243,7 +243,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
       const options: DownloadOptions = { output: "/test/output" };
       const results = await service.downloadFiles(mockFiles, ["https://server.com"], options);
-      
+
       assertEquals(results.length, 2);
       assertEquals(results[0].success, true);
       assertEquals(results[1].success, false);
@@ -251,22 +251,22 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle skipped files", async () => {
       const mockFiles: FileEntry[] = [
-        { path: "/existing.html", sha256: "hash1" }
+        { path: "/existing.html", sha256: "hash1" },
       ];
 
       const service = new DownloadService();
       (service as any).downloadSingleFile = async (file: FileEntry) => {
-        return { 
-          file, 
-          success: true, 
-          skipped: true, 
-          reason: "File already exists" 
+        return {
+          file,
+          success: true,
+          skipped: true,
+          reason: "File already exists",
         };
       };
 
       const options: DownloadOptions = { output: "/test/output" };
       const results = await service.downloadFiles(mockFiles, ["https://server.com"], options);
-      
+
       assertEquals(results[0].success, true);
       assertEquals(results[0].skipped, true);
     });
@@ -276,9 +276,9 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should download file successfully", async () => {
       const file: FileEntry = { path: "/test.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output", overwrite: false };
-      
+
       const service = new DownloadService();
-      
+
       try {
         const result = await service.downloadSingleFile(file, ["https://server.com"], options);
         if (result.success) {
@@ -313,15 +313,15 @@ describe("DownloadService - comprehensive branch coverage", () => {
         isBlockDevice: false,
         isCharDevice: false,
         isFifo: false,
-        isSocket: false
+        isSocket: false,
       }));
 
       const file: FileEntry = { path: "/existing.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output", overwrite: false };
-      
+
       const service = new DownloadService();
       const result = await service.downloadSingleFile(file, ["https://server.com"], options);
-      
+
       assertEquals(result.success, true);
       assertEquals(result.skipped, true);
       assertEquals(result.reason, "File already exists (use --overwrite to replace)");
@@ -350,14 +350,14 @@ describe("DownloadService - comprehensive branch coverage", () => {
         isBlockDevice: false,
         isCharDevice: false,
         isFifo: false,
-        isSocket: false
+        isSocket: false,
       }));
 
       const file: FileEntry = { path: "/existing.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output", overwrite: true };
-      
+
       const service = new DownloadService();
-      
+
       try {
         const result = await service.downloadSingleFile(file, ["https://server.com"], options);
         // Should attempt to download and overwrite
@@ -370,10 +370,10 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle missing SHA256 hash", async () => {
       const file: FileEntry = { path: "/test.html" }; // No sha256
       const options: DownloadOptions = { output: "/output" };
-      
+
       const service = new DownloadService();
       const result = await service.downloadSingleFile(file, ["https://server.com"], options);
-      
+
       assertEquals(result.success, false);
       assertEquals(result.error, "No SHA256 hash found for file");
     });
@@ -392,9 +392,9 @@ describe("DownloadService - comprehensive branch coverage", () => {
       const file: FileEntry = { path: "/test.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output" };
       const servers = ["https://server1.com", "https://server2.com", "https://server3.com"];
-      
+
       const service = new DownloadService();
-      
+
       try {
         const result = await service.downloadSingleFile(file, servers, options);
         // Should succeed on third attempt
@@ -413,10 +413,10 @@ describe("DownloadService - comprehensive branch coverage", () => {
       const file: FileEntry = { path: "/test.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output" };
       const servers = ["https://server1.com", "https://server2.com"];
-      
+
       const service = new DownloadService();
       const result = await service.downloadSingleFile(file, servers, options);
-      
+
       assertEquals(result.success, false);
       assertEquals(result.error, "Failed to download from any server (tried 2 servers)");
     });
@@ -424,9 +424,9 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle verbose logging", async () => {
       const file: FileEntry = { path: "/test.html", sha256: "abc123" };
       const options: DownloadOptions = { output: "/output", verbose: true };
-      
+
       const service = new DownloadService();
-      
+
       try {
         await service.downloadSingleFile(file, ["https://server.com"], options);
       } catch (error) {
@@ -446,7 +446,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
       const service = new DownloadService();
       const result = await service.downloadFromServer("https://server.com", "abc123");
-      
+
       assertExists(result);
       assertEquals(result instanceof Uint8Array, true);
       assertEquals(result.length, 1024);
@@ -454,7 +454,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle server URL without trailing slash", async () => {
       const service = new DownloadService();
-      
+
       try {
         await service.downloadFromServer("https://server.com", "abc123");
         // URL should be constructed as https://server.com/abc123
@@ -466,7 +466,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle server URL with trailing slash", async () => {
       const service = new DownloadService();
-      
+
       try {
         await service.downloadFromServer("https://server.com/", "abc123");
         // URL should be constructed as https://server.com/abc123
@@ -484,7 +484,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
       const service = new DownloadService();
       const result = await service.downloadFromServer("https://server.com", "notfound");
-      
+
       assertEquals(result, null);
     });
 
@@ -495,11 +495,11 @@ describe("DownloadService - comprehensive branch coverage", () => {
       });
 
       const service = new DownloadService();
-      
+
       await assertRejects(
         () => service.downloadFromServer("https://server.com", "abc123"),
         Error,
-        "HTTP 500: Internal Server Error"
+        "HTTP 500: Internal Server Error",
       );
     });
 
@@ -510,11 +510,11 @@ describe("DownloadService - comprehensive branch coverage", () => {
       });
 
       const service = new DownloadService();
-      
+
       await assertRejects(
         () => service.downloadFromServer("https://server.com", "abc123"),
         Error,
-        "Network timeout"
+        "Network timeout",
       );
     });
 
@@ -525,16 +525,16 @@ describe("DownloadService - comprehensive branch coverage", () => {
           ok: true,
           arrayBuffer: async () => {
             throw new Error("Malformed response");
-          }
+          },
         } as unknown as Response;
       });
 
       const service = new DownloadService();
-      
+
       await assertRejects(
         () => service.downloadFromServer("https://server.com", "abc123"),
         Error,
-        "Malformed response"
+        "Malformed response",
       );
     });
   });
@@ -542,21 +542,21 @@ describe("DownloadService - comprehensive branch coverage", () => {
   describe("calculateStats", () => {
     it("should calculate stats for successful downloads", () => {
       const results: DownloadResult[] = [
-        { 
-          file: { path: "/file1.html", size: 1024 } as FileEntry, 
-          success: true, 
-          savedPath: "/output/file1.html" 
+        {
+          file: { path: "/file1.html", size: 1024 } as FileEntry,
+          success: true,
+          savedPath: "/output/file1.html",
         },
-        { 
-          file: { path: "/file2.css", size: 512 } as FileEntry, 
-          success: true, 
-          savedPath: "/output/file2.css" 
-        }
+        {
+          file: { path: "/file2.css", size: 512 } as FileEntry,
+          success: true,
+          savedPath: "/output/file2.css",
+        },
       ];
 
       const service = new DownloadService();
       const stats = service.calculateStats(results);
-      
+
       assertEquals(stats.totalFiles, 2);
       assertEquals(stats.successful, 2);
       assertEquals(stats.skipped, 0);
@@ -567,27 +567,27 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should calculate stats for mixed results", () => {
       const results: DownloadResult[] = [
-        { 
-          file: { path: "/file1.html", size: 1024 } as FileEntry, 
-          success: true, 
-          savedPath: "/output/file1.html" 
+        {
+          file: { path: "/file1.html", size: 1024 } as FileEntry,
+          success: true,
+          savedPath: "/output/file1.html",
         },
-        { 
-          file: { path: "/file2.css", size: 512 } as FileEntry, 
-          success: true, 
+        {
+          file: { path: "/file2.css", size: 512 } as FileEntry,
+          success: true,
           skipped: true,
-          reason: "Already exists"
+          reason: "Already exists",
         },
-        { 
-          file: { path: "/file3.js", size: 256 } as FileEntry, 
-          success: false, 
-          error: "Download failed" 
-        }
+        {
+          file: { path: "/file3.js", size: 256 } as FileEntry,
+          success: false,
+          error: "Download failed",
+        },
       ];
 
       const service = new DownloadService();
       const stats = service.calculateStats(results);
-      
+
       assertEquals(stats.totalFiles, 3);
       assertEquals(stats.successful, 1);
       assertEquals(stats.skipped, 1);
@@ -598,21 +598,21 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle files without size", () => {
       const results: DownloadResult[] = [
-        { 
-          file: { path: "/file1.html" } as FileEntry, 
-          success: true, 
-          savedPath: "/output/file1.html" 
+        {
+          file: { path: "/file1.html" } as FileEntry,
+          success: true,
+          savedPath: "/output/file1.html",
         },
-        { 
-          file: { path: "/file2.css", size: 512 } as FileEntry, 
-          success: false, 
-          error: "Failed" 
-        }
+        {
+          file: { path: "/file2.css", size: 512 } as FileEntry,
+          success: false,
+          error: "Failed",
+        },
       ];
 
       const service = new DownloadService();
       const stats = service.calculateStats(results);
-      
+
       assertEquals(stats.totalFiles, 2);
       assertEquals(stats.successful, 1);
       assertEquals(stats.failed, 1);
@@ -623,7 +623,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle empty results", () => {
       const service = new DownloadService();
       const stats = service.calculateStats([]);
-      
+
       assertEquals(stats.totalFiles, 0);
       assertEquals(stats.successful, 0);
       assertEquals(stats.skipped, 0);
@@ -637,7 +637,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should validate valid options", () => {
       const options = { output: "/valid/path" };
       const validation = DownloadService.validateOptions(options);
-      
+
       assertEquals(validation.valid, true);
       assertEquals(validation.errors.length, 0);
     });
@@ -645,7 +645,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should reject missing output", () => {
       const options = {};
       const validation = DownloadService.validateOptions(options);
-      
+
       assertEquals(validation.valid, false);
       assertEquals(validation.errors.length, 1);
       assertEquals(validation.errors[0], "Output directory is required");
@@ -654,7 +654,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should reject empty output string", () => {
       const options = { output: "" };
       const validation = DownloadService.validateOptions(options);
-      
+
       assertEquals(validation.valid, false);
       assertEquals(validation.errors.includes("Output directory is required"), true);
     });
@@ -662,19 +662,19 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should reject whitespace-only output", () => {
       const options = { output: "   " };
       const validation = DownloadService.validateOptions(options);
-      
+
       assertEquals(validation.valid, false);
       assertEquals(validation.errors.includes("Output directory is required"), true);
     });
 
     it("should accept valid options with all fields", () => {
-      const options = { 
+      const options = {
         output: "/valid/path",
         overwrite: true,
-        verbose: false
+        verbose: false,
       };
       const validation = DownloadService.validateOptions(options);
-      
+
       assertEquals(validation.valid, true);
       assertEquals(validation.errors.length, 0);
     });
@@ -726,12 +726,12 @@ describe("DownloadService - comprehensive branch coverage", () => {
         isBlockDevice: false,
         isCharDevice: false,
         isFifo: false,
-        isSocket: false
+        isSocket: false,
       }));
 
       const service = new DownloadService();
       const result = await (service as any).checkExistingFile("/test/file.html", false);
-      
+
       assertExists(result);
       assertEquals(result.success, true);
       assertEquals(result.skipped, true);
@@ -741,7 +741,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should return null for non-existing file", async () => {
       const service = new DownloadService();
       const result = await (service as any).checkExistingFile("/test/nonexistent.html", false);
-      
+
       assertEquals(result, null);
     });
 
@@ -768,12 +768,12 @@ describe("DownloadService - comprehensive branch coverage", () => {
         isBlockDevice: false,
         isCharDevice: false,
         isFifo: false,
-        isSocket: false
+        isSocket: false,
       }));
 
       const service = new DownloadService();
       const result = await (service as any).checkExistingFile("/test/file.html", true);
-      
+
       assertEquals(result, null);
     });
   });
@@ -782,7 +782,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should save file data successfully", async () => {
       const service = new DownloadService();
       const data = new Uint8Array([1, 2, 3, 4]);
-      
+
       try {
         await (service as any).saveFile("/test/output/file.html", data);
         // Should call ensureDir and Deno.writeFile
@@ -801,7 +801,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
       const service = new DownloadService();
       const data = new Uint8Array([1, 2, 3, 4]);
-      
+
       try {
         await (service as any).saveFile("/test/output/file.html", data);
       } catch (error) {
@@ -817,7 +817,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
       const service = new DownloadService();
       const data = new Uint8Array([1, 2, 3, 4]);
-      
+
       try {
         await (service as any).saveFile("/test/output/file.html", data);
         assertEquals(true, false, "Expected error but none was thrown");
@@ -832,12 +832,12 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should handle very large file list", async () => {
       const largeFileList: FileEntry[] = Array.from({ length: 1000 }, (_, i) => ({
         path: `/file${i}.html`,
-        sha256: `hash${i}`
+        sha256: `hash${i}`,
       }));
 
       const service = new DownloadService({ concurrency: 5 });
       const options: DownloadOptions = { output: "/test/output" };
-      
+
       try {
         const results = await service.downloadFiles(largeFileList, ["https://server.com"], options);
         assertEquals(results.length, 1000);
@@ -865,14 +865,14 @@ describe("DownloadService - comprehensive branch coverage", () => {
     });
 
     it("should handle special characters in file paths", async () => {
-      const file: FileEntry = { 
-        path: "/special chars & symbols!@#$%^&*().html", 
-        sha256: "abc123" 
+      const file: FileEntry = {
+        path: "/special chars & symbols!@#$%^&*().html",
+        sha256: "abc123",
       };
       const options: DownloadOptions = { output: "/output" };
-      
+
       const service = new DownloadService();
-      
+
       try {
         await service.downloadSingleFile(file, ["https://server.com"], options);
       } catch (error) {
@@ -882,14 +882,14 @@ describe("DownloadService - comprehensive branch coverage", () => {
     });
 
     it("should handle unicode file paths", async () => {
-      const file: FileEntry = { 
-        path: "/файл-тест-🌟.html", 
-        sha256: "abc123" 
+      const file: FileEntry = {
+        path: "/файл-тест-🌟.html",
+        sha256: "abc123",
       };
       const options: DownloadOptions = { output: "/output" };
-      
+
       const service = new DownloadService();
-      
+
       try {
         await service.downloadSingleFile(file, ["https://server.com"], options);
       } catch (error) {

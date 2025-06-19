@@ -17,9 +17,9 @@ async function getCoverageData(): Promise<CoverageData> {
     "test-output/lcov.info",
     "coverage.lcov",
     "new_coverage.lcov",
-    "static/coverage.lcov"
+    "static/coverage.lcov",
   ];
-  
+
   for (const lcovPath of lcovPaths) {
     try {
       const lcovContent = await Deno.readTextFile(lcovPath);
@@ -28,7 +28,7 @@ async function getCoverageData(): Promise<CoverageData> {
       // Continue to next path
     }
   }
-  
+
   // Fallback to deno coverage command
   try {
     const cmd = new Deno.Command("deno", {
@@ -39,11 +39,11 @@ async function getCoverageData(): Promise<CoverageData> {
 
     const { stdout } = await cmd.output();
     let output = new TextDecoder().decode(stdout);
-    
+
     // Remove ANSI color codes
     // deno-lint-ignore no-control-regex
-    output = output.replace(/\x1b\[[0-9;]*m/g, '');
-    
+    output = output.replace(/\x1b\[[0-9;]*m/g, "");
+
     return parseDenoCoverageOutput(output);
   } catch {
     // Try alternative coverage directory
@@ -56,11 +56,11 @@ async function getCoverageData(): Promise<CoverageData> {
 
       const { stdout } = await cmd.output();
       let output = new TextDecoder().decode(stdout);
-      
+
       // Remove ANSI color codes
       // deno-lint-ignore no-control-regex
-      output = output.replace(/\x1b\[[0-9;]*m/g, '');
-      
+      output = output.replace(/\x1b\[[0-9;]*m/g, "");
+
       return parseDenoCoverageOutput(output);
     } catch {
       throw new Error("Could not find coverage data");
@@ -69,36 +69,36 @@ async function getCoverageData(): Promise<CoverageData> {
 }
 
 function parseLcovCoverageData(lcovContent: string): CoverageData {
-  const records = lcovContent.split('end_of_record');
+  const records = lcovContent.split("end_of_record");
   let totalLinesHit = 0;
   let totalLinesFound = 0;
   let totalBranchesHit = 0;
   let totalBranchesFound = 0;
-  
+
   for (const record of records) {
-    if (record.includes('SF:')) {
+    if (record.includes("SF:")) {
       // Line coverage
       const lhMatch = record.match(/LH:(\d+)/);
       const lfMatch = record.match(/LF:(\d+)/);
-      
+
       if (lhMatch && lfMatch) {
         const linesHit = parseInt(lhMatch[1]);
         const linesFound = parseInt(lfMatch[1]);
-        
+
         if (linesFound > 0) {
           totalLinesHit += linesHit;
           totalLinesFound += linesFound;
         }
       }
-      
+
       // Branch coverage
       const bhMatch = record.match(/BRH:(\d+)/);
       const bfMatch = record.match(/BRF:(\d+)/);
-      
+
       if (bhMatch && bfMatch) {
         const branchesHit = parseInt(bhMatch[1]);
         const branchesFound = parseInt(bfMatch[1]);
-        
+
         if (branchesFound > 0) {
           totalBranchesHit += branchesHit;
           totalBranchesFound += branchesFound;
@@ -106,28 +106,30 @@ function parseLcovCoverageData(lcovContent: string): CoverageData {
       }
     }
   }
-  
+
   const linePercentage = totalLinesFound > 0 ? (totalLinesHit / totalLinesFound) * 100 : 0;
-  const branchPercentage = totalBranchesFound > 0 ? (totalBranchesHit / totalBranchesFound) * 100 : 0;
-  
+  const branchPercentage = totalBranchesFound > 0
+    ? (totalBranchesHit / totalBranchesFound) * 100
+    : 0;
+
   // Total coverage is weighted average (70% lines, 30% branches)
   const totalPercentage = linePercentage * 0.7 + branchPercentage * 0.3;
-  
+
   return {
     totalPercentage,
     linePercentage,
-    branchPercentage
+    branchPercentage,
   };
 }
 
 function parseDenoCoverageOutput(output: string): CoverageData {
-  const lines = output.split('\n');
+  const lines = output.split("\n");
   let linePercentage = 0;
   let branchPercentage = 0;
-  
+
   for (const line of lines) {
-    if (line.includes('All files')) {
-      const parts = line.split('|');
+    if (line.includes("All files")) {
+      const parts = line.split("|");
       if (parts.length >= 4) {
         // Try to extract line coverage (usually 2nd column)
         const lineCovStr = parts[1].trim();
@@ -135,7 +137,7 @@ function parseDenoCoverageOutput(output: string): CoverageData {
         if (lineMatch) {
           linePercentage = parseFloat(lineMatch[1]);
         }
-        
+
         // Try to extract branch coverage (usually 4th column)
         const branchCovStr = parts[3].trim();
         const branchMatch = branchCovStr.match(/(\d+\.?\d*)/);
@@ -145,12 +147,12 @@ function parseDenoCoverageOutput(output: string): CoverageData {
       }
     }
   }
-  
+
   // If we couldn't find separate values, use total from first column
   if (linePercentage === 0) {
     for (const line of lines) {
-      if (line.includes('All files')) {
-        const parts = line.split('|');
+      if (line.includes("All files")) {
+        const parts = line.split("|");
         if (parts.length >= 2) {
           const coverageStr = parts[1].trim();
           const percentage = parseFloat(coverageStr);
@@ -162,13 +164,13 @@ function parseDenoCoverageOutput(output: string): CoverageData {
       }
     }
   }
-  
+
   const totalPercentage = linePercentage * 0.7 + branchPercentage * 0.3;
-  
+
   return {
     totalPercentage,
     linePercentage,
-    branchPercentage
+    branchPercentage,
   };
 }
 
@@ -183,12 +185,12 @@ function getColorForCoverage(percentage: number): string {
 function generateBadgeSVG(label: string, percentage: number): string {
   const color = getColorForCoverage(percentage);
   const percentageText = `${percentage.toFixed(1)}%`;
-  
+
   // Calculate text widths (approximate)
   const labelWidth = label.length * 7 + 10;
   const valueWidth = percentageText.length * 8 + 10;
   const totalWidth = labelWidth + valueWidth;
-  
+
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${totalWidth}" height="20" role="img" aria-label="${label}: ${percentageText}">
   <title>${label}: ${percentageText}</title>
   <linearGradient id="s" x2="0" y2="100%">
@@ -204,10 +206,24 @@ function generateBadgeSVG(label: string, percentage: number): string {
     <rect width="${totalWidth}" height="20" fill="url(#s)"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110">
-    <text aria-hidden="true" x="${(labelWidth * 10) / 2}" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${(labelWidth - 10) * 10}">${label}</text>
-    <text x="${(labelWidth * 10) / 2}" y="140" transform="scale(.1)" fill="#fff" textLength="${(labelWidth - 10) * 10}">${label}</text>
-    <text aria-hidden="true" x="${labelWidth * 10 + (valueWidth * 10) / 2}" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${(valueWidth - 10) * 10}">${percentageText}</text>
-    <text x="${labelWidth * 10 + (valueWidth * 10) / 2}" y="140" transform="scale(.1)" fill="#fff" textLength="${(valueWidth - 10) * 10}">${percentageText}</text>
+    <text aria-hidden="true" x="${
+    (labelWidth * 10) / 2
+  }" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${
+    (labelWidth - 10) * 10
+  }">${label}</text>
+    <text x="${(labelWidth * 10) / 2}" y="140" transform="scale(.1)" fill="#fff" textLength="${
+    (labelWidth - 10) * 10
+  }">${label}</text>
+    <text aria-hidden="true" x="${
+    labelWidth * 10 + (valueWidth * 10) / 2
+  }" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="${
+    (valueWidth - 10) * 10
+  }">${percentageText}</text>
+    <text x="${
+    labelWidth * 10 + (valueWidth * 10) / 2
+  }" y="140" transform="scale(.1)" fill="#fff" textLength="${
+    (valueWidth - 10) * 10
+  }">${percentageText}</text>
   </g>
 </svg>`;
 }
@@ -216,27 +232,26 @@ async function main() {
   try {
     // Get coverage data
     const coverageData = await getCoverageData();
-    
+
     console.log(`Coverage Summary:`);
     console.log(`  Total:  ${coverageData.totalPercentage.toFixed(1)}%`);
     console.log(`  Lines:  ${coverageData.linePercentage.toFixed(1)}%`);
     console.log(`  Branch: ${coverageData.branchPercentage.toFixed(1)}%`);
-    
+
     // Generate badge SVGs
     const totalBadge = generateBadgeSVG("coverage", coverageData.totalPercentage);
     const lineBadge = generateBadgeSVG("lines", coverageData.linePercentage);
     const branchBadge = generateBadgeSVG("branches", coverageData.branchPercentage);
-    
+
     // Write to files
     await Deno.writeTextFile("static/coverage-badge.svg", totalBadge);
     await Deno.writeTextFile("static/coverage-lines-badge.svg", lineBadge);
     await Deno.writeTextFile("static/coverage-branches-badge.svg", branchBadge);
-    
+
     console.log("\nBadges generated:");
     console.log("  - static/coverage-badge.svg (total)");
     console.log("  - static/coverage-lines-badge.svg");
     console.log("  - static/coverage-branches-badge.svg");
-    
   } catch (error) {
     console.error("Error generating coverage badges:", error);
     Deno.exit(1);

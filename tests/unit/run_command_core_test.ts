@@ -2,9 +2,10 @@ import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
 import { returnsNext, spy, SpyCall, Stub, stub } from "std/testing/mock.ts";
 
 // Import the functions to test
-import { formatFileSize, npubToHex, runCommand, validateNpub } from "../../src/commands/run.ts";
+import { formatFileSize, runCommand, validateNpub } from "../../src/commands/run.ts";
 import * as resolverUtils from "../../src/lib/resolver-utils.ts";
 import * as nostr from "../../src/lib/nostr.ts";
+import { normalizeToPubkey } from "applesauce-core/helpers";
 
 // Mock console and Deno.exit to prevent actual side effects
 let consoleLogSpy: any;
@@ -40,19 +41,6 @@ Deno.test("Run Command Core - Input Validation", async (t) => {
       validateNpub("nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"),
       false,
     );
-  });
-
-  await t.step("npubToHex should convert npub to hex correctly", () => {
-    const validNpub = generateValidNpub();
-    const hex = npubToHex(validNpub);
-
-    assertEquals(typeof hex, "string");
-    assertEquals(hex.length, 64);
-    assertEquals(/^[0-9a-f]+$/i.test(hex), true);
-  });
-
-  await t.step("npubToHex should throw on invalid npub", () => {
-    assertThrows(() => npubToHex("invalid_npub"));
   });
 
   await t.step("formatFileSize should format various sizes correctly", () => {
@@ -117,7 +105,7 @@ Deno.test.ignore("Run Command Core - Error Handling", async (t) => {
     setupMocks();
 
     const validNpub = generateValidNpub();
-    const pubkeyHex = npubToHex(validNpub);
+    const pubkeyHex = normalizeToPubkey(validNpub);
     const options = {};
 
     // Mock dependencies
@@ -168,7 +156,7 @@ Deno.test.ignore("Run Command Core - Successful Execution", async (t) => {
     setupMocks();
 
     const validNpub = generateValidNpub();
-    const pubkeyHex = npubToHex(validNpub);
+    const pubkeyHex = normalizeToPubkey(validNpub);
     const options = {};
 
     // Mock all dependencies for successful execution
@@ -229,7 +217,7 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
   await t.step("should attempt to resolve pubkey from config when no npub provided", async () => {
     setupMocks();
 
-    const testPubkey = npubToHex(generateValidNpub());
+    const testPubkey = normalizeToPubkey(generateValidNpub());
     const options = {};
 
     // Mock successful pubkey resolution from config

@@ -9,6 +9,7 @@ import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import type { Signer } from "./upload.ts";
+import type { NostrEvent, EventTemplate } from "nostr-tools";
 
 const log = createLogger("nostr");
 
@@ -78,26 +79,10 @@ export function parseBunkerUrl(bunkerUrl: string): {
  * Basic nostr event interface
  * This is a simplified version for this example
  */
-export interface NostrEvent {
-  id: string;
-  pubkey: string;
-  created_at: number;
-  kind: number;
-  tags: string[][];
-  content: string;
-  sig: string;
-}
+export type { NostrEvent }
 
-/**
- * Interface for nostr event template (unsigned)
- */
-export interface NostrEventTemplate {
-  kind: number;
-  created_at: number;
-  tags: string[][];
-  content: string;
-  pubkey?: string;
-}
+/** Interface for unsigned nostr events */
+export type NostrEventTemplate = EventTemplate & { pubkey?: string }
 
 /**
  * Create a NIP-46 client from a bunker URL
@@ -230,7 +215,7 @@ export async function createNsiteEvent(
 ): Promise<NostrEvent> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-  const eventTemplate: NostrEventTemplate = {
+  const eventTemplate = {
     kind: NSITE_KIND,
     pubkey: pubkey,
     created_at: Math.floor(Date.now() / 1000),
@@ -252,7 +237,7 @@ export async function createProfileEvent(
   signer: Signer,
   profile: Profile,
 ): Promise<NostrEvent> {
-  const eventTemplate: NostrEventTemplate = {
+  const eventTemplate = {
     kind: 0,
     created_at: Math.floor(Date.now() / 1000),
     tags: [["client", "nsyte"]],
@@ -272,7 +257,7 @@ export async function createRelayListEvent(
   const tags = relays.map((relay) => ["r", relay, "read", "write"]);
   tags.push(["client", "nsyte"]);
 
-  const eventTemplate: NostrEventTemplate = {
+  const eventTemplate = {
     kind: 10002,
     created_at: Math.floor(Date.now() / 1000),
     tags,
@@ -292,7 +277,7 @@ export async function createServerListEvent(
   const tags = servers.map((server) => ["server", server]);
   tags.push(["client", "nsyte"]);
 
-  const eventTemplate: NostrEventTemplate = {
+  const eventTemplate = {
     kind: USER_BLOSSOM_SERVER_LIST_KIND,
     created_at: Math.floor(Date.now() / 1000),
     tags,

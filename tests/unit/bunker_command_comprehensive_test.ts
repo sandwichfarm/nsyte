@@ -1,15 +1,15 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { stub, restore, spy } from "jsr:@std/testing/mock";
+import { restore, spy, stub } from "jsr:@std/testing/mock";
 import {
-  handleBunkerCommand,
-  showBunkerHelp,
-  listBunkers,
-  importNbunk,
-  exportNbunk,
   connectBunker,
-  useBunkerForProject,
+  exportNbunk,
+  handleBunkerCommand,
+  importNbunk,
+  listBunkers,
   removeBunker,
+  showBunkerHelp,
+  useBunkerForProject,
 } from "../../src/commands/bunker.ts";
 
 describe("Bunker command - comprehensive branch coverage", () => {
@@ -22,10 +22,10 @@ describe("Bunker command - comprehensive branch coverage", () => {
     // Mock console methods
     consoleLogStub = stub(console, "log", () => {});
     consoleErrorStub = stub(console, "error", () => {});
-    
+
     // Mock Deno.exit
     denoExitStub = stub(Deno, "exit", () => {});
-    
+
     // Mock Deno.args
     denoArgsStub = stub(Deno, "args", ["bunker"]);
   });
@@ -433,20 +433,20 @@ describe("Bunker command - comprehensive branch coverage", () => {
     it("should validate bunker URL format", () => {
       const validUrls = [
         "bunker://pubkey?relay=wss://test",
-        "bunker://abc123?relay=wss://relay.example&secret=xxx"
+        "bunker://abc123?relay=wss://relay.example&secret=xxx",
       ];
-      
+
       const invalidUrls = [
         "http://example.com",
         "bunker://",
-        "invalid-format"
+        "invalid-format",
       ];
 
-      validUrls.forEach(url => {
+      validUrls.forEach((url) => {
         assertEquals(url.startsWith("bunker://"), true);
       });
 
-      invalidUrls.forEach(url => {
+      invalidUrls.forEach((url) => {
         assertEquals(url.startsWith("bunker://") && url.length > 9, false);
       });
     });
@@ -456,10 +456,10 @@ describe("Bunker command - comprehensive branch coverage", () => {
         "valid-pubkey-123",
         "npub1test",
         "",
-        "short"
+        "short",
       ];
 
-      testPubkeys.forEach(pubkey => {
+      testPubkeys.forEach((pubkey) => {
         assertEquals(typeof pubkey, "string");
       });
     });
@@ -467,20 +467,20 @@ describe("Bunker command - comprehensive branch coverage", () => {
     it("should validate nbunk string format", () => {
       const validNbunks = [
         "nbunksec1teststring123",
-        "nbunksec1abcdef"
+        "nbunksec1abcdef",
       ];
 
       const invalidNbunks = [
         "nsec1test",
         "invalid",
-        ""
+        "",
       ];
 
-      validNbunks.forEach(nbunk => {
+      validNbunks.forEach((nbunk) => {
         assertEquals(nbunk.startsWith("nbunksec1"), true);
       });
 
-      invalidNbunks.forEach(nbunk => {
+      invalidNbunks.forEach((nbunk) => {
         assertEquals(nbunk.startsWith("nbunksec1"), false);
       });
     });
@@ -491,7 +491,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
       const errors = [
         new Error("Connection failed"),
         "String error",
-        { message: "Object error" }
+        { message: "Object error" },
       ];
 
       const formatError = (error: unknown): string => {
@@ -507,10 +507,10 @@ describe("Bunker command - comprehensive branch coverage", () => {
       const errorMessages = [
         "Bunker URL must start with bunker://",
         "URL appears to be incomplete",
-        "Shell metacharacters need to be quoted"
+        "Shell metacharacters need to be quoted",
       ];
 
-      errorMessages.forEach(message => {
+      errorMessages.forEach((message) => {
         assertEquals(typeof message, "string");
         assertEquals(message.length > 0, true);
       });
@@ -525,10 +525,10 @@ describe("Bunker command - comprehensive branch coverage", () => {
         "Successfully imported bunker",
         "Connecting to bunker",
         "Bunker URL appears to be incomplete",
-        "Select a bunker to"
+        "Select a bunker to",
       ];
 
-      messages.forEach(message => {
+      messages.forEach((message) => {
         assertEquals(typeof message, "string");
         assertEquals(message.length > 0, true);
       });
