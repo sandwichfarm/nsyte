@@ -1,3 +1,1 @@
-import pkg from "../deno.json" with { type: "json" };
-
-export const version = pkg.version;
+export const version = "0.12.0";
