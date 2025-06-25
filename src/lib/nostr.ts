@@ -9,7 +9,7 @@ import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import type { Signer } from "./upload.ts";
-import type { NostrEvent, EventTemplate } from "nostr-tools";
+import type { EventTemplate, NostrEvent } from "nostr-tools";
 
 const log = createLogger("nostr");
 
@@ -79,10 +79,10 @@ export function parseBunkerUrl(bunkerUrl: string): {
  * Basic nostr event interface
  * This is a simplified version for this example
  */
-export type { NostrEvent }
+export type { NostrEvent };
 
 /** Interface for unsigned nostr events */
-export type NostrEventTemplate = EventTemplate & { pubkey?: string }
+export type NostrEventTemplate = EventTemplate & { pubkey?: string };
 
 /**
  * Create a NIP-46 client from a bunker URL

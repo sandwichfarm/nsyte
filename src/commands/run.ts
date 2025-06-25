@@ -106,7 +106,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
       try {
         const pubkeyHex = normalizeToPubkey(npub);
-        const requestedPath = url.pathname === "/" ? "/index.html" : url.pathname;
+        const requestedPath = url.pathname;
 
         log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);
 
@@ -122,19 +122,93 @@ export async function runCommand(options: RunOptions): Promise<void> {
           fileCache.set(npub, { files: remoteFiles, timestamp: Date.now() });
         }
 
-        // Find the requested file
-        const file = remoteFiles.find((f) => f.path === requestedPath.slice(1));
+        // For root path, look for default files
+        if (requestedPath === "/") {
+          const defaultFiles = [
+            "index.html", 
+            "index.htm", 
+            "README.md",
+            "docs/index.html",
+            "dist/index.html",
+            "public/index.html",
+            "build/index.html",
+            "404.html",
+            "docs/404.html"
+          ];
+          
+          // Try to find default files, handling both with and without leading slash
+          for (const defaultFile of defaultFiles) {
+            const defaultFileEntry = remoteFiles.find((f) => {
+              // Handle files that might have leading slash in the stored path
+              const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedPath === defaultFile;
+            });
+            
+            if (defaultFileEntry) {
+              // Serve the default file
+              const file = defaultFileEntry;
+              
+              // Download the file content from blossom servers
+              if (!file.sha256) {
+                return new Response("File has no SHA256 hash", {
+                  status: 500,
+                  headers: { "Content-Type": "text/plain" },
+                });
+              }
+
+              // Try default blossom servers
+              const blossomServers = [
+                "https://blossom.primal.net",
+                "https://cdn.satellite.earth",
+                "https://blossom.nos.social",
+              ];
+
+              let fileData: Uint8Array | null = null;
+              for (const server of blossomServers) {
+                try {
+                  fileData = await downloadFromBlossom(server, file.sha256);
+                  if (fileData) break;
+                } catch (error) {
+                  log.debug(`Failed to download from ${server}: ${error}`);
+                }
+              }
+
+              if (!fileData) {
+                return new Response("Failed to download file from any blossom server", {
+                  status: 500,
+                  headers: { "Content-Type": "text/plain" },
+                });
+              }
+
+              // Determine content type
+              const contentType = getContentType(file.path);
+
+              return new Response(fileData, {
+                status: 200,
+                headers: {
+                  "Content-Type": contentType,
+                  "Content-Length": fileData.byteLength.toString(),
+                },
+              });
+            }
+          }
+          
+          // No default file found, show directory listing
+          const html = generateDirectoryListing(npub, remoteFiles);
+          return new Response(html, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          });
+        }
+
+        // Find the requested file (for non-root paths)
+        const file = remoteFiles.find((f) => {
+          // Handle files that might have leading slash in the stored path
+          const normalizedPath = f.path.startsWith("/") ? f.path : "/" + f.path;
+          return normalizedPath === requestedPath;
+        });
 
         if (!file) {
-          // Generate directory listing if no specific file requested
-          if (requestedPath === "/" || requestedPath === "/index.html") {
-            const html = generateDirectoryListing(npub, remoteFiles);
-            return new Response(html, {
-              status: 200,
-              headers: { "Content-Type": "text/html" },
-            });
-          }
-
           return new Response(`File not found: ${requestedPath}`, {
             status: 404,
             headers: { "Content-Type": "text/plain" },

@@ -8,8 +8,7 @@ const demoSections = [
     "content": [
       {
         "type": "header",
-        "text":
-          "                             dP            \n                             88            \n88d888b. .d8888b. dP    dP d8888P .d8888b. \n88'  `88 Y8ooooo. 88    88   88   88ooood8 \n88    88       88 88.  .88   88   88.  ... \ndP    dP `88888P' `8888P88   dP   `88888P' \n                       .88                 \n                   d8888P                  ",
+        "text": "                             dP            \n                             88            \n88d888b. .d8888b. dP    dP d8888P .d8888b. \n88'  `88 Y8ooooo. 88    88   88   88ooood8 \n88    88       88 88.  .88   88   88.  ... \ndP    dP `88888P' `8888P88   dP   `88888P' \n                       .88                 \n                   d8888P                  "
       },
       {
         "type": "command",
@@ -96,8 +95,7 @@ const demoSections = [
       },
       {
         "type": "output",
-        "text":
-          "? Enter relays (comma-separated), or press Enter for default (wss://relay.nsec.app):",
+        "text": "? Enter relays (comma-separated), or press Enter for default (wss://relay.nsec.app):",
       },
       {
         "type": "output",
@@ -118,8 +116,7 @@ const demoSections = [
       },
       {
         "type": "output",
-        "text":
-          "Or copy-paste this URI: bunker://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk?relay=wss://relay.nsec.app",
+        "text": "Or copy-paste this URI: bunker://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk?relay=wss://relay.nsec.app",
       },
     ],
   },
@@ -244,8 +241,7 @@ const demoSections = [
       },
       {
         "type": "output",
-        "text":
-          "Listing files for a8c7d3f2...56ba47e9 using relays: wss://relay.damus.io, wss://nos.lol",
+        "text": "Listing files for a8c7d3f2...56ba47e9 using relays: wss://relay.damus.io, wss://nos.lol",
       },
       {
         "type": "output",
@@ -283,8 +279,7 @@ const demoSections = [
       },
       {
         "type": "output",
-        "text":
-          "https://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/",
+        "text": "https://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/",
         "color": "green",
       },
     ],
