@@ -5,8 +5,10 @@
 ![Coverage](./static/coverage-badge.svg) ![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
-A command-line tool for publishing websites to nostr and Blossom servers. Enables decentralized,
+A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.
+
+For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
 > [flox1an](https://github.com/flox1an)
