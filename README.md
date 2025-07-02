@@ -150,7 +150,7 @@ On Linux systems, nsyte will automatically use the most secure available option:
    - No external dependencies required
 
 3. **Troubleshooting Linux keystore**:
-   - Run `deno run -A tests/debug-linux-keystore.ts` to diagnose issues
+   - Run `deno run -A scripts/debug-linux-keystore.ts` to diagnose issues
    - Common issues:
      - Missing `secret-tool`: Install libsecret-tools package
      - No D-Bus session: Ensure running in desktop environment
@@ -319,7 +319,7 @@ If credentials aren't persisting on Linux:
 
 1. **Check keystore availability**:
    ```bash
-   deno run -A tests/debug-linux-keystore.ts
+   deno run -A scripts/debug-linux-keystore.ts
    ```
 
 2. **Install libsecret** (recommended):
