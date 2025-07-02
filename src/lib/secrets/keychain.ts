@@ -378,14 +378,44 @@ class WindowsCredentialManager implements KeychainProvider {
 class LinuxSecretService implements KeychainProvider {
   async isAvailable(): Promise<boolean> {
     try {
-      const process = new Deno.Command("which", {
+      // Check if secret-tool exists
+      const whichProcess = new Deno.Command("which", {
         args: ["secret-tool"],
         stdout: "piped",
         stderr: "piped",
       });
-      const result = await process.output();
-      return result.code === 0;
-    } catch {
+      const whichResult = await whichProcess.output();
+      if (whichResult.code !== 0) {
+        log.debug("secret-tool command not found in PATH");
+        return false;
+      }
+
+      // Check if D-Bus session is available
+      const dbusSession = Deno.env.get("DBUS_SESSION_BUS_ADDRESS");
+      if (!dbusSession) {
+        log.debug("D-Bus session not available (DBUS_SESSION_BUS_ADDRESS not set)");
+        return false;
+      }
+
+      // Test if secret service is actually accessible
+      const testProcess = new Deno.Command("secret-tool", {
+        args: ["search", "service", "nsyte-probe"],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      const testResult = await testProcess.output();
+      
+      // Exit codes 0 or 1 are OK (0=found secrets, 1=no secrets found but service works)
+      if (testResult.code === 0 || testResult.code === 1) {
+        log.debug("Linux Secret Service is available and accessible");
+        return true;
+      } else {
+        const error = new TextDecoder().decode(testResult.stderr);
+        log.debug(`Linux Secret Service not accessible: ${error}`);
+        return false;
+      }
+    } catch (error) {
+      log.debug(`Error checking Linux Secret Service availability: ${error}`);
       return false;
     }
   }
@@ -415,7 +445,20 @@ class LinuxSecretService implements KeychainProvider {
       const result = await proc.output();
       if (result.code !== 0) {
         const error = new TextDecoder().decode(result.stderr);
+        const stdout = new TextDecoder().decode(result.stdout);
         log.error(`Failed to store credential in Linux Secret Service: ${error}`);
+        if (stdout) {
+          log.error(`stdout: ${stdout}`);
+        }
+        
+        // Common error patterns
+        if (error.includes("No such interface")) {
+          log.error("Hint: Secret Service interface not available. Is GNOME Keyring or KDE Wallet running?");
+        } else if (error.includes("Cannot autolaunch D-Bus")) {
+          log.error("Hint: D-Bus session not available. Are you running in a desktop session?");
+        } else if (error.includes("secret-tool: command not found")) {
+          log.error("Hint: secret-tool not installed. Install libsecret-tools package.");
+        }
         return false;
       }
 
@@ -443,6 +486,10 @@ class LinuxSecretService implements KeychainProvider {
 
       const result = await process.output();
       if (result.code !== 0) {
+        const error = new TextDecoder().decode(result.stderr);
+        if (error && !error.includes("secret does not exist")) {
+          log.debug(`Failed to retrieve credential from Linux Secret Service: ${error}`);
+        }
         return null;
       }
 
