@@ -123,19 +123,44 @@ nsyte bunker list
 
 **Secure Credential Storage**:
 
-- nsyte uses a multi-tier security approach for storing sensitive bunker connection data
+nsyte uses a multi-tier security approach for storing sensitive bunker connection data:
+
 - **Tier 1 (Best)**: Native OS keychain services:
-  - macOS: Keychain Services (security command)
-  - Windows: Credential Manager (cmdkey/PowerShell)
-  - Linux: Secret Service API (libsecret/secret-tool)
+  - macOS: Keychain Services via `security` command
+  - Windows: Credential Manager via `cmdkey`/PowerShell
+  - Linux: Secret Service API via `libsecret`/`secret-tool`
 - **Tier 2 (Good)**: AES-256-GCM encrypted file storage when native keychain unavailable
 - **Tier 3 (Fallback)**: Plain JSON storage with security warnings
+
+**Linux-Specific Information**:
+
+On Linux systems, nsyte will automatically use the most secure available option:
+
+1. **With libsecret installed** (recommended):
+   - Install: `sudo apt-get install libsecret-tools` (Ubuntu/Debian)
+   - Install: `sudo dnf install libsecret` (Fedora)
+   - Install: `sudo pacman -S libsecret` (Arch)
+   - Requires a running keyring service (GNOME Keyring, KDE Wallet, etc.)
+   - Credentials stored securely in system keyring
+
+2. **Without libsecret** (automatic fallback):
+   - Uses AES-256-GCM encrypted file storage
+   - Encryption key derived from system attributes
+   - Credentials stored in `~/.config/nsyte/secrets.enc`
+   - No external dependencies required
+
+3. **Troubleshooting Linux keystore**:
+   - Run `deno run -A tests/debug-linux-keystore.ts` to diagnose issues
+   - Common issues:
+     - Missing `secret-tool`: Install libsecret-tools package
+     - No D-Bus session: Ensure running in desktop environment
+     - Keyring not running: Start GNOME Keyring or KDE Wallet
 
 **Storage Locations**:
 
 - Secure storage: Platform-specific keychain or encrypted files
 - Config directories:
-  - Linux: `~/.config/nsyte`
+  - Linux: `~/.config/nsyte` (or `$XDG_CONFIG_HOME/nsyte`)
   - macOS: `~/Library/Application Support/nsyte`
   - Windows: `%APPDATA%\nsyte`
 
@@ -285,6 +310,47 @@ For client-side routing (React, Vue, etc.):
 ```bash
 nsyte upload ./dist --fallback=/index.html
 ```
+
+## Troubleshooting
+
+### Linux Credential Storage Issues
+
+If credentials aren't persisting on Linux:
+
+1. **Check keystore availability**:
+   ```bash
+   deno run -A tests/debug-linux-keystore.ts
+   ```
+
+2. **Install libsecret** (recommended):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install libsecret-tools gnome-keyring
+
+   # Fedora
+   sudo dnf install libsecret gnome-keyring
+
+   # Arch
+   sudo pacman -S libsecret gnome-keyring
+   ```
+
+3. **Using encrypted file storage**:
+   - If libsecret isn't available, nsyte automatically uses encrypted files
+   - Check `~/.config/nsyte/secrets.enc` exists after storing credentials
+   - Ensure consistent hostname and username (used for encryption key)
+
+4. **Force encrypted storage** (for testing):
+   ```bash
+   export NSYTE_FORCE_ENCRYPTED_STORAGE=true
+   nsyte bunker connect
+   ```
+
+### Common Issues
+
+- **"Bunker connection lost"**: Check relay connectivity and bunker availability
+- **"Failed to store credential"**: Ensure keyring service is running or encrypted storage is writable
+- **"No such interface" (Linux)**: Start GNOME Keyring or KDE Wallet service
+- **Credentials lost after reboot**: Check if system attributes (hostname, username) changed
 
 ## Development
 

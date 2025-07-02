@@ -115,7 +115,9 @@ export class SecretsManager {
     this.secretsPath = join(configDir, SECRETS_FILENAME);
 
     // Try to initialize secure storage backend
-    const keychainProvider = await getKeychainProvider();
+    const forceEncrypted = Deno.env.get("NSYTE_FORCE_ENCRYPTED_STORAGE") === "true";
+    const keychainProvider = !forceEncrypted ? await getKeychainProvider() : null;
+    
     if (keychainProvider) {
       log.debug("Using native keychain for secure storage");
       this.storageBackend = new KeychainBackend(keychainProvider);

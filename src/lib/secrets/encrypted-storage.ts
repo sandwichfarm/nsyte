@@ -33,6 +33,7 @@ interface StorageData {
 export class EncryptedStorage {
   private storageFilePath: string | null = null;
   private masterKey: CryptoKey | null = null;
+  private initialized = false;
 
   constructor() {}
 
@@ -40,6 +41,9 @@ export class EncryptedStorage {
    * Initialize the encrypted storage
    */
   async initialize(): Promise<boolean> {
+    if (this.initialized) {
+      return true;
+    }
     const configDir = getSystemConfigDir();
     if (!configDir) {
       log.error("Could not determine system config directory");
@@ -53,6 +57,7 @@ export class EncryptedStorage {
       // Derive master key from system-specific attributes
       this.masterKey = await this.deriveMasterKey();
 
+      this.initialized = true;
       return true;
     } catch (error) {
       log.error(`Failed to initialize encrypted storage: ${error}`);
@@ -226,7 +231,8 @@ export class EncryptedStorage {
    * Store an encrypted credential
    */
   async store(service: string, account: string, password: string): Promise<boolean> {
-    if (!await this.initialize()) {
+    if (!this.initialized) {
+      log.error("EncryptedStorage not initialized");
       return false;
     }
 
@@ -252,7 +258,8 @@ export class EncryptedStorage {
    * Retrieve a decrypted credential
    */
   async retrieve(service: string, account: string): Promise<string | null> {
-    if (!await this.initialize()) {
+    if (!this.initialized) {
+      log.error("EncryptedStorage not initialized");
       return null;
     }
 
@@ -277,7 +284,8 @@ export class EncryptedStorage {
    * Delete a credential
    */
   async delete(service: string, account: string): Promise<boolean> {
-    if (!await this.initialize()) {
+    if (!this.initialized) {
+      log.error("EncryptedStorage not initialized");
       return false;
     }
 
@@ -304,7 +312,8 @@ export class EncryptedStorage {
    * List all accounts for a service
    */
   async list(service: string): Promise<string[]> {
-    if (!await this.initialize()) {
+    if (!this.initialized) {
+      log.error("EncryptedStorage not initialized");
       return [];
     }
 
