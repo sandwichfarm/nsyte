@@ -4,13 +4,13 @@
  * Test script to verify Linux encrypted storage fallback is working
  */
 
-import { SecretsManager } from "./src/lib/secrets/manager.ts";
+import { SecretsManager } from "../src/lib/secrets/manager.ts";
 
 async function testEncryptedStorageFallback() {
   console.log("Testing Linux Encrypted Storage Fallback");
   console.log("========================================\n");
 
-  // Force disable keychain by temporarily renaming getKeychainProvider
+  // Force use of encrypted storage by setting NSYTE_FORCE_ENCRYPTED_STORAGE environment variable
   const originalEnv = Deno.env.get("NSYTE_FORCE_ENCRYPTED_STORAGE");
   Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
 
@@ -48,7 +48,7 @@ async function testEncryptedStorageFallback() {
     // Test persistence by creating a new instance
     console.log("\n4. Testing persistence (new instance)...");
     // Clear the singleton to force a new instance
-    (SecretsManager as any).instance = null;
+    SecretsManager.resetInstance();
     
     const manager2 = SecretsManager.getInstance();
     await manager2.initialize();

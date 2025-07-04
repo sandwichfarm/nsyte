@@ -3,7 +3,6 @@ import { getTagValue } from "applesauce-core/helpers";
 
 /** Extract a tag value from a nostr event */
 export { getTagValue as extractTagValue };
-
 export { npubEncode } from "nostr-tools/nip19";
 
 /**
