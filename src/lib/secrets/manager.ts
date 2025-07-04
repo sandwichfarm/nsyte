@@ -100,6 +100,13 @@ export class SecretsManager {
   }
 
   /**
+   * Reset the singleton instance (for testing purposes)
+   */
+  public static resetInstance(): void {
+    SecretsManager.instance = null as any;
+  }
+
+  /**
    * Initialize the secrets manager
    * Attempts to use keychain first, falls back to encrypted storage, then plain JSON
    */

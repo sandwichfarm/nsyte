@@ -58,14 +58,19 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
         break;
       case "connect":
         if (args.length > 0 && !args[0].startsWith("-")) {
-          // Check if --no-persist is in remaining args
+          // Check if --no-persist or --force-encrypted-storage is in remaining args
           const noPersist = args.includes("--no-persist");
+          const forceEncrypted = args.includes("--force-encrypted-storage");
+          if (forceEncrypted) {
+            Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
+          }
           await connectBunker(args[0], false, noPersist);
         } else {
           let pubkey = "";
           let relay = "";
           let secret = "";
           let noPersist = false;
+          let forceEncrypted = false;
 
           for (let i = 0; i < args.length; i++) {
             if (args[i] === "--pubkey" && i + 1 < args.length) {
@@ -79,7 +84,13 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
               i++;
             } else if (args[i] === "--no-persist") {
               noPersist = true;
+            } else if (args[i] === "--force-encrypted-storage") {
+              forceEncrypted = true;
             }
+          }
+
+          if (forceEncrypted) {
+            Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
           }
 
           if (pubkey && relay) {
@@ -139,10 +150,13 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  export <pubkey>          Export a bunker as an nbunksec string");
   console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
   console.log("  connect --pubkey <key> --relay <url> [--secret <secret>] [--no-persist]");
+  console.log("                           [--force-encrypted-storage]");
   console.log(
     "                           Connect using separate parameters (avoids shell escaping issues)",
   );
   console.log("                           --no-persist: Display nbunksec without storing it");
+  console.log("                           --force-encrypted-storage: Force use of encrypted file");
+  console.log("                                                      storage instead of OS keychain");
   console.log("  use <pubkey>             Configure current project to use a bunker");
   console.log("  remove <pubkey>          Remove a bunker from storage");
   console.log("  help                     Show this help information\n");
@@ -150,7 +164,8 @@ export async function showBunkerHelp(): Promise<void> {
   console.log(colors.cyan("Connection examples:"));
   console.log("  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'");
   console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --secret xxx");
-  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --no-persist\n");
+  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --no-persist");
+  console.log("  nsyte bunker connect 'bunker://...' --force-encrypted-storage\n");
 
   console.log(colors.cyan("CI/CD Usage:"));
   console.log("  1. Use 'nsyte bunker export' to get an nbunksec string");

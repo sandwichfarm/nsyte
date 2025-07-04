@@ -341,8 +341,12 @@ If credentials aren't persisting on Linux:
 
 4. **Force encrypted storage** (for testing):
    ```bash
+   # Using environment variable
    export NSYTE_FORCE_ENCRYPTED_STORAGE=true
    nsyte bunker connect
+   
+   # Or using CLI argument
+   nsyte bunker connect --force-encrypted-storage
    ```
 
 ### Common Issues

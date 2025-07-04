@@ -231,6 +231,7 @@ export class EncryptedStorage {
    * Store an encrypted credential
    */
   async store(service: string, account: string, password: string): Promise<boolean> {
+    await this.initialize();
     if (!this.initialized) {
       log.error("EncryptedStorage not initialized");
       return false;
@@ -258,6 +259,7 @@ export class EncryptedStorage {
    * Retrieve a decrypted credential
    */
   async retrieve(service: string, account: string): Promise<string | null> {
+    await this.initialize();
     if (!this.initialized) {
       log.error("EncryptedStorage not initialized");
       return null;

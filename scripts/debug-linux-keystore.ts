@@ -5,8 +5,6 @@
  * Helps diagnose issues with the Linux secret-tool keystore integration
  */
 
-import { log } from "./src/lib/log.ts";
-
 async function checkCommand(cmd: string): Promise<boolean> {
   try {
     const process = new Deno.Command("which", {
@@ -184,7 +182,7 @@ async function checkNsyteIntegration(): Promise<void> {
   console.log("\nChecking nsyte keychain integration:");
   
   try {
-    const { getKeychainProvider } = await import("./src/lib/secrets/keychain.ts");
+    const { getKeychainProvider } = await import("../src/lib/secrets/keychain.ts");
     const provider = await getKeychainProvider();
     
     if (provider) {
