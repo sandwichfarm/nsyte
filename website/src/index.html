@@ -253,9 +253,26 @@
       .hero-description {
         font-size: clamp(1rem, 2vw, 1.2rem);
         line-height: 1.7;
-        margin: 0 0 3rem 0;
+        margin: 0 0 1rem 0;
         color: var(--cyber-text-secondary);
         font-family: var(--cyber-font-sans);
+      }
+
+      .hero-whats-nsite {
+        margin: 0 0 2rem 0;
+      }
+
+      .whats-nsite-link {
+        color: var(--cyber-accent);
+        text-decoration: none;
+        font-size: 1rem;
+        font-weight: 500;
+        transition: color 0.3s ease;
+      }
+
+      .whats-nsite-link:hover {
+        color: var(--cyber-accent-bright);
+        text-decoration: underline;
       }
 
       .cta-buttons {
@@ -407,6 +424,134 @@
         color: var(--cyber-accent);
         font-family: var(--cyber-font-mono);
         font-weight: 500;
+      }
+
+      /* What's an nsite Section */
+      .whats-nsite {
+        padding: 5rem 0;
+        background: var(--cyber-bg);
+        position: relative;
+        border-top: 1px solid var(--cyber-border);
+      }
+
+      .nsite-explanation {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .nsite-explanation p {
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: var(--cyber-text-secondary);
+        margin-bottom: 2rem;
+      }
+
+      .nsite-explanation a {
+        color: var(--cyber-accent);
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+
+      .nsite-explanation a:hover {
+        color: var(--cyber-accent-bright);
+        text-decoration: underline;
+      }
+
+      .nsite-features {
+        list-style: none;
+        padding: 0;
+        margin: 2rem 0 3rem 0;
+      }
+
+      .nsite-features li {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+        position: relative;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        color: var(--cyber-text-secondary);
+      }
+
+      .nsite-features li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: var(--cyber-accent);
+        font-weight: bold;
+      }
+
+      .nsite-features strong {
+        color: var(--cyber-text);
+      }
+
+      .nsite-history {
+        margin-top: 3rem;
+        padding-top: 3rem;
+        border-top: 1px solid var(--cyber-border);
+      }
+
+      .nsite-history h3 {
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+        color: var(--cyber-accent);
+      }
+
+      .credits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .credit-item {
+        background: var(--cyber-surface);
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--cyber-border);
+        transition: transform 0.3s ease, border-color 0.3s ease;
+      }
+
+      .credit-item:hover {
+        transform: translateY(-2px);
+        border-color: var(--cyber-accent);
+      }
+
+      .credit-item h4 {
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+        color: var(--cyber-accent);
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+
+      .sec-label {
+        font-size: 0.75rem;
+        color: var(--cyber-text-muted);
+        font-weight: normal;
+        opacity: 0.7;
+      }
+
+      .credit-item p {
+        margin: 0.3rem 0;
+        font-size: 1rem;
+      }
+
+      .credit-item a {
+        color: var(--cyber-purple);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .credit-item a:hover {
+        color: var(--cyber-accent-bright);
+        text-decoration: underline;
+      }
+
+      .credit-description {
+        font-size: 0.9rem !important;
+        color: var(--cyber-text-muted) !important;
+        font-style: italic;
       }
 
       /* Installation Section */
@@ -936,8 +1081,11 @@
           <h1 class="hero-title">nsyte</h1>
           <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
           <p class="hero-description">
-            Deploy your site across decentralized infrastructure. No gatekeepers, no censorship, no
+            Deploy your nsite across decentralized infrastructure. No gatekeepers, no censorship, no
             single points of failure. Your content, your keys, your network.
+          </p>
+          <p class="hero-whats-nsite">
+            <a href="#whats-nsite" class="whats-nsite-link">What's an nsite? →</a>
           </p>
 
           <div class="cta-buttons">
@@ -960,6 +1108,66 @@
         <div class="hero-demo">
           <div class="demo-container">
             <div id="demo-player" class="demo-placeholder"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's an nsite? Section -->
+    <section class="whats-nsite" id="whats-nsite">
+      <div class="container">
+        <h2 class="section-title">What's an nsite?</h2>
+        
+        <div class="nsite-explanation">
+          <p>
+            An <strong>nsite</strong> is a website published to the decentralized web using the 
+            <a href="https://github.com/nostr-protocol/nostr" target="_blank" rel="noopener noreferrer">nostr protocol</a> 
+            and <a href="https://github.com/hzrd149/blossom" target="_blank" rel="noopener noreferrer">Blossom servers</a>. 
+            Unlike traditional websites that rely on centralized servers and DNS, nsites are:
+          </p>
+          
+          <ul class="nsite-features">
+            <li><strong>Censorship-resistant</strong> - Your content is distributed across multiple relays and servers</li>
+            <li><strong>Self-sovereign</strong> - You control your keys and your content</li>
+            <li><strong>Resilient</strong> - No single point of failure; if one server goes down, your site remains accessible</li>
+            <li><strong>Addressable by public key</strong> - Your site's address is your nostr public key (npub)</li>
+          </ul>
+          
+          <div class="nsite-history">
+            <h3>History & Credits</h3>
+            <p>The nsite ecosystem is built on the work of several pioneers in the decentralized web space:</p>
+            
+            <div class="credits-grid">
+              <div class="credit-item">
+                <h4>blossom <span class="sec-label">SEC-01</span></h4>
+                <p>Created by <a href="https://njump.me/npub1ye5ptcxfyyxl5vjvdjar2ua3f0hynkjzpx552mu5snj3qmx5pzjscpknpr" target="_blank" rel="noopener noreferrer">hzrd</a></p>
+                <p class="credit-description">Decentralized blob storage protocol</p>
+              </div>
+              
+              <div class="credit-item">
+                <h4>nsite <span class="sec-label">SEC-02</span></h4>
+                <p>Created by <a href="https://njump.me/npub1elta7cneng3w8p9y4dw633qzdjr4kyvaparuyuttyrx6e8xp7xnq32cume" target="_blank" rel="noopener noreferrer">lez</a></p>
+                <p class="credit-description">The original concept of websites on nostr</p>
+              </div>
+              
+              <div class="credit-item">
+                <h4>nsite-cli</h4>
+                <p>Created by <a href="https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc" target="_blank" rel="noopener noreferrer">florian</a></p>
+                <p class="credit-description">Original CLI tool for publishing nsites</p>
+              </div>
+              
+              <div class="credit-item">
+                <h4>nsyte</h4>
+                <p>Created by <a href="https://njump.me/npub1uac67zc9er54ln0kl6e4qp2y6ta3enfcg7ywnayshvlw9r5w6ehsqq99rx" target="_blank" rel="noopener noreferrer">sandwich</a></p>
+                <p class="credit-description">Enhanced CLI with bunker support and improved UX</p>
+              </div>
+              
+              <div class="credit-item">
+                <h4>nostr-deploy-cli</h4>
+                <p>Created by <a href="https://njump.me/npub1uac67zc9er54ln0kl6e4qp2y6ta3enfcg7ywnayshvlw9r5w6ehsqq99rx" target="_blank" rel="noopener noreferrer">sandwich</a></p>
+                <p class="credit-description">CLI tool specifically built for CI/CD pipelines</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
