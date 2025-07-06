@@ -1,4 +1,4 @@
-> ⚠️ nsyte is alpha. use at your own risk.
+> ⚠️ nsyte is alpha. there may be things broken. things will change. use at your own risk.
 
 # nsyte
 
