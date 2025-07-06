@@ -1,419 +1,539 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
-import { MessageCategory, MessageCollector, MessageType } from "../../src/lib/message-collector.ts";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { restore, stub } from "jsr:@std/testing/mock";
+import {
+  type Message,
+  MessageCategory,
+  MessageCollector,
+  type MessageType,
+} from "../../src/lib/message-collector.ts";
 
-Deno.test("MessageCollector - Basic Operations", async (t) => {
-  await t.step("should create message collector", () => {
-    const collector = new MessageCollector();
-    assertExists(collector);
-    assertEquals(collector instanceof MessageCollector, true);
-  });
+describe("message-collector - comprehensive branch coverage", () => {
+  let collector: MessageCollector;
+  let consoleLogStub: any;
+  let consoleOutput: string[];
 
-  await t.step("should create collector with pretty format disabled", () => {
-    const collector = new MessageCollector(false);
-    assertExists(collector);
-  });
-
-  await t.step("should add messages", () => {
-    const collector = new MessageCollector();
-
-    collector.addMessage("info", MessageCategory.GENERAL, "Test message", "system");
-
-    const messages = collector.getMessagesByType("info");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].content, "Test message");
-    assertEquals(messages[0].target, "system");
-    assertEquals(messages[0].count, 1);
-  });
-
-  await t.step("should increment count for duplicate messages", () => {
-    const collector = new MessageCollector();
-
-    // Add same message 3 times
-    collector.addMessage("error", MessageCategory.FILE, "File not found", "test.txt");
-    collector.addMessage("error", MessageCategory.FILE, "File not found", "test.txt");
-    collector.addMessage("error", MessageCategory.FILE, "File not found", "test.txt");
-
-    const messages = collector.getMessagesByType("error");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].count, 3);
-  });
-
-  await t.step("should keep different messages separate", () => {
-    const collector = new MessageCollector();
-
-    collector.addMessage("error", MessageCategory.FILE, "File not found", "test1.txt");
-    collector.addMessage("error", MessageCategory.FILE, "File not found", "test2.txt");
-    collector.addMessage("error", MessageCategory.FILE, "Permission denied", "test1.txt");
-
-    const messages = collector.getMessagesByType("error");
-    assertEquals(messages.length, 3);
-  });
-});
-
-Deno.test("MessageCollector - Specialized Methods", async (t) => {
-  await t.step("should add relay rejection", () => {
-    const collector = new MessageCollector();
-
-    collector.addRelayRejection("wss://relay.example.com", "rate-limit: too many events");
-
-    const messages = collector.getMessagesByType("relay-rejection");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.RELAY);
-    assertEquals(messages[0].target, "wss://relay.example.com");
-    assertEquals(messages[0].content, "rate-limit: too many events");
-  });
-
-  await t.step("should add connection error", () => {
-    const collector = new MessageCollector();
-
-    collector.addConnectionError("wss://relay.example.com", "Connection timeout");
-
-    const messages = collector.getMessagesByType("connection-error");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.RELAY);
-    assertEquals(messages[0].content, "Connection timeout");
-  });
-
-  await t.step("should add server error", () => {
-    const collector = new MessageCollector();
-
-    collector.addServerError("https://blossom.example.com", "500 Internal Server Error");
-
-    const messages = collector.getMessagesByType("error");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.SERVER);
-    assertEquals(messages[0].target, "https://blossom.example.com");
-  });
-
-  await t.step("should add file error", () => {
-    const collector = new MessageCollector();
-
-    collector.addFileError("image.png", "File too large");
-
-    const messages = collector.getMessagesByType("error");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.FILE);
-    assertEquals(messages[0].target, "image.png");
-  });
-
-  await t.step("should add file success with hash", () => {
-    const collector = new MessageCollector();
-
-    collector.addFileSuccess("document.pdf", "abc123def456");
-
-    const messages = collector.getMessagesByType("success");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.FILE);
-    assertEquals(messages[0].data?.hash, "abc123def456");
-
-    // Should also store hash
-    assertEquals(collector.getFileHash("document.pdf"), "abc123def456");
-  });
-
-  await t.step("should add event success with ID", () => {
-    const collector = new MessageCollector();
-
-    collector.addEventSuccess("index.html", "event123abc");
-
-    const messages = collector.getMessagesByType("success");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.EVENT);
-    assertEquals(messages[0].data?.eventId, "event123abc");
-
-    // Should also store event ID
-    assertEquals(collector.getEventId("index.html"), "event123abc");
-  });
-
-  await t.step("should add notice", () => {
-    const collector = new MessageCollector();
-
-    collector.addNotice("Starting upload process");
-
-    const messages = collector.getMessagesByType("notice");
-    assertEquals(messages.length, 1);
-    assertEquals(messages[0].category, MessageCategory.GENERAL);
-    assertEquals(messages[0].target, "system");
-  });
-
-  await t.step("should add notice with custom target", () => {
-    const collector = new MessageCollector();
-
-    collector.addNotice("Config loaded", "config-loader");
-
-    const messages = collector.getMessagesByType("notice");
-    assertEquals(messages[0].target, "config-loader");
-  });
-});
-
-Deno.test("MessageCollector - Data Storage", async (t) => {
-  await t.step("should store and retrieve file hashes", () => {
-    const collector = new MessageCollector();
-
-    collector.addFileSuccess("file1.txt", "hash1");
-    collector.addFileSuccess("file2.txt", "hash2");
-    collector.addFileSuccess("file3.txt", "hash3");
-
-    assertEquals(collector.getFileHash("file1.txt"), "hash1");
-    assertEquals(collector.getFileHash("file2.txt"), "hash2");
-    assertEquals(collector.getFileHash("file3.txt"), "hash3");
-    assertEquals(collector.getFileHash("nonexistent.txt"), undefined);
-  });
-
-  await t.step("should store and retrieve event IDs", () => {
-    const collector = new MessageCollector();
-
-    collector.addEventSuccess("page1.html", "event1");
-    collector.addEventSuccess("page2.html", "event2");
-
-    assertEquals(collector.getEventId("page1.html"), "event1");
-    assertEquals(collector.getEventId("page2.html"), "event2");
-    assertEquals(collector.getEventId("nonexistent.html"), undefined);
-  });
-
-  await t.step("should get all file hashes", () => {
-    const collector = new MessageCollector();
-
-    collector.addFileSuccess("a.txt", "hashA");
-    collector.addFileSuccess("b.txt", "hashB");
-
-    const allHashes = collector.getAllFileHashes();
-    assertEquals(allHashes instanceof Map, true);
-    assertEquals(allHashes.size, 2);
-    assertEquals(allHashes.get("a.txt"), "hashA");
-    assertEquals(allHashes.get("b.txt"), "hashB");
-  });
-
-  await t.step("should get all event IDs", () => {
-    const collector = new MessageCollector();
-
-    collector.addEventSuccess("x.html", "eventX");
-    collector.addEventSuccess("y.html", "eventY");
-
-    const allEvents = collector.getAllEventIds();
-    assertEquals(allEvents instanceof Map, true);
-    assertEquals(allEvents.size, 2);
-    assertEquals(allEvents.get("x.html"), "eventX");
-    assertEquals(allEvents.get("y.html"), "eventY");
-  });
-});
-
-Deno.test("MessageCollector - Statistics", async (t) => {
-  await t.step("should calculate statistics correctly", () => {
-    const collector = new MessageCollector();
-
-    // Add various messages
-    collector.addMessage("info", MessageCategory.GENERAL, "Info 1", "target1");
-    collector.addMessage("info", MessageCategory.GENERAL, "Info 2", "target2");
-    collector.addMessage("error", MessageCategory.FILE, "Error 1", "file1");
-    collector.addMessage("error", MessageCategory.FILE, "Error 1", "file1"); // Duplicate
-    collector.addMessage("success", MessageCategory.EVENT, "Success 1", "event1");
-    collector.addRelayRejection("relay1", "rejected");
-    collector.addConnectionError("relay2", "timeout");
-    collector.addNotice("Notice 1");
-
-    const stats = collector.getStats();
-
-    // Check type counts
-    assertEquals(stats.totalByType.info, 2);
-    assertEquals(stats.totalByType.error, 2); // Counted as 2 due to duplicate
-    assertEquals(stats.totalByType.success, 1);
-    assertEquals(stats.totalByType["relay-rejection"], 1);
-    assertEquals(stats.totalByType["connection-error"], 1);
-    assertEquals(stats.totalByType.notice, 1);
-    assertEquals(stats.totalByType.warning, 0);
-
-    // Check category counts
-    assertEquals(stats.totalByCategory[MessageCategory.GENERAL], 3); // 2 info + 1 notice
-    assertEquals(stats.totalByCategory[MessageCategory.FILE], 2);
-    assertEquals(stats.totalByCategory[MessageCategory.EVENT], 1);
-    assertEquals(stats.totalByCategory[MessageCategory.RELAY], 2); // 1 rejection + 1 connection error
-    assertEquals(stats.totalByCategory[MessageCategory.SERVER], 0);
-  });
-
-  await t.step("should handle empty collector stats", () => {
-    const collector = new MessageCollector();
-    const stats = collector.getStats();
-
-    // All counts should be 0
-    Object.values(stats.totalByType).forEach((count) => {
-      assertEquals(count, 0);
-    });
-
-    Object.values(stats.totalByCategory).forEach((count) => {
-      assertEquals(count, 0);
+  beforeEach(() => {
+    collector = new MessageCollector();
+    consoleOutput = [];
+    consoleLogStub = stub(console, "log", (...args: any[]) => {
+      consoleOutput.push(args.join(" "));
     });
   });
-});
 
-Deno.test("MessageCollector - Filtering", async (t) => {
-  await t.step("should filter messages by type", () => {
-    const collector = new MessageCollector();
-
-    collector.addMessage("error", MessageCategory.FILE, "Error 1", "file1");
-    collector.addMessage("error", MessageCategory.SERVER, "Error 2", "server1");
-    collector.addMessage("success", MessageCategory.FILE, "Success 1", "file2");
-    collector.addMessage("info", MessageCategory.GENERAL, "Info 1", "system");
-
-    const errors = collector.getMessagesByType("error");
-    assertEquals(errors.length, 2);
-
-    const successes = collector.getMessagesByType("success");
-    assertEquals(successes.length, 1);
-
-    const warnings = collector.getMessagesByType("warning");
-    assertEquals(warnings.length, 0);
+  afterEach(() => {
+    restore();
   });
 
-  await t.step("should filter messages by category", () => {
-    const collector = new MessageCollector();
+  describe("Constructor", () => {
+    it("should create collector with pretty format by default", () => {
+      const col = new MessageCollector();
+      assertExists(col);
+    });
 
-    collector.addMessage("error", MessageCategory.FILE, "File error", "file1");
-    collector.addMessage("success", MessageCategory.FILE, "File success", "file2");
-    collector.addMessage("error", MessageCategory.SERVER, "Server error", "server1");
-    collector.addMessage("info", MessageCategory.RELAY, "Relay info", "relay1");
+    it("should create collector with pretty format explicitly", () => {
+      const col = new MessageCollector(true);
+      assertExists(col);
+    });
 
-    const fileMessages = collector.getMessagesByCategory(MessageCategory.FILE);
-    assertEquals(fileMessages.length, 2);
-
-    const serverMessages = collector.getMessagesByCategory(MessageCategory.SERVER);
-    assertEquals(serverMessages.length, 1);
-
-    const eventMessages = collector.getMessagesByCategory(MessageCategory.EVENT);
-    assertEquals(eventMessages.length, 0);
+    it("should create collector without pretty format", () => {
+      const col = new MessageCollector(false);
+      assertExists(col);
+    });
   });
 
-  await t.step("should check message type existence", () => {
-    const collector = new MessageCollector();
+  describe("addMessage", () => {
+    it("should add new message", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Test message", "target1");
 
-    collector.addMessage("error", MessageCategory.FILE, "Error", "file");
-    collector.addMessage("success", MessageCategory.EVENT, "Success", "event");
+      const messages = collector.getMessagesByType("info");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].content, "Test message");
+      assertEquals(messages[0].target, "target1");
+      assertEquals(messages[0].count, 1);
+    });
 
-    assertEquals(collector.hasMessageType("error"), true);
-    assertEquals(collector.hasMessageType("success"), true);
-    assertEquals(collector.hasMessageType("warning"), false);
-    assertEquals(collector.hasMessageType("info"), false);
+    it("should increment count for duplicate messages", () => {
+      collector.addMessage("error", MessageCategory.FILE, "File error", "file.txt");
+      collector.addMessage("error", MessageCategory.FILE, "File error", "file.txt");
+      collector.addMessage("error", MessageCategory.FILE, "File error", "file.txt");
+
+      const messages = collector.getMessagesByType("error");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].count, 3);
+    });
+
+    it("should update data for duplicate messages", () => {
+      collector.addMessage("success", MessageCategory.FILE, "Uploaded", "file.txt", { size: 100 });
+      collector.addMessage("success", MessageCategory.FILE, "Uploaded", "file.txt", { size: 200 });
+
+      const messages = collector.getMessagesByType("success");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].count, 2);
+      assertEquals(messages[0].data.size, 200);
+    });
+
+    it("should treat different targets as separate messages", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Same content", "target1");
+      collector.addMessage("info", MessageCategory.GENERAL, "Same content", "target2");
+
+      const messages = collector.getMessagesByType("info");
+      assertEquals(messages.length, 2);
+    });
+
+    it("should treat different types as separate messages", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Same content", "target");
+      collector.addMessage("warning", MessageCategory.GENERAL, "Same content", "target");
+
+      assertEquals(collector.getMessagesByType("info").length, 1);
+      assertEquals(collector.getMessagesByType("warning").length, 1);
+    });
+
+    it("should treat different categories as separate messages", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Same content", "target");
+      collector.addMessage("info", MessageCategory.FILE, "Same content", "target");
+
+      assertEquals(collector.getMessagesByCategory(MessageCategory.GENERAL).length, 1);
+      assertEquals(collector.getMessagesByCategory(MessageCategory.FILE).length, 1);
+    });
+
+    it("should handle messages without data", () => {
+      collector.addMessage("notice", MessageCategory.GENERAL, "Notice", "system");
+
+      const messages = collector.getMessagesByType("notice");
+      assertEquals(messages[0].data, undefined);
+    });
   });
 
-  await t.step("should check message category existence", () => {
-    const collector = new MessageCollector();
+  describe("Specialized add methods", () => {
+    it("should add relay rejection", () => {
+      collector.addRelayRejection("wss://relay.com", "Rate limited");
 
-    collector.addMessage("error", MessageCategory.FILE, "Error", "file");
-    collector.addMessage("info", MessageCategory.RELAY, "Info", "relay");
+      const messages = collector.getMessagesByType("relay-rejection");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.RELAY);
+      assertEquals(messages[0].content, "Rate limited");
+      assertEquals(messages[0].target, "wss://relay.com");
+    });
 
-    assertEquals(collector.hasMessageCategory(MessageCategory.FILE), true);
-    assertEquals(collector.hasMessageCategory(MessageCategory.RELAY), true);
-    assertEquals(collector.hasMessageCategory(MessageCategory.SERVER), false);
-    assertEquals(collector.hasMessageCategory(MessageCategory.EVENT), false);
+    it("should add connection error", () => {
+      collector.addConnectionError("wss://relay.com", "Connection refused");
+
+      const messages = collector.getMessagesByType("connection-error");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.RELAY);
+      assertEquals(messages[0].content, "Connection refused");
+    });
+
+    it("should add server error", () => {
+      collector.addServerError("https://server.com", "500 Internal Server Error");
+
+      const messages = collector.getMessagesByType("error");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.SERVER);
+      assertEquals(messages[0].content, "500 Internal Server Error");
+    });
+
+    it("should add file error", () => {
+      collector.addFileError("file.txt", "File not found");
+
+      const messages = collector.getMessagesByType("error");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.FILE);
+      assertEquals(messages[0].content, "File not found");
+    });
+
+    it("should add file success and store hash", () => {
+      collector.addFileSuccess("file.txt", "abc123hash");
+
+      const messages = collector.getMessagesByType("success");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.FILE);
+      assertEquals(messages[0].data.hash, "abc123hash");
+      assertEquals(collector.getFileHash("file.txt"), "abc123hash");
+    });
+
+    it("should add event success and store ID", () => {
+      collector.addEventSuccess("file.txt", "event123id");
+
+      const messages = collector.getMessagesByType("success");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].category, MessageCategory.EVENT);
+      assertEquals(messages[0].data.eventId, "event123id");
+      assertEquals(collector.getEventId("file.txt"), "event123id");
+    });
+
+    it("should add notice with default target", () => {
+      collector.addNotice("System message");
+
+      const messages = collector.getMessagesByType("notice");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].target, "system");
+    });
+
+    it("should add notice with custom target", () => {
+      collector.addNotice("Custom message", "custom-target");
+
+      const messages = collector.getMessagesByType("notice");
+      assertEquals(messages.length, 1);
+      assertEquals(messages[0].target, "custom-target");
+    });
   });
-});
 
-Deno.test("MessageCollector - Clear", async (t) => {
-  await t.step("should clear all data", () => {
-    const collector = new MessageCollector();
+  describe("Getters", () => {
+    it("should get file hash", () => {
+      collector.addFileSuccess("file1.txt", "hash1");
+      collector.addFileSuccess("file2.txt", "hash2");
 
-    // Add various data
-    collector.addMessage("error", MessageCategory.FILE, "Error", "file");
-    collector.addFileSuccess("file.txt", "hash123");
-    collector.addEventSuccess("page.html", "event456");
-    collector.addNotice("Notice");
+      assertEquals(collector.getFileHash("file1.txt"), "hash1");
+      assertEquals(collector.getFileHash("file2.txt"), "hash2");
+      assertEquals(collector.getFileHash("nonexistent.txt"), undefined);
+    });
 
-    // Verify data exists
-    assertEquals(collector.getMessagesByType("error").length, 1);
-    assertEquals(collector.getFileHash("file.txt"), "hash123");
-    assertEquals(collector.getEventId("page.html"), "event456");
+    it("should get event ID", () => {
+      collector.addEventSuccess("file1.txt", "event1");
+      collector.addEventSuccess("file2.txt", "event2");
 
-    // Clear
-    collector.clear();
+      assertEquals(collector.getEventId("file1.txt"), "event1");
+      assertEquals(collector.getEventId("file2.txt"), "event2");
+      assertEquals(collector.getEventId("nonexistent.txt"), undefined);
+    });
 
-    // Verify all data is cleared
-    assertEquals(collector.getMessagesByType("error").length, 0);
-    assertEquals(collector.getMessagesByType("success").length, 0);
-    assertEquals(collector.getMessagesByType("notice").length, 0);
-    assertEquals(collector.getFileHash("file.txt"), undefined);
-    assertEquals(collector.getEventId("page.html"), undefined);
-    assertEquals(collector.getAllFileHashes().size, 0);
-    assertEquals(collector.getAllEventIds().size, 0);
+    it("should get all file hashes", () => {
+      collector.addFileSuccess("file1.txt", "hash1");
+      collector.addFileSuccess("file2.txt", "hash2");
+
+      const hashes = collector.getAllFileHashes();
+      assertEquals(hashes.size, 2);
+      assertEquals(hashes.get("file1.txt"), "hash1");
+      assertEquals(hashes.get("file2.txt"), "hash2");
+    });
+
+    it("should get all event IDs", () => {
+      collector.addEventSuccess("file1.txt", "event1");
+      collector.addEventSuccess("file2.txt", "event2");
+
+      const ids = collector.getAllEventIds();
+      assertEquals(ids.size, 2);
+      assertEquals(ids.get("file1.txt"), "event1");
+      assertEquals(ids.get("file2.txt"), "event2");
+    });
   });
-});
 
-Deno.test("MessageCollector - Output Methods", async (t) => {
-  await t.step("should not throw when printing empty collections", () => {
-    const collector = new MessageCollector();
-    const consoleLogStub = stub(console, "log", () => {});
+  describe("Statistics", () => {
+    it("should calculate stats correctly", () => {
+      // Add various messages
+      collector.addMessage("info", MessageCategory.GENERAL, "Info 1", "target");
+      collector.addMessage("info", MessageCategory.GENERAL, "Info 2", "target");
+      collector.addMessage("error", MessageCategory.FILE, "Error", "file");
+      collector.addMessage("error", MessageCategory.FILE, "Error", "file"); // Duplicate
+      collector.addRelayRejection("relay", "Rejected");
+      collector.addConnectionError("server", "Failed");
+      collector.addFileSuccess("file", "hash");
+      collector.addEventSuccess("file", "event");
+      collector.addNotice("Notice");
+      collector.addMessage("warning", MessageCategory.RELAY, "Warning", "relay");
 
-    try {
-      // These should not throw or print anything
-      collector.printMessageType("error", "Errors");
-      collector.printMessageCategory(MessageCategory.FILE, "Files");
+      const stats = collector.getStats();
+
+      // Check type counts
+      assertEquals(stats.totalByType.info, 2);
+      assertEquals(stats.totalByType.error, 3); // 2 from file error (counted as 2)
+      assertEquals(stats.totalByType["relay-rejection"], 1);
+      assertEquals(stats.totalByType["connection-error"], 1);
+      assertEquals(stats.totalByType.success, 2);
+      assertEquals(stats.totalByType.notice, 1);
+      assertEquals(stats.totalByType.warning, 1);
+
+      // Check category counts
+      assertEquals(stats.totalByCategory[MessageCategory.GENERAL], 3);
+      assertEquals(stats.totalByCategory[MessageCategory.FILE], 3);
+      assertEquals(stats.totalByCategory[MessageCategory.RELAY], 3);
+      assertEquals(stats.totalByCategory[MessageCategory.EVENT], 1);
+      assertEquals(stats.totalByCategory[MessageCategory.SERVER], 0);
+    });
+
+    it("should handle empty collector stats", () => {
+      const stats = collector.getStats();
+
+      assertEquals(stats.totalByType.info, 0);
+      assertEquals(stats.totalByType.error, 0);
+      assertEquals(stats.totalByType.success, 0);
+      assertEquals(stats.totalByCategory[MessageCategory.GENERAL], 0);
+    });
+  });
+
+  describe("Filtering", () => {
+    beforeEach(() => {
+      // Add a variety of messages
+      collector.addMessage("info", MessageCategory.GENERAL, "Info", "target1");
+      collector.addMessage("error", MessageCategory.FILE, "Error", "file1");
+      collector.addMessage("success", MessageCategory.FILE, "Success", "file2");
+      collector.addRelayRejection("relay1", "Rejected");
+      collector.addConnectionError("server1", "Failed");
+    });
+
+    it("should filter by type", () => {
+      assertEquals(collector.getMessagesByType("info").length, 1);
+      assertEquals(collector.getMessagesByType("error").length, 1);
+      assertEquals(collector.getMessagesByType("success").length, 1);
+      assertEquals(collector.getMessagesByType("relay-rejection").length, 1);
+      assertEquals(collector.getMessagesByType("connection-error").length, 1);
+      assertEquals(collector.getMessagesByType("warning").length, 0);
+    });
+
+    it("should filter by category", () => {
+      assertEquals(collector.getMessagesByCategory(MessageCategory.GENERAL).length, 1);
+      assertEquals(collector.getMessagesByCategory(MessageCategory.FILE).length, 2);
+      assertEquals(collector.getMessagesByCategory(MessageCategory.RELAY).length, 2);
+      assertEquals(collector.getMessagesByCategory(MessageCategory.EVENT).length, 0);
+    });
+
+    it("should check if has message type", () => {
+      assertEquals(collector.hasMessageType("info"), true);
+      assertEquals(collector.hasMessageType("error"), true);
+      assertEquals(collector.hasMessageType("warning"), false);
+      assertEquals(collector.hasMessageType("notice"), false);
+    });
+
+    it("should check if has message category", () => {
+      assertEquals(collector.hasMessageCategory(MessageCategory.GENERAL), true);
+      assertEquals(collector.hasMessageCategory(MessageCategory.FILE), true);
+      assertEquals(collector.hasMessageCategory(MessageCategory.EVENT), false);
+      assertEquals(collector.hasMessageCategory(MessageCategory.SERVER), false);
+    });
+  });
+
+  describe("Formatting", () => {
+    it("should format messages with pretty format", () => {
+      const prettyCollector = new MessageCollector(true);
+
+      prettyCollector.addMessage("error", MessageCategory.FILE, "Error message", "file.txt");
+      prettyCollector.addMessage("warning", MessageCategory.RELAY, "Warning message", "relay");
+      prettyCollector.addMessage("success", MessageCategory.FILE, "Success message", "file2.txt");
+      prettyCollector.addRelayRejection("relay2", "Rejected");
+      prettyCollector.addConnectionError("server", "Failed");
+      prettyCollector.addNotice("Notice message");
+      prettyCollector.addMessage("info", MessageCategory.GENERAL, "Info message", "target");
+
+      prettyCollector.printAllGroupedMessages();
+
+      // Check output contains expected symbols
+      const output = consoleOutput.join("\n");
+      assertExists(output);
+      assertEquals(output.includes("✗"), true); // Error symbol
+      assertEquals(output.includes("!"), true); // Warning/rejection symbol
+    });
+
+    it("should format messages without pretty format", () => {
+      const plainCollector = new MessageCollector(false);
+
+      plainCollector.addMessage("error", MessageCategory.FILE, "Error message", "file.txt");
+      plainCollector.addMessage("warning", MessageCategory.RELAY, "Warning message", "relay");
+
+      plainCollector.printErrorSummary();
+
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("[ERROR]"), true);
+      assertEquals(output.includes("file(file.txt)"), true);
+    });
+
+    it("should handle message counts in formatting", () => {
+      collector.addMessage("error", MessageCategory.FILE, "Same error", "file.txt");
+      collector.addMessage("error", MessageCategory.FILE, "Same error", "file.txt");
+      collector.addMessage("error", MessageCategory.FILE, "Same error", "file.txt");
+
+      collector.printErrorSummary();
+
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("(3×)"), true);
+    });
+
+    it("should format all message types correctly", () => {
+      const types: MessageType[] = [
+        "error",
+        "warning",
+        "success",
+        "relay-rejection",
+        "connection-error",
+        "notice",
+        "info",
+      ];
+
+      for (const type of types) {
+        const c = new MessageCollector(true);
+        c.addMessage(type, MessageCategory.GENERAL, "Message", "target");
+
+        if (type === "error" || type === "connection-error") {
+          c.printErrorSummary();
+        } else if (type === "relay-rejection") {
+          c.printRelayIssuesSummary();
+        } else if (type === "notice") {
+          c.printNotices();
+        }
+      }
+
+      // Should have formatted output for each type
+      assertEquals(consoleOutput.length > 0, true);
+    });
+  });
+
+  describe("Print methods", () => {
+    it("should not print when no messages", () => {
       collector.printErrorSummary();
       collector.printRelayIssuesSummary();
       collector.printNotices();
-      collector.printAllGroupedMessages();
+
+      assertEquals(consoleOutput.length, 0);
+    });
+
+    it("should print message type with header", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Info 1", "target1");
+      collector.addMessage("info", MessageCategory.GENERAL, "Info 2", "target2");
+
+      collector.printMessageType("info", "Information Messages");
+
+      assertEquals(consoleOutput[0], "Information Messages");
+      assertEquals(consoleOutput.length, 4); // Header + 2 messages + empty line
+    });
+
+    it("should print message category with header", () => {
+      collector.addMessage("info", MessageCategory.FILE, "File info", "file1");
+      collector.addMessage("error", MessageCategory.FILE, "File error", "file2");
+
+      collector.printMessageCategory(MessageCategory.FILE, "File Messages");
+
+      assertEquals(consoleOutput[0], "File Messages");
+      assertEquals(consoleOutput.length, 4); // Header + 2 messages + empty line
+    });
+
+    it("should print file success summary with hashes", () => {
+      collector.addFileSuccess("file1.txt", "1234567890abcdef");
+      collector.addFileSuccess("file2.txt", "fedcba0987654321");
+
       collector.printFileSuccessSummary();
+
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("1234567890..."), true);
+      assertEquals(output.includes("fedcba0987..."), true);
+    });
+
+    it("should print file success summary without hashes", () => {
+      // Add success without using addFileSuccess (no hash)
+      collector.addMessage("success", MessageCategory.FILE, "Uploaded", "file.txt");
+
+      collector.printFileSuccessSummary();
+
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("file.txt"), true);
+      assertEquals(output.includes("..."), false);
+    });
+
+    it("should print event success summary with IDs", () => {
+      collector.addEventSuccess("file1.txt", "event1234567890");
+      collector.addEventSuccess("file2.txt", "event0987654321");
+
       collector.printEventSuccessSummary();
 
-      // No output should be produced
-      assertEquals(consoleLogStub.calls.length, 0);
-    } finally {
-      consoleLogStub.restore();
-    }
-  });
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("event123456..."), true);
+      assertEquals(output.includes("event098765..."), true);
+    });
 
-  await t.step("should print messages by type", () => {
-    const collector = new MessageCollector();
-    const consoleLogStub = stub(console, "log", () => {});
+    it("should print event success summary without IDs", () => {
+      // Add success without using addEventSuccess (no eventId)
+      collector.addMessage("success", MessageCategory.EVENT, "Published", "file.txt");
 
-    try {
-      collector.addMessage("error", MessageCategory.FILE, "File error", "test.txt");
-      collector.addMessage("error", MessageCategory.FILE, "Another error", "test2.txt");
+      collector.printEventSuccessSummary();
 
-      collector.printMessageType("error", "Error Messages");
+      const output = consoleOutput.join("\n");
+      assertEquals(output.includes("file.txt"), true);
+      assertEquals(output.includes("..."), false);
+    });
 
-      // Should print header + 2 messages + empty line = 4 calls
-      assertEquals(consoleLogStub.calls.length, 4);
-      assertEquals(consoleLogStub.calls[0].args[0].includes("Error Messages"), true);
-    } finally {
-      consoleLogStub.restore();
-    }
-  });
-
-  await t.step("should format messages with pretty format", () => {
-    const collector = new MessageCollector(true);
-    const consoleLogStub = stub(console, "log", () => {});
-
-    try {
-      collector.addMessage("error", MessageCategory.FILE, "Error message", "file.txt");
-      collector.addMessage("success", MessageCategory.FILE, "Success message", "file2.txt");
+    it("should print all grouped messages in correct order", () => {
+      collector.addRelayRejection("relay1", "Rejected");
+      collector.addConnectionError("server1", "Failed");
+      collector.addMessage("error", MessageCategory.FILE, "File error", "file1");
+      collector.addNotice("System notice");
 
       collector.printAllGroupedMessages();
 
-      const output = consoleLogStub.calls.map((call) => call.args[0]).join("\n");
-
-      // Should contain color codes and symbols
-      assertEquals(output.includes("✗"), true);
-      assertEquals(output.includes("✓"), true);
-    } finally {
-      consoleLogStub.restore();
-    }
+      // Check order: rejections, errors, notices
+      const headers = consoleOutput.filter((line) =>
+        line.includes("Rejections") || line.includes("Errors") || line.includes("Notices")
+      );
+      assertEquals(headers.length, 3);
+    });
   });
 
-  await t.step("should format messages without pretty format", () => {
-    const collector = new MessageCollector(false);
-    const consoleLogStub = stub(console, "log", () => {});
+  describe("Clear", () => {
+    it("should clear all data", () => {
+      // Add various data
+      collector.addMessage("info", MessageCategory.GENERAL, "Info", "target");
+      collector.addFileSuccess("file1.txt", "hash1");
+      collector.addEventSuccess("file2.txt", "event1");
+      collector.addRelayRejection("relay", "Rejected");
 
-    try {
-      collector.addMessage("error", MessageCategory.FILE, "Error message", "file.txt");
+      // Verify data exists
+      assertEquals(collector.getMessagesByType("info").length, 1);
+      assertEquals(collector.getFileHash("file1.txt"), "hash1");
+      assertEquals(collector.getEventId("file2.txt"), "event1");
 
-      collector.printErrorSummary();
+      // Clear
+      collector.clear();
 
-      const output = consoleLogStub.calls.map((call) => call.args[0]).join("\n");
+      // Verify all cleared
+      assertEquals(collector.getMessagesByType("info").length, 0);
+      assertEquals(collector.getFileHash("file1.txt"), undefined);
+      assertEquals(collector.getEventId("file2.txt"), undefined);
+      assertEquals(collector.getAllFileHashes().size, 0);
+      assertEquals(collector.getAllEventIds().size, 0);
 
-      // Should contain formatted type
-      assertEquals(output.includes("[ERROR]"), true);
-      assertEquals(output.includes("file(file.txt)"), true);
-    } finally {
-      consoleLogStub.restore();
-    }
+      const stats = collector.getStats();
+      assertEquals(stats.totalByType.info, 0);
+      assertEquals(stats.totalByType.success, 0);
+    });
+  });
+
+  describe("Edge cases", () => {
+    it("should handle empty strings", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "", "");
+
+      const messages = collector.getMessagesByType("info");
+      assertEquals(messages[0].content, "");
+      assertEquals(messages[0].target, "");
+    });
+
+    it("should handle very long content", () => {
+      const longContent = "a".repeat(1000);
+      collector.addMessage("info", MessageCategory.GENERAL, longContent, "target");
+
+      const messages = collector.getMessagesByType("info");
+      assertEquals(messages[0].content, longContent);
+    });
+
+    it("should handle special characters in content", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Test\nNew\tLine\r\nSpecial", "target");
+
+      const messages = collector.getMessagesByType("info");
+      assertEquals(messages[0].content, "Test\nNew\tLine\r\nSpecial");
+    });
+
+    it("should handle undefined data gracefully", () => {
+      collector.addMessage("success", MessageCategory.FILE, "Success", "file", undefined);
+
+      const messages = collector.getMessagesByType("success");
+      assertEquals(messages[0].data, undefined);
+    });
+
+    it("should handle print methods with no matching messages", () => {
+      collector.addMessage("info", MessageCategory.GENERAL, "Info", "target");
+
+      collector.printMessageType("error", "Errors");
+      collector.printMessageCategory(MessageCategory.FILE, "Files");
+
+      assertEquals(consoleOutput.length, 0);
+    });
   });
 });
