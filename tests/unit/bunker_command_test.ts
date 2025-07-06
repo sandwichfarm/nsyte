@@ -1,6 +1,8 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, spy, stub } from "jsr:@std/testing/mock";
+import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
+import { restore, spy, stub } from "std/testing/mock.ts";
+import * as prompt from "@cliffy/prompt";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import {
   connectBunker,
   exportNbunk,
@@ -16,27 +18,110 @@ describe("Bunker command - comprehensive branch coverage", () => {
   let consoleLogStub: any;
   let consoleErrorStub: any;
   let denoExitStub: any;
-  let denoArgsStub: any;
+  let promptInputStub: any;
+  let promptSelectStub: any;
+  let promptConfirmStub: any;
+  let secretsManagerStub: any;
+  let setTimeoutStub: any;
+  let clearTimeoutStub: any;
+  let timerIds: number[] = [];
+  const originalArgs = Deno.args;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+
+  // Helper to mock Deno.args
+  function mockDenoArgs(args: string[]) {
+    Object.defineProperty(Deno, "args", {
+      get: () => args,
+      configurable: true,
+    });
+  }
 
   beforeEach(() => {
     // Mock console methods
     consoleLogStub = stub(console, "log", () => {});
     consoleErrorStub = stub(console, "error", () => {});
 
-    // Mock Deno.exit
-    denoExitStub = stub(Deno, "exit", () => {});
+    // Mock Deno.exit - it should never return
+    denoExitStub = stub(Deno, "exit", (_code?: number) => {
+      throw new Error("Process exit");
+    });
 
-    // Mock Deno.args
-    denoArgsStub = stub(Deno, "args", ["bunker"]);
+    // Mock prompts to avoid hanging tests
+    promptInputStub = stub(prompt.Input, "prompt", () => Promise.resolve("test-input"));
+    promptSelectStub = stub(prompt.Select, "prompt", () => Promise.resolve("test-selection"));
+    promptConfirmStub = stub(prompt.Confirm, "prompt", () => Promise.resolve(true));
+
+    // Mock SecretsManager
+    const mockSecretsManager = {
+      getInstance: () => ({
+        getAllPubkeys: () => Promise.resolve(["test-pubkey1", "test-pubkey2"]),
+        storeNbunk: () => Promise.resolve(true),
+        getNbunk: () => Promise.resolve("nbunksec1test"),
+        deleteNbunk: () => Promise.resolve(true),
+      })
+    };
+    secretsManagerStub = stub(SecretsManager, "getInstance", mockSecretsManager.getInstance);
+
+    // Reset timer tracking
+    timerIds = [];
+    
+    // Mock timers to prevent leaks
+    setTimeoutStub = stub(globalThis, "setTimeout", (fn: () => void, delay?: number) => {
+      const id = originalSetTimeout(() => {
+        try {
+          fn();
+        } catch (e) {
+          // Ignore errors in timer callbacks during tests
+        }
+      }, delay);
+      timerIds.push(id);
+      return id;
+    });
+    
+    clearTimeoutStub = stub(globalThis, "clearTimeout", (id: number) => {
+      originalClearTimeout(id);
+      const index = timerIds.indexOf(id);
+      if (index > -1) {
+        timerIds.splice(index, 1);
+      }
+    });
+
+    // Set default args
+    mockDenoArgs(["bunker"]);
   });
 
   afterEach(() => {
+    // Clear any remaining timers
+    for (const id of timerIds) {
+      originalClearTimeout(id);
+    }
+    timerIds = [];
+    
+    // Restore all stubs explicitly
+    consoleLogStub?.restore();
+    consoleErrorStub?.restore();
+    denoExitStub?.restore();
+    promptInputStub?.restore();
+    promptSelectStub?.restore();
+    promptConfirmStub?.restore();
+    secretsManagerStub?.restore();
+    setTimeoutStub?.restore();
+    clearTimeoutStub?.restore();
+    
+    // Then call general restore
     restore();
+    
+    // Restore Deno.args to original
+    Object.defineProperty(Deno, "args", {
+      get: () => originalArgs,
+      configurable: true,
+    });
   });
 
   describe("handleBunkerCommand", () => {
     it("should show help when no subcommand provided", async () => {
-      denoArgsStub.value = ["bunker"];
+      mockDenoArgs(["bunker"]);
 
       try {
         await handleBunkerCommand();
@@ -49,7 +134,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should show help with -h flag", async () => {
-      denoArgsStub.value = ["bunker", "-h"];
+      mockDenoArgs(["bunker", "-h"]);
 
       try {
         await handleBunkerCommand();
@@ -61,7 +146,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should show help with --help flag", async () => {
-      denoArgsStub.value = ["bunker", "--help"];
+      mockDenoArgs(["bunker", "--help"]);
 
       try {
         await handleBunkerCommand();
@@ -73,7 +158,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle list subcommand", async () => {
-      denoArgsStub.value = ["bunker", "list"];
+      mockDenoArgs(["bunker", "list"]);
 
       try {
         await handleBunkerCommand();
@@ -85,7 +170,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle import subcommand with arg", async () => {
-      denoArgsStub.value = ["bunker", "import", "test-nbunk"];
+      mockDenoArgs(["bunker", "import", "test-nbunk"]);
 
       try {
         await handleBunkerCommand();
@@ -97,7 +182,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle import subcommand without arg", async () => {
-      denoArgsStub.value = ["bunker", "import"];
+      mockDenoArgs(["bunker", "import"]);
 
       try {
         await handleBunkerCommand();
@@ -109,7 +194,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle export subcommand with arg", async () => {
-      denoArgsStub.value = ["bunker", "export", "test-pubkey"];
+      mockDenoArgs(["bunker", "export", "test-pubkey"]);
 
       try {
         await handleBunkerCommand();
@@ -121,7 +206,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle export subcommand without arg", async () => {
-      denoArgsStub.value = ["bunker", "export"];
+      mockDenoArgs(["bunker", "export"]);
 
       try {
         await handleBunkerCommand();
@@ -133,7 +218,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle use subcommand with arg", async () => {
-      denoArgsStub.value = ["bunker", "use", "test-pubkey"];
+      mockDenoArgs(["bunker", "use", "test-pubkey"]);
 
       try {
         await handleBunkerCommand();
@@ -145,7 +230,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle use subcommand without arg", async () => {
-      denoArgsStub.value = ["bunker", "use"];
+      mockDenoArgs(["bunker", "use"]);
 
       try {
         await handleBunkerCommand();
@@ -157,7 +242,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle remove subcommand with arg", async () => {
-      denoArgsStub.value = ["bunker", "remove", "test-pubkey"];
+      mockDenoArgs(["bunker", "remove", "test-pubkey"]);
 
       try {
         await handleBunkerCommand();
@@ -169,7 +254,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle remove subcommand without arg", async () => {
-      denoArgsStub.value = ["bunker", "remove"];
+      mockDenoArgs(["bunker", "remove"]);
 
       try {
         await handleBunkerCommand();
@@ -181,7 +266,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle connect subcommand with arg", async () => {
-      denoArgsStub.value = ["bunker", "connect", "bunker://test"];
+      mockDenoArgs(["bunker", "connect", "bunker://test"]);
 
       try {
         await handleBunkerCommand();
@@ -193,7 +278,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle connect subcommand without arg", async () => {
-      denoArgsStub.value = ["bunker", "connect"];
+      mockDenoArgs(["bunker", "connect"]);
 
       try {
         await handleBunkerCommand();
@@ -205,7 +290,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle unknown subcommand", async () => {
-      denoArgsStub.value = ["bunker", "unknown"];
+      mockDenoArgs(["bunker", "unknown"]);
 
       try {
         await handleBunkerCommand();
@@ -217,7 +302,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
 
     it("should handle showHeader parameter", async () => {
-      denoArgsStub.value = ["bunker"];
+      mockDenoArgs(["bunker"]);
 
       try {
         await handleBunkerCommand(false); // showHeader = false
