@@ -8,7 +8,6 @@
 # Project-specific directories
 .deprecated
 .devdocs
-.nsite
 .claude
 .packaging
 .venv
