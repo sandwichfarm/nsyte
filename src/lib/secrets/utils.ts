@@ -36,7 +36,7 @@ export function getSystemConfigDir(): string | null {
       const appData = Deno.env.get("APPDATA");
       return appData ? join(appData, "nsite") : join(home, "AppData", "Roaming", "nsite");
     default:
-      return join(home, ".nsite");
+      return join(home, ".config", "nsyte");
   }
 }
 

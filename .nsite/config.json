@@ -1,15 +1,19 @@
 {
-  "bunkerPubkey": "9f5bd1cda33a5e91f68fa43963d0d7622d00646a64f8084acc5a969df9af776c",
+  "bunkerPubkey": "9c08bc9679ca77197f3e6a28876b77c5cc4b7a9dd268d9a3cffd7f1eab667cfb",
   "relays": [
-    "wss://relay.nsite.lol"
+    "wss://nos.lol",
+    "wss://relay.nsite.lol",
+    "wss://relay.damus.io",
+    "wss://nostrue.com",
+    "wss://relay.primal.net"
   ],
   "servers": [
     "https://cdn.hzrd149.com",
     "https://cdn.sovbit.host"
   ],
   "profile": {
-    "name": "nsyte",
-    "display_name": "nsyte",
+    "name": "nsyte.run",
+    "display_name": "nsyte.run",
     "about": ""
   },
   "publishProfile": true,
