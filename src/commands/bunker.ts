@@ -186,8 +186,13 @@ export async function showBunkerHelp(): Promise<void> {
  * List all stored bunkers
  */
 export async function listBunkers(): Promise<void> {
+  log.debug("listBunkers: Starting");
   const secretsManager = SecretsManager.getInstance();
+  log.debug("listBunkers: Got SecretsManager instance");
+  await secretsManager.initialize();
+  log.debug("listBunkers: SecretsManager initialized");
   const pubkeys = await secretsManager.getAllPubkeys();
+  log.debug(`listBunkers: Got ${pubkeys.length} pubkeys`);
 
   if (pubkeys.length === 0) {
     console.log(colors.yellow("No bunkers found in system storage."));

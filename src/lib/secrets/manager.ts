@@ -292,16 +292,24 @@ export class SecretsManager {
    * Get all stored pubkeys
    */
   public async getAllPubkeys(): Promise<string[]> {
-    if (!await this.initialize()) return [];
+    if (!await this.initialize()) {
+      log.debug("getAllPubkeys: Failed to initialize");
+      return [];
+    }
 
     try {
       if (this.storageBackend) {
-        return await this.storageBackend.list();
+        log.debug("getAllPubkeys: Using storage backend to list");
+        const pubkeys = await this.storageBackend.list();
+        log.debug(`getAllPubkeys: Storage backend returned ${pubkeys.length} pubkeys`);
+        return pubkeys;
       } else if (this.legacyMode) {
         // Fallback to legacy storage
+        log.debug("getAllPubkeys: Using legacy mode");
         this.loadLegacySecrets();
         return Object.keys(this.legacySecrets);
       }
+      log.debug("getAllPubkeys: No storage backend available");
       return [];
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
