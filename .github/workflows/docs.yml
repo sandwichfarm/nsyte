@@ -78,8 +78,10 @@ jobs:
             wss://relay.nostr.band
             wss://relay.damus.io
             wss://nos.lol
+            wss://relay.nsite.lol
           servers: |
             https://cdn.hzrd149.com/
+            https://cdn.sovbit.host
           publish_server_list: "true"
           publish_relay_list: "true"
           publish_profile: "true"
