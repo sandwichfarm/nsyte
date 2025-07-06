@@ -11,10 +11,8 @@ censorship-resistant website hosting.
 For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
-> [flox1an](https://github.com/flox1an)
-> [[npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc)]. This
-> fork has been ported to deno and rewritten in the process. Some behaviors in this fork are
-> slightly different.
+> florian [github](https://github.com/flox1an) [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc).
+> nsyte has been ported to deno and rewritten in the process. 
 
 ![nsyte screen demo](./static/nsyte.gif)
 
