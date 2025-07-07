@@ -74,6 +74,18 @@ prompt_yes_no() {
     local prompt="$1"
     local response
     
+    # Check if stdin is a terminal
+    if [ ! -t 0 ]; then
+        # We're being piped, so we need to read from the controlling terminal
+        if [ -e /dev/tty ]; then
+            exec < /dev/tty
+        else
+            print_warning "Cannot prompt for input when running non-interactively"
+            print_info "Keeping existing installation"
+            return 1
+        fi
+    fi
+    
     while true; do
         read -p "$prompt (y/n): " response
         case $response in
