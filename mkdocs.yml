@@ -18,6 +18,7 @@ theme:
     - search.highlight
     - search.suggest
     - navigation.instant
+    - navigation.indexes
   custom_dir: docs/overrides
   palette:
     scheme: slate
@@ -57,6 +58,7 @@ nav:
       - Basic Usage: usage/index.md
   - Configuration: usage/configuration.md
   - Commands:
+      - Overview: usage/commands.md
       - upload: usage/commands/upload.md
       - ls: usage/commands/ls.md
       - download: usage/commands/download.md
