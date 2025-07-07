@@ -69,6 +69,56 @@ check_existing_installation() {
     fi
 }
 
+# Prompt user for yes/no question
+prompt_yes_no() {
+    local prompt="$1"
+    local response
+    
+    while true; do
+        read -p "$prompt (y/n): " response
+        case $response in
+            [Yy]* ) return 0;;
+            [Nn]* ) return 1;;
+            * ) echo "Please answer yes (y) or no (n).";;
+        esac
+    done
+}
+
+# Handle other installation paths
+handle_other_installations() {
+    local expected_path="$1"
+    local current_path="$2"
+    
+    # Normalize paths by removing trailing slashes
+    expected_path="${expected_path%/}"
+    current_path="${current_path%/}"
+    
+    # Check if the current installation is in a different location
+    if [ "$current_path" != "$expected_path/$BINARY_NAME" ] && [ "$current_path" != "$expected_path/nsyte.exe" ]; then
+        print_warning "Found nsyte installed at: $current_path"
+        print_warning "This installation is not managed by this install script."
+        print_info "This script installs to: $expected_path"
+        
+        echo ""
+        if prompt_yes_no "Would you like to remove the installation at $current_path?"; then
+            print_info "Removing $current_path..."
+            if [ -w "$(dirname "$current_path")" ]; then
+                rm -f "$current_path"
+            else
+                print_info "Administrator access required to remove $current_path"
+                sudo rm -f "$current_path"
+            fi
+            print_success "Removed installation at $current_path"
+            return 0
+        else
+            print_warning "Keeping existing installation at $current_path"
+            print_warning "This may cause PATH conflicts. The first nsyte in your PATH will be used."
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Compare semantic versions
 # Returns 0 if version1 > version2, 1 if version1 < version2, 2 if equal
 compare_versions() {
@@ -273,8 +323,24 @@ main() {
     
     detect_os
     
+    # Determine expected install directory based on OS
+    case "$OS" in
+        macos|linux)
+            EXPECTED_INSTALL_DIR="/usr/local/bin"
+            INSTALL_DIR="/usr/local/bin"
+            ;;
+        windows)
+            EXPECTED_INSTALL_DIR="$HOME/bin"
+            INSTALL_DIR="$HOME/bin"
+            BINARY_NAME="nsyte.exe"
+            ;;
+    esac
+    
     # Check for existing installation
     if check_existing_installation; then
+        # Handle installations in other locations
+        handle_other_installations "$EXPECTED_INSTALL_DIR" "$INSTALLED_PATH"
+        
         get_latest_release
         
         # Compare versions
@@ -304,17 +370,32 @@ main() {
     install_binary
     
     echo ""
-    if check_existing_installation && [ "$INSTALLED_VERSION" != "$VERSION" ]; then
-        print_success "Upgrade complete!"
-        print_info "nsyte has been upgraded from $INSTALLED_VERSION to $VERSION"
-    else
-        print_success "Installation complete!"
+    # Save the previous version before checking new installation
+    local prev_version="$INSTALLED_VERSION"
+    local was_installed=false
+    if check_existing_installation >/dev/null 2>&1; then
+        was_installed=true
     fi
-    print_info "Run 'nsyte --version' to verify the installation"
     
-    # Only show init message for new installations
-    if ! check_existing_installation >/dev/null 2>&1; then
-        print_info "Run 'nsyte init' to get started"
+    # Verify the installation by checking the specific binary we just installed
+    if [ -f "$INSTALL_DIR/$BINARY_NAME" ] && "$INSTALL_DIR/$BINARY_NAME" --version >/dev/null 2>&1; then
+        local new_version=$("$INSTALL_DIR/$BINARY_NAME" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+        
+        if [ "$was_installed" = true ] && [ "$prev_version" != "${new_version#v}" ]; then
+            print_success "Upgrade complete!"
+            print_info "nsyte has been upgraded from $prev_version to ${new_version#v}"
+        else
+            print_success "Installation complete!"
+        fi
+        
+        print_info "Run 'nsyte --version' to verify the installation"
+        
+        # Only show init message for new installations
+        if [ "$was_installed" = false ]; then
+            print_info "Run 'nsyte init' to get started"
+        fi
+    else
+        print_error "Installation verification failed"
     fi
 }
 
