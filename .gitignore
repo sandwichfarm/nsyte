@@ -11,6 +11,7 @@
 .claude
 .packaging
 .venv
+.nsite
 
 # Test and coverage directories
 .test_secrets
