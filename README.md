@@ -20,8 +20,9 @@ For more nsite related tools and services check out [awesome-nsite](https://gith
 
 ```bash
 # Install from JSR
+curl -fsSL https://nsyte.run/get/install.sh | bash
+#or with deno
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
-# Or use pre-built binary from releases
 
 # Initialize project (interactive setup)
 nsyte init
