@@ -48,11 +48,17 @@ Deno.test("Config - Constants", async (t) => {
 });
 
 Deno.test("Config - File Operations", async (t) => {
-  const testConfigDir = join(Deno.cwd(), CONFIG_DIR);
+  const tempDir = await Deno.makeTempDir();
+  const originalCwd = Deno.cwd();
+  
+  // Mock Deno.cwd to return our temp directory
+  const cwdStub = stub(Deno, "cwd", () => tempDir);
 
   const cleanup = () => {
     try {
-      Deno.removeSync(testConfigDir, { recursive: true });
+      cwdStub.restore();
+      Deno.chdir(originalCwd);
+      Deno.removeSync(tempDir, { recursive: true });
     } catch (error) {
       if (!(error instanceof Deno.errors.NotFound)) {
         throw error;
@@ -72,10 +78,10 @@ Deno.test("Config - File Operations", async (t) => {
 
     writeProjectFile(config);
 
-    const stats = Deno.statSync(testConfigDir);
+    const stats = Deno.statSync(join(tempDir, CONFIG_DIR));
     assertEquals(stats.isDirectory, true);
 
-    const fileStats = Deno.statSync(join(testConfigDir, PROJECT_FILE));
+    const fileStats = Deno.statSync(join(tempDir, CONFIG_DIR, PROJECT_FILE));
     assertEquals(fileStats.isFile, true);
   });
 
@@ -148,8 +154,8 @@ Deno.test("Config - File Operations", async (t) => {
   });
 
   await t.step("readProjectFile handles malformed JSON", () => {
-    Deno.mkdirSync(testConfigDir, { recursive: true });
-    Deno.writeTextFileSync(join(testConfigDir, PROJECT_FILE), "{ invalid json");
+    Deno.mkdirSync(join(tempDir, CONFIG_DIR), { recursive: true });
+    Deno.writeTextFileSync(join(tempDir, CONFIG_DIR, PROJECT_FILE), "{ invalid json");
 
     const result = readProjectFile();
     assertEquals(result, null);
@@ -170,11 +176,17 @@ Deno.test("Config - File Operations", async (t) => {
 });
 
 Deno.test("Config - setupProject", async (t) => {
-  const testConfigDir = join(Deno.cwd(), CONFIG_DIR);
+  const tempDir = await Deno.makeTempDir();
+  const originalCwd = Deno.cwd();
+  
+  // Mock Deno.cwd to return our temp directory
+  const cwdStub = stub(Deno, "cwd", () => tempDir);
 
   const cleanup = () => {
     try {
-      Deno.removeSync(testConfigDir, { recursive: true });
+      cwdStub.restore();
+      Deno.chdir(originalCwd);
+      Deno.removeSync(tempDir, { recursive: true });
     } catch (error) {
       if (!(error instanceof Deno.errors.NotFound)) {
         throw error;
@@ -233,6 +245,11 @@ Deno.test("Config - setupProject", async (t) => {
 });
 
 Deno.test("Config - Bunker URL Sanitization", async (t) => {
+  const tempDir = await Deno.makeTempDir();
+  const originalCwd = Deno.cwd();
+  
+  // Mock Deno.cwd to return our temp directory
+  const cwdStub = stub(Deno, "cwd", () => tempDir);
   await t.step("removes secret from bunker URL", () => {
     const config: ProjectConfig = {
       bunkerPubkey: "bunker://pubkey123?relay=wss://relay1&secret=mysecret&relay=wss://relay2",
@@ -288,7 +305,9 @@ Deno.test("Config - Bunker URL Sanitization", async (t) => {
 
   // Clean up
   try {
-    Deno.removeSync(join(Deno.cwd(), CONFIG_DIR), { recursive: true });
+    cwdStub.restore();
+    Deno.chdir(originalCwd);
+    Deno.removeSync(tempDir, { recursive: true });
   } catch {}
 });
 
@@ -682,7 +701,5 @@ Deno.test("Config File Handling - Edge Cases", async (t) => {
 // Clean up any remaining test files
 Deno.test("Cleanup", () => {
   restore();
-  try {
-    Deno.removeSync(join(Deno.cwd(), CONFIG_DIR), { recursive: true });
-  } catch {}
+  // No need to clean up here - each test cleans up its own temp directory
 });
