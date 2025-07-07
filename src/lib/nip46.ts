@@ -15,6 +15,7 @@ const log = createLogger("nip46");
 export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   0,
   10002,
+  10063,
   24242,
   34128,
 ]);
