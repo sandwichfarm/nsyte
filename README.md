@@ -19,7 +19,7 @@ For more nsite related tools and services check out [awesome-nsite](https://gith
 ## Quick Start
 
 ```bash
-# Install from JSR
+# Install from bash script
 curl -fsSL https://nsyte.run/get/install.sh | bash
 
 # Initialize project (interactive setup)
