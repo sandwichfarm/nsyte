@@ -29,7 +29,7 @@ The script will automatically:
 - Install using the best available method
 - Fall back to downloading the latest binary if no package managers are found
 
-## Package Managers
+<!-- ## Package Managers
 
 ### macOS
 
@@ -256,7 +256,7 @@ To view available versions:
 
 ```bash
 snap info nsyte
-```
+``` -->
 
 ## Universal Installation
 

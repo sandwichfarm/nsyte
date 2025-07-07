@@ -13,8 +13,8 @@ and Blossom servers, enabling decentralized, censorship-resistant website hostin
 ## Quick Start
 
 ```bash
-# Install nsyte (see installation guide for your platform)
-brew install sandwichfarm/tap/nsyte
+# Download and run install script
+curl -fsSL https://nsyte.run/get/install.sh | bash
 
 # Initialize your project
 nsyte init
