@@ -442,6 +442,9 @@ export async function connectBunker(
 
       const parsedPointer = parseBunkerUrl(bunkerUrl);
       bunkerPubkey = parsedPointer.pubkey;
+      log.debug(`Parsed bunker URL - pubkey: ${bunkerPubkey}, relays: ${parsedPointer.relays.join(', ')}`);
+      log.debug(`NostrConnectSigner.subscriptionMethod: ${NostrConnectSigner.subscriptionMethod}`);
+      log.debug(`NostrConnectSigner.publishMethod: ${NostrConnectSigner.publishMethod}`);
       signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
     }
 

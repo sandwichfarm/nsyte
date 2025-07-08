@@ -93,7 +93,10 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
 }> {
   try {
     log.info(`Connecting to bunker: ${bunkerUrl}`);
+    log.debug(`Pool subscription method: ${NostrConnectSigner.subscriptionMethod}`);
+    log.debug(`Pool publish method: ${NostrConnectSigner.publishMethod}`);
     const bunkerSigner = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+    log.debug("NostrConnectSigner created, attempting to get public key");
     const userPubkey = await bunkerSigner.getPublicKey();
 
     log.info(`Connected to bunker, user pubkey: ${userPubkey}`);

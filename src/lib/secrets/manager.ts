@@ -248,6 +248,17 @@ export class SecretsManager {
         const success = await this.storageBackend.store(pubkey, nbunksec);
         if (success) {
           log.debug(`Stored nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
+          
+          // If using keychain backend, also store in encrypted storage for indexing
+          if (this.storageBackend instanceof KeychainBackend) {
+            log.debug("Also storing in encrypted storage for indexing");
+            const encryptedStorage = new EncryptedStorage();
+            if (await encryptedStorage.initialize()) {
+              const encryptedBackend = new EncryptedBackend(encryptedStorage);
+              // Store a placeholder value just for indexing
+              await encryptedBackend.store(pubkey, "stored-in-keychain");
+            }
+          }
         }
         return success;
       } else if (this.legacyMode) {
@@ -300,8 +311,24 @@ export class SecretsManager {
     try {
       if (this.storageBackend) {
         log.debug("getAllPubkeys: Using storage backend to list");
-        const pubkeys = await this.storageBackend.list();
+        let pubkeys = await this.storageBackend.list();
         log.debug(`getAllPubkeys: Storage backend returned ${pubkeys.length} pubkeys`);
+        
+        // If keychain returns empty but we're using keychain backend,
+        // also check encrypted storage as a fallback for the list
+        if (pubkeys.length === 0 && this.storageBackend instanceof KeychainBackend) {
+          log.debug("Keychain list returned empty, checking encrypted storage for index");
+          const encryptedStorage = new EncryptedStorage();
+          if (await encryptedStorage.initialize()) {
+            const encryptedBackend = new EncryptedBackend(encryptedStorage);
+            const encryptedPubkeys = await encryptedBackend.list();
+            if (encryptedPubkeys.length > 0) {
+              log.debug(`Found ${encryptedPubkeys.length} pubkeys in encrypted storage index`);
+              pubkeys = encryptedPubkeys;
+            }
+          }
+        }
+        
         return pubkeys;
       } else if (this.legacyMode) {
         // Fallback to legacy storage
@@ -329,6 +356,16 @@ export class SecretsManager {
         const success = await this.storageBackend.delete(pubkey);
         if (success) {
           log.debug(`Deleted nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
+          
+          // If using keychain backend, also delete from encrypted storage index
+          if (this.storageBackend instanceof KeychainBackend) {
+            log.debug("Also deleting from encrypted storage index");
+            const encryptedStorage = new EncryptedStorage();
+            if (await encryptedStorage.initialize()) {
+              const encryptedBackend = new EncryptedBackend(encryptedStorage);
+              await encryptedBackend.delete(pubkey);
+            }
+          }
         }
         return success;
       } else if (this.legacyMode) {

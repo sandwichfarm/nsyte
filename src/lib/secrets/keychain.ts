@@ -131,53 +131,13 @@ class MacOSKeychain implements KeychainProvider {
 
   async list(service: string): Promise<string[]> {
     try {
-      // Use find-generic-password to get all matching items
-      const process = new Deno.Command("security", {
-        args: [
-          "find-generic-password",
-          "-s",
-          service,
-        ],
-        stdout: "piped",
-        stderr: "piped",
-      });
-
-      const result = await process.output();
-      
-      // Output goes to stdout when successful
-      const output = new TextDecoder().decode(result.stdout);
-      const errorOutput = new TextDecoder().decode(result.stderr);
-      
-      log.debug(`macOS Keychain list - exit code: ${result.code}`);
-      log.debug(`macOS Keychain list - stdout length: ${output.length}`);
-      log.debug(`macOS Keychain list - stderr: ${errorOutput}`);
-      
-      const accounts: string[] = [];
-
-      // Parse the output to find account names
-      // Format is like: "acct"<blob>="account_name"
-      const lines = output.split("\n");
-      
-      for (const line of lines) {
-        // Match account entries
-        const acctMatch = line.match(/"acct"<blob>="([^"]+)"/);
-        if (acctMatch && acctMatch[1]) {
-          log.debug(`Found account: ${acctMatch[1]}`);
-          accounts.push(acctMatch[1]);
-        }
-      }
-
-      log.debug(`macOS Keychain list - found ${accounts.length} accounts`);
-
-      // If we found at least one account, return them
-      if (accounts.length > 0) {
-        return [...new Set(accounts)];
-      }
-
-      // If no accounts found in stdout, there might be none
+      // Since macOS security command doesn't have a proper way to list all items for a service
+      // without requesting full keychain access, we'll return an empty array here.
+      // The SecretsManager will use its fallback mechanism (encrypted storage) for listing.
+      log.debug("macOS Keychain list not implemented to avoid full keychain access");
       return [];
     } catch (error) {
-      log.error(`Error listing credentials from macOS Keychain: ${error}`);
+      log.error(`Error in macOS Keychain list: ${error}`);
       return [];
     }
   }

@@ -21,8 +21,13 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
 ]);
 
 /** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
+if (!pool.subscription || !pool.publish) {
+  log.error("Pool methods not available. Pool:", pool);
+  throw new Error("Pool is not properly initialized");
+}
 NostrConnectSigner.subscriptionMethod = pool.subscription.bind(pool);
 NostrConnectSigner.publishMethod = pool.publish.bind(pool);
+log.debug("NostrConnectSigner methods set up successfully");
 
 /**
  * Helper function to render a QR code boolean array with a quiet zone to the console.
@@ -332,6 +337,10 @@ export async function importFromNbunk(
     const info = decodeBunkerInfo(nbunkString);
     const clientKey = hexToBytes(info.local_key);
 
+    log.debug(`Creating NostrConnectSigner with remote: ${info.pubkey}, relays: ${info.relays.join(', ')}`);
+    log.debug(`Pool subscription method: ${NostrConnectSigner.subscriptionMethod}`);
+    log.debug(`Pool publish method: ${NostrConnectSigner.publishMethod}`);
+
     const signer = new NostrConnectSigner({
       remote: info.pubkey,
       relays: info.relays,
@@ -339,6 +348,7 @@ export async function importFromNbunk(
     });
 
     try {
+      log.debug("Attempting to connect to bunker...");
       await signer.connect();
       log.info("Session established from nbunksec");
 
