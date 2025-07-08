@@ -10,6 +10,12 @@ mkdir -p dist
 echo "📄 Copying splash page..."
 cp website/src/index.html dist/
 
+# Copy website static files (including .well-known)
+echo "📁 Copying website static files..."
+if [ -d "website/static" ]; then
+  cp -r website/static/. dist/
+fi
+
 # Copy demo recording files
 echo "🎬 Copying demo files..."
 cp -r static/demo dist/
@@ -33,8 +39,9 @@ echo ""
 echo "Structure:"
 echo "  dist/"
 echo "  ├── index.html          (splash page)"
+echo "  ├── .well-known/        (nostr.json and other well-known files)"
 echo "  ├── demo/               (asciinema demos)"
-echo "  ├── install.sh           (install script)"
+echo "  ├── install.sh          (install script)"
 echo "  └── docs/               (documentation)"
 echo ""
 echo "🌐 Open dist/index.html to view the site"

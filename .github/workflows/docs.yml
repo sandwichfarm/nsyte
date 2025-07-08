@@ -20,15 +20,6 @@ jobs:
           # Build the complete site (splash + docs)
           ./scripts/build-site.sh
 
-          # Debug: List files to be deployed
-          echo "Files to be deployed:"
-          ls -la dist/
-          echo "Contents of dist/get:"
-          ls -la dist/get/
-
-          # Test: Try creating a simple text file at root to see if it uploads
-          echo "test" > dist/test.txt
-
           # Remove root-level .sh file - Bunny.net blocks shell scripts at root
           rm -f dist/install.sh
 
