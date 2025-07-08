@@ -68,21 +68,19 @@ jobs:
       - name: deploy nsite
         uses: sandwichfarm/nsite-action@multi-tool-support
         id: nsite_deploy
-        timeout-minutes: 15
+        timeout-minutes: 10
         with:
           directory: "./dist"
           nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
           fallback: "404.html"
           # nsyte_version: "v0.6.1"
           relays: |
-            wss://relay.nostr.band
-            wss://relay.damus.io
-            wss://nos.lol
             wss://relay.nsite.lol
           servers: |
             https://cdn.hzrd149.com/
-            https://cdn.sovbit.host
           publish_server_list: "true"
           publish_relay_list: "true"
           publish_profile: "true"
           purge: false
+          concurrency: 2
+          verbose: true
