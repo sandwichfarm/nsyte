@@ -16,9 +16,8 @@ theme:
     - navigation.tabs
     - navigation.top
     - search.highlight
-    - search.suggest
     - navigation.instant
-    - navigation.indexes
+    - content.code.copy
   custom_dir: docs/overrides
   palette:
     scheme: slate
@@ -49,6 +48,17 @@ markdown_extensions:
 
 plugins:
   - search
+  - minify:
+      minify_html: true
+      minify_css: true
+      minify_js: true
+      htmlmin_opts:
+        remove_comments: true
+        remove_empty_space: true
+      css_files:
+        - stylesheets/extra.css
+      js_files:
+        - javascripts/extra.js
 
 nav:
   - Home: https://nsyte.run/

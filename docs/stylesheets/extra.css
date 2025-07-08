@@ -1,5 +1,4 @@
 /* Cypherpunk theme for nsyte documentation */
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 /* Global cypherpunk variables - lower contrast */
 :root {
@@ -17,8 +16,8 @@
   --cyber-blue: #3b82f6;
   --cyber-warning: #f59e0b;
   --cyber-error: #ef4444;
-  --cyber-font-mono: "JetBrains Mono", "SF Mono", monospace;
-  --cyber-font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --cyber-font-mono: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --cyber-font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 /* Override Material theme variables */
