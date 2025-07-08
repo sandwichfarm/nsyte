@@ -22,6 +22,7 @@ import { registerCICommand } from "./commands/ci.ts";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerRunCommand } from "./commands/run.ts";
 import { registerServeCommand } from "./commands/serve.ts";
+import { registerPurgeCommand } from "./commands/purge.ts";
 import { setupProject } from "./lib/config.ts";
 import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
@@ -59,6 +60,7 @@ registerDownloadCommand(nsite);
 registerCICommand(nsite);
 registerRunCommand(nsite);
 registerServeCommand(nsite);
+registerPurgeCommand(nsite);
 
 /**
  * Display the nsyte header in a random color

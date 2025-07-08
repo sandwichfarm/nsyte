@@ -1,6 +1,11 @@
 {
   "relays": [
-    "wss://relay.nsite.lol"
+    "wss://relay.nsite.lol",
+    "wss://relay.damus.io",
+    "wss://relay.primal.net",
+    "wss://nos.lol",
+    "wss://relay.nostr.band",
+    "wss://relay.nsyte.run"
   ],
   "servers": [
     "https://cdn.hzrd149.com",
