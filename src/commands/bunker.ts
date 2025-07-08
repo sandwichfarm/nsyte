@@ -27,8 +27,10 @@ import {
   parseBunkerUrl,
 } from "../lib/nip46.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
+import { EncryptedStorage } from "../lib/secrets/encrypted-storage.ts";
 
 const log = createLogger("bunker-direct");
+const SERVICE_NAME = "nsyte";
 
 /**
  * Handle bunker commands directly without going through setupProject
@@ -111,6 +113,10 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
         await removeBunker(args[0]);
         Deno.exit(0);
         break;
+      case "migrate":
+        await migrateBunkers(args);
+        Deno.exit(0);
+        break;
       case "help":
         showBunkerHelp();
         Deno.exit(0);
@@ -159,6 +165,7 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("                                                      storage instead of OS keychain");
   console.log("  use <pubkey>             Configure current project to use a bunker");
   console.log("  remove <pubkey>          Remove a bunker from storage");
+  console.log("  migrate [pubkeys...]     Rebuild index for existing keychain bunkers");
   console.log("  help                     Show this help information\n");
 
   console.log(colors.cyan("Connection examples:"));
@@ -647,5 +654,93 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     }
   } else {
     console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+  }
+}
+
+/**
+ * Migrate existing keychain bunkers to the new indexed system
+ */
+export async function migrateBunkers(pubkeys?: string[]): Promise<void> {
+  const secretsManager = SecretsManager.getInstance();
+  await secretsManager.initialize();
+
+  if (!pubkeys || pubkeys.length === 0) {
+    console.log(colors.cyan("Bunker Migration"));
+    console.log("\nThis command rebuilds the index for bunkers stored in your keychain.");
+    console.log("Since macOS doesn't allow listing keychain entries without full access,");
+    console.log("you need to provide the pubkeys of bunkers you want to index.\n");
+    
+    console.log(colors.yellow("Usage:"));
+    console.log("  nsyte bunker migrate <pubkey1> [pubkey2] [pubkey3] ...\n");
+    
+    console.log(colors.yellow("Example:"));
+    console.log("  nsyte bunker migrate fa02cb9a30d5898aabd69c4b37f40c31c61b3dcd9781e571b2ee25e5a1e74a5b\n");
+    
+    console.log("To find your bunker pubkeys:");
+    console.log("1. Check your project's .nsite/config.json files");
+    console.log("2. Look in your bunker app (e.g., Amber, nsec.app)");
+    console.log("3. Check your CI/CD secrets for NBUNK_SECRET values");
+    
+    return;
+  }
+
+  console.log(colors.cyan("Migrating bunkers to indexed storage...\n"));
+
+  // First, check which pubkeys exist in keychain (this will prompt for password once)
+  const existingBunkers: { pubkey: string; nbunkString: string }[] = [];
+  
+  console.log("Checking keychain for bunkers (you may be prompted for your password)...");
+  
+  for (const pubkey of pubkeys) {
+    try {
+      const nbunkString = await secretsManager.getNbunk(pubkey);
+      if (nbunkString) {
+        existingBunkers.push({ pubkey, nbunkString });
+        console.log(colors.dim(`  Found ${pubkey.slice(0, 8)}...`));
+      } else {
+        console.log(colors.yellow(`  Not found: ${pubkey.slice(0, 8)}...`));
+      }
+    } catch (error) {
+      console.log(colors.red(`  Error checking ${pubkey.slice(0, 8)}...: ${error}`));
+    }
+  }
+
+  if (existingBunkers.length === 0) {
+    console.log(colors.yellow("\nNo bunkers found in keychain."));
+    return;
+  }
+
+  // Now migrate them all at once (should not require additional password prompts)
+  console.log(`\nMigrating ${existingBunkers.length} bunkers to index...`);
+  
+  let migrated = 0;
+  for (const { pubkey, nbunkString } of existingBunkers) {
+    try {
+      // Just update the index, don't re-store in keychain
+      const encryptedStorage = new EncryptedStorage();
+      if (await encryptedStorage.initialize()) {
+        const success = await encryptedStorage.store(SERVICE_NAME, pubkey, "stored-in-keychain");
+        if (success) {
+          console.log(colors.green(`✓ Indexed ${pubkey.slice(0, 8)}...`));
+          migrated++;
+        } else {
+          console.log(colors.red(`✗ Failed to index ${pubkey.slice(0, 8)}...`));
+        }
+      }
+    } catch (error) {
+      console.log(colors.red(`✗ Error indexing ${pubkey.slice(0, 8)}...: ${error}`));
+    }
+  }
+
+  console.log(colors.cyan(`\nMigration complete:`));
+  console.log(`  ${colors.green(migrated.toString())} bunkers indexed`);
+  const notFound = pubkeys.length - existingBunkers.length;
+  if (notFound > 0) {
+    console.log(`  ${colors.yellow(notFound.toString())} pubkeys not found in keychain`);
+  }
+  
+  if (migrated > 0) {
+    console.log(colors.green("\n✓ Your bunkers are now indexed for faster access"));
+    console.log("Run 'nsyte bunker list' to see all bunkers");
   }
 }

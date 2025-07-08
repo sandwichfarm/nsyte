@@ -8,6 +8,7 @@ const log = createLogger("secrets-manager");
 
 const SECRETS_FILENAME = "secrets.json";
 const SERVICE_NAME = "nsyte";
+const BUNDLE_ACCOUNT = "bunker-bundle"; // Single keychain entry for all bunkers
 
 /**
  * Interface for the secrets storage file (legacy)
@@ -148,9 +149,108 @@ export class SecretsManager {
 
     // Check for legacy secrets that need migration
     await this.migrateLegacySecrets();
+    
+    // Rebuild index for existing keychain entries
+    await this.rebuildKeychainIndex();
 
     this.initialized = true;
     return true;
+  }
+
+  /**
+   * Rebuild the encrypted storage index for existing keychain entries
+   * This is needed when upgrading from older versions that didn't maintain an index
+   */
+  private async rebuildKeychainIndex(): Promise<void> {
+    // Only rebuild if we're using keychain backend
+    if (!(this.storageBackend instanceof KeychainBackend)) {
+      return;
+    }
+
+    try {
+      log.debug("Checking if keychain index needs to be rebuilt");
+      
+      // Initialize encrypted storage to check/build index
+      const encryptedStorage = new EncryptedStorage();
+      if (!await encryptedStorage.initialize()) {
+        log.warn("Could not initialize encrypted storage for index");
+        return;
+      }
+      
+      const encryptedBackend = new EncryptedBackend(encryptedStorage);
+      const indexedPubkeys = await encryptedBackend.list();
+      
+      // Try to find known pubkeys in keychain by checking common patterns
+      // Since we can't list the keychain, we'll check for known pubkeys from config files
+      const knownPubkeys = new Set<string>();
+      
+      // Check project configs for bunker pubkeys
+      const projectPaths = [
+        Deno.cwd(),
+        join(Deno.env.get("HOME") || "", "Develop"),
+      ];
+      
+      for (const basePath of projectPaths) {
+        try {
+          // Look for .nsite directories
+          for await (const entry of Deno.readDir(basePath)) {
+            if (entry.isDirectory) {
+              const configPath = join(basePath, entry.name, ".nsite", "config.json");
+              try {
+                const config = JSON.parse(await Deno.readTextFile(configPath));
+                if (config.bunkerPubkey) {
+                  knownPubkeys.add(config.bunkerPubkey);
+                }
+              } catch {
+                // Ignore files that don't exist or can't be parsed
+              }
+            }
+          }
+        } catch {
+          // Ignore directories we can't read
+        }
+      }
+      
+      // Also check for a migration marker file
+      const migrationMarkerPath = join(Deno.env.get("HOME") || "", "Library", "Application Support", "nsyte", ".index-migration-done");
+      
+      try {
+        await Deno.stat(migrationMarkerPath);
+        // Migration already done
+        log.debug("Keychain index migration already completed");
+        return;
+      } catch {
+        // Migration not done yet, continue
+      }
+      
+      // Since we can't list keychain entries on macOS without full access,
+      // we'll use a different approach: prompt the user to run a one-time migration
+      if (knownPubkeys.size > 0 || indexedPubkeys.length === 0) {
+        log.warn("Keychain index needs to be rebuilt for multiple bunker support");
+        log.warn("Run 'nsyte bunker migrate' to rebuild the index with your existing bunkers");
+        
+        // Check known pubkeys anyway
+        let addedToIndex = 0;
+        for (const pubkey of knownPubkeys) {
+          if (!indexedPubkeys.includes(pubkey)) {
+            const value = await this.storageBackend.retrieve(pubkey);
+            if (value) {
+              await encryptedBackend.store(pubkey, "stored-in-keychain");
+              addedToIndex++;
+              log.info(`Added ${pubkey.slice(0, 8)}... to index`);
+            }
+          }
+        }
+        
+        if (addedToIndex > 0) {
+          log.info(`Partially rebuilt index with ${addedToIndex} discovered keychain entries`);
+        }
+      }
+      
+      // Don't create marker yet - wait for full migration
+    } catch (error) {
+      log.error(`Failed to rebuild keychain index: ${error}`);
+    }
   }
 
   /**

@@ -43,6 +43,32 @@ class MacOSKeychain implements KeychainProvider {
     }
   }
 
+  /**
+   * Unlock the keychain for a session to avoid multiple password prompts
+   * This is called before batch operations
+   */
+  async unlockKeychain(): Promise<boolean> {
+    try {
+      // Try to unlock the default keychain
+      const process = new Deno.Command("security", {
+        args: ["unlock-keychain"],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      
+      const result = await process.output();
+      if (result.code === 0) {
+        log.debug("Keychain unlocked for session");
+        return true;
+      }
+      
+      // If it fails, it might prompt for password
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   async store(credential: KeychainCredential): Promise<boolean> {
     try {
       // First, try to delete any existing credential

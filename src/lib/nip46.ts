@@ -22,7 +22,7 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
 
 /** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
 if (!pool.subscription || !pool.publish) {
-  log.error("Pool methods not available. Pool:", pool);
+  log.error("Pool methods not available");
   throw new Error("Pool is not properly initialized");
 }
 NostrConnectSigner.subscriptionMethod = pool.subscription.bind(pool);
