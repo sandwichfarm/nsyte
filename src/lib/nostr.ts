@@ -135,6 +135,89 @@ export async function fetchFileEvents(
   }
 }
 
+/** Fetch release events from nostr relays */
+export async function fetchReleaseEvents(
+  relays: string[],
+  pubkey: string,
+  dTag: string,
+): Promise<NostrEvent[]> {
+  log.debug(`Fetching release events for ${pubkey} with d-tag ${dTag} from ${relays.join(", ")}`);
+
+  try {
+    // Create tmp event store to deduplicate events
+    const store = new EventStore();
+    return await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [30063],
+          authors: [pubkey],
+          "#d": [dTag],
+        })
+        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+    );
+  } catch (error) {
+    log.error(`Error fetching release events: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/** Fetch file metadata events from nostr relays */
+export async function fetchFileMetadataEvents(
+  relays: string[],
+  pubkey: string,
+  eventIds: string[],
+): Promise<NostrEvent[]> {
+  log.debug(`Fetching file metadata events for ${eventIds.length} IDs from ${relays.join(", ")}`);
+
+  try {
+    // Create tmp event store to deduplicate events
+    const store = new EventStore();
+    return await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [1063],
+          authors: [pubkey],
+          ids: eventIds,
+        })
+        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+    );
+  } catch (error) {
+    log.error(`Error fetching file metadata events: ${getErrorMessage(error)}`);
+    return [];
+  }
+}
+
+/**
+ * Fetch NIP-82 software application events
+ */
+export async function fetchSoftwareApplicationEvent(
+  relays: string[],
+  pubkey: string,
+  appId: string,
+): Promise<NostrEvent | null> {
+  log.debug(`Fetching software application event for ${appId} from ${relays.join(", ")}`);
+
+  try {
+    // Create tmp event store to deduplicate events
+    const store = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [32267],
+          authors: [pubkey],
+          "#d": [appId],
+        })
+        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+    );
+
+    // Return the most recent event
+    return events.length > 0 ? events[0] : null;
+  } catch (error) {
+    log.error(`Error fetching software application event: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
 /** Get a list of remote files for a user */
 export async function listRemoteFiles(
   relays: string[],
@@ -315,7 +398,17 @@ export async function createDeleteEvent(
 export async function createAppHandlerEvent(
   signer: Signer,
   kinds: number[],
-  gatewayUrl: string,
+  handlers: {
+    web?: {
+      url: string;
+      patterns?: Array<{ url: string; entities?: string[] }>;
+    };
+    android?: string;
+    ios?: string;
+    macos?: string;
+    windows?: string;
+    linux?: string;
+  },
   metadata?: {
     name?: string;
     description?: string;
@@ -332,12 +425,37 @@ export async function createAppHandlerEvent(
     tags.push(["k", kind.toString()]);
   }
 
-  // Add web handler URLs
-  // These URLs will have the bech32 entity replaced by the client
-  tags.push(["web", `${gatewayUrl}/<bech32>`, "nevent"]);
-  tags.push(["web", `${gatewayUrl}/<bech32>`, "naddr"]);
-  tags.push(["web", `${gatewayUrl}/<bech32>`, "note"]);
-  tags.push(["web", `${gatewayUrl}/<bech32>`]); // Generic handler
+  // Add web handler URLs following NIP-89 spec
+  if (handlers.web) {
+    const { url, patterns } = handlers.web;
+    if (patterns && patterns.length > 0) {
+      // Use custom patterns if provided - these should be full URLs
+      for (const pattern of patterns) {
+        if (pattern.entities && pattern.entities.length > 0) {
+          // Add handler with specific entity types
+          for (const entity of pattern.entities) {
+            tags.push(["web", pattern.url, entity]);
+          }
+        } else {
+          // Add handler without entity type restriction
+          tags.push(["web", pattern.url]);
+        }
+      }
+    } else {
+      // Default patterns following NIP-89 spec
+      tags.push(["web", `${url}/e/<bech32>`, "nevent"]);
+      tags.push(["web", `${url}/a/<bech32>`, "naddr"]);
+      tags.push(["web", `${url}/p/<bech32>`, "nprofile"]);
+      tags.push(["web", `${url}/e/<bech32>`]); // Generic event handler
+    }
+  }
+
+  // Add native platform handlers
+  if (handlers.android) tags.push(["android", handlers.android]);
+  if (handlers.ios) tags.push(["ios", handlers.ios]);
+  if (handlers.macos) tags.push(["macos", handlers.macos]);
+  if (handlers.windows) tags.push(["windows", handlers.windows]);
+  if (handlers.linux) tags.push(["linux", handlers.linux]);
 
   // Optional metadata content
   let content = "";
@@ -350,6 +468,176 @@ export async function createAppHandlerEvent(
     created_at: Math.floor(Date.now() / 1000),
     tags,
     content,
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a NIP-89 recommendation event (kind 31989)
+ * This is published by users to recommend an app for handling specific event kinds
+ */
+export async function createAppRecommendationEvent(
+  signer: Signer,
+  eventKind: number,
+  handlerAddress: {
+    pubkey: string;
+    relay?: string;
+    identifier: string;
+  },
+): Promise<NostrEvent> {
+  const tags: string[][] = [
+    ["d", eventKind.toString()],
+    ["a", `31990:${handlerAddress.pubkey}:${handlerAddress.identifier}`, handlerAddress.relay || ""],
+    ["client", "nsyte"],
+  ];
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 31989,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a NIP-94 file metadata event (kind 1063)
+ * This announces file metadata for a release archive
+ */
+export async function createFileMetadataEvent(
+  signer: Signer,
+  file: {
+    url: string;
+    mimeType: string;
+    sha256: string;
+    size: number;
+    platforms?: string[];
+  },
+  description: string,
+): Promise<NostrEvent> {
+  const tags: string[][] = [
+    ["url", file.url],
+    ["m", file.mimeType],
+    ["x", file.sha256],
+    ["size", file.size.toString()],
+    ["client", "nsyte"],
+  ];
+
+  // Add platform tags if provided
+  if (file.platforms) {
+    file.platforms.forEach(platform => tags.push(["f", platform]));
+  }
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 1063,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: description,
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a NIP-82 software application event (kind 32267)
+ * This describes the software application metadata
+ */
+export async function createSoftwareApplicationEvent(
+  signer: Signer,
+  appId: string,
+  metadata: {
+    name: string;
+    summary?: string;
+    content?: string;
+    icon?: string;
+    image?: string[];
+    tags?: string[];
+    url?: string;
+    repository?: string;
+    platforms: string[];
+    license?: string;
+  },
+): Promise<NostrEvent> {
+  const tags: string[][] = [
+    ["d", appId],
+    ["name", metadata.name],
+    ["client", "nsyte"],
+  ];
+
+  if (metadata.summary) {
+    tags.push(["summary", metadata.summary]);
+  }
+  if (metadata.icon) {
+    tags.push(["icon", metadata.icon]);
+  }
+  if (metadata.image) {
+    metadata.image.forEach(img => tags.push(["image", img]));
+  }
+  if (metadata.tags) {
+    metadata.tags.forEach(tag => tags.push(["t", tag]));
+  }
+  if (metadata.url) {
+    tags.push(["url", metadata.url]);
+  }
+  if (metadata.repository) {
+    tags.push(["repository", metadata.repository]);
+  }
+  if (metadata.license) {
+    tags.push(["license", metadata.license]);
+  }
+
+  // Add platform tags (required)
+  metadata.platforms.forEach(platform => tags.push(["f", platform]));
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 32267,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: metadata.content || "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a NIP-51 release artifact set event (kind 30063)
+ * This groups file metadata events for a specific release version
+ */
+export async function createReleaseArtifactSetEvent(
+  signer: Signer,
+  projectName: string,
+  version: string,
+  fileMetadataEventIds: string | string[],
+  releaseNotes: string,
+  applicationId?: string,
+): Promise<NostrEvent> {
+  const dTag = `${projectName}@${version}`;
+  
+  const tags: string[][] = [
+    ["d", dTag],
+    ["version", version],
+    ["client", "nsyte"],
+  ];
+  
+  // Add reference to parent application event if provided
+  if (applicationId) {
+    const pubkey = await signer.getPublicKey();
+    tags.push(["a", `32267:${pubkey}:${applicationId}`]);
+  }
+  
+  // Add event references - support both single ID and array of IDs
+  const eventIds = Array.isArray(fileMetadataEventIds) ? fileMetadataEventIds : [fileMetadataEventIds];
+  for (const eventId of eventIds) {
+    tags.push(["e", eventId]); // Reference to NIP-94 file metadata events
+  }
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 30063,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: releaseNotes,
   };
 
   return await signer.signEvent(eventTemplate);

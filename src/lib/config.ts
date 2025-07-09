@@ -7,6 +7,7 @@ import { createLogger } from "./logger.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
+import { validateConfigWithFeedback, formatValidationErrors } from "./config-validator.ts";
 
 const log = createLogger("config");
 
@@ -36,6 +37,31 @@ export type ProjectConfig = {
     kinds: number[]; // Event kinds this nsite can handle/display
     name?: string; // Optional app name for the handler
     description?: string; // Optional description
+    platforms?: {
+      web?: {
+        patterns?: Array<{
+          url: string; // Full URL pattern (e.g., "https://example.com/e/<bech32>")
+          entities?: string[];
+        }>;
+      };
+      android?: string;
+      ios?: string;
+      macos?: string;
+      windows?: string;
+      linux?: string;
+    };
+  };
+  publishFileMetadata?: boolean; // NIP-94 file metadata events
+  application?: {
+    // NIP-82 Software Application metadata
+    id?: string; // Reverse-domain identifier (e.g., "com.example.app")
+    summary?: string; // Short description
+    icon?: string; // Icon URL
+    images?: string[]; // Additional image URLs
+    tags?: string[]; // Descriptive tags
+    repository?: string; // Source code repository URL
+    platforms?: string[]; // Platform identifiers (e.g., "web", "android", "ios")
+    license?: string; // SPDX license ID
   };
 };
 
@@ -136,7 +162,7 @@ export function writeProjectFile(config: ProjectConfig): void {
 /**
  * Read project configuration from file
  */
-export function readProjectFile(): ProjectConfig | null {
+export function readProjectFile(validateSchema = true): ProjectConfig | null {
   const projectPath = join(Deno.cwd(), configDir, projectFile);
 
   try {
@@ -146,7 +172,31 @@ export function readProjectFile(): ProjectConfig | null {
     }
 
     const fileContent = Deno.readTextFileSync(projectPath);
-    return JSON.parse(fileContent) as ProjectConfig;
+    const config = JSON.parse(fileContent);
+    
+    // Validate configuration if requested
+    if (validateSchema) {
+      const validation = validateConfigWithFeedback(config);
+      
+      if (!validation.valid) {
+        console.error(colors.red("Configuration validation failed:"));
+        console.error(formatValidationErrors(validation.errors));
+        
+        if (validation.suggestions.length > 0) {
+          console.log(colors.yellow("\nSuggestions:"));
+          validation.suggestions.forEach(s => console.log(`  - ${s}`));
+        }
+        
+        throw new Error("Invalid configuration format");
+      }
+      
+      if (validation.warnings.length > 0) {
+        console.warn(colors.yellow("Configuration warnings:"));
+        validation.warnings.forEach(w => console.warn(`  - ${w}`));
+      }
+    }
+    
+    return config as ProjectConfig;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);

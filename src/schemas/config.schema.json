@@ -1,0 +1,281 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nsyte.run/schemas/config.schema.json",
+  "title": "nsyte Configuration Schema",
+  "description": "Schema for nsyte project configuration files (.nsite/config.json)",
+  "type": "object",
+  "properties": {
+    "bunkerPubkey": {
+      "type": "string",
+      "description": "Public key reference for NIP-46 bunker connection",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "relays": {
+      "type": "array",
+      "description": "List of Nostr relay URLs to publish events to",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^wss?://"
+      },
+      "uniqueItems": true
+    },
+    "servers": {
+      "type": "array",
+      "description": "List of Blossom server URLs for file storage",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https?://"
+      },
+      "uniqueItems": true
+    },
+    "profile": {
+      "type": "object",
+      "description": "Nostr profile metadata (NIP-01)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Profile name"
+        },
+        "about": {
+          "type": "string",
+          "description": "Profile description/bio"
+        },
+        "picture": {
+          "type": "string",
+          "format": "uri",
+          "description": "Profile picture URL"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "description": "Website URL"
+        },
+        "nip05": {
+          "type": "string",
+          "description": "NIP-05 identifier (e.g., user@domain.com)"
+        },
+        "lud16": {
+          "type": "string",
+          "description": "Lightning address"
+        },
+        "banner": {
+          "type": "string",
+          "format": "uri",
+          "description": "Banner image URL"
+        }
+      },
+      "additionalProperties": false
+    },
+    "publishServerList": {
+      "type": "boolean",
+      "description": "Whether to publish server list (kind 10063) to Nostr",
+      "default": false
+    },
+    "publishRelayList": {
+      "type": "boolean",
+      "description": "Whether to publish relay list (kind 10002) to Nostr",
+      "default": false
+    },
+    "publishProfile": {
+      "type": "boolean",
+      "description": "Whether to publish profile metadata (kind 0) to Nostr",
+      "default": false
+    },
+    "publishFileMetadata": {
+      "type": "boolean",
+      "description": "Whether to publish NIP-94 file metadata for release artifacts",
+      "default": false
+    },
+    "fallback": {
+      "type": "string",
+      "description": "HTML file to use as 404.html for client-side routing"
+    },
+    "gatewayHostnames": {
+      "type": "array",
+      "description": "List of gateway hostnames that can serve this nsite",
+      "items": {
+        "type": "string",
+        "format": "hostname"
+      },
+      "default": ["nsite.lol"],
+      "uniqueItems": true
+    },
+    "appHandler": {
+      "type": "object",
+      "description": "NIP-89 app handler configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to publish app handler events",
+          "default": false
+        },
+        "kinds": {
+          "type": "array",
+          "description": "Event kinds this nsite can handle/display",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "uniqueItems": true
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional app name for the handler"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of what the handler does"
+        },
+        "platforms": {
+          "type": "object",
+          "description": "Platform-specific handler configurations",
+          "properties": {
+            "web": {
+              "type": "object",
+              "description": "Web platform handler configuration",
+              "properties": {
+                "patterns": {
+                  "type": "array",
+                  "description": "Custom URL patterns for handling entities",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Full URL pattern (e.g., 'https://example.com/e/<bech32>')",
+                        "pattern": "^https?://.+"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "description": "Supported entity types for this pattern",
+                        "items": {
+                          "type": "string",
+                          "enum": ["nevent", "naddr", "nprofile", "note", "npub"]
+                        }
+                      }
+                    },
+                    "required": ["url"]
+                  }
+                }
+              }
+            },
+            "android": {
+              "type": "string",
+              "description": "Android app intent URL or package name"
+            },
+            "ios": {
+              "type": "string",
+              "description": "iOS app URL scheme or universal link"
+            },
+            "macos": {
+              "type": "string",
+              "description": "macOS app URL scheme or bundle identifier"
+            },
+            "windows": {
+              "type": "string",
+              "description": "Windows app protocol or executable path"
+            },
+            "linux": {
+              "type": "string",
+              "description": "Linux app command or desktop file"
+            }
+          }
+        }
+      },
+      "required": ["enabled", "kinds"],
+      "additionalProperties": false
+    },
+    "application": {
+      "type": "object",
+      "description": "NIP-82 software application metadata",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Reverse-domain identifier (e.g., com.example.app)",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9._-]*$"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short description (no markdown)",
+          "maxLength": 280
+        },
+        "icon": {
+          "type": "string",
+          "format": "uri",
+          "description": "Icon URL"
+        },
+        "images": {
+          "type": "array",
+          "description": "Additional image URLs (screenshots, etc.)",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Descriptive tags for the application",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Source code repository URL (must be git-cloneable)",
+          "pattern": "^https?://.*\\.git$|^https?://github\\.com/|^https?://gitlab\\.com/|^https?://codeberg\\.org/"
+        },
+        "platforms": {
+          "type": "array",
+          "description": "Supported platforms",
+          "items": {
+            "type": "string",
+            "enum": ["web", "linux", "windows", "macos", "android", "ios"]
+          },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier",
+          "examples": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "ISC", "MPL-2.0"]
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["relays", "servers"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "relays": ["wss://relay.damus.io", "wss://nos.lol"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "publishServerList": true,
+      "publishRelayList": true
+    },
+    {
+      "relays": ["wss://relay.damus.io"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "profile": {
+        "name": "My Project",
+        "about": "A decentralized application"
+      },
+      "publishProfile": true,
+      "publishFileMetadata": true,
+      "application": {
+        "id": "com.example.myapp",
+        "summary": "A powerful decentralized app",
+        "platforms": ["web", "linux", "windows"]
+      }
+    }
+  ]
+}

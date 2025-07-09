@@ -2,7 +2,8 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
 import { copy } from "@std/fs/copy";
-import { join } from "@std/path";
+import { basename, join } from "@std/path";
+import { createTarGzArchive, calculateSha256, detectPlatformsFromFileName } from "../lib/archive.ts";
 import {
   defaultConfig,
   type ProjectConfig,
@@ -18,10 +19,16 @@ import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
 import {
   createAppHandlerEvent,
+  createFileMetadataEvent,
   createNip46ClientFromUrl,
   createProfileEvent,
   createRelayListEvent,
+  createReleaseArtifactSetEvent,
   createServerListEvent,
+  createSoftwareApplicationEvent,
+  fetchFileMetadataEvents,
+  fetchReleaseEvents,
+  fetchSoftwareApplicationEvent,
   type FileEntry,
   listRemoteFiles,
   NSITE_KIND,
@@ -82,6 +89,9 @@ export interface UploadCommandOptions {
   publishProfile: boolean;
   appHandler: boolean;
   handlerKinds?: string;
+  version?: string;
+  publishFileMetadata: boolean;
+  releaseArtifacts?: string;
   nonInteractive: boolean;
 }
 
@@ -123,6 +133,11 @@ export function registerUploadCommand(program: Command): void {
       default: false,
     })
     .option("--handler-kinds <kinds:string>", "Event kinds this nsite can handle (comma separated).")
+    .option("--publish-file-metadata", "Publish NIP-94 file metadata for release archives.", {
+      default: false,
+    })
+    .option("--version <version:string>", "Version tag for the release (e.g., v1.0.0, latest).")
+    .option("--release-artifacts <paths:string>", "Comma-separated paths to existing archives (tar.gz, zip) to publish as release artifacts.")
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
@@ -202,7 +217,7 @@ export async function uploadCommand(
     );
 
     await maybeProcessFiles(toTransfer, toDelete);
-    await maybePublishMetadata();
+    await maybePublishMetadata(includedFiles);
 
     if (
       includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 &&
@@ -1060,9 +1075,9 @@ async function processFallbackFile(): Promise<void> {
 }
 
 /**
- * Publish metadata to relays (profile, relay list, server list)
+ * Publish metadata to relays (profile, relay list, server list, app handler, file metadata)
  */
-async function maybePublishMetadata(): Promise<void> {
+async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   log.debug("maybePublishMetadata called");
 
   // Check both command-line options AND config settings
@@ -1167,10 +1182,28 @@ async function maybePublishMetadata(): Promise<void> {
               }
             : undefined;
 
+          // Prepare handlers object
+          const handlers: any = {
+            web: {
+              url: gatewayUrl,
+              patterns: config.appHandler?.platforms?.web?.patterns,
+            },
+          };
+
+          // Add other platform handlers if configured
+          if (config.appHandler?.platforms) {
+            const { android, ios, macos, windows, linux } = config.appHandler.platforms;
+            if (android) handlers.android = android;
+            if (ios) handlers.ios = ios;
+            if (macos) handlers.macos = macos;
+            if (windows) handlers.windows = windows;
+            if (linux) handlers.linux = linux;
+          }
+
           const handlerEvent = await createAppHandlerEvent(
             signer,
             kinds,
-            gatewayUrl,
+            handlers,
             metadata,
           );
           log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
@@ -1180,6 +1213,352 @@ async function maybePublishMetadata(): Promise<void> {
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);
         log.error(`App handler publication error: ${getErrorMessage(e)}`);
+      }
+    }
+
+    // NIP-94 file metadata publishing
+    const shouldPublishFileMetadata = options.publishFileMetadata || 
+      (config.publishFileMetadata ?? false);
+    
+    if (shouldPublishFileMetadata) {
+      if (!options.version) {
+        statusDisplay.error("NIP-94 file metadata requires --version flag");
+        log.error("Attempting to publish file metadata without version specified");
+        console.error(colors.red("Error: When publishing file metadata (NIP-94), you must specify a version with --version"));
+        Deno.exit(1);
+      }
+
+      try {
+        const publisherPubkey = await signer.getPublicKey();
+        const projectName = config.profile?.name || "nsyte-project";
+        
+        // Prepare archives to upload
+        const archivesToUpload: FileEntry[] = [];
+        
+        if (options.releaseArtifacts) {
+          // Use user-provided archives
+          statusDisplay.update("Processing user-provided release artifacts...");
+          
+          const artifactPaths = options.releaseArtifacts.split(",").map(p => p.trim());
+          
+          for (const artifactPath of artifactPaths) {
+            try {
+              const fullPath = join(Deno.cwd(), artifactPath);
+              const fileInfo = await Deno.stat(fullPath);
+              
+              if (!fileInfo.isFile) {
+                throw new Error(`${artifactPath} is not a file`);
+              }
+              
+              const data = await Deno.readFile(fullPath);
+              const fileName = basename(artifactPath);
+              
+              // Determine content type based on file extension
+              let contentType = "application/octet-stream";
+              if (fileName.endsWith(".tar.gz") || fileName.endsWith(".tgz")) {
+                contentType = "application/gzip";
+              } else if (fileName.endsWith(".zip")) {
+                contentType = "application/zip";
+              } else if (fileName.endsWith(".tar")) {
+                contentType = "application/x-tar";
+              }
+              
+              archivesToUpload.push({
+                path: fileName,
+                data,
+                size: data.length,
+                sha256: await calculateSha256(data),
+                contentType,
+              });
+              
+              statusDisplay.success(`Loaded archive: ${fileName} (${formatFileSize(data.length)})`);
+            } catch (e) {
+              throw new Error(`Failed to load archive ${artifactPath}: ${e}`);
+            }
+          }
+        } else {
+          // Create archive from uploaded files
+          statusDisplay.update("Creating release archive...");
+          
+          const archiveName = `${projectName}-${options.version}.tar.gz`;
+          const archivePath = join(Deno.cwd(), archiveName);
+          
+          const archive = await createTarGzArchive(
+            includedFiles,
+            targetDir,
+            archivePath
+          );
+
+          statusDisplay.success(`Created archive: ${archiveName} (${formatFileSize(archive.size)})`);
+          
+          archivesToUpload.push({
+            path: archiveName,
+            data: archive.data,
+            size: archive.size,
+            sha256: await calculateSha256(archive.data),
+            contentType: "application/gzip",
+          });
+        }
+
+        // Check for existing release to see which artifacts already exist
+        statusDisplay.update("Checking for existing release artifacts...");
+        
+        const dTag = `${projectName}@${options.version}`;
+        const existingReleases = await fetchReleaseEvents(resolvedRelays, publisherPubkey, dTag);
+        const existingArtifacts = new Map<string, { eventId: string; hash: string; fileName: string }>();
+        
+        if (existingReleases.length > 0) {
+          // Get the most recent release event
+          const existingRelease = existingReleases.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+          
+          // Extract existing file metadata event IDs
+          const existingEventIds = existingRelease.tags
+            .filter(tag => tag[0] === "e")
+            .map(tag => tag[1]);
+          
+          // Fetch the file metadata events to get their hashes and filenames
+          if (existingEventIds.length > 0) {
+            statusDisplay.update("Fetching existing artifact metadata...");
+            const fileMetadataEvents = await fetchFileMetadataEvents(resolvedRelays, publisherPubkey, existingEventIds);
+            
+            for (const event of fileMetadataEvents) {
+              const hashTag = event.tags.find(t => t[0] === "x");
+              const urlTag = event.tags.find(t => t[0] === "url");
+              
+              if (hashTag && urlTag) {
+                // Extract filename from content or URL
+                let fileName = "";
+                if (event.content) {
+                  // Try to extract filename from description
+                  const match = event.content.match(/Release [^-]+ - (.+)$/);
+                  if (match) {
+                    fileName = match[1];
+                  }
+                }
+                if (!fileName && urlTag[1]) {
+                  // Fallback to extracting from URL
+                  const urlParts = urlTag[1].split("/");
+                  fileName = urlParts[urlParts.length - 1];
+                }
+                
+                existingArtifacts.set(fileName, {
+                  eventId: event.id,
+                  hash: hashTag[1],
+                  fileName,
+                });
+              }
+            }
+          }
+        }
+        
+        // Upload archives to Blossom servers
+        statusDisplay.update("Processing archives...");
+        
+        const uploadedArchives: Array<{
+          archive: FileEntry;
+          url: string;
+          eventId?: string;
+        }> = [];
+        
+        const eventIdsToReplace = new Set<string>();
+        
+        for (const archive of archivesToUpload) {
+          const existingArtifact = existingArtifacts.get(archive.path);
+          
+          if (existingArtifact) {
+            if (existingArtifact.hash === archive.sha256!) {
+              // Same file, same hash - skip
+              statusDisplay.update(`Archive ${archive.path} already exists with same hash. Skipping.`);
+              continue;
+            } else {
+              // Same filename, different hash - will replace
+              statusDisplay.update(`Archive ${archive.path} has different hash. Will replace existing artifact.`);
+              eventIdsToReplace.add(existingArtifact.eventId);
+            }
+          }
+          
+          statusDisplay.update(`Uploading ${archive.path} to Blossom servers...`);
+          
+          const archiveUploads = await processUploads(
+            [archive],
+            Deno.cwd(),
+            resolvedServers,
+            signer,
+            resolvedRelays,
+            1,
+            () => {}, // No progress callback needed for single file
+          );
+
+          if (!archiveUploads[0]?.success) {
+            throw new Error(`Failed to upload archive ${archive.path}: ${archiveUploads[0]?.error || "Unknown error"}`);
+          }
+
+          // Find the first successful server to construct the URL
+          let archiveUrl: string | undefined;
+          for (const [server, result] of Object.entries(archiveUploads[0].serverResults)) {
+            if (result.success) {
+              const serverUrl = server.endsWith("/") ? server : `${server}/`;
+              archiveUrl = `${serverUrl}${archive.sha256}`;
+              break;
+            }
+          }
+
+          if (!archiveUrl) {
+            throw new Error(`Failed to get URL for archive ${archive.path} from any server`);
+          }
+
+          statusDisplay.success(`Archive ${archive.path} uploaded to: ${archiveUrl}`);
+
+          // Publish NIP-94 file metadata event for this archive
+          statusDisplay.update(`Publishing file metadata event for ${archive.path}...`);
+          
+          const description = `Release ${options.version} - ${archive.path}`;
+          
+          // Detect platforms from file name or use configured platforms
+          const detectedPlatforms = detectPlatformsFromFileName(archive.path);
+          const platforms = config.application?.platforms || detectedPlatforms;
+          
+          const fileMetadataEvent = await createFileMetadataEvent(
+            signer,
+            {
+              url: archiveUrl,
+              mimeType: archive.contentType || "application/octet-stream",
+              sha256: archive.sha256!,
+              size: archive.size!,
+              platforms,
+            },
+            description
+          );
+
+          await publishEventsToRelays(resolvedRelays, [fileMetadataEvent]);
+          statusDisplay.success(`File metadata event published for ${archive.path} (${fileMetadataEvent.id.slice(0, 8)}...)`);
+          
+          uploadedArchives.push({
+            archive,
+            url: archiveUrl,
+            eventId: fileMetadataEvent.id,
+          });
+        }
+        
+        // Skip updating release if no new artifacts were added
+        if (uploadedArchives.length === 0 && existingReleases.length > 0) {
+          statusDisplay.success("All artifacts already exist in the release. No updates needed.");
+          return;
+        }
+
+        // Create or update NIP-51 release artifact set
+        statusDisplay.update("Updating release artifact set...");
+        
+        // Collect new file metadata event IDs
+        const newFileMetadataEventIds = uploadedArchives.map(ua => ua.eventId!);
+        let allFileMetadataEventIds = [...newFileMetadataEventIds];
+        let releaseNotes = config.profile?.about || `${projectName} release ${options.version}`;
+        
+        // Check if we need to publish a software application event
+        let applicationEventId: string | undefined;
+        
+        if (config.application?.id) {
+          const appId = config.application.id;
+          
+          // Check if application event already exists
+          const existingAppEvent = await fetchSoftwareApplicationEvent(resolvedRelays, publisherPubkey, appId);
+          
+          if (!existingAppEvent) {
+            statusDisplay.update("Publishing software application metadata...");
+            
+            // Determine platforms - use configured or default to "web"
+            const platforms = config.application.platforms || ["web"];
+            
+            const appEvent = await createSoftwareApplicationEvent(
+              signer,
+              appId,
+              {
+                name: config.profile?.name || projectName,
+                summary: config.application.summary || config.profile?.about,
+                content: config.profile?.about || "",
+                icon: config.application.icon || config.profile?.picture,
+                image: config.application.images,
+                tags: config.application.tags,
+                url: config.profile?.website,
+                repository: config.application.repository,
+                platforms,
+                license: config.application.license,
+              }
+            );
+            
+            await publishEventsToRelays(resolvedRelays, [appEvent]);
+            applicationEventId = appEvent.id;
+            statusDisplay.success(`Software application event published for ${appId}`);
+          } else {
+            applicationEventId = existingAppEvent.id;
+            statusDisplay.update(`Using existing software application event for ${appId}`);
+          }
+        }
+        
+        if (existingReleases.length > 0) {
+          // Get the most recent release event
+          const existingRelease = existingReleases.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+          
+          // Extract existing file metadata event IDs
+          const existingEventIds = existingRelease.tags
+            .filter(tag => tag[0] === "e")
+            .map(tag => tag[1]);
+          
+          // Filter out event IDs that are being replaced
+          const keptEventIds = existingEventIds.filter(id => !eventIdsToReplace.has(id));
+          
+          // Combine kept events with new events
+          allFileMetadataEventIds = [...keptEventIds, ...newFileMetadataEventIds];
+          
+          // Keep existing release notes if they exist
+          if (existingRelease.content) {
+            releaseNotes = existingRelease.content;
+          }
+          
+          const replacedCount = eventIdsToReplace.size;
+          const addedCount = newFileMetadataEventIds.length - replacedCount;
+          
+          if (replacedCount > 0 && addedCount > 0) {
+            statusDisplay.update(`Replacing ${replacedCount} and adding ${addedCount} artifact(s) to release ${dTag}...`);
+          } else if (replacedCount > 0) {
+            statusDisplay.update(`Replacing ${replacedCount} artifact(s) in release ${dTag}...`);
+          } else {
+            statusDisplay.update(`Adding ${addedCount} artifact(s) to release ${dTag}...`);
+          }
+        } else {
+          statusDisplay.update(`Creating new release artifact set for ${dTag}...`);
+        }
+        
+        const releaseEvent = await createReleaseArtifactSetEvent(
+          signer,
+          projectName,
+          options.version,
+          allFileMetadataEventIds,
+          releaseNotes,
+          config.application?.id
+        );
+
+        await publishEventsToRelays(resolvedRelays, [releaseEvent]);
+        
+        const action = existingReleases.length > 0 ? "updated" : "published";
+        statusDisplay.success(`Release artifact set ${action} for ${projectName}@${options.version} with ${allFileMetadataEventIds.length} total artifact(s)`);
+
+        // Clean up local archive files if we created them
+        if (!options.releaseArtifacts) {
+          for (const uploadedArchive of uploadedArchives) {
+            const archivePath = join(Deno.cwd(), uploadedArchive.archive.path);
+            try {
+              await Deno.remove(archivePath);
+              log.debug(`Cleaned up archive file: ${archivePath}`);
+            } catch (e) {
+              log.warn(`Failed to clean up archive file ${archivePath}: ${e}`);
+            }
+          }
+        }
+
+      } catch (e: unknown) {
+        statusDisplay.error(`Failed to publish file metadata: ${getErrorMessage(e)}`);
+        log.error(`File metadata publication error: ${getErrorMessage(e)}`);
       }
     }
   } catch (e: unknown) {
