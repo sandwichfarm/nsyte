@@ -8,8 +8,6 @@
 A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.
 
-For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
-
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
 > florian [github](https://github.com/flox1an) [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc).
 > nsyte has been ported to deno and rewritten in the process. 
@@ -420,6 +418,11 @@ deno task test
 # Build binaries
 deno task compile:all
 ```
+
+## Resources
+
+- [nsite.run](https://nsite.run)
+- [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
 
 ## License
 
