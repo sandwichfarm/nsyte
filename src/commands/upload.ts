@@ -264,7 +264,24 @@ async function resolveContext(
 
   if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
-    const existingProjectData = readProjectFile() || defaultConfig;
+    let existingProjectData: ProjectConfig | null = null;
+    
+    try {
+      existingProjectData = readProjectFile();
+    } catch (error) {
+      // Configuration exists but is invalid
+      console.error(colors.red("\nConfiguration file exists but contains errors."));
+      console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+      return {
+        config: defaultConfig,
+        authKeyHex,
+        error: "Configuration validation failed",
+      };
+    }
+    
+    if (!existingProjectData) {
+      existingProjectData = defaultConfig;
+    }
 
     if (
       !options.servers &&
@@ -326,8 +343,21 @@ async function resolveContext(
     };
   } else {
     log.debug("Resolving project context in interactive mode.");
-    const currentProjectData = readProjectFile();
+    let currentProjectData: ProjectConfig | null = null;
     let keyFromInteractiveSetup: string | undefined;
+
+    try {
+      currentProjectData = readProjectFile();
+    } catch (error) {
+      // Configuration exists but is invalid
+      console.error(colors.red("\nConfiguration file exists but contains errors."));
+      console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+      return {
+        config: defaultConfig,
+        authKeyHex: undefined,
+        error: "Configuration validation failed",
+      };
+    }
 
     if (!currentProjectData) {
       log.info("No .nsite/config.json found, running initial project setup.");

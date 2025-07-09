@@ -172,20 +172,31 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
     }
 
     const fileContent = Deno.readTextFileSync(projectPath);
-    const config = JSON.parse(fileContent);
+    let config: unknown;
+    
+    try {
+      config = JSON.parse(fileContent);
+    } catch (e) {
+      console.error(colors.red("\nFailed to parse configuration file:"));
+      console.error(colors.red(`  ${e instanceof Error ? e.message : String(e)}`));
+      console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
+      throw new Error("Invalid JSON in configuration file");
+    }
     
     // Validate configuration if requested
     if (validateSchema) {
       const validation = validateConfigWithFeedback(config);
       
       if (!validation.valid) {
-        console.error(colors.red("Configuration validation failed:"));
+        console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
         console.error(formatValidationErrors(validation.errors));
         
         if (validation.suggestions.length > 0) {
           console.log(colors.yellow("\nSuggestions:"));
           validation.suggestions.forEach(s => console.log(`  - ${s}`));
         }
+        
+        console.log(colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."));
         
         throw new Error("Invalid configuration format");
       }
@@ -200,6 +211,15 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);
+    
+    // Re-throw validation errors so they can be handled properly
+    if (error instanceof Error && (
+      error.message === "Invalid configuration format" || 
+      error.message === "Invalid JSON in configuration file"
+    )) {
+      throw error;
+    }
+    
     return null;
   }
 }
@@ -224,8 +244,22 @@ function fileExists(filePath: string): boolean {
  * @param skipInteractive If true, will return a basic configuration without prompting
  */
 export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
-  let config = readProjectFile();
+  let config: ProjectConfig | null = null;
   let privateKey: string | undefined;
+  
+  try {
+    config = readProjectFile();
+  } catch (error) {
+    // If there's a validation error, don't proceed with setup
+    if (error instanceof Error && (
+      error.message === "Invalid configuration format" || 
+      error.message === "Invalid JSON in configuration file"
+    )) {
+      throw error;
+    }
+    // For other errors, continue with setup
+    config = null;
+  }
 
   if (!config) {
     if (skipInteractive) {
