@@ -31,6 +31,12 @@ export type ProjectConfig = {
   publishProfile?: boolean;
   fallback?: string;
   gatewayHostnames?: string[];
+  appHandler?: {
+    enabled: boolean;
+    kinds: number[]; // Event kinds this nsite can handle/display
+    name?: string; // Optional app name for the handler
+    description?: string; // Optional description
+  };
 };
 
 export interface ProjectContext {
@@ -68,6 +74,7 @@ export const defaultConfig: ProjectConfig = {
   gatewayHostnames: [
     "nsite.lol",
   ],
+  // appHandler is optional and not included by default
 };
 
 /**

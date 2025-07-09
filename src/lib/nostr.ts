@@ -308,6 +308,53 @@ export async function createDeleteEvent(
   return await signer.signEvent(eventTemplate);
 }
 
+/**
+ * Create a NIP-89 app handler event (kind 31990)
+ * This announces that this nsite can handle/display specific event kinds
+ */
+export async function createAppHandlerEvent(
+  signer: Signer,
+  kinds: number[],
+  gatewayUrl: string,
+  metadata?: {
+    name?: string;
+    description?: string;
+    picture?: string;
+  },
+): Promise<NostrEvent> {
+  const tags: string[][] = [
+    ["d", crypto.randomUUID()], // Random identifier for this handler
+    ["client", "nsyte"],
+  ];
+
+  // Add k tags for each supported event kind
+  for (const kind of kinds) {
+    tags.push(["k", kind.toString()]);
+  }
+
+  // Add web handler URLs
+  // These URLs will have the bech32 entity replaced by the client
+  tags.push(["web", `${gatewayUrl}/<bech32>`, "nevent"]);
+  tags.push(["web", `${gatewayUrl}/<bech32>`, "naddr"]);
+  tags.push(["web", `${gatewayUrl}/<bech32>`, "note"]);
+  tags.push(["web", `${gatewayUrl}/<bech32>`]); // Generic handler
+
+  // Optional metadata content
+  let content = "";
+  if (metadata && Object.keys(metadata).length > 0) {
+    content = JSON.stringify(metadata);
+  }
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: 31990,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content,
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
 /** Publish events to relays */
 export async function publishEventsToRelays(
   relays: string[],

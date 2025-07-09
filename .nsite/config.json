@@ -1,23 +1,6 @@
 {
-  "relays": [
-    "wss://relay.nsite.lol",
-    "wss://relay.damus.io",
-    "wss://relay.primal.net",
-    "wss://nos.lol",
-    "wss://relay.nostr.band",
-    "wss://relay.nsyte.run"
-  ],
-  "servers": [
-    "https://cdn.hzrd149.com",
-    "https://cdn.sovbit.host"
-  ],
-  "profile": {
-    "name": "nsyte",
-    "display_name": "nsyte",
-    "about": ""
-  },
-  "publishProfile": true,
-  "publishRelayList": true,
-  "publishServerList": true,
-  "bunkerPubkey": "9c08bc9679ca77197f3e6a28876b77c5cc4b7a9dd268d9a3cffd7f1eab667cfb"
+  "relays": [],
+  "servers": [],
+  "publishServerList": false,
+  "publishRelayList": false
 }

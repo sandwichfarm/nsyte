@@ -17,6 +17,7 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   10002,
   10063,
   24242,
+  31990, // NIP-89 handler announcement
   34128,
 ]);
 

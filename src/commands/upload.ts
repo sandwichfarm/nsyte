@@ -17,6 +17,7 @@ import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
 import {
+  createAppHandlerEvent,
   createNip46ClientFromUrl,
   createProfileEvent,
   createRelayListEvent,
@@ -79,6 +80,8 @@ export interface UploadCommandOptions {
   publishServerList: boolean;
   publishRelayList: boolean;
   publishProfile: boolean;
+  appHandler: boolean;
+  handlerKinds?: string;
   nonInteractive: boolean;
 }
 
@@ -116,6 +119,10 @@ export function registerUploadCommand(program: Command): void {
     .option("--publish-profile", "Publish the app profile for the npub (Kind 0).", {
       default: false,
     })
+    .option("--app-handler", "Publish NIP-89 app handler announcement (Kind 31990).", {
+      default: false,
+    })
+    .option("--handler-kinds <kinds:string>", "Event kinds this nsite can handle (comma separated).")
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
@@ -551,6 +558,17 @@ export function displayConfig(publisherPubkey: string) {
         ),
       );
     }
+    if (options.appHandler || config.appHandler?.enabled) {
+      const kinds = options.handlerKinds?.split(",").map(k => k.trim()) || 
+                    config.appHandler?.kinds?.map(k => k.toString()) || [];
+      console.log(
+        colors.cyan(
+          `Publish App Handler: true${
+            !options.appHandler && !config.appHandler?.enabled ? " (default)" : ""
+          } (kinds: ${kinds.join(", ") || "none"})`,
+        ),
+      );
+    }
   }
 }
 
@@ -576,8 +594,10 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+  const shouldPublishAppHandler = options.appHandler || 
+    (config.appHandler?.enabled ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
-    shouldPublishServerList;
+    shouldPublishServerList || shouldPublishAppHandler;
 
   if (includedFiles.length === 0) {
     const noFilesMsg = "No files to upload after ignore rules.";
@@ -699,8 +719,10 @@ async function compareAndPrepareFiles(
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+  const shouldPublishAppHandler = options.appHandler || 
+    (config.appHandler?.enabled ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
-    shouldPublishServerList;
+    shouldPublishServerList || shouldPublishAppHandler;
 
   if (toTransfer.length === 0 && !options.force && !options.purge) {
     log.info("No new files to upload.");
@@ -1047,18 +1069,20 @@ async function maybePublishMetadata(): Promise<void> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
+  const shouldPublishAppHandler = options.appHandler || 
+    (config.appHandler?.enabled ?? false);
 
   log.debug(
-    `Publish flags - from options: profile=${options.publishProfile}, relayList=${options.publishRelayList}, serverList=${options.publishServerList}`,
+    `Publish flags - from options: profile=${options.publishProfile}, relayList=${options.publishRelayList}, serverList=${options.publishServerList}, appHandler=${options.appHandler}`,
   );
   log.debug(
-    `Publish flags - from config: profile=${config.publishProfile}, relayList=${config.publishRelayList}, serverList=${config.publishServerList}`,
+    `Publish flags - from config: profile=${config.publishProfile}, relayList=${config.publishRelayList}, serverList=${config.publishServerList}, appHandler=${config.appHandler?.enabled}`,
   );
   log.debug(
-    `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}`,
+    `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}, appHandler=${shouldPublishAppHandler}`,
   );
 
-  if (!(shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList)) {
+  if (!(shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList || shouldPublishAppHandler)) {
     log.debug("No metadata events requested for publishing, returning early");
     return;
   }
@@ -1109,6 +1133,53 @@ async function maybePublishMetadata(): Promise<void> {
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish server list: ${getErrorMessage(e)}`);
         log.error(`Server list publication error: ${getErrorMessage(e)}`);
+      }
+    }
+
+    if (shouldPublishAppHandler) {
+      statusDisplay.update("Publishing NIP-89 app handler...");
+
+      try {
+        // Get event kinds from command line or config
+        let kinds: number[] = [];
+        if (options.handlerKinds) {
+          kinds = options.handlerKinds.split(",").map(k => parseInt(k.trim())).filter(k => !isNaN(k));
+        } else if (config.appHandler?.kinds) {
+          kinds = config.appHandler.kinds;
+        }
+
+        if (kinds.length === 0) {
+          statusDisplay.error("No event kinds specified for app handler");
+          log.error("App handler requires event kinds to be specified");
+        } else {
+          // Get the gateway URL - use the first configured hostname or default
+          const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
+          const publisherPubkey = await signer.getPublicKey();
+          const npub = npubEncode(publisherPubkey);
+          const gatewayUrl = `https://${npub}.${gatewayHostname}`;
+
+          // Get metadata from config if available
+          const metadata = config.appHandler?.name || config.appHandler?.description
+            ? {
+                name: config.appHandler.name || config.profile?.name,
+                description: config.appHandler.description || config.profile?.about,
+                picture: config.profile?.picture,
+              }
+            : undefined;
+
+          const handlerEvent = await createAppHandlerEvent(
+            signer,
+            kinds,
+            gatewayUrl,
+            metadata,
+          );
+          log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
+          await publishEventsToRelays(resolvedRelays, [handlerEvent]);
+          statusDisplay.success(`App handler published for kinds: ${kinds.join(", ")}`);
+        }
+      } catch (e: unknown) {
+        statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);
+        log.error(`App handler publication error: ${getErrorMessage(e)}`);
       }
     }
   } catch (e: unknown) {
