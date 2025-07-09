@@ -80,6 +80,12 @@ nsyte upload ./dist
 
 # With options
 nsyte upload ./dist --force --concurrency 8 --verbose
+
+# With metadata publishing
+nsyte upload ./dist --publish-profile --publish-relay-list --publish-server-list
+
+# With NIP-89 app handler
+nsyte upload ./dist --app-handler --handler-kinds "1,30023"
 ```
 
 ### Purging Files
@@ -277,7 +283,13 @@ Configuration is stored in `.nsite/config.json`:
   "profile": { "name": "My Site", "about": "Description" },
   "publishServerList": true,
   "publishRelayList": true,
-  "fallback": "/index.html"
+  "fallback": "/index.html",
+  "appHandler": {
+    "enabled": true,
+    "kinds": [1, 30023],
+    "name": "My Event Viewer",
+    "description": "Views notes and articles"
+  }
 }
 ```
 
@@ -317,6 +329,24 @@ dist/
 # Ignore specific config files
 secrets.json
 ```
+
+### NIP-89 App Handler
+
+nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) app handler announcements, allowing your nsite to be discovered as a viewer for specific Nostr event types.
+
+**Configuration:**
+- `appHandler.enabled`: Enable app handler announcements
+- `appHandler.kinds`: Array of event kind numbers this nsite can display
+- `appHandler.name`: Optional display name for your handler
+- `appHandler.description`: Optional description
+
+**Command Line:**
+```bash
+# Publish app handler for specific event kinds
+nsyte upload ./dist --app-handler --handler-kinds "1,30023,30311"
+```
+
+When enabled, other Nostr clients can suggest your nsite when users encounter the specified event types.
 
 ## Advanced Usage
 

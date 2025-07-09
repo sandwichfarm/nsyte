@@ -28,7 +28,13 @@ Here's a basic configuration file with all available options:
   },
   "publishServerList": true,
   "publishRelayList": true,
-  "fallback": "/index.html"
+  "fallback": "/index.html",
+  "appHandler": {
+    "enabled": true,
+    "kinds": [1, 30023],
+    "name": "My Event Viewer",
+    "description": "Views notes and articles"
+  }
 }
 ```
 
@@ -54,6 +60,13 @@ Here's a basic configuration file with all available options:
 ### Routing
 
 - `fallback`: The HTML file to use for client-side routing (e.g., `/index.html` for SPAs)
+
+### NIP-89 App Handler
+
+- `appHandler.enabled`: Whether to publish app handler announcement (default: false)
+- `appHandler.kinds`: Array of event kind numbers this nsite can handle
+- `appHandler.name`: Optional display name for your handler
+- `appHandler.description`: Optional description of what your handler does
 
 ## Environment Variables
 

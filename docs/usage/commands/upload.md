@@ -29,6 +29,8 @@ nsyte upload <folder> [options]
 - `--publish-server-list` — Publish the list of blossom servers (Kind 10063) (default: false)
 - `--publish-relay-list` — Publish the list of nostr relays (Kind 10002) (default: false)
 - `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
+- `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
+- `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -56,6 +58,12 @@ Publish profile and relay/server lists:
 
 ```bash
 nsyte upload dist --publish-profile --publish-relay-list --publish-server-list
+```
+
+Publish NIP-89 app handler announcement:
+
+```bash
+nsyte upload dist --app-handler --handler-kinds "1,30023,30311"
 ```
 
 ## Next Steps
