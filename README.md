@@ -71,6 +71,7 @@ deno task compile:all
 | `nsyte upload <dir>`    | Upload files             |
 | `nsyte ls`              | List published files     |
 | `nsyte download <dir>`  | Download files           |
+| `nsyte purge`           | Remove published files   |
 | `nsyte bunker <action>` | Manage NIP-46 bunkers    |
 
 ### Uploading Files
@@ -82,6 +83,54 @@ nsyte upload ./dist
 # With options
 nsyte upload ./dist --force --concurrency 8 --verbose
 ```
+
+### Purging Files
+
+The `purge` command removes published files from relays and optionally from Blossom servers:
+
+```bash
+# Interactive purge (prompts for what to purge)
+nsyte purge
+
+# Purge all published files
+nsyte purge --all
+
+# Purge specific files using glob patterns
+nsyte purge --paths "*.html" --paths "/static/*"
+
+# Purge all files and their blobs from Blossom servers
+nsyte purge --all --include-blobs
+
+# Non-interactive purge (skip confirmation)
+nsyte purge --all --yes
+```
+
+#### Purge Options
+
+- `--all`: Remove all published files for your pubkey
+- `--paths <pattern>`: Remove files matching glob patterns (supports wildcards `*` and `?`)
+- `--include-blobs`: Also delete blobs from Blossom servers
+- `--yes`: Skip confirmation prompts
+- `--relays <relays>`: Override relays to use (comma-separated)
+- `--servers <servers>`: Override Blossom servers to use (comma-separated)
+
+#### Pattern Examples
+
+```bash
+# Remove all HTML files
+nsyte purge --paths "*.html"
+
+# Remove all files in a directory
+nsyte purge --paths "/static/*"
+
+# Remove all CSS files recursively
+nsyte purge --paths "**/*.css"
+
+# Remove specific files
+nsyte purge --paths "/index.html" --paths "/about.html"
+```
+
+**Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests, and it may take time for deletions to propagate.
 
 ## Authentication Methods
 

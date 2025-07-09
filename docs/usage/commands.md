@@ -75,6 +75,50 @@ Options:
 - `--force`: Overwrite existing files
 - `--verbose`: Show detailed progress
 
+### `nsyte purge`
+
+Remove published files from relays and optionally from Blossom servers.
+
+```bash
+nsyte purge [options]
+```
+
+Options:
+
+- `--all`: Remove all published files for your pubkey
+- `--paths <pattern>`: Remove files matching glob patterns (can be used multiple times)
+- `--include-blobs`: Also delete blobs from Blossom servers
+- `--yes`: Skip confirmation prompts
+- `--relays <relays>`: Override relays to use (comma-separated)
+- `--servers <servers>`: Override Blossom servers to use (comma-separated)
+- `--nbunksec <string>`: nbunksec string for authentication
+
+Examples:
+
+```bash
+# Interactive purge (prompts for what to purge)
+nsyte purge
+
+# Purge all published files
+nsyte purge --all
+
+# Purge specific files using glob patterns
+nsyte purge --paths "*.html" --paths "/static/*"
+
+# Purge all files and their blobs from Blossom servers
+nsyte purge --all --include-blobs
+
+# Non-interactive purge (skip confirmation)
+nsyte purge --all --yes
+```
+
+Pattern matching supports:
+- `*` matches any characters
+- `?` matches single character
+- `**` matches directories recursively
+
+**Note**: Creates NIP-09 delete events. Some relays may not honor delete requests.
+
 ## Bunker Commands
 
 ### `nsyte bunker connect`
@@ -190,6 +234,24 @@ nsyte ls --format json
 
 ```bash
 nsyte download ./backup --verbose
+```
+
+### Purge All Files
+
+```bash
+nsyte purge --all
+```
+
+### Purge Specific Files with Patterns
+
+```bash
+nsyte purge --paths "*.html" --paths "/assets/*"
+```
+
+### Purge Files and Blobs
+
+```bash
+nsyte purge --all --include-blobs
 ```
 
 ## Exit Codes

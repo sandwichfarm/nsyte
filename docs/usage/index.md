@@ -77,6 +77,33 @@ This is useful for:
 - Migrating to a different setup
 - Verifying published content
 
+### Purging Files
+
+To remove published files from relays and optionally from Blossom servers:
+
+```bash
+# Interactive purge (prompts for what to purge)
+nsyte purge
+
+# Purge all published files
+nsyte purge --all
+
+# Purge specific files using patterns
+nsyte purge --paths "*.html" --paths "/static/*"
+
+# Purge files and their blobs from Blossom servers
+nsyte purge --all --include-blobs
+```
+
+This is useful for:
+
+- Removing old/unwanted content
+- Cleaning up after testing
+- Managing storage space on servers
+- Removing sensitive content
+
+**Note**: Creates NIP-09 delete events. Some relays may not honor delete requests.
+
 ## Authentication Methods
 
 nsyte supports three authentication methods:
