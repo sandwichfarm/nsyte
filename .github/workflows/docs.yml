@@ -64,7 +64,7 @@ jobs:
           directory: "./dist"
           nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
           fallback: "404.html"
-          # nsyte_version: "v0.6.1"
+          version: "v0.14.0"
           relays: |
             wss://relay.nostr.band
             wss://relay.damus.io
