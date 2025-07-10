@@ -14,7 +14,7 @@
     "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:windows",
     "compile:linux": "deno compile --allow-run --allow-read --allow-write --allow-net --allow-env --allow-sys --target x86_64-unknown-linux-gnu --output dist/nsyte-linux src/cli.ts",
     "compile:macos": "deno compile --allow-run --allow-read --allow-write --allow-net --allow-env --allow-sys --target x86_64-apple-darwin --output dist/nsyte-macos src/cli.ts",
-    "compile:windows": "deno compile --allow-run --allow-read --allow-write --allow-net --allow-en --allow-sys --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts",
+    "compile:windows": "deno compile --allow-run --allow-read --allow-write --allow-net --allow-env --allow-sys --target x86_64-pc-windows-msvc --output dist/nsyte-windows.exe src/cli.ts",
     "install": "deno task compile && chmod +x dist/nsyte && rm /usr/local/bin/nsyte && mv dist/nsyte /usr/local/bin/nsyte",
     "tag": "deno run --allow-read --allow-write --allow-run=git scripts/tag.ts",
     "release": "deno run --allow-read --allow-run=git --allow-net scripts/release.ts",
