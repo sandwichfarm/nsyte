@@ -14,9 +14,11 @@ const log = createLogger("nip46");
 
 export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   0,
+  1063, // NIP-94 file metadata
   10002,
   10063,
   24242,
+  30063, // NIP-51 release artifact sets
   31990, // NIP-89 handler announcement
   34128,
 ]);

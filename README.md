@@ -8,6 +8,20 @@
 A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.
 
+
+## Key Features
+
+- 🚀 **Fast & Efficient** - Concurrent uploads with smart diffing
+- 🔐 **Secure Authentication** - Support for private keys, NIP-46 bunkers, and hardware wallets
+- 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and platform detection
+- 🔄 **Smart Release Management** - Append, replace, or skip artifacts intelligently
+- 🤖 **CI/CD Ready** - Non-interactive mode for automated deployments
+- 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
+- 🔍 **Metadata Publishing** - Share profile, relay lists, and server lists on nostr
+- 🛡️ **Secure Key Storage** - Platform-specific secure storage for sensitive data
+
+For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
+
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
 > florian [github](https://github.com/flox1an) [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc).
 > nsyte has been ported to deno and rewritten in the process. 
@@ -86,6 +100,12 @@ nsyte upload ./dist --publish-profile --publish-relay-list --publish-server-list
 
 # With NIP-89 app handler
 nsyte upload ./dist --app-handler --handler-kinds "1,30023"
+
+# With NIP-94 release artifacts (auto-create archive)
+nsyte upload ./dist --publish-file-metadata --version v1.0.0
+
+# With NIP-94 release artifacts (use existing archives)
+nsyte upload ./dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ### Purging Files
@@ -273,10 +293,11 @@ jobs:
 
 ## Configuration
 
-Configuration is stored in `.nsite/config.json`:
+Configuration is stored in `.nsite/config.json`. A complete [JSON Schema](src/schemas/config.schema.json) is available for validation and editor support.
 
 ```json
 {
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
   "bunkerPubkey": "abc123...",
   "relays": ["wss://relay1", "wss://relay2"],
   "servers": ["https://server1", "https://server2"],
@@ -291,6 +312,21 @@ Configuration is stored in `.nsite/config.json`:
     "description": "Views notes and articles"
   }
 }
+```
+
+### Configuration Validation
+
+Validate your configuration file:
+
+```bash
+# Validate the current project config
+nsyte validate
+
+# Validate a specific config file
+nsyte validate --file path/to/config.json
+
+# Show schema location
+nsyte validate --schema
 ```
 
 ### Ignoring Files (`.nsite-ignore`)

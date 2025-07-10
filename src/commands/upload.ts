@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
 import { copy } from "@std/fs/copy";
+import { existsSync } from "@std/fs/exists";
 import { basename, join } from "@std/path";
 import { createTarGzArchive, calculateSha256, detectPlatformsFromFileName } from "../lib/archive.ts";
 import {
@@ -11,6 +12,10 @@ import {
   readProjectFile,
   setupProject,
 } from "../lib/config.ts";
+import { resolveProjectContext, validateProjectContext } from "../lib/config/context-resolver.ts";
+import { createSigner, getAuthInfo } from "../lib/auth/signer-factory.ts";
+import { compareFiles as compareFileEntries, prepareFilesForUpload as prepareFilesForUploadUtil, calculateTotalSize } from "../lib/files/processor.ts";
+import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
@@ -207,6 +212,9 @@ export async function uploadCommand(
     resolvedRelays = options.relays?.split(",").filter((r) => r.trim()) || config.relays || [];
 
     displayConfig(publisherPubkey);
+
+    // Copy fallback file to 404.html if configured
+    await copyFallbackFile();
 
     const includedFiles = await scanLocalFiles();
     const remoteFileEntries = await fetchRemoteFiles(publisherPubkey);
@@ -618,6 +626,42 @@ export function displayConfig(publisherPubkey: string) {
 }
 
 /**
+ * Copy fallback file to 404.html if configured
+ */
+async function copyFallbackFile(): Promise<void> {
+  const fallbackPath = options.fallback || config.fallback;
+  
+  if (!fallbackPath) {
+    return;
+  }
+
+  try {
+    const fallbackSource = join(targetDir, fallbackPath.replace(/^\//, ''));
+    const fallbackDest = join(targetDir, "404.html");
+    
+    // Check if source file exists
+    if (!existsSync(fallbackSource)) {
+      log.warn(`Fallback file ${fallbackPath} not found at ${fallbackSource}`);
+      return;
+    }
+    
+    // Copy the file
+    await Deno.copyFile(fallbackSource, fallbackDest);
+    log.info(`Copied fallback file ${fallbackPath} to 404.html`);
+    
+    if (!options.nonInteractive) {
+      console.log(colors.cyan(`Copied fallback file ${fallbackPath} to 404.html`));
+    }
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    log.error(`Failed to copy fallback file: ${errorMessage}`);
+    if (!options.nonInteractive) {
+      console.error(colors.yellow(`Warning: Failed to copy fallback file: ${errorMessage}`));
+    }
+  }
+}
+
+/**
  * Scan local files in the target directory
  */
 async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
@@ -843,7 +887,6 @@ async function deleteRemovedFiles(filesToDelete: FileEntry[]): Promise<void> {
  */
 async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<FileEntry[]> {
   const preparedFiles: FileEntry[] = [];
-
   for (const file of filesToTransfer) {
     try {
       const fileWithData = await loadFileData(targetDir, file);
@@ -854,7 +897,7 @@ async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<File
       messageCollector.addFileError(file.path, errorMessage);
     }
   }
-
+  
   return preparedFiles;
 }
 
@@ -915,10 +958,6 @@ async function uploadFiles(preparedFiles: FileEntry[]): Promise<UploadResponse[]
       progressRenderer.update(progress);
     },
   );
-
-  if (fallback) {
-    await processFallbackFile();
-  }
 
   progressRenderer.stop();
   setProgressMode(false);

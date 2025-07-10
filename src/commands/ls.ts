@@ -85,7 +85,7 @@ export async function command(options: any): Promise<void> {
       if (ignoredFileCount > 0) {
         console.log(
           colors.yellow(
-            `\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsite-ignore rules during upload.`,
+            `\nNote: ${ignoredFileCount} file(s) marked red would be ignored by local .nsyte-ignore rules during upload.`,
           ),
         );
       }

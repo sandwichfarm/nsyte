@@ -1,5 +1,6 @@
 import type { Nip07Interface } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
+import { createNsiteEvent } from "./nostr.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
 
 const log = createLogger("upload");
@@ -496,7 +497,7 @@ async function uploadFile(
     let eventPublished = false;
 
     try {
-      signedEvent = await createpublishNsiteEvent(
+      signedEvent = await createNsiteEvent(
         signer,
         userPubkey,
         file.path,

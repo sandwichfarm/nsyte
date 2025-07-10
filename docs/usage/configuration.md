@@ -68,6 +68,10 @@ Here's a basic configuration file with all available options:
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description of what your handler does
 
+### NIP-94 File Metadata
+
+- `publishFileMetadata`: Whether to publish NIP-94 file metadata events for releases (default: false)
+
 ## Environment Variables
 
 You can also configure nsyte using environment variables:

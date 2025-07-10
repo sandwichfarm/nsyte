@@ -13,6 +13,7 @@ export const DEFAULT_IGNORE_PATTERNS = [
   ".git/**",
   ".DS_Store",
   "node_modules/**",
+  ".nsyte-ignore",
   ".nsite-ignore",
   ".nsite/config.json",
   ".vscode/**",
@@ -32,8 +33,8 @@ export async function getLocalFiles(
   const normalizedDir = normalize(dirPath).replace(/\/$/, ""); // Target directory for upload
   const cwd = Deno.cwd(); // Current working directory (where .nsite-ignore lives)
 
-  // --- Load and parse .nsite-ignore rules from CWD ---
-  const ignoreFilePath = join(cwd, ".nsite-ignore");
+  // --- Load and parse .nsyte-ignore rules from CWD ---
+  const ignoreFilePath = join(cwd, ".nsyte-ignore");
   let ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
   let foundIgnoreFile = false;
 
@@ -46,17 +47,17 @@ export async function getLocalFiles(
         .filter((line) => line && !line.startsWith("#"));
       ignorePatterns.push(...customPatterns);
       log.info(
-        `Found .nsite-ignore in ${cwd}, loaded ${customPatterns.length} custom rules.`,
+        `Found .nsyte-ignore in ${cwd}, loaded ${customPatterns.length} custom rules.`,
       );
       foundIgnoreFile = true;
     } catch (error) {
       log.warn(
-        `Failed to read .nsite-ignore file from ${cwd}: ${error}. Using default ignore patterns.`,
+        `Failed to read .nsyte-ignore file from ${cwd}: ${error}. Using default ignore patterns.`,
       );
     }
   } else {
     log.debug(
-      `No .nsite-ignore file found in ${cwd}, using default ignore patterns.`,
+      `No .nsyte-ignore file found in ${cwd}, using default ignore patterns.`,
     );
   }
   const parsedRules = parseIgnorePatterns(ignorePatterns);

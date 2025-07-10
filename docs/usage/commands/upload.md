@@ -31,6 +31,9 @@ nsyte upload <folder> [options]
 - `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
 - `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
+- `--publish-file-metadata` — Publish NIP-94 file metadata events for releases (default: false)
+- `--version <version>` — Version tag for the release (required when using --publish-file-metadata)
+- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release artifacts
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -64,6 +67,16 @@ Publish NIP-89 app handler announcement:
 
 ```bash
 nsyte upload dist --app-handler --handler-kinds "1,30023,30311"
+```
+
+Publish release with NIP-94 file metadata:
+
+```bash
+# Auto-create archive from uploaded files
+nsyte upload dist --publish-file-metadata --version v1.0.0
+
+# Use existing archives
+nsyte upload dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ## Next Steps

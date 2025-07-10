@@ -72,6 +72,9 @@ nav:
           - Troubleshooting: guides/security-troubleshooting.md
       - CI/CD: guides/ci-cd.md
       - Local Setup: guides/local-setup.md
+      - NIP-89 App Handler: nip89-handler.md
+      - NIP-94 Releases: nip94-releases.md
+      - NIP-94 CI/CD Integration: guides/nip94-cicd.md
 
 extra:
   social:
