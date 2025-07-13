@@ -71,6 +71,6 @@ for (const line of deleteLines) {
 }
 
 console.log("\nTo trace actual deletions, you can run nsyte commands with strace:");
-console.log("  strace -e unlink,rmdir,unlinkat nsyte <command>
+console.log(`  strace -e unlink,rmdir,unlinkat nsyte <command>
 
-This will show any system calls that delete files or directories.");
+This will show any system calls that delete files or directories.`);

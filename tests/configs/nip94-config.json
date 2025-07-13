@@ -1,0 +1,24 @@
+{
+  "relays": [
+    "wss://relay.example.com"
+  ],
+  "servers": [
+    "https://blossom.example.com"
+  ],
+  "publishServerList": true,
+  "publishRelayList": true,
+  "publishProfile": true,
+  "publishFileMetadata": true,
+  "profile": {
+    "name": "My Project",
+    "display_name": "My Project",
+    "about": "A project published with nsyte including versioned releases"
+  },
+  "appHandler": {
+    "enabled": true,
+    "kinds": [1, 30023],
+    "name": "My App",
+    "description": "Handles notes and long-form content"
+  },
+  "gatewayHostnames": ["nsite.lol"]
+}

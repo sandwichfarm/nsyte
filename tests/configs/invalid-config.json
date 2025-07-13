@@ -1,0 +1,11 @@
+{
+  "relays": ["invalid-relay-url"],
+  "servers": ["ftp://wrong-protocol.com"],
+  "bunkerPubkey": "invalid-hex",
+  "appHandler": {
+    "enabled": true
+  },
+  "application": {
+    "platforms": ["invalid-platform"]
+  }
+}

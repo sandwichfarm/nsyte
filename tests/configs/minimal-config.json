@@ -1,0 +1,5 @@
+{
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "relays": ["wss://relay.damus.io"],
+  "servers": ["https://cdn.hzrd149.com"]
+}

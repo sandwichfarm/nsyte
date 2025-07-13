@@ -1,0 +1,42 @@
+{
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "relays": [
+    "wss://relay.damus.io",
+    "wss://nos.lol",
+    "wss://relay.nostr.band"
+  ],
+  "servers": [
+    "https://cdn.hzrd149.com",
+    "https://nostr.download"
+  ],
+  "publishServerList": true,
+  "publishRelayList": true,
+  "publishProfile": true,
+  "publishFileMetadata": true,
+  "profile": {
+    "name": "My Awesome Project",
+    "display_name": "Awesome Project",
+    "about": "A decentralized application built with nsyte",
+    "picture": "https://example.com/logo.png",
+    "website": "https://example.com",
+    "nip05": "project@example.com"
+  },
+  "appHandler": {
+    "enabled": true,
+    "kinds": [1, 30023, 30311],
+    "name": "Awesome App",
+    "description": "Handles notes, long-form content, and live events"
+  },
+  "application": {
+    "id": "com.example.awesome",
+    "summary": "A powerful decentralized application",
+    "icon": "https://example.com/icon.png",
+    "images": ["https://example.com/screenshot1.png", "https://example.com/screenshot2.png"],
+    "tags": ["social", "decentralized", "nostr"],
+    "repository": "https://github.com/example/awesome-app",
+    "platforms": ["web", "linux", "windows", "macos"],
+    "license": "MIT"
+  },
+  "fallback": "index.html",
+  "gatewayHostnames": ["nsite.lol", "nsite.example.com"]
+}

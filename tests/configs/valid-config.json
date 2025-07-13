@@ -1,0 +1,15 @@
+{
+  "relays": ["wss://relay.damus.io", "wss://nos.lol"],
+  "servers": ["https://cdn.hzrd149.com"],
+  "publishServerList": true,
+  "publishRelayList": true,
+  "profile": {
+    "name": "Test Project",
+    "about": "A test project configuration"
+  },
+  "publishFileMetadata": true,
+  "application": {
+    "id": "com.example.test",
+    "platforms": ["web", "linux"]
+  }
+}
