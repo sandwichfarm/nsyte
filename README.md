@@ -76,15 +76,20 @@ deno task compile:all
 
 ## Core Commands
 
-| Command                 | Description              |
-| ----------------------- | ------------------------ |
-| `nsyte`                 | Interactive setup wizard |
-| `nsyte init`            | Initialize configuration |
-| `nsyte upload <dir>`    | Upload files             |
-| `nsyte ls`              | List published files     |
-| `nsyte download <dir>`  | Download files           |
-| `nsyte purge`           | Remove published files   |
-| `nsyte bunker <action>` | Manage NIP-46 bunkers    |
+| Command                 | Description                                      |
+| ----------------------- | ------------------------------------------------ |
+| `nsyte`                 | Interactive setup wizard                         |
+| `nsyte init`            | Initialize configuration                         |
+| `nsyte upload <dir>`    | Upload files                                     |
+| `nsyte ls`              | List published files                             |
+| `nsyte download <dir>`  | Download files                                   |
+| `nsyte purge`           | Remove published files                           |
+| `nsyte debug [npub]`    | Debug an nsite by checking relays and servers   |
+| `nsyte validate`        | Validate configuration file                      |
+| `nsyte serve`           | Build and serve local nsite files               |
+| `nsyte run`             | Run resolver server with npub subdomains        |
+| `nsyte ci [url]`        | Generate CI/CD credentials (nbunksec)           |
+| `nsyte bunker <action>` | Manage NIP-46 bunkers                            |
 
 ### Uploading Files
 
@@ -156,6 +161,44 @@ nsyte purge --paths "/index.html" --paths "/about.html"
 
 **Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests, and it may take time for deletions to propagate.
 
+### Debugging nsites
+
+The `debug` command helps diagnose issues with nsite setup by checking various components:
+
+```bash
+# Debug current project's nsite
+nsyte debug
+
+# Debug a specific npub
+nsyte debug npub1abc123...
+
+# Debug with custom relays
+nsyte debug --relays wss://relay1.com,wss://relay2.com
+
+# Verbose output with detailed information
+nsyte debug --verbose
+```
+
+The debug command checks:
+- **Profile (kind 0)**: Verifies user profile exists on relays
+- **Relay list (kind 10002)**: Finds user's preferred relays
+- **Blossom server list (kind 10063)**: Discovers blob storage servers and tests availability
+- **nsite events (kind 34128)**: Checks for uploaded files
+- **App handler events (kinds 31989, 31990)**: Looks for app announcements
+- **Blob integrity**: Downloads random files to verify hash correctness
+
+### Local Development
+
+```bash
+# Serve local files for development
+nsyte serve
+
+# Run resolver server for testing npub subdomains
+nsyte run
+```
+
+The `serve` command builds and serves your local nsite files, while `run` starts a resolver server that can serve nsites via npub subdomains (e.g., `npub123.localhost`).
+
 ## Authentication Methods
 
 nsyte supports three ways to authenticate:
@@ -185,6 +228,25 @@ nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
 
 # List bunkers
 nsyte bunker list
+
+# Migrate/rebuild bunker index (macOS)
+nsyte bunker migrate
+```
+
+#### Bunker Migration (macOS)
+
+On macOS, nsyte uses a two-tier storage system for bunkers:
+- **Keychain**: Stores actual credentials securely
+- **Index**: Tracks which bunkers are available (for listing)
+
+If you see warnings about rebuilding the keychain index, run:
+
+```bash
+# Automatically discover and migrate all bunkers
+nsyte bunker migrate
+
+# Migrate specific bunkers if auto-discovery fails
+nsyte bunker migrate <pubkey1> <pubkey2>
 ```
 
 ## Security
@@ -389,6 +451,18 @@ When enabled, other Nostr clients can suggest your nsite when users encounter th
 ### Bunker Command Options
 
 ```bash
+# Connect to a bunker (interactive)
+nsyte bunker connect
+
+# Connect with bunker URL
+nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'
+
+# Connect with individual parameters
+nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
+
+# List all stored bunkers
+nsyte bunker list
+
 # Import an nbunksec string
 nsyte bunker import nbunk1q...
 
@@ -400,6 +474,9 @@ nsyte bunker use <pubkey>
 
 # Remove a bunker
 nsyte bunker remove <pubkey>
+
+# Migrate/rebuild bunker index (macOS)
+nsyte bunker migrate
 ```
 
 ### Upload Command Options

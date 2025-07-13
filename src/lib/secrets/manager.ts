@@ -229,22 +229,9 @@ export class SecretsManager {
         log.warn("Keychain index needs to be rebuilt for multiple bunker support");
         log.warn("Run 'nsyte bunker migrate' to rebuild the index with your existing bunkers");
         
-        // Check known pubkeys anyway
-        let addedToIndex = 0;
-        for (const pubkey of knownPubkeys) {
-          if (!indexedPubkeys.includes(pubkey)) {
-            const value = await this.storageBackend.retrieve(pubkey);
-            if (value) {
-              await encryptedBackend.store(pubkey, "stored-in-keychain");
-              addedToIndex++;
-              log.info(`Added ${pubkey.slice(0, 8)}... to index`);
-            }
-          }
-        }
-        
-        if (addedToIndex > 0) {
-          log.info(`Partially rebuilt index with ${addedToIndex} discovered keychain entries`);
-        }
+        // Skip automatic index rebuilding to avoid hanging during normal operations
+        // The user should run 'nsyte bunker migrate' manually
+        log.debug("Skipping automatic index rebuilding to avoid keychain access delays");
       }
       
       // Don't create marker yet - wait for full migration

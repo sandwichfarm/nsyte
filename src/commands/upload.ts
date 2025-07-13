@@ -461,9 +461,19 @@ async function initSigner(
     const nbunkString = await secretsManager.getNbunk(config.bunkerPubkey);
     if (nbunkString) {
       try {
-        log.info("Found stored nbunksec for configured bunker. Importing...");
+        log.debug("Found stored nbunksec for configured bunker. Importing...");
         const bunkerSigner = await importFromNbunk(nbunkString);
-        await bunkerSigner.getPublicKey();
+        log.debug("importFromNbunk completed, about to call getPublicKey()...");
+        
+        // Add timeout to getPublicKey as it might hang too
+        const getPublicKeyPromise = bunkerSigner.getPublicKey();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("getPublicKey timeout after 15s")), 15000);
+        });
+        
+        log.debug("Waiting for getPublicKey or timeout...");
+        const pubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
+        log.debug(`getPublicKey completed: ${pubkey.substring(0, 8)}...`);
         return bunkerSigner;
       } catch (e: unknown) {
         const baseMsg = `Failed to use stored nbunksec for configured bunker ${

@@ -351,9 +351,17 @@ export async function importFromNbunk(
     });
 
     try {
-      log.debug("Attempting to connect to bunker...");
-      await signer.connect();
-      log.info("Session established from nbunksec");
+      log.debug("About to call signer.connect()...");
+      
+      // Add timeout to prevent hanging
+      const connectPromise = signer.connect();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Bunker connection timeout after 30s")), 30000);
+      });
+      
+      log.debug("Waiting for connection or timeout...");
+      await Promise.race([connectPromise, timeoutPromise]);
+      log.debug("Connection established successfully");
 
       const dummyUrl = `bunker://${info.pubkey}?${
         info.relays

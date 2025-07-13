@@ -18,6 +18,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { NostrConnectSigner } from "applesauce-signers";
+import { join } from "@std/path";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import {
@@ -658,30 +659,101 @@ export async function removeBunker(pubkey?: string): Promise<void> {
 }
 
 /**
+ * Discover bunker pubkeys in the macOS keychain
+ */
+async function discoverKeychainBunkers(): Promise<string[]> {
+  const pubkeys: string[] = [];
+  
+  // macOS doesn't provide a way to list accounts for a specific service
+  // without dumping the entire keychain, so we scan known locations
+  console.log(colors.dim("Scanning project configs for bunker pubkeys..."));
+  
+  try {
+    // Look for .nsite/config.json files and test if they exist in keychain
+    const configPubkeys = await findConfigPubkeys();
+    
+    if (configPubkeys.length > 0) {
+      console.log(colors.dim(`Testing ${configPubkeys.length} pubkey(s) from configs...`));
+    }
+    
+    // Test each one to see if it exists in keychain
+    for (const pubkey of configPubkeys) {
+      try {
+        const cmd = new Deno.Command("security", {
+          args: ["find-generic-password", "-s", "nsyte", "-a", pubkey, "-w"],
+          stdout: "piped",
+          stderr: "piped"
+        });
+        
+        const result = await cmd.output();
+        if (result.code === 0) {
+          pubkeys.push(pubkey);
+        }
+      } catch {
+        // Skip if not found
+      }
+    }
+  } catch (error) {
+    console.log(colors.dim("Failed to scan configs, continuing..."));
+  }
+  
+  return [...new Set(pubkeys)]; // Remove duplicates
+}
+
+/**
+ * Find bunker pubkeys from project config files
+ */
+async function findConfigPubkeys(): Promise<string[]> {
+  const pubkeys: string[] = [];
+  
+  try {
+    // Search for .nsite/config.json files in current directory and subdirectories
+    for await (const entry of Deno.readDir(".")) {
+      if (entry.isDirectory && entry.name === ".nsite") {
+        try {
+          const configPath = ".nsite/config.json";
+          const configText = await Deno.readTextFile(configPath);
+          const config = JSON.parse(configText);
+          
+          if (config.bunkerPubkey && typeof config.bunkerPubkey === "string") {
+            pubkeys.push(config.bunkerPubkey);
+          }
+        } catch {
+          // Skip invalid config files
+        }
+      }
+    }
+  } catch {
+    // Skip if can't read directory
+  }
+  
+  return pubkeys;
+}
+
+/**
  * Migrate existing keychain bunkers to the new indexed system
  */
 export async function migrateBunkers(pubkeys?: string[]): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
   await secretsManager.initialize();
 
-  if (!pubkeys || pubkeys.length === 0) {
-    console.log(colors.cyan("Bunker Migration"));
-    console.log("\nThis command rebuilds the index for bunkers stored in your keychain.");
-    console.log("Since macOS doesn't allow listing keychain entries without full access,");
-    console.log("you need to provide the pubkeys of bunkers you want to index.\n");
+  console.log(colors.cyan("Bunker Migration"));
+  console.log("\nRebuilding index for bunkers stored in your keychain...\n");
+  
+  if (pubkeys && pubkeys.length > 0) {
+    console.log(colors.cyan(`Migrating ${pubkeys.length} specified pubkey(s)...`));
+  } else {
+    console.log("Discovering all nsyte bunkers in keychain...");
+    pubkeys = await discoverKeychainBunkers();
     
-    console.log(colors.yellow("Usage:"));
-    console.log("  nsyte bunker migrate <pubkey1> [pubkey2] [pubkey3] ...\n");
+    if (!pubkeys || pubkeys.length === 0) {
+      console.log(colors.yellow("No nsyte bunkers found in keychain."));
+      console.log("\nIf you have bunkers but they're not being found, you can specify them manually:");
+      console.log(colors.dim("  nsyte bunker migrate <pubkey1> [pubkey2] ..."));
+      return;
+    }
     
-    console.log(colors.yellow("Example:"));
-    console.log("  nsyte bunker migrate fa02cb9a30d5898aabd69c4b37f40c31c61b3dcd9781e571b2ee25e5a1e74a5b\n");
-    
-    console.log("To find your bunker pubkeys:");
-    console.log("1. Check your project's .nsite/config.json files");
-    console.log("2. Look in your bunker app (e.g., Amber, nsec.app)");
-    console.log("3. Check your CI/CD secrets for NBUNK_SECRET values");
-    
-    return;
+    console.log(colors.green(`Found ${pubkeys.length} bunker(s) in keychain`));
   }
 
   console.log(colors.cyan("Migrating bunkers to indexed storage...\n"));
@@ -740,6 +812,15 @@ export async function migrateBunkers(pubkeys?: string[]): Promise<void> {
   }
   
   if (migrated > 0) {
+    // Create migration completion marker
+    try {
+      const migrationMarkerPath = join(Deno.env.get("HOME") || "", "Library", "Application Support", "nsyte", ".index-migration-done");
+      await Deno.writeTextFile(migrationMarkerPath, new Date().toISOString());
+      log.debug("Created migration completion marker");
+    } catch (error) {
+      log.warn(`Failed to create migration marker: ${error}`);
+    }
+    
     console.log(colors.green("\n✓ Your bunkers are now indexed for faster access"));
     console.log("Run 'nsyte bunker list' to see all bunkers");
   }

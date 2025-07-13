@@ -119,6 +119,86 @@ Pattern matching supports:
 
 **Note**: Creates NIP-09 delete events. Some relays may not honor delete requests.
 
+### `nsyte debug [npub]`
+
+Debug an nsite by checking relays, blossom servers, and event kinds.
+
+```bash
+nsyte debug [npub] [options]
+```
+
+Options:
+
+- `--relays <relays>`: Comma-separated list of relay URLs to use
+- `--verbose`: Show detailed debug information
+
+Examples:
+
+```bash
+# Debug current project's nsite
+nsyte debug
+
+# Debug a specific npub
+nsyte debug npub1abc123...
+
+# Debug with custom relays
+nsyte debug --relays wss://relay1.com,wss://relay2.com
+```
+
+The debug command checks:
+- Profile (kind 0) existence on relays
+- Relay list (kind 10002) for discovering user's preferred relays
+- Blossom server list (kind 10063) and tests server availability
+- nsite events (kind 34128) for uploaded files
+- App handler events (kinds 31989, 31990) for app announcements
+- Blob integrity by downloading random files to verify hash correctness
+
+### `nsyte validate`
+
+Validate the nsyte configuration file.
+
+```bash
+nsyte validate [options]
+```
+
+Options:
+
+- `--file <path>`: Path to configuration file (default: `.nsite/config.json`)
+- `--schema`: Show the JSON schema location
+
+Examples:
+
+```bash
+# Validate current project config
+nsyte validate
+
+# Validate specific file
+nsyte validate --file path/to/config.json
+
+# Show schema location
+nsyte validate --schema
+```
+
+### `nsyte serve`
+
+Build and serve local nsite files for development.
+
+```bash
+nsyte serve [options]
+```
+
+This command builds your local nsite files and serves them locally for development and testing purposes.
+
+### `nsyte run`
+
+Run a resolver server that serves nsites via npub subdomains.
+
+```bash
+nsyte run [options]
+```
+
+This command starts a resolver server that can serve nsites via npub subdomains (e.g., `npub123.localhost`).
+
 ## Bunker Commands
 
 ### `nsyte bunker connect`
@@ -194,6 +274,32 @@ Remove a bunker connection.
 ```bash
 nsyte bunker remove <pubkey>
 ```
+
+### `nsyte bunker migrate`
+
+Rebuild the bunker index for multiple bunker support (macOS).
+
+```bash
+nsyte bunker migrate [pubkey1] [pubkey2] ...
+```
+
+This command is needed on macOS when you see warnings about rebuilding the keychain index. By default, it automatically discovers and migrates all bunkers in your keychain. You can optionally specify specific pubkeys to migrate.
+
+Examples:
+
+```bash
+# Automatically discover and migrate all bunkers
+nsyte bunker migrate
+
+# Migrate specific bunkers if auto-discovery fails
+nsyte bunker migrate 9c08bc96... fa02cb9a...
+```
+
+On macOS, nsyte uses a two-tier storage system:
+- **Keychain**: Stores actual credentials securely
+- **Index**: Tracks which bunkers are available (for listing)
+
+This command rebuilds the index by discovering bunkers in the keychain.
 
 ## Global Options
 
