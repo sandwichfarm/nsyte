@@ -63,7 +63,7 @@ jobs:
         with:
           directory: "./dist"
           nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
-          fallback: "404.html"
+          fallback: "/index.html"
           version: "v0.15.0"
           relays: |
             wss://relay.nostr.band
