@@ -115,8 +115,26 @@ async function uploadToServer(
       });
 
       if (response.ok) {
-        log.debug(`Uploaded ${file.path} to ${server} using PUT to /upload with auth header`);
-        return true;
+        log.debug(`Upload request succeeded for ${file.path} to ${server}, verifying storage...`);
+        
+        // Verify the file is actually stored and retrievable
+        try {
+          await new Promise(resolve => setTimeout(resolve, 100)); // Brief delay for server processing
+          const verifyResponse = await fetch(`${serverUrl}${blobSha256}`, {
+            method: "HEAD",
+          });
+          
+          if (verifyResponse.ok) {
+            log.debug(`Upload verified: ${file.path} is retrievable from ${server}`);
+            return true;
+          } else {
+            log.debug(`Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`);
+            return false;
+          }
+        } catch (e) {
+          log.debug(`Upload verification failed for ${file.path} on ${server}: ${e}`);
+          return false;
+        }
       }
 
       const errorText = await response.text();
