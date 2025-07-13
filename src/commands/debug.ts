@@ -212,8 +212,14 @@ export function registerDebugCommand(program: Command): void {
                 if (result.hashVerification) {
                   if (result.hashVerification.valid) {
                     message += colors.green(` ✓ Hash verified`);
+                    if (options.verbose) {
+                      message += colors.gray(` [${result.hashVerification.hash.substring(0, 8)}...]`);
+                    }
                   } else {
                     message += colors.red(` ✗ Hash mismatch!`);
+                    if (options.verbose) {
+                      message += colors.red(` Expected: ${result.hashVerification.expectedHash.substring(0, 8)}..., Got: ${result.hashVerification.hash.substring(0, 8)}...`);
+                    }
                   }
                 }
               }

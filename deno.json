@@ -7,6 +7,9 @@
   "tasks": {
     "dev": "deno run --allow-read --allow-write --allow-net --allow-env src/cli.ts",
     "test": "deno test --allow-all --no-check",
+    "test:unit": "deno test --allow-all --no-check tests/unit/",
+    "test:integration": "deno test --allow-all --no-check tests/integration/",
+    "test:fast": "timeout 60 deno test --allow-all --no-check tests/unit/config_test.ts tests/unit/logger_test.ts",
     "coverage": "deno test --allow-read --allow-write --allow-net --allow-env --allow-import --coverage=test-output/coverage --no-check",
     "coverage:badge": "deno run --allow-read --allow-write --allow-run scripts/generate-coverage-badge.ts",
     "coverage:report": "deno task coverage && deno task coverage:badge",
