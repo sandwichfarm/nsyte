@@ -651,7 +651,7 @@ async function copyFallbackFile(): Promise<void> {
     
     // Check if source file exists
     if (!existsSync(fallbackSource)) {
-      log.warn(`Fallback file ${fallbackPath} not found at ${fallbackSource}`);
+      log.warn(`Configured fallback file '${fallbackPath}' not found at ${fallbackSource}`);
       return;
     }
     
