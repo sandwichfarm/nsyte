@@ -120,7 +120,7 @@ export function registerUploadCommand(program: Command): void {
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
-    .option("-p, --purge", "Delete online file events that are not used anymore.", {
+    .option("-p, --purge", "After upload, delete remote file events not in current deployment.", {
       default: false,
     })
     .option("-v, --verbose", "Verbose output.", { default: false })
@@ -218,14 +218,18 @@ export async function uploadCommand(
 
     const includedFiles = await scanLocalFiles();
     const remoteFileEntries = await fetchRemoteFiles(publisherPubkey);
-    const updatedRemoteFiles = await handlePurgeOperation(remoteFileEntries);
     const { toTransfer, toDelete } = await compareAndPrepareFiles(
       includedFiles,
-      updatedRemoteFiles,
+      remoteFileEntries,
     );
 
     await maybeProcessFiles(toTransfer, toDelete);
     await maybePublishMetadata(includedFiles);
+
+    // Handle smart purge AFTER upload
+    if (options.purge) {
+      await handleSmartPurgeOperation(includedFiles, remoteFileEntries);
+    }
 
     if (
       includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0 &&
@@ -250,7 +254,7 @@ export async function uploadCommand(
 function displayGatewayUrl(publisherPubkey: string) {
   const npub = npubEncode(publisherPubkey);
   const { gatewayHostnames } = config;
-  console.log(colors.green(`\nThe website is now available on any nsite gateway, for example:`));
+  console.log(colors.green(`\nThe nsite is now available on any nsite gateway, for example:`));
   for (const gatewayHostname of gatewayHostnames || []) {
     console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
   }
@@ -724,7 +728,7 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
 async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
   let remoteFileEntries: FileEntry[] = [];
 
-  if (!options.force && !options.purge) {
+  if (!options.force) {
     if (resolvedRelays.length > 0) {
       statusDisplay.update("Checking for existing files on remote relays...");
       try {
@@ -751,46 +755,53 @@ async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
 }
 
 /**
- * Handle purge operations for remote files
+ * Handle smart purge operations - only purge files not in current deployment
  */
-async function handlePurgeOperation(
+async function handleSmartPurgeOperation(
+  localFiles: FileEntry[],
   remoteEntries: FileEntry[],
-): Promise<FileEntry[]> {
-  const shouldPurge = options.purge;
+): Promise<void> {
+  // Find remote files that are not in the current local deployment
+  const localFilePaths = new Set(localFiles.map(f => f.path));
+  const filesToPurge = remoteEntries.filter(remote => !localFilePaths.has(remote.path));
 
-  if (!shouldPurge) {
-    return remoteEntries;
+  if (filesToPurge.length === 0) {
+    const noPurgeMsg = "No unused remote files to purge.";
+    if (displayManager.isInteractive()) statusDisplay.success(noPurgeMsg);
+    else console.log(colors.green(noPurgeMsg));
+    return;
   }
 
+  const purgeList = filesToPurge.map(f => f.path).join("\n  - ");
   const confirmPurge = options.nonInteractive ? true : await Confirm.prompt({
     message:
-      `Are you sure you want to purge ALL remote files (nsite kind ${NSITE_KIND}) for pubkey ${await signer
-        .getPublicKey()} before uploading?`,
+      `Purge ${filesToPurge.length} unused remote files?\n  - ${purgeList}\n\nContinue?`,
     default: false,
   });
 
-  if (confirmPurge && resolvedRelays.length > 0) {
-    statusDisplay.update("Purging remote files...");
-    try {
-      await purgeRemoteFiles(resolvedRelays, remoteEntries, signer);
-      statusDisplay.success("Remote files purge command issued.");
-      return [];
-    } catch (e: unknown) {
-      const errMsg = `Error during purge operation: ${getErrorMessage(e)}`;
-      statusDisplay.error(errMsg);
-      log.error(errMsg);
-    }
-  } else if (resolvedRelays.length === 0) {
+  if (!confirmPurge) {
+    log.info("Purge cancelled.");
+    return;
+  }
+
+  if (resolvedRelays.length === 0) {
     const noRelayErr = "Cannot purge remote files: No relays specified.";
     displayManager.isInteractive()
       ? statusDisplay.error(noRelayErr)
       : console.error(colors.red(noRelayErr));
     log.error(noRelayErr);
-  } else if (confirmPurge === false) {
-    log.info("Purge cancelled.");
+    return;
   }
 
-  return remoteEntries;
+  statusDisplay.update(`Purging ${filesToPurge.length} unused remote files...`);
+  try {
+    await purgeRemoteFiles(resolvedRelays, filesToPurge, signer);
+    statusDisplay.success(`Purged ${filesToPurge.length} unused remote files.`);
+  } catch (e: unknown) {
+    const errMsg = `Error during purge operation: ${getErrorMessage(e)}`;
+    statusDisplay.error(errMsg);
+    log.error(errMsg);
+  }
 }
 
 /**
@@ -1159,6 +1170,9 @@ async function processFallbackFile(): Promise<void> {
 async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   log.debug("maybePublishMetadata called");
 
+  const usermeta_relays = ['wss://user.kindpag.es', 'wss://purplepag.es', 'wss://relay.nostr.band'];
+  // const nsite_relays = ['wss://relay.nsite.lol']
+
   // Check both command-line options AND config settings
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
@@ -1205,7 +1219,8 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
       try {
         const relayListEvent = await createRelayListEvent(signer, resolvedRelays);
         log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [relayListEvent]);
+        const publishToRelays = Array.from(new Set([...resolvedRelays, ...usermeta_relays]))
+        await publishEventsToRelays(publishToRelays, [relayListEvent]);
         statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);

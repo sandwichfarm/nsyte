@@ -285,7 +285,7 @@ Deno.test("Nostr Library - listRemoteFiles", async (t) => {
           kind: NSITE_KIND,
           tags: [
             ["d", "/file2.txt"],
-            ["sha256", "hash2"], // Using sha256 tag
+            ["x", "hash2"], // Using proper x tag
           ],
           content: "",
           sig: "sig3",

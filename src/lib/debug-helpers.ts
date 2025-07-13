@@ -109,3 +109,19 @@ export async function fetchAppHandlerEvents(
   // Sort by created_at descending
   return events.sort((a, b) => b.created_at - a.created_at);
 }
+
+export async function fetchIndexHtmlEvent(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string
+): Promise<NostrEvent | null> {
+  logger.debug(`Fetching /index.html nsite event for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [NSITE_KIND],
+    authors: [pubkey],
+    "#d": ["/index.html"],
+    limit: 1
+  });
+  
+  return events.length > 0 ? events[0] : null;
+}

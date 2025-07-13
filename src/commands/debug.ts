@@ -13,12 +13,18 @@ import {
   fetchServerListEvents,
   fetchNsiteEvents,
   fetchAppHandlerEvents,
+  fetchIndexHtmlEvent,
 } from "../lib/debug-helpers.ts";
 import { checkBlossomServers } from "../lib/blossom-checker.ts";
 import { USER_BLOSSOM_SERVER_LIST_KIND, NSITE_KIND } from "../lib/nostr.ts";
 import { readProjectFile } from "../lib/config.ts";
 
 const logger = createLogger("debug");
+
+function prettyPrintEvent(event: NostrEvent, title: string): void {
+  console.log("\n" + colors.bold(colors.cyan(`=== ${title} ===`)));
+  console.log(JSON.stringify(event, null, 2));
+}
 
 interface DebugResult {
   success: boolean;
@@ -40,6 +46,13 @@ interface DebugReport {
   appHandlers: DebugResult;
 }
 
+interface CollectedEvents {
+  profile?: NostrEvent;
+  relayList?: NostrEvent;
+  serverList?: NostrEvent;
+  indexHtmlNsite?: NostrEvent;
+}
+
 export function registerDebugCommand(program: Command): void {
   program
     .command("debug")
@@ -47,6 +60,7 @@ export function registerDebugCommand(program: Command): void {
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "Comma-separated list of relay URLs")
     .option("-v, --verbose", "Show detailed debug information", { default: false })
+    .option("--show-events", "Pretty print events (kind 0, 10002, server list, and index.html nsite event)", { default: false })
     .action(async (options, npub?: string) => {
       try {
         logger.info("Starting nsite debug...");
@@ -117,6 +131,7 @@ export function registerDebugCommand(program: Command): void {
         console.log("");
 
         const pool = new RelayPool();
+        const collectedEvents: CollectedEvents = {};
 
         // Step 1: Check profile (kind 0)
         console.log(colors.yellow("1. Checking profile (kind 0)..."));
@@ -130,6 +145,7 @@ export function registerDebugCommand(program: Command): void {
         
         const profileEvent = await fetchKind0Event(pool, profileRelays, pubkey);
         if (profileEvent) {
+          collectedEvents.profile = profileEvent;
           report.profile = {
             success: true,
             message: "Profile found",
@@ -161,6 +177,7 @@ export function registerDebugCommand(program: Command): void {
         const relayListEvents = await fetchRelayListEvents(pool, relayListRelays, pubkey);
         if (relayListEvents.length > 0) {
           const latestRelayList = relayListEvents[0];
+          collectedEvents.relayList = latestRelayList;
           const relayTags = latestRelayList.tags.filter(tag => tag[0] === "r");
           const foundRelays = relayTags.map(tag => tag[1]);
           report.relays.found = foundRelays;
@@ -252,6 +269,7 @@ export function registerDebugCommand(program: Command): void {
         const serverListEvents = await fetchServerListEvents(pool, relayListRelays, pubkey);
         if (serverListEvents.length > 0) {
           const latestServerList = serverListEvents[0];
+          collectedEvents.serverList = latestServerList;
           const serverTags = latestServerList.tags.filter(tag => tag[0] === "server");
           const publishedServers = serverTags.map(tag => tag[1]);
           console.log(colors.gray(`  ℹ Found published server list with ${publishedServers.length} servers`));
@@ -288,10 +306,20 @@ export function registerDebugCommand(program: Command): void {
         if (nsiteEvents.length > 0) {
           console.log(colors.green(`✓ Found ${nsiteEvents.length} nsite file events`));
           
+          // Find index.html event
+          const indexHtmlEvent = nsiteEvents.find(event => {
+            const pathTag = event.tags.find(tag => tag[0] === "d");
+            return pathTag && (pathTag[1] === "/index.html" || pathTag[1] === "index.html");
+          });
+          
+          if (indexHtmlEvent) {
+            collectedEvents.indexHtmlNsite = indexHtmlEvent;
+          }
+          
           if (options.verbose) {
             console.log(colors.gray("  Recent files:"));
             nsiteEvents.slice(0, 5).forEach(event => {
-              const pathTag = event.tags.find(tag => tag[0] === "x");
+              const pathTag = event.tags.find(tag => tag[0] === "d");
               const path = pathTag ? pathTag[1] : "unknown";
               console.log(colors.gray(`  - ${path}`));
             });
@@ -341,6 +369,38 @@ export function registerDebugCommand(program: Command): void {
           };
           console.log(colors.yellow("⚠ No app handler events found"));
           console.log(colors.gray("  This is optional - app handlers help with nsite discovery"));
+        }
+
+        // Show events if requested
+        if (options.showEvents) {
+          console.log("\n" + colors.bold("=== EVENT DETAILS ==="));
+          
+          if (collectedEvents.profile) {
+            prettyPrintEvent(collectedEvents.profile, "Profile Event (Kind 0)");
+          }
+          
+          if (collectedEvents.relayList) {
+            prettyPrintEvent(collectedEvents.relayList, "Relay List Event (Kind 10002)");
+          }
+          
+          if (collectedEvents.serverList) {
+            prettyPrintEvent(collectedEvents.serverList, "Server List Event (Kind 10063)");
+          }
+          
+          // Fetch index.html event if not already found
+          if (!collectedEvents.indexHtmlNsite) {
+            console.log(colors.gray("\nFetching /index.html event..."));
+            const indexHtmlEvent = await fetchIndexHtmlEvent(pool, nsiteRelays, pubkey);
+            if (indexHtmlEvent) {
+              collectedEvents.indexHtmlNsite = indexHtmlEvent;
+            }
+          }
+          
+          if (collectedEvents.indexHtmlNsite) {
+            prettyPrintEvent(collectedEvents.indexHtmlNsite, "index.html Nsite Event (Kind 34128)");
+          } else {
+            console.log("\n" + colors.yellow("Note: No /index.html file found in nsite events"));
+          }
         }
 
         // Summary

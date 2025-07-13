@@ -241,7 +241,7 @@ export async function listRemoteFiles(
 
   for (const event of events) {
     const path = getTagValue(event, "d");
-    const sha256 = getTagValue(event, "x") || getTagValue(event, "sha256");
+    const sha256 = getTagValue(event, "x");
 
     if (path && sha256) {
       fileEntries.push({
