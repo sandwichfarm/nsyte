@@ -59,9 +59,15 @@ nav:
   - Configuration: usage/configuration.md
   - Commands:
       - Overview: usage/commands.md
+      - init: usage/commands/init.md
       - upload: usage/commands/upload.md
-      - ls: usage/commands/ls.md
       - download: usage/commands/download.md
+      - ls: usage/commands/ls.md
+      - serve: usage/commands/serve.md
+      - run: usage/commands/run.md
+      - validate: usage/commands/validate.md
+      - debug: usage/commands/debug.md
+      - purge: usage/commands/purge.md
       - ci: usage/commands/ci.md
       - bunker: usage/commands/bunker.md
   - Guides:
