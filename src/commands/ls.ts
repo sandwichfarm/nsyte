@@ -195,8 +195,10 @@ async function listRemoteFilesWithSources(
  */
 export function registerLsCommand(program: Command): void {
   program
-    .command("ls")
-    .description("List files available on the nostr network with source information")
+    .command("list")
+    .alias("ls")
+    .description("List files available on the nostr network with source information. Optionally filter by path (e.g., 'docs/' or 'docs/index.html')")
+    .arguments("[path:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option(
@@ -206,7 +208,7 @@ export function registerLsCommand(program: Command): void {
     .action(command);
 }
 
-export async function command(options: any): Promise<void> {
+export async function command(options: any, pathFilter?: string): Promise<void> {
   try {
     const cwd = Deno.cwd();
     const ignoreFilePath = join(cwd, ".nsite-ignore");
@@ -217,9 +219,24 @@ export async function command(options: any): Promise<void> {
     let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
     let ignoredFileCount = 0;
 
+    // Normalize path filter
+    let normalizedPathFilter: string | undefined;
+    if (pathFilter) {
+      // Remove leading slash if present
+      normalizedPathFilter = pathFilter.startsWith('/') ? pathFilter.substring(1) : pathFilter;
+      // For directory filters, ensure trailing slash
+      if (!normalizedPathFilter.includes('.') && !normalizedPathFilter.endsWith('/')) {
+        normalizedPathFilter += '/';
+      }
+    }
+
     console.log(
       colors.cyan(`Listing files for ${colors.bold(truncateHash(pubkey))} using relays: ${relays.join(", ")}`),
     );
+    
+    if (normalizedPathFilter) {
+      console.log(colors.cyan(`Filtering by path: ${normalizedPathFilter}`));
+    }
 
     if (existsSync(ignoreFilePath)) {
       try {
@@ -236,10 +253,29 @@ export async function command(options: any): Promise<void> {
       log.debug("No .nsite-ignore file found, using default patterns.");
     }
 
-    const files = await listRemoteFilesWithSources(relays, pubkey);
+    let files = await listRemoteFilesWithSources(relays, pubkey);
+    
+    // Filter files by path if specified
+    if (normalizedPathFilter) {
+      files = files.filter(file => {
+        const filePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
+        
+        // If filter ends with /, match directory prefix
+        if (normalizedPathFilter.endsWith('/')) {
+          return filePath.startsWith(normalizedPathFilter);
+        }
+        
+        // Otherwise, exact match or prefix match
+        return filePath === normalizedPathFilter || filePath.startsWith(normalizedPathFilter);
+      });
+    }
 
     if (files.length === 0) {
-      console.log(colors.yellow("\nNo files found for this user."));
+      if (normalizedPathFilter) {
+        console.log(colors.yellow(`\nNo files found matching path: ${normalizedPathFilter}`));
+      } else {
+        console.log(colors.yellow("\nNo files found for this user."));
+      }
     } else {
       console.log(colors.green(`\nFound ${files.length} files:`));
 
@@ -294,17 +330,61 @@ export async function command(options: any): Promise<void> {
       const serverColumnWidth = Math.max(maxServerCount, 1); // At least 1 space
       const totalIndicatorWidth = relayColumnWidth + 3 + serverColumnWidth; // 3 for " | "
 
+      // Derive directories from file paths
+      const directories = new Set<string>();
+      files.forEach(file => {
+        const pathParts = file.path.split('/').filter(p => p);
+        let currentPath = '';
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          currentPath += (currentPath ? '/' : '') + pathParts[i];
+          
+          // Only add directories that match the filter (if specified)
+          if (!normalizedPathFilter || 
+              currentPath.startsWith(normalizedPathFilter) || 
+              normalizedPathFilter.startsWith(currentPath + '/')) {
+            directories.add(currentPath);
+          }
+        }
+      });
+
+      // Create combined list of directories and files
+      interface ListItem {
+        path: string;
+        isDirectory: boolean;
+        file?: FileEntryWithSources;
+      }
+
+      const allItems: ListItem[] = [
+        // Add directories
+        ...Array.from(directories).map(dir => ({
+          path: '/' + dir,
+          isDirectory: true,
+        })),
+        // Add files
+        ...files.map(file => ({
+          path: file.path,
+          isDirectory: false,
+          file,
+        })),
+      ];
+
       // Sort files to create a tree-like structure
-      const sortedFiles = [...files].sort((a, b) => {
-        const aDepth = a.path.split('/').length;
-        const bDepth = b.path.split('/').length;
-        if (aDepth !== bDepth) return aDepth - bDepth;
+      const sortedItems = [...allItems].sort((a, b) => {
+        const aDepth = a.path.split('/').filter(p => p).length;
+        const bDepth = b.path.split('/').filter(p => p).length;
+        
+        // If same depth, directories come before files
+        if (aDepth === bDepth) {
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+        }
+        
         return a.path.localeCompare(b.path);
       });
 
       // Count ignored files first
       let ignoredFileCount = 0;
-      sortedFiles.forEach(file => {
+      files.forEach(file => {
         const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
         if (isIgnored(relativePath, ignoreRules, false)) {
           ignoredFileCount++;
@@ -318,68 +398,99 @@ export async function command(options: any): Promise<void> {
       }
       console.log(colors.gray("─".repeat(100)));
 
-      sortedFiles.forEach((file, index) => {
-        const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-        const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
-
-        // Build relay indicators (fixed width based on count, not string length)
-        let relayIndicators = "";
-        let relayCount = 0;
-        file.foundOnRelays.forEach(relay => {
-          const colorFn = relayColorMap.get(relay) || colors.white;
-          relayIndicators += colorFn(RELAY_SYMBOL);
-          relayCount++;
-        });
-        // Pad based on actual symbol count
-        const relayPadding = " ".repeat(relayColumnWidth - relayCount);
-        relayIndicators += relayPadding;
-        
-        // Add separator
-        const separator = colors.gray(" │ ");
-        
-        // Build server indicators (fixed width based on count, not string length)
-        let serverIndicators = "";
-        let serverCount = 0;
-        file.availableOnServers.forEach(server => {
-          const colorFn = serverColorMap.get(server) || colors.white;
-          serverIndicators += colorFn(SERVER_SYMBOL);
-          serverCount++;
-        });
-        // Pad based on actual symbol count
-        const serverPadding = " ".repeat(serverColumnWidth - serverCount);
-        serverIndicators += serverPadding;
-
-        // Combine indicators with fixed total width
-        const indicators = relayIndicators + separator + serverIndicators;
-        
-        // Calculate tree indentation based on path depth
-        const pathParts = file.path.split('/').filter(p => p);
-        const depth = Math.max(0, pathParts.length - 1);
-        const fileName = pathParts[pathParts.length - 1] || file.path;
-        
-        // Determine if this is the last item at this depth level
-        const isLast = index === sortedFiles.length - 1 || 
-                       (index < sortedFiles.length - 1 && 
-                        sortedFiles[index + 1].path.split('/').filter(p => p).length <= pathParts.length);
-        
-        // Build tree structure
-        let treePrefix = "";
-        if (depth > 0) {
-          // Add spacing for parent directories
-          for (let i = 0; i < depth - 1; i++) {
-            treePrefix += "  ";
+      sortedItems.forEach((item, index) => {
+        if (item.isDirectory) {
+          // Display directory
+          const pathParts = item.path.split('/').filter(p => p);
+          const depth = Math.max(0, pathParts.length - 1);
+          const dirName = pathParts[pathParts.length - 1] || item.path;
+          
+          // Determine if this is the last item at this depth level
+          const isLast = index === sortedItems.length - 1 || 
+                         (index < sortedItems.length - 1 && 
+                          sortedItems[index + 1].path.split('/').filter(p => p).length <= pathParts.length);
+          
+          // Build tree structure
+          let treePrefix = "";
+          if (depth > 0) {
+            // Add spacing for parent directories
+            for (let i = 0; i < depth - 1; i++) {
+              treePrefix += "  ";
+            }
+            // Add branch
+            treePrefix += isLast ? "└─ " : "├─ ";
           }
-          // Add branch
-          treePrefix += isLast ? "└─ " : "├─ ";
+
+          // Empty indicators for directories (no relay/server info)
+          const emptyIndicators = " ".repeat(totalIndicatorWidth);
+          
+          // Display directory in gray
+          console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
+        } else {
+          // Display file
+          const file = item.file!;
+          const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+          const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
+
+          // Build relay indicators (fixed width based on count, not string length)
+          let relayIndicators = "";
+          let relayCount = 0;
+          file.foundOnRelays.forEach(relay => {
+            const colorFn = relayColorMap.get(relay) || colors.white;
+            relayIndicators += colorFn(RELAY_SYMBOL);
+            relayCount++;
+          });
+          // Pad based on actual symbol count
+          const relayPadding = " ".repeat(relayColumnWidth - relayCount);
+          relayIndicators += relayPadding;
+          
+          // Add separator
+          const separator = colors.gray(" │ ");
+          
+          // Build server indicators (fixed width based on count, not string length)
+          let serverIndicators = "";
+          let serverCount = 0;
+          file.availableOnServers.forEach(server => {
+            const colorFn = serverColorMap.get(server) || colors.white;
+            serverIndicators += colorFn(SERVER_SYMBOL);
+            serverCount++;
+          });
+          // Pad based on actual symbol count
+          const serverPadding = " ".repeat(serverColumnWidth - serverCount);
+          serverIndicators += serverPadding;
+
+          // Combine indicators with fixed total width
+          const indicators = relayIndicators + separator + serverIndicators;
+          
+          // Calculate tree indentation based on path depth
+          const pathParts = file.path.split('/').filter(p => p);
+          const depth = Math.max(0, pathParts.length - 1);
+          const fileName = pathParts[pathParts.length - 1] || file.path;
+          
+          // Determine if this is the last item at this depth level
+          const isLast = index === sortedItems.length - 1 || 
+                         (index < sortedItems.length - 1 && 
+                          sortedItems[index + 1].path.split('/').filter(p => p).length <= pathParts.length);
+          
+          // Build tree structure
+          let treePrefix = "";
+          if (depth > 0) {
+            // Add spacing for parent directories
+            for (let i = 0; i < depth - 1; i++) {
+              treePrefix += "  ";
+            }
+            // Add branch
+            treePrefix += isLast ? "└─ " : "├─ ";
+          }
+
+          // Format file info
+          const pathColor = shouldBeIgnored ? colors.red : colors.white;
+          const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
+          const eventIdDisplay = colors.gray(` {${truncateHash(file.eventId)}}`);
+
+          // Fixed width for indicators column, then tree and file info
+          console.log(`${indicators} ${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}${eventIdDisplay}`);
         }
-
-        // Format file info
-        const pathColor = shouldBeIgnored ? colors.red : colors.white;
-        const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
-        const eventIdDisplay = colors.gray(` {${truncateHash(file.eventId)}}`);
-
-        // Fixed width for indicators column, then tree and file info
-        console.log(`${indicators} ${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}${eventIdDisplay}`);
       });
 
       console.log(colors.gray("─".repeat(100)));

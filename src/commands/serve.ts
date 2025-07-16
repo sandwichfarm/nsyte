@@ -20,6 +20,7 @@ interface ServeOptions {
 export function registerServeCommand(program: Command): void {
   program
     .command("serve")
+    .alias("srv")
     .description("Build and serve your local nsite files")
     .option("-p, --port <port:number>", "Port number for the local server.", { default: 8080 })
     .option("-d, --dir <dir:string>", "Directory to serve (defaults to current directory).", {

@@ -18,6 +18,7 @@ export interface ValidateCommandOptions {
 export const validateCommand = (program: Command) => {
   program
     .command("validate")
+    .alias("val")
     .description("Validate nsyte configuration file")
     .option("-f, --file <path>", "Path to config file (default: .nsite/config.json)")
     .option("-s, --schema", "Show the JSON schema location", { default: false })

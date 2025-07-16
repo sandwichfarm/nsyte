@@ -31,6 +31,7 @@ export type { DownloadProgress, DownloadResult, DownloadStats } from "../lib/dow
 export function registerDownloadCommand(program: Command): void {
   const command = program
     .command("download")
+    .alias("dl")
     .description("Download files from the nostr network")
     .option("-o, --output <dir:string>", "The output directory to save files to.", {
       default: "./downloads",

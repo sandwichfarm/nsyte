@@ -17,6 +17,7 @@ const logger = createLogger("announce");
 export function registerAnnounceCommand(program: Command): void {
   program
     .command("announce")
+    .alias("annc")
     .description("Publish profile, relay list, server list, and app handlers to Nostr")
     .option("--publish-profile", "Publish your Nostr profile (Kind 0)")
     .option("--publish-relay-list", "Publish your relay list (Kind 10002)")

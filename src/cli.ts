@@ -17,7 +17,7 @@ import { Command } from "@cliffy/command";
 import { colors } from "@cliffy/ansi/colors";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
-import { registerUploadCommand } from "./commands/upload.ts";
+import { registerDeployCommand } from "./commands/deploy.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
@@ -60,7 +60,7 @@ const nsite = new Command()
 
 // Register all commands
 registerInitCommand(nsite);
-registerUploadCommand(nsite);
+registerDeployCommand(nsite);
 registerLsCommand(nsite);
 registerDownloadCommand(nsite);
 registerCICommand(nsite);

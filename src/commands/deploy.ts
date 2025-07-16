@@ -107,12 +107,14 @@ export interface FilePreparationResult {
 }
 
 /**
- * Register the upload command
+ * Register the deploy command
  */
-export function registerUploadCommand(program: Command): void {
+export function registerDeployCommand(program: Command): void {
   program
-    .command("upload")
-    .description("Upload files from a directory")
+    .command("deploy")
+    .alias("upload")
+    .alias("dpl")
+    .description("Deploy files from a directory")
     .arguments("<folder:string>")
     .option("-f, --force", "Force publishing even if no changes were detected.", { default: false })
     .option("-s, --servers <servers:string>", "The blossom servers to use (comma separated).")
@@ -146,6 +148,11 @@ export function registerUploadCommand(program: Command): void {
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
+      // Show deprecation notice if using upload alias
+      const cmdName = Deno.args[0];
+      if (cmdName === "upload") {
+        console.log(colors.yellow("⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n"));
+      }
       await uploadCommand(folder, options);
     });
 }

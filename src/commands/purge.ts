@@ -87,6 +87,7 @@ interface PurgeOptions {
 export function registerPurgeCommand(program: Command): void {
   program
     .command("purge")
+    .alias("prg")
     .description("Remove nsite events from relays and optionally blobs from servers")
     .option("-a, --all", "Purge ALL nsite events for this pubkey", { default: false })
     .option("-p, --paths <paths:string>", "Path patterns to purge (supports wildcards: *, ?)", { collect: true })

@@ -26,6 +26,7 @@ interface RunOptions extends ResolverOptions {
 export function registerRunCommand(program: Command): void {
   program
     .command("run")
+    .alias("rn")
     .description("Run a resolver server that serves nsites via npub subdomains")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 8080 })
