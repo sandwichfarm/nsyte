@@ -258,6 +258,8 @@ function displayGatewayUrl(publisherPubkey: string) {
   for (const gatewayHostname of gatewayHostnames || []) {
     console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
   }
+  console.log(colors.green(`\nYou can also run`))
+  console.log(colors.blue.underline('open https://${npub}.localhost:8081/ && nsyte run'))
 }
 
 export function initState(options_: UploadCommandOptions) {

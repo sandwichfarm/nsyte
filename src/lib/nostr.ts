@@ -4,7 +4,8 @@ import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from
 import { getTagValue } from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
 import { NostrConnectSigner } from "applesauce-signers";
-import { lastValueFrom, toArray } from "rxjs";
+import { lastValueFrom } from "rxjs";
+import { toArray } from "rxjs/operators";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";

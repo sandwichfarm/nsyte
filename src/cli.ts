@@ -15,6 +15,8 @@ self.addEventListener("unhandledrejection", (event) => {
 
 import { Command } from "@cliffy/command";
 import { colors } from "@cliffy/ansi/colors";
+import { existsSync } from "@std/fs/exists";
+import { join } from "@std/path";
 import { registerUploadCommand } from "./commands/upload.ts";
 import { registerLsCommand } from "./commands/ls.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
@@ -27,6 +29,7 @@ import { validateCommand } from "./commands/validate.ts";
 import { registerDebugCommand } from "./commands/debug.ts";
 import { registerAnnounceCommand } from "./commands/announce.ts";
 import { setupProject } from "./lib/config.ts";
+import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
 import { version } from "./version.ts";
@@ -98,6 +101,17 @@ function displayColorfulHeader() {
 async function main() {
   try {
     displayColorfulHeader();
+
+    // Clean up any invalid config files on startup
+    try {
+      const currentDir = Deno.cwd();
+      // Only run cleanup if we're in a project directory (has .nsite folder)
+      if (existsSync(join(currentDir, ".nsite"))) {
+        await cleanupConfigFiles(false); // Non-interactive cleanup
+      }
+    } catch (error) {
+      log.debug(`Config cleanup check failed: ${error}`);
+    }
 
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
       await handleBunkerCommand(false);

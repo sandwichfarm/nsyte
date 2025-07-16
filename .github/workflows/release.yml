@@ -40,6 +40,68 @@ jobs:
           cp nsyte-macos nsyte-macos-${{ env.VERSION }}
           cp nsyte-windows.exe nsyte-windows-${{ env.VERSION }}.exe
 
+      - name: Display original sizes
+        run: |
+          echo "Original binary sizes:"
+          ls -lh dist/
+
+      - name: Create compressed copies
+        run: |
+          # Create copies for compression
+          cp dist/nsyte-linux dist/nsyte-linux-compressed
+          cp dist/nsyte-macos dist/nsyte-macos-compressed
+          cp dist/nsyte-windows.exe dist/nsyte-windows-compressed.exe
+
+      - name: Compress Linux binary
+        uses: svenstaro/upx-action@v2
+        with:
+          files: |
+            dist/nsyte-linux-compressed
+          args: --best --lzma
+          strip: true
+
+      - name: Compress macOS binary
+        uses: svenstaro/upx-action@v2
+        with:
+          files: |
+            dist/nsyte-macos-compressed
+          args: --best --lzma
+          strip: true
+
+      - name: Compress Windows binary
+        uses: svenstaro/upx-action@v2
+        with:
+          files: |
+            dist/nsyte-windows-compressed.exe
+          args: --best --lzma
+          strip: true
+
+      - name: Rename compressed binaries with version
+        run: |
+          cd dist
+          mv nsyte-linux-compressed nsyte-linux-compressed-${{ env.VERSION }}
+          mv nsyte-macos-compressed nsyte-macos-compressed-${{ env.VERSION }}
+          mv nsyte-windows-compressed.exe nsyte-windows-compressed-${{ env.VERSION }}.exe
+
+      - name: Display compressed sizes
+        run: |
+          echo "Compressed binary sizes:"
+          ls -lh dist/*compressed*
+
+      - name: Create size report
+        run: |
+          echo "# Binary Size Comparison" > dist/size-report.txt
+          echo "" >> dist/size-report.txt
+          echo "## Original Sizes" >> dist/size-report.txt
+          echo "- Linux: $(ls -lh dist/nsyte-linux | awk '{print $5}')" >> dist/size-report.txt
+          echo "- macOS: $(ls -lh dist/nsyte-macos | awk '{print $5}')" >> dist/size-report.txt
+          echo "- Windows: $(ls -lh dist/nsyte-windows.exe | awk '{print $5}')" >> dist/size-report.txt
+          echo "" >> dist/size-report.txt
+          echo "## Compressed Sizes (UPX --best --lzma)" >> dist/size-report.txt
+          echo "- Linux: $(ls -lh dist/nsyte-linux-compressed-${{ env.VERSION }} | awk '{print $5}')" >> dist/size-report.txt
+          echo "- macOS: $(ls -lh dist/nsyte-macos-compressed-${{ env.VERSION }} | awk '{print $5}')" >> dist/size-report.txt
+          echo "- Windows: $(ls -lh dist/nsyte-windows-compressed-${{ env.VERSION }}.exe | awk '{print $5}')" >> dist/size-report.txt
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -54,26 +116,55 @@ jobs:
             ### Changes in this release
             - See the [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details
 
+            ### Download Options
+
+            We provide both **standard** and **compressed** binaries:
+            - **Standard**: Original binaries (~88MB)
+            - **Compressed**: UPX-compressed binaries (~30-40MB) - experimental, may have slower startup
+
             ### Installation
+            
             Download the appropriate binary for your system and make it executable:
 
             #### Linux
             ```bash
+            # Standard version
             chmod +x nsyte-linux-${{ env.VERSION }}
             ./nsyte-linux-${{ env.VERSION }}
+
+            # Or compressed version (smaller download)
+            chmod +x nsyte-linux-compressed-${{ env.VERSION }}
+            ./nsyte-linux-compressed-${{ env.VERSION }}
             ```
 
             #### macOS
             ```bash
+            # Standard version
             chmod +x nsyte-macos-${{ env.VERSION }}
             ./nsyte-macos-${{ env.VERSION }}
+
+            # Or compressed version (smaller download)
+            chmod +x nsyte-macos-compressed-${{ env.VERSION }}
+            ./nsyte-macos-compressed-${{ env.VERSION }}
             ```
 
             #### Windows
-            Double-click the executable or run from command line:
             ```
+            # Standard version
             nsyte-windows-${{ env.VERSION }}.exe
+
+            # Or compressed version
+            nsyte-windows-compressed-${{ env.VERSION }}.exe
             ```
+
+            ### ⚠️ Note on Compressed Binaries
+            
+            The compressed binaries use UPX compression and may:
+            - Have slightly slower startup times due to decompression
+            - Trigger some antivirus warnings (false positives)
+            - Have issues with code signing on macOS
+
+            If you experience any issues, please use the standard binaries.
           files: |
             dist/nsyte-linux
             dist/nsyte-macos
@@ -81,6 +172,10 @@ jobs:
             dist/nsyte-linux-${{ env.VERSION }}
             dist/nsyte-macos-${{ env.VERSION }}
             dist/nsyte-windows-${{ env.VERSION }}.exe
+            dist/nsyte-linux-compressed-${{ env.VERSION }}
+            dist/nsyte-macos-compressed-${{ env.VERSION }}
+            dist/nsyte-windows-compressed-${{ env.VERSION }}.exe
+            dist/size-report.txt
 
       - name: Output Release URL
         run: echo "Release URL -> ${{ steps.create_release.outputs.url }}"

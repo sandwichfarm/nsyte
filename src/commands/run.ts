@@ -17,6 +17,7 @@ const log = createLogger("run");
 interface RunOptions extends ResolverOptions {
   port?: number;
   cacheDir?: string;
+  noOpen?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function registerRunCommand(program: Command): void {
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
     .option("-c, --cache-dir <dir:string>", "Directory to cache downloaded files (uses temp dir if not specified)")
+    .option("--no-open", "Don't automatically open the browser")
     .action(async (options: RunOptions) => {
       await runCommand(options);
     });
@@ -101,8 +103,15 @@ export async function runCommand(options: RunOptions): Promise<void> {
     console.log(colors.cyan(`💾 Blossom servers: ${servers.join(", ")}`));
     console.log(colors.cyan(`🌐 Server URL: http://localhost:${port}`));
     console.log(colors.gray(`\nAccess nsites via: http://{npub}.localhost:${port}/path/to/file`));
-    console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html\n`));
+    console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html`));
+    console.log(colors.gray(`\nNote: http://localhost:${port} redirects to:`));
+    console.log(colors.gray(`http://npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta.localhost:${port}\n`));
     console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
+
+    // Open browser automatically unless disabled
+    if (!options.noOpen) {
+      await openBrowser(`http://localhost:${port}`);
+    }
 
     // Cache for profile data and file listings
     const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
@@ -116,6 +125,20 @@ export async function runCommand(options: RunOptions): Promise<void> {
       const startTime = performance.now();
       const url = new URL(request.url);
       const hostname = request.headers.get("host")?.split(":")[0] || "";
+
+      // Handle root localhost redirect
+      if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
+        const redirectUrl = `http://npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta.localhost:${port}${url.pathname}${url.search}`;
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(colors.cyan(`→ Redirecting to ${redirectUrl} - ${elapsed}ms`));
+        return new Response(null, {
+          status: 302,
+          headers: {
+            "Location": redirectUrl,
+            "Cache-Control": "no-cache"
+          }
+        });
+      }
 
       // Extract npub from subdomain
       const npub = extractNpubFromHost(hostname);
@@ -665,4 +688,72 @@ function isCacheStale(fileListEntry: any, file: FileEntry): boolean {
   const currentEventTime = file.event.created_at;
   
   return cachedEventTime !== undefined && currentEventTime > cachedEventTime;
+}
+
+/**
+ * Open browser with the given URL (cross-platform)
+ */
+async function openBrowser(url: string): Promise<void> {
+  try {
+    const os = Deno.build.os;
+    let cmd: string[];
+    
+    switch (os) {
+      case "darwin": // macOS
+        cmd = ["open", url];
+        break;
+      case "windows":
+        cmd = ["cmd", "/c", "start", url];
+        break;
+      case "linux":
+        // Try xdg-open first, then fallback to other options
+        cmd = ["xdg-open", url];
+        break;
+      default:
+        console.log(colors.yellow(`⚠️  Cannot auto-open browser on ${os}. Please manually open: ${url}`));
+        return;
+    }
+    
+    const command = new Deno.Command(cmd[0], {
+      args: cmd.slice(1),
+      stdout: "null",
+      stderr: "null",
+    });
+    
+    const { success } = await command.output();
+    
+    if (success) {
+      console.log(colors.green(`🌐 Browser opened automatically`));
+    } else if (os === "linux") {
+      // Try alternative Linux browsers
+      const alternatives = [
+        ["firefox", url],
+        ["google-chrome", url],
+        ["chromium-browser", url],
+        ["sensible-browser", url],
+      ];
+      
+      for (const alt of alternatives) {
+        try {
+          const altCmd = new Deno.Command(alt[0], {
+            args: alt.slice(1),
+            stdout: "null",
+            stderr: "null",
+          });
+          const result = await altCmd.output();
+          if (result.success) {
+            console.log(colors.green(`🌐 Browser opened with ${alt[0]}`));
+            return;
+          }
+        } catch {
+          // Try next alternative
+        }
+      }
+      
+      console.log(colors.yellow(`⚠️  Could not auto-open browser. Please manually open: ${url}`));
+    }
+  } catch (error) {
+    log.debug(`Failed to open browser: ${error}`);
+    console.log(colors.yellow(`⚠️  Could not auto-open browser. Please manually open: ${url}`));
+  }
 }

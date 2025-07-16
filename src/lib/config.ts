@@ -72,7 +72,7 @@ export interface ProjectContext {
   error?: string;
 }
 
-const configDir = ".nsite";
+export const configDir = ".nsite";
 const projectFile = "config.json";
 
 export const popularRelays = [
@@ -137,17 +137,50 @@ function sanitizeBunkerUrl(url: string): string {
  * Write project configuration to file
  */
 export function writeProjectFile(config: ProjectConfig): void {
-  const projectPath = join(Deno.cwd(), configDir, projectFile);
+  const cwd = Deno.cwd();
+  
+  // Prevent writing config in test environments or temp directories
+  if (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/")) {
+    // Skip logging in test environments to avoid noise
+    if (!cwd.includes("nsyte-test-")) {
+      log.warn("Attempting to write config in temporary directory, skipping...");
+    }
+    return;
+  }
+
+  const projectPath = join(cwd, configDir, projectFile);
 
   try {
+    // Validate the file extension to prevent accidental YAML file creation
+    if (!projectPath.endsWith(".json")) {
+      throw new Error(`Invalid config file path: ${projectPath}. Config must be a .json file.`);
+    }
+
     ensureDirSync(dirname(projectPath));
 
     // Clone the data to avoid modifying the original
     const sanitizedData = { ...config };
 
+    // Validate required fields
+    if (!sanitizedData.relays || !Array.isArray(sanitizedData.relays)) {
+      throw new Error("Invalid config: 'relays' must be an array");
+    }
+    if (!sanitizedData.servers || !Array.isArray(sanitizedData.servers)) {
+      throw new Error("Invalid config: 'servers' must be an array");
+    }
+
     // Sanitize bunker URL if present to remove secrets
     if (sanitizedData.bunkerPubkey) {
       sanitizedData.bunkerPubkey = sanitizeBunkerUrl(sanitizedData.bunkerPubkey);
+    }
+
+    // Create backup of existing config if it exists
+    try {
+      const existingContent = Deno.readTextFileSync(projectPath);
+      const backupPath = `${projectPath}.backup`;
+      Deno.writeTextFileSync(backupPath, existingContent);
+    } catch {
+      // No existing config to backup, which is fine
     }
 
     Deno.writeTextFileSync(projectPath, JSON.stringify(sanitizedData, null, 2));
@@ -163,7 +196,22 @@ export function writeProjectFile(config: ProjectConfig): void {
  * Read project configuration from file
  */
 export function readProjectFile(validateSchema = true): ProjectConfig | null {
-  const projectPath = join(Deno.cwd(), configDir, projectFile);
+  const cwd = Deno.cwd();
+  const projectPath = join(cwd, configDir, projectFile);
+
+  // Check for common config file mistakes
+  const configDirPath = join(cwd, configDir);
+  if (fileExists(configDirPath)) {
+    // Check for YAML files that shouldn't exist
+    const yamlPath = join(configDirPath, "config.yaml");
+    const ymlPath = join(configDirPath, "config.yml");
+    
+    if (fileExists(yamlPath) || fileExists(ymlPath)) {
+      console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
+      console.error(colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."));
+      console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
+    }
+  }
 
   try {
     if (!fileExists(projectPath)) {
