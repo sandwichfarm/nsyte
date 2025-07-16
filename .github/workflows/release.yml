@@ -127,7 +127,7 @@ jobs:
       - name: Create compressed version
         run: |
           cp dist/nsyte-macos dist/nsyte-macos-compressed
-          upx --best --lzma dist/nsyte-macos-compressed
+          upx --best --lzma --force-macos dist/nsyte-macos-compressed
 
       - name: Rename binaries
         run: |
