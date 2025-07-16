@@ -80,12 +80,12 @@ deno task compile:all
 | ----------------------- | ------------------------------------------------ |
 | `nsyte`                 | Interactive setup wizard                         |
 | `nsyte init`            | Initialize configuration                         |
-| `nsyte upload`          | Upload files                                     |
+| `nsyte upload <dir>`    | Upload files                                     |
 | `nsyte ls`              | List published files                             |
 | `nsyte download <dir>`  | Download files                                   |
 | `nsyte run`             | Run resolver server with npub subdomains         |
-| `nsyte serve <div>`     | Serve local nsite files from directory (current dir is default)           |
-| `nsyte debug [npub]`    | Debug an nsite by checking relays and servers    |
+| `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default)           |
+| `nsyte debug <npub>`    | Debug an nsite by checking relays and servers    |
 | `nsyte validate`        | Validate configuration file                      |
 | `nsyte purge`           | Remove published files                           |
 | `nsyte ci`              | Generate CI/CD credentials (nbunksec)            |
