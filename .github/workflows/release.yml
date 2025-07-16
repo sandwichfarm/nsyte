@@ -4,178 +4,355 @@ on:
   push:
     tags:
       - "v*" # Run when tag is pushed matching pattern v*, e.g., v1.0.0
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (without v prefix, e.g., 1.0.0)'
+        required: true
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  build:
-    name: Build Binaries
+  build-linux:
+    name: Build Linux Binary
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Deno
         uses: denoland/setup-deno@v1
         with:
-          deno-version: "2.3.1"
+          deno-version: v2.x
 
-      - name: Get version from tag
+      - name: Get version
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-
-      - name: Build binaries
         run: |
-          # Ensure dist directory exists
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          fi
+
+      - name: Build Linux binary
+        run: |
           mkdir -p dist
+          deno compile \
+            --no-check \
+            --allow-run \
+            --allow-read \
+            --allow-write \
+            --allow-net \
+            --allow-env \
+            --allow-sys \
+            --target x86_64-unknown-linux-gnu \
+            --output dist/nsyte-linux \
+            src/cli.ts
 
-          # Build all platforms
-          deno task compile:linux
-          deno task compile:macos
-          deno task compile:windows
+      - name: Create compressed version
+        run: |
+          cp dist/nsyte-linux dist/nsyte-linux-compressed
+          
+      - name: Compress with UPX
+        uses: svenstaro/upx-action@v2
+        with:
+          files: dist/nsyte-linux-compressed
+          args: --best --lzma
+          strip: false
 
-      - name: Rename binaries with version info
+      - name: Rename binaries
         run: |
           cd dist
           cp nsyte-linux nsyte-linux-${{ env.VERSION }}
-          cp nsyte-macos nsyte-macos-${{ env.VERSION }}
-          cp nsyte-windows.exe nsyte-windows-${{ env.VERSION }}.exe
+          mv nsyte-linux-compressed nsyte-linux-compressed-${{ env.VERSION }}
 
-      - name: Display original sizes
+      - name: Display sizes
         run: |
-          echo "Original binary sizes:"
-          ls -lh dist/
+          echo "Linux binary sizes:"
+          ls -lh dist/nsyte-linux*
 
-      - name: Create compressed copies
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: |
+            dist/nsyte-linux
+            dist/nsyte-linux-${{ env.VERSION }}
+            dist/nsyte-linux-compressed-${{ env.VERSION }}
+
+  build-macos:
+    name: Build macOS Binary
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Get version
+        id: get_version
         run: |
-          # Create copies for compression
-          cp dist/nsyte-linux dist/nsyte-linux-compressed
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          fi
+
+      - name: Build macOS binary
+        run: |
+          mkdir -p dist
+          deno compile \
+            --no-check \
+            --allow-run \
+            --allow-read \
+            --allow-write \
+            --allow-net \
+            --allow-env \
+            --allow-sys \
+            --target x86_64-apple-darwin \
+            --output dist/nsyte-macos \
+            src/cli.ts
+
+      - name: Install UPX
+        run: |
+          brew install upx
+
+      - name: Create compressed version
+        run: |
           cp dist/nsyte-macos dist/nsyte-macos-compressed
-          cp dist/nsyte-windows.exe dist/nsyte-windows-compressed.exe
+          upx --best --lzma dist/nsyte-macos-compressed
 
-      - name: Compress Linux binary
-        uses: svenstaro/upx-action@v2
-        with:
-          files: |
-            dist/nsyte-linux-compressed
-          args: --best --lzma
-          strip: false
-
-      - name: Compress macOS binary
-        uses: svenstaro/upx-action@v2
-        with:
-          files: |
-            dist/nsyte-macos-compressed
-          args: --best --lzma
-          strip: false
-
-      - name: Compress Windows binary
-        uses: svenstaro/upx-action@v2
-        with:
-          files: |
-            dist/nsyte-windows-compressed.exe
-          args: --best --lzma
-          strip: false
-
-      - name: Rename compressed binaries with version
+      - name: Rename binaries
         run: |
           cd dist
-          mv nsyte-linux-compressed nsyte-linux-compressed-${{ env.VERSION }}
+          cp nsyte-macos nsyte-macos-${{ env.VERSION }}
           mv nsyte-macos-compressed nsyte-macos-compressed-${{ env.VERSION }}
-          mv nsyte-windows-compressed.exe nsyte-windows-compressed-${{ env.VERSION }}.exe
 
-      - name: Display compressed sizes
+      - name: Display sizes
         run: |
-          echo "Compressed binary sizes:"
-          ls -lh dist/*compressed*
+          echo "macOS binary sizes:"
+          ls -lh dist/nsyte-macos*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-binaries
+          path: |
+            dist/nsyte-macos
+            dist/nsyte-macos-${{ env.VERSION }}
+            dist/nsyte-macos-compressed-${{ env.VERSION }}
+
+  build-windows:
+    name: Build Windows Binary
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Get version
+        id: get_version
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            echo "VERSION=${{ github.event.inputs.version }}" >> $env:GITHUB_ENV
+          } else {
+            echo "VERSION=$($env:GITHUB_REF -replace 'refs/tags/v', '')" >> $env:GITHUB_ENV
+          }
+        shell: pwsh
+
+      - name: Build Windows binary
+        run: |
+          mkdir -Force dist
+          deno compile `
+            --no-check `
+            --no-terminal `
+            --allow-run `
+            --allow-read `
+            --allow-write `
+            --allow-net `
+            --allow-env `
+            --allow-sys `
+            --target x86_64-pc-windows-msvc `
+            --output dist/nsyte-windows.exe `
+            src/cli.ts
+        shell: pwsh
+
+      - name: Create compressed version
+        run: |
+          Copy-Item dist/nsyte-windows.exe dist/nsyte-windows-compressed.exe
+        shell: pwsh
+
+      - name: Compress with UPX
+        uses: svenstaro/upx-action@v2
+        with:
+          files: dist/nsyte-windows-compressed.exe
+          args: --best --lzma
+          strip: false
+
+      - name: Rename binaries
+        run: |
+          cd dist
+          Copy-Item nsyte-windows.exe "nsyte-windows-${{ env.VERSION }}.exe"
+          Move-Item nsyte-windows-compressed.exe "nsyte-windows-compressed-${{ env.VERSION }}.exe"
+        shell: pwsh
+
+      - name: Display sizes
+        run: |
+          echo "Windows binary sizes:"
+          Get-ChildItem dist/nsyte-windows* | Select-Object Name, @{Name="Size";Expression={"{0:N2} MB" -f ($_.Length / 1MB)}}
+        shell: pwsh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: |
+            dist/nsyte-windows.exe
+            dist/nsyte-windows-${{ env.VERSION }}.exe
+            dist/nsyte-windows-compressed-${{ env.VERSION }}.exe
+
+  release:
+    name: Create Release
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/linux-binaries/* release/
+          cp artifacts/macos-binaries/* release/
+          cp artifacts/windows-binaries/* release/
+          ls -la release/
 
       - name: Create size report
         run: |
-          echo "# Binary Size Comparison" > dist/size-report.txt
-          echo "" >> dist/size-report.txt
-          echo "## Original Sizes" >> dist/size-report.txt
-          echo "- Linux: $(ls -lh dist/nsyte-linux | awk '{print $5}')" >> dist/size-report.txt
-          echo "- macOS: $(ls -lh dist/nsyte-macos | awk '{print $5}')" >> dist/size-report.txt
-          echo "- Windows: $(ls -lh dist/nsyte-windows.exe | awk '{print $5}')" >> dist/size-report.txt
-          echo "" >> dist/size-report.txt
-          echo "## Compressed Sizes (UPX --best --lzma)" >> dist/size-report.txt
-          echo "- Linux: $(ls -lh dist/nsyte-linux-compressed-${{ env.VERSION }} | awk '{print $5}')" >> dist/size-report.txt
-          echo "- macOS: $(ls -lh dist/nsyte-macos-compressed-${{ env.VERSION }} | awk '{print $5}')" >> dist/size-report.txt
-          echo "- Windows: $(ls -lh dist/nsyte-windows-compressed-${{ env.VERSION }}.exe | awk '{print $5}')" >> dist/size-report.txt
+          cat > release/size-report.md << EOF
+          # Binary Size Report for v${{ env.VERSION }}
+          
+          ## Standard Binaries
+          - Linux: $(ls -lh release/nsyte-linux 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS: $(ls -lh release/nsyte-macos 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - Windows: $(ls -lh release/nsyte-windows.exe 2>/dev/null | awk '{print $5}' || echo "N/A")
+          
+          ## Compressed Binaries (UPX --best --lzma)
+          - Linux: $(ls -lh release/nsyte-linux-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS: $(ls -lh release/nsyte-macos-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - Windows: $(ls -lh release/nsyte-windows-compressed-${{ env.VERSION }}.exe 2>/dev/null | awk '{print $5}' || echo "N/A")
+          
+          ## Compression Savings
+          Compressed binaries typically save 60-70% of the original size.
+          EOF
 
       - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
           name: nsyte v${{ env.VERSION }}
-          draft: false
+          draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## nsyte v${{ env.VERSION }}
 
-            ### Changes in this release
+            ### What's New
             - See the [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details
 
             ### Download Options
 
             We provide both **standard** and **compressed** binaries:
-            - **Standard**: Original binaries (~88MB)
-            - **Compressed**: UPX-compressed binaries (~30-40MB) - experimental, may have slower startup
+            - **Standard**: Original binaries (~88MB) - recommended for most users
+            - **Compressed**: UPX-compressed binaries (~30MB) - smaller download, slightly slower startup
 
             ### Installation
-            
-            Download the appropriate binary for your system and make it executable:
-
-            #### Linux
-            ```bash
-            # Standard version
-            chmod +x nsyte-linux-${{ env.VERSION }}
-            ./nsyte-linux-${{ env.VERSION }}
-
-            # Or compressed version (smaller download)
-            chmod +x nsyte-linux-compressed-${{ env.VERSION }}
-            ./nsyte-linux-compressed-${{ env.VERSION }}
-            ```
 
             #### macOS
             ```bash
-            # Standard version
-            chmod +x nsyte-macos-${{ env.VERSION }}
-            ./nsyte-macos-${{ env.VERSION }}
+            # Download and make executable
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
 
             # Or compressed version (smaller download)
-            chmod +x nsyte-macos-compressed-${{ env.VERSION }}
-            ./nsyte-macos-compressed-${{ env.VERSION }}
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-compressed-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
+            ```
+
+            #### Linux
+            ```bash
+            # Download and make executable
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-linux-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
+
+            # Or compressed version (smaller download)
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-linux-compressed-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
             ```
 
             #### Windows
-            ```
-            # Standard version
-            nsyte-windows-${{ env.VERSION }}.exe
+            Download the executable and add it to your PATH:
+            - Standard: `nsyte-windows-${{ env.VERSION }}.exe`
+            - Compressed: `nsyte-windows-compressed-${{ env.VERSION }}.exe`
 
-            # Or compressed version
-            nsyte-windows-compressed-${{ env.VERSION }}.exe
+            ### Quick Start
+            ```bash
+            # Initialize a new nsyte project
+            nsyte init
+
+            # Deploy your site
+            nsyte deploy ./my-site
+
+            # List deployed files
+            nsyte ls
             ```
 
             ### ⚠️ Note on Compressed Binaries
             
-            The compressed binaries use UPX compression and may:
-            - Have slightly slower startup times due to decompression
-            - Trigger some antivirus warnings (false positives)
-            - Have issues with code signing on macOS
+            Compressed binaries use UPX compression and may:
+            - Take 1-2 seconds longer to start (decompression overhead)
+            - Trigger antivirus warnings on Windows (false positives)
+            - Not work with macOS Gatekeeper without additional steps
 
-            If you experience any issues, please use the standard binaries.
+            **If you experience any issues, please use the standard binaries.**
           files: |
-            dist/nsyte-linux
-            dist/nsyte-macos
-            dist/nsyte-windows.exe
-            dist/nsyte-linux-${{ env.VERSION }}
-            dist/nsyte-macos-${{ env.VERSION }}
-            dist/nsyte-windows-${{ env.VERSION }}.exe
-            dist/nsyte-linux-compressed-${{ env.VERSION }}
-            dist/nsyte-macos-compressed-${{ env.VERSION }}
-            dist/nsyte-windows-compressed-${{ env.VERSION }}.exe
-            dist/size-report.txt
-
-      - name: Output Release URL
-        run: echo "Release URL -> ${{ steps.create_release.outputs.url }}"
+            release/nsyte-linux
+            release/nsyte-macos
+            release/nsyte-windows.exe
+            release/nsyte-linux-${{ env.VERSION }}
+            release/nsyte-macos-${{ env.VERSION }}
+            release/nsyte-windows-${{ env.VERSION }}.exe
+            release/nsyte-linux-compressed-${{ env.VERSION }}
+            release/nsyte-macos-compressed-${{ env.VERSION }}
+            release/nsyte-windows-compressed-${{ env.VERSION }}.exe
+            release/size-report.md
+          fail_on_unmatched_files: false
