@@ -1,5 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
+import { join } from "@std/path";
+import { ensureDir } from "@std/fs";
 // Using Deno.serve instead of importing serve
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
@@ -14,6 +16,7 @@ const log = createLogger("run");
 
 interface RunOptions extends ResolverOptions {
   port?: number;
+  cacheDir?: string;
 }
 
 /**
@@ -28,6 +31,7 @@ export function registerRunCommand(program: Command): void {
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
+    .option("-c, --cache-dir <dir:string>", "Directory to cache downloaded files (uses temp dir if not specified)")
     .action(async (options: RunOptions) => {
       await runCommand(options);
     });
@@ -66,6 +70,18 @@ export async function runCommand(options: RunOptions): Promise<void> {
   try {
     const port = options.port || 8080;
     
+    // Set up cache directory
+    let cacheDir: string | null = null;
+    let usingPersistentCache = false;
+    
+    if (options.cacheDir) {
+      // Use specified cache directory
+      cacheDir = options.cacheDir;
+      usingPersistentCache = true;
+      await ensureDir(cacheDir);
+      console.log(colors.cyan(`📂 Using cache directory: ${cacheDir}`));
+    }
+    
     // Use specific relays for profile/relay list resolution
     const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
     
@@ -90,13 +106,14 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
     // Cache for profile data and file listings
     const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
-    const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean }>();
-    const fileCache = new Map<string, { data: Uint8Array; timestamp: number }>();
-    const CACHE_TTL = 300000; // 5 minutes cache
-    const FILE_CACHE_TTL = 3600000; // 1 hour for individual files
+    const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
+    const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
+    const CACHE_TTL = 600000; // 10 minutes cache
+    const FILE_CACHE_TTL = usingPersistentCache ? 86400000 : 3600000; // 24 hours for persistent cache, 1 hour for memory
 
     // Create HTTP handler
     const handler = async (request: Request): Promise<Response> => {
+      const startTime = performance.now();
       const url = new URL(request.url);
       const hostname = request.headers.get("host")?.split(":")[0] || "";
 
@@ -104,6 +121,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
       const npub = extractNpubFromHost(hostname);
 
       if (!npub) {
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(colors.red(`✗ Invalid request (no npub) - ${elapsed}ms`));
         return new Response("Invalid request. Use npub subdomain (e.g., npub123.localhost)", {
           status: 400,
           headers: { "Content-Type": "text/plain" },
@@ -112,6 +131,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
       // Validate npub format
       if (!validateNpub(npub)) {
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(colors.red(`✗ Invalid npub format: ${npub} - ${elapsed}ms`));
         return new Response(`Invalid npub format: ${npub}`, {
           status: 400,
           headers: { "Content-Type": "text/plain" },
@@ -175,7 +196,16 @@ export async function runCommand(options: RunOptions): Promise<void> {
             try {
               console.log(colors.gray(`  → Fetching file list...`));
               const files = await listRemoteFiles(relays, pubkeyHex);
-              fileListCache.set(npub, { files, timestamp: Date.now(), loading: false });
+              
+              // Track event timestamps for cache invalidation
+              const eventTimestamps = new Map<string, number>();
+              files.forEach(file => {
+                if (file.event) {
+                  eventTimestamps.set(file.path, file.event.created_at);
+                }
+              });
+              
+              fileListCache.set(npub, { files, timestamp: Date.now(), loading: false, eventTimestamps });
               console.log(colors.gray(`  → Found ${files.length} files`));
             } catch (error) {
               console.log(colors.red(`  → Failed to fetch file list: ${error}`));
@@ -185,6 +215,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
           
           // Return loading page
           const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.blue(`  → Loading page served - ${elapsed}ms`));
           return new Response(loadingHtml, {
             status: 200,
             headers: { 
@@ -197,6 +229,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
         // If still loading, show loading page
         if (fileListEntry?.loading) {
           const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.blue(`  → Loading page served (still fetching) - ${elapsed}ms`));
           return new Response(loadingHtml, {
             status: 200,
             headers: { 
@@ -210,12 +244,23 @@ export async function runCommand(options: RunOptions): Promise<void> {
         if (!fileListEntry || Date.now() - fileListEntry.timestamp > CACHE_TTL) {
           console.log(colors.gray(`  → Refreshing file list...`));
           const files = await listRemoteFiles(relays, pubkeyHex);
-          fileListEntry = { files, timestamp: Date.now(), loading: false };
+          
+          // Track event timestamps for cache invalidation
+          const eventTimestamps = new Map<string, number>();
+          files.forEach(file => {
+            if (file.event) {
+              eventTimestamps.set(file.path, file.event.created_at);
+            }
+          });
+          
+          fileListEntry = { files, timestamp: Date.now(), loading: false, eventTimestamps };
           fileListCache.set(npub, fileListEntry);
           console.log(colors.gray(`  → Found ${files.length} files`));
         }
         
         if (fileListEntry.files.length === 0) {
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.yellow(`  → No files found - ${elapsed}ms`));
           return new Response("No files found for this npub", {
             status: 404,
             headers: { "Content-Type": "text/plain" },
@@ -251,8 +296,9 @@ export async function runCommand(options: RunOptions): Promise<void> {
           
           // If still root, show directory listing
           if (targetPath === "/") {
-            console.log(colors.gray(`  → Showing directory listing`));
             const html = generateDirectoryListing(npub, fileListEntry.files);
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.gray(`  → Directory listing served - ${elapsed}ms`));
             return new Response(html, {
               status: 200,
               headers: { "Content-Type": "text/html" },
@@ -262,25 +308,83 @@ export async function runCommand(options: RunOptions): Promise<void> {
         
         // Find the requested file
         const normalizedRequestPath = targetPath.startsWith("/") ? targetPath.slice(1) : targetPath;
-        const file = fileListEntry.files.find(f => {
+        let file = fileListEntry.files.find(f => {
           const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
           return normalizedFilePath === normalizedRequestPath;
         });
         
+        // If path ends with / and file not found, try directory index files
+        if (!file && requestedPath.endsWith("/")) {
+          const dirPath = normalizedRequestPath;
+          const indexFiles = ["index.html", "index.htm", "README.md"];
+          
+          for (const indexFile of indexFiles) {
+            const indexPath = dirPath + indexFile;
+            file = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === indexPath;
+            });
+            
+            if (file) {
+              console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${indexPath}`));
+              break;
+            }
+          }
+        }
+        
         if (!file || !file.sha256) {
-          return new Response(`File not found: ${requestedPath}`, {
-            status: 404,
-            headers: { "Content-Type": "text/plain" },
+          // Try to find /404.html as fallback per nsite specification
+          const notFoundFile = fileListEntry.files.find(f => {
+            const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+            return normalizedPath === "404.html";
           });
+          
+          if (notFoundFile && notFoundFile.sha256) {
+            // Serve the 404.html file
+            console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html`));
+            file = notFoundFile;
+            // Continue processing to serve the 404.html file
+          } else {
+            // No 404.html available, return plain text error
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.red(`  → File not found: ${requestedPath} (no 404.html) - ${elapsed}ms`));
+            return new Response(`File not found: ${requestedPath}`, {
+              status: 404,
+              headers: { "Content-Type": "text/plain" },
+            });
+          }
+        }
+        
+        // At this point, file is guaranteed to have sha256
+        if (!file.sha256) {
+          throw new Error("File sha256 is missing");
         }
         
         // Check file cache
         const cacheKey = `${npub}-${file.sha256}`;
-        let fileData = fileCache.get(cacheKey)?.data;
+        let fileData: Uint8Array | null = null;
+        const isStale = isCacheStale(fileListEntry, file);
         
-        if (!fileData || (fileCache.get(cacheKey)?.timestamp && Date.now() - fileCache.get(cacheKey)!.timestamp > FILE_CACHE_TTL)) {
-          // Download file on-demand
-          console.log(colors.gray(`  → Downloading ${colors.cyan(file.path)}...`));
+        // Try persistent cache first if available
+        if (cacheDir && !isStale) {
+          fileData = await loadCachedFile(cacheDir, npub, file.sha256);
+          if (fileData) {
+            log.debug(`Loaded ${file.path} from disk cache`);
+          }
+        }
+        
+        // Check memory cache if no persistent cache or file not found
+        if (!fileData) {
+          const memCached = fileCache.get(cacheKey);
+          if (memCached && (!memCached.timestamp || Date.now() - memCached.timestamp < FILE_CACHE_TTL) && !isStale) {
+            fileData = memCached.data;
+            log.debug(`Loaded ${file.path} from memory cache`);
+          }
+        }
+        
+        // Download if not cached or stale
+        if (!fileData || isStale) {
+          console.log(colors.gray(`  → Downloading ${colors.cyan(file.path)}...${isStale ? ' (updated)' : ''}`));
           
           for (const server of servers) {
             try {
@@ -288,8 +392,16 @@ export async function runCommand(options: RunOptions): Promise<void> {
               const downloadedData = await downloadService.downloadFromServer(server, file.sha256);
               if (downloadedData) {
                 fileData = downloadedData;
-                // Cache the file
-                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now() });
+                
+                // Save to memory cache
+                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now(), sha256: file.sha256 });
+                
+                // Save to disk cache if available
+                if (cacheDir) {
+                  await saveCachedFile(cacheDir, npub, file.sha256, fileData);
+                  log.debug(`Saved ${file.path} to disk cache`);
+                }
+                
                 console.log(colors.gray(`  → Downloaded from ${server}`));
                 break;
               }
@@ -299,6 +411,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
           }
           
           if (!fileData) {
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.red(`  → Failed to download file - ${elapsed}ms`));
             return new Response("Failed to download file from any server", {
               status: 500,
               headers: { "Content-Type": "text/plain" },
@@ -308,10 +422,16 @@ export async function runCommand(options: RunOptions): Promise<void> {
         
         // Serve the file
         const contentType = getContentType(file.path);
-        console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)})`));
+        const elapsed = Math.round(performance.now() - startTime);
+        
+        // Check if we're serving a 404 page
+        const is404 = file.path.endsWith("404.html") && requestedPath !== "/404.html";
+        const statusCode = is404 ? 404 : 200;
+        
+        console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)}) - ${elapsed}ms${is404 ? ' [404]' : ''}`));
         
         return new Response(fileData, {
-          status: 200,
+          status: statusCode,
           headers: {
             "Content-Type": contentType,
             "Content-Length": fileData.byteLength.toString(),
@@ -321,6 +441,9 @@ export async function runCommand(options: RunOptions): Promise<void> {
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         log.error(`Error handling request: ${errorMessage}`);
+        
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(colors.red(`  → Error: ${errorMessage} - ${elapsed}ms`));
 
         return new Response(`Error: ${errorMessage}`, {
           status: 500,
@@ -503,4 +626,43 @@ export function formatFileSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+/**
+ * Load cached file from disk
+ */
+async function loadCachedFile(cacheDir: string | null, npub: string, sha256: string): Promise<Uint8Array | null> {
+  if (!cacheDir) return null;
+  try {
+    const filePath = join(cacheDir, npub, sha256);
+    const data = await Deno.readFile(filePath);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save file to disk cache
+ */
+async function saveCachedFile(cacheDir: string | null, npub: string, sha256: string, data: Uint8Array): Promise<void> {
+  if (!cacheDir) return;
+  const dirPath = join(cacheDir, npub);
+  await ensureDir(dirPath);
+  const filePath = join(dirPath, sha256);
+  await Deno.writeFile(filePath, data);
+}
+
+/**
+ * Check if cached file is stale based on event timestamps
+ */
+function isCacheStale(fileListEntry: any, file: FileEntry): boolean {
+  if (!fileListEntry.eventTimestamps || !file.event) {
+    return false;
+  }
+  
+  const cachedEventTime = fileListEntry.eventTimestamps.get(file.path);
+  const currentEventTime = file.event.created_at;
+  
+  return cachedEventTime !== undefined && currentEventTime > cachedEventTime;
 }
