@@ -176,7 +176,7 @@ export async function showBunkerHelp(): Promise<void> {
   console.log("  nsyte bunker connect 'bunker://...' --force-encrypted-storage\n");
 
   console.log(colors.cyan("CI/CD Usage:"));
-  console.log("  1. Use 'nsyte bunker export' to get an nbunksec string");
+  console.log("  1. Use 'nsyte ci' to get an nbunksec string");
   console.log("  2. Add the nbunksec as a secret in your CI system");
   console.log("  3. Use the nbunksec in CI with: nsyte upload ./dist --nbunksec ${NBUNK_SECRET}\n");
 
