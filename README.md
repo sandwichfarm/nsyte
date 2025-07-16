@@ -83,12 +83,12 @@ deno task compile:all
 | `nsyte upload <dir>`    | Upload files                                     |
 | `nsyte ls`              | List published files                             |
 | `nsyte download <dir>`  | Download files                                   |
-| `nsyte purge`           | Remove published files                           |
-| `nsyte debug [npub]`    | Debug an nsite by checking relays and servers   |
+| `nsyte run`             | Run resolver server with npub subdomains         |
+| `nsyte serve`           | Build and serve local nsite files                |
+| `nsyte debug [npub]`    | Debug an nsite by checking relays and servers    |
 | `nsyte validate`        | Validate configuration file                      |
-| `nsyte serve`           | Build and serve local nsite files               |
-| `nsyte run`             | Run resolver server with npub subdomains        |
-| `nsyte ci [url]`        | Generate CI/CD credentials (nbunksec)           |
+| `nsyte purge`           | Remove published files                           |
+| `nsyte ci`              | Generate CI/CD credentials (nbunksec)            |
 | `nsyte bunker <action>` | Manage NIP-46 bunkers                            |
 
 ### Uploading Files
