@@ -104,9 +104,11 @@ export function registerPurgeCommand(program: Command): void {
 
 async function purgeCommand(options: PurgeOptions): Promise<void> {
   try {
+    log.debug(`Starting purgeCommand with options: ${JSON.stringify(options)}`);
     console.log(colors.bold.magenta("\nnsyte purge\n"));
 
     // Get config
+    log.debug("Reading project file...");
     const config = readProjectFile();
     if (!config) {
       console.log(colors.red("No .nsite/config.json found. Please run 'nsyte init' first."));
@@ -447,9 +449,21 @@ async function initSigner(options: PurgeOptions, config: any): Promise<Signer | 
       const secretsManager = (await import("../lib/secrets/mod.ts")).SecretsManager.getInstance();
       const nbunkString = await secretsManager.getNbunk(config.bunkerPubkey);
       if (nbunkString) {
+        log.debug("Retrieved nbunk from secrets manager, creating signer...");
         const bunkerSigner = await importFromNbunk(nbunkString);
-        await bunkerSigner.getPublicKey();
-        return bunkerSigner;
+        log.debug("Bunker signer created, getting public key...");
+        
+        try {
+          await bunkerSigner.getPublicKey();
+          log.debug("Got public key from bunker signer");
+          console.log(colors.green("✓ Connection approved"));
+          return bunkerSigner;
+        } catch (error) {
+          console.log(colors.red("✗ Connection failed or timed out"));
+          throw error;
+        }
+      } else {
+        log.error("No nbunk found in secrets manager for configured bunker");
       }
     } catch (e) {
       log.error(`Failed to use configured bunker: ${e}`);

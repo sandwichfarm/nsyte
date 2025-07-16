@@ -134,7 +134,20 @@ export async function publishAppHandler(
 
     // Get the gateway URL
     const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-    const publisherPubkey = await signer.getPublicKey();
+    
+    // Add timeout to prevent hanging on getPublicKey
+    const getPublicKeyPromise = signer.getPublicKey();
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout getting public key from signer")), 10000);
+    });
+    
+    let publisherPubkey: string;
+    try {
+      publisherPubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
+    } catch (e) {
+      throw new Error(`Failed to get public key from signer: ${getErrorMessage(e)}`);
+    }
+    
     const npub = npubEncode(publisherPubkey);
     const gatewayUrl = `https://${npub}.${gatewayHostname}`;
 
