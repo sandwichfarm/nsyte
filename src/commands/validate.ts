@@ -70,7 +70,7 @@ export const validateCommand = (program: Command) => {
             console.log(`  Profile: ${cfg.profile.name}`);
           }
           
-          if (cfg.appHandler?.enabled) {
+          if (cfg.publishAppHandler && cfg.appHandler) {
             console.log(`  App Handler: Enabled (${cfg.appHandler.kinds?.length || 0} kinds)`);
           }
           

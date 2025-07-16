@@ -1,5 +1,19 @@
 {
+
   "bunkerPubkey": "9c08bc9679ca77197f3e6a28876b77c5cc4b7a9dd268d9a3cffd7f1eab667cfb",
+
+  "publishProfile": true,
+  "publishRelayList": true,
+  "publishServerList": true,
+  
+  "fallback": "/index.html",
+
+  "profile": {
+    "name": "nsyte",
+    "display_name": "nsyte",
+    "about": "cli for deploying nsites"
+  },
+
   "relays": [
     "wss://relay.nsite.lol",
     "wss://nos.lol",
@@ -7,18 +21,11 @@
     "wss://relay.primal.net",
     "wss://relay.damus.io"
   ],
+
   "servers": [
     "https://cdn.hzrd149.com",
     "https://cdn.sovbit.host",
     "https://nosto.re"
-  ],
-  "fallback": "/index.html",
-  "profile": {
-    "name": "nsyte",
-    "display_name": "nsyte",
-    "about": "cli for deploying nsites"
-  },
-  "publishProfile": true,
-  "publishRelayList": true,
-  "publishServerList": true
+  ]
+
 }

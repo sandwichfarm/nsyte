@@ -92,7 +92,7 @@ export interface UploadCommandOptions {
   publishServerList: boolean;
   publishRelayList: boolean;
   publishProfile: boolean;
-  appHandler: boolean;
+  publishAppHandler: boolean;
   handlerKinds?: string;
   version?: string;
   publishFileMetadata: boolean;
@@ -134,7 +134,7 @@ export function registerUploadCommand(program: Command): void {
     .option("--publish-profile", "Publish the app profile for the npub (Kind 0).", {
       default: false,
     })
-    .option("--app-handler", "Publish NIP-89 app handler announcement (Kind 31990).", {
+    .option("--publish-app-handler", "Publish NIP-89 app handler announcement (Kind 31990).", {
       default: false,
     })
     .option("--handler-kinds <kinds:string>", "Event kinds this nsite can handle (comma separated).")
@@ -625,13 +625,13 @@ export function displayConfig(publisherPubkey: string) {
         ),
       );
     }
-    if (options.appHandler || config.appHandler?.enabled) {
+    if (options.publishAppHandler || config.publishAppHandler) {
       const kinds = options.handlerKinds?.split(",").map(k => k.trim()) || 
                     config.appHandler?.kinds?.map(k => k.toString()) || [];
       console.log(
         colors.cyan(
           `Publish App Handler: true${
-            !options.appHandler && !config.appHandler?.enabled ? " (default)" : ""
+            !options.publishAppHandler && !config.publishAppHandler ? " (default)" : ""
           } (kinds: ${kinds.join(", ") || "none"})`,
         ),
       );
@@ -697,8 +697,8 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.appHandler || 
-    (config.appHandler?.enabled ?? false);
+  const shouldPublishAppHandler = options.publishAppHandler || 
+    (config.publishAppHandler ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
     shouldPublishServerList || shouldPublishAppHandler;
 
@@ -829,8 +829,8 @@ async function compareAndPrepareFiles(
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.appHandler || 
-    (config.appHandler?.enabled ?? false);
+  const shouldPublishAppHandler = options.publishAppHandler || 
+    (config.publishAppHandler ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
     shouldPublishServerList || shouldPublishAppHandler;
 
@@ -1177,14 +1177,14 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.appHandler || 
-    (config.appHandler?.enabled ?? false);
+  const shouldPublishAppHandler = options.publishAppHandler || 
+    (config.publishAppHandler ?? false);
 
   log.debug(
-    `Publish flags - from options: profile=${options.publishProfile}, relayList=${options.publishRelayList}, serverList=${options.publishServerList}, appHandler=${options.appHandler}`,
+    `Publish flags - from options: profile=${options.publishProfile}, relayList=${options.publishRelayList}, serverList=${options.publishServerList}, appHandler=${options.publishAppHandler}`,
   );
   log.debug(
-    `Publish flags - from config: profile=${config.publishProfile}, relayList=${config.publishRelayList}, serverList=${config.publishServerList}, appHandler=${config.appHandler?.enabled}`,
+    `Publish flags - from config: profile=${config.publishProfile}, relayList=${config.publishRelayList}, serverList=${config.publishServerList}, appHandler=${config.publishAppHandler}`,
   );
   log.debug(
     `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}, appHandler=${shouldPublishAppHandler}`,

@@ -3,10 +3,12 @@ import type { Command } from "@cliffy/command";
 // Using Deno.serve instead of importing serve
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
-import { resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
-import { listRemoteFiles } from "../lib/nostr.ts";
+import { resolveRelays, resolveServers, type ResolverOptions } from "../lib/resolver-utils.ts";
+import { listRemoteFiles, fetchProfileEvent, fetchRelayListEvent, type FileEntry } from "../lib/nostr.ts";
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
+import { DownloadService } from "../lib/download.ts";
+import { readProjectFile } from "../lib/config.ts";
 
 const log = createLogger("run");
 
@@ -63,23 +65,35 @@ function extractNpubFromHost(hostname: string): string | null {
 export async function runCommand(options: RunOptions): Promise<void> {
   try {
     const port = options.port || 8080;
-    const relays = resolveRelays(options, null, true);
-
-    if (relays.length === 0) {
-      console.error(colors.red("No relays available. Please configure relays or use -r option."));
-      Deno.exit(1);
-    }
+    
+    // Use specific relays for profile/relay list resolution
+    const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
+    
+    // Ensure relays are connected
+    log.debug(`Connecting to profile relays: ${profileRelays.join(", ")}`);
+    
+    // Use configured relays for file events, or fall back to profile relays
+    const fileRelays = resolveRelays(options, readProjectFile(), false);
+    const relays = fileRelays.length > 0 ? fileRelays : profileRelays;
+    
+    // Get blossom servers
+    const servers = resolveServers(options, readProjectFile());
 
     console.log(colors.green(`\n🚀 Starting nsyte resolver server`));
-    console.log(colors.cyan(`📡 Using relays: ${relays.join(", ")}`));
+    console.log(colors.cyan(`📡 Profile relays: ${profileRelays.join(", ")}`));
+    console.log(colors.cyan(`📁 File relays: ${relays.join(", ")}`));
+    console.log(colors.cyan(`💾 Blossom servers: ${servers.join(", ")}`));
     console.log(colors.cyan(`🌐 Server URL: http://localhost:${port}`));
     console.log(colors.gray(`\nAccess nsites via: http://{npub}.localhost:${port}/path/to/file`));
     console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html\n`));
     console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
 
-    // Cache for file listings
-    const fileCache = new Map<string, { files: any[]; timestamp: number }>();
-    const CACHE_TTL = 60000; // 1 minute cache
+    // Cache for profile data and file listings
+    const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
+    const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean }>();
+    const fileCache = new Map<string, { data: Uint8Array; timestamp: number }>();
+    const CACHE_TTL = 300000; // 5 minutes cache
+    const FILE_CACHE_TTL = 3600000; // 1 hour for individual files
 
     // Create HTTP handler
     const handler = async (request: Request): Promise<Response> => {
@@ -109,24 +123,111 @@ export async function runCommand(options: RunOptions): Promise<void> {
         const requestedPath = url.pathname;
 
         log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);
-
-        // Check cache
-        const cached = fileCache.get(npub);
-        let remoteFiles;
-
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-          remoteFiles = cached.files;
-        } else {
-          // Fetch file list from nostr
-          remoteFiles = await listRemoteFiles(relays, pubkeyHex);
-          fileCache.set(npub, { files: remoteFiles, timestamp: Date.now() });
+        
+        // Log successful npub resolution to console
+        console.log(colors.green(`✓ Resolved ${colors.cyan(npub)} → ${colors.gray(requestedPath)}`));
+        
+        // Check profile cache
+        let profileData = profileCache.get(npub);
+        if (!profileData || Date.now() - profileData.timestamp > CACHE_TTL) {
+          // Fetch profile and relay list
+          console.log(colors.gray(`  → Fetching profile data for ${npub}...`));
+          
+          try {
+            const [profile, relayList] = await Promise.all([
+              fetchProfileEvent(profileRelays, pubkeyHex),
+              fetchRelayListEvent(profileRelays, pubkeyHex),
+            ]);
+            
+            profileData = { profile, relayList, timestamp: Date.now() };
+            profileCache.set(npub, profileData);
+            
+            if (profile) {
+              try {
+                const profileContent = JSON.parse(profile.content || "{}");
+                console.log(colors.gray(`  → Profile: ${profileContent.name || profileContent.display_name || "Unknown"}`));
+              } catch (e) {
+                console.log(colors.gray(`  → Profile data found but could not parse`));
+              }
+            } else {
+              console.log(colors.gray(`  → No profile found (user may not have set one)`));
+            }
+            
+            if (relayList) {
+              console.log(colors.gray(`  → Found relay list with ${relayList.tags.filter(t => t[0] === 'r').length} relays`));
+            }
+          } catch (error) {
+            console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
+            profileData = { profile: null, relayList: null, timestamp: Date.now() };
+            profileCache.set(npub, profileData);
+          }
+        }
+        
+        // Get or fetch file list
+        let fileListEntry = fileListCache.get(npub);
+        
+        // If we're loading file list for the first time, show loading page
+        if (!fileListEntry && requestedPath === "/") {
+          // Start loading file list in background
+          fileListCache.set(npub, { files: [], timestamp: Date.now(), loading: true });
+          
+          (async () => {
+            try {
+              console.log(colors.gray(`  → Fetching file list...`));
+              const files = await listRemoteFiles(relays, pubkeyHex);
+              fileListCache.set(npub, { files, timestamp: Date.now(), loading: false });
+              console.log(colors.gray(`  → Found ${files.length} files`));
+            } catch (error) {
+              console.log(colors.red(`  → Failed to fetch file list: ${error}`));
+              fileListCache.set(npub, { files: [], timestamp: Date.now(), loading: false });
+            }
+          })();
+          
+          // Return loading page
+          const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+          return new Response(loadingHtml, {
+            status: 200,
+            headers: { 
+              "Content-Type": "text/html",
+              "Refresh": "2" // Auto-refresh every 2 seconds
+            },
+          });
+        }
+        
+        // If still loading, show loading page
+        if (fileListEntry?.loading) {
+          const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+          return new Response(loadingHtml, {
+            status: 200,
+            headers: { 
+              "Content-Type": "text/html",
+              "Refresh": "2"
+            },
+          });
+        }
+        
+        // Refresh file list if needed
+        if (!fileListEntry || Date.now() - fileListEntry.timestamp > CACHE_TTL) {
+          console.log(colors.gray(`  → Refreshing file list...`));
+          const files = await listRemoteFiles(relays, pubkeyHex);
+          fileListEntry = { files, timestamp: Date.now(), loading: false };
+          fileListCache.set(npub, fileListEntry);
+          console.log(colors.gray(`  → Found ${files.length} files`));
+        }
+        
+        if (fileListEntry.files.length === 0) {
+          return new Response("No files found for this npub", {
+            status: 404,
+            headers: { "Content-Type": "text/plain" },
+          });
         }
 
-        // For root path, look for default files
+        // Handle root path - look for default files
+        let targetPath = requestedPath;
         if (requestedPath === "/") {
           const defaultFiles = [
-            "index.html", 
-            "index.htm", 
+            "index.html",
+            "index.htm",
             "README.md",
             "docs/index.html",
             "dist/index.html",
@@ -136,125 +237,85 @@ export async function runCommand(options: RunOptions): Promise<void> {
             "docs/404.html"
           ];
           
-          // Try to find default files, handling both with and without leading slash
           for (const defaultFile of defaultFiles) {
-            const defaultFileEntry = remoteFiles.find((f) => {
-              // Handle files that might have leading slash in the stored path
+            const file = fileListEntry.files.find(f => {
               const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
               return normalizedPath === defaultFile;
             });
             
-            if (defaultFileEntry) {
-              // Serve the default file
-              const file = defaultFileEntry;
-              
-              // Download the file content from blossom servers
-              if (!file.sha256) {
-                return new Response("File has no SHA256 hash", {
-                  status: 500,
-                  headers: { "Content-Type": "text/plain" },
-                });
-              }
-
-              // Try default blossom servers
-              const blossomServers = [
-                "https://blossom.primal.net",
-                "https://cdn.satellite.earth",
-                "https://blossom.nos.social",
-              ];
-
-              let fileData: Uint8Array | null = null;
-              for (const server of blossomServers) {
-                try {
-                  fileData = await downloadFromBlossom(server, file.sha256);
-                  if (fileData) break;
-                } catch (error) {
-                  log.debug(`Failed to download from ${server}: ${error}`);
-                }
-              }
-
-              if (!fileData) {
-                return new Response("Failed to download file from any blossom server", {
-                  status: 500,
-                  headers: { "Content-Type": "text/plain" },
-                });
-              }
-
-              // Determine content type
-              const contentType = getContentType(file.path);
-
-              return new Response(fileData, {
-                status: 200,
-                headers: {
-                  "Content-Type": contentType,
-                  "Content-Length": fileData.byteLength.toString(),
-                },
-              });
+            if (file) {
+              targetPath = "/" + defaultFile;
+              break;
             }
           }
           
-          // No default file found, show directory listing
-          const html = generateDirectoryListing(npub, remoteFiles);
-          return new Response(html, {
-            status: 200,
-            headers: { "Content-Type": "text/html" },
-          });
+          // If still root, show directory listing
+          if (targetPath === "/") {
+            console.log(colors.gray(`  → Showing directory listing`));
+            const html = generateDirectoryListing(npub, fileListEntry.files);
+            return new Response(html, {
+              status: 200,
+              headers: { "Content-Type": "text/html" },
+            });
+          }
         }
-
-        // Find the requested file (for non-root paths)
-        const file = remoteFiles.find((f) => {
-          // Handle files that might have leading slash in the stored path
-          const normalizedPath = f.path.startsWith("/") ? f.path : "/" + f.path;
-          return normalizedPath === requestedPath;
+        
+        // Find the requested file
+        const normalizedRequestPath = targetPath.startsWith("/") ? targetPath.slice(1) : targetPath;
+        const file = fileListEntry.files.find(f => {
+          const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+          return normalizedFilePath === normalizedRequestPath;
         });
-
-        if (!file) {
+        
+        if (!file || !file.sha256) {
           return new Response(`File not found: ${requestedPath}`, {
             status: 404,
             headers: { "Content-Type": "text/plain" },
           });
         }
-
-        // Download the file content from blossom servers
-        if (!file.sha256) {
-          return new Response("File has no SHA256 hash", {
-            status: 500,
-            headers: { "Content-Type": "text/plain" },
-          });
-        }
-
-        // Try default blossom servers
-        const blossomServers = [
-          "https://blossom.primal.net",
-          "https://cdn.satellite.earth",
-          "https://blossom.nos.social",
-        ];
-
-        let fileData: Uint8Array | null = null;
-        for (const server of blossomServers) {
-          try {
-            fileData = await downloadFromBlossom(server, file.sha256);
-            if (fileData) break;
-          } catch (error) {
-            log.debug(`Failed to download from ${server}: ${error}`);
+        
+        // Check file cache
+        const cacheKey = `${npub}-${file.sha256}`;
+        let fileData = fileCache.get(cacheKey)?.data;
+        
+        if (!fileData || (fileCache.get(cacheKey)?.timestamp && Date.now() - fileCache.get(cacheKey)!.timestamp > FILE_CACHE_TTL)) {
+          // Download file on-demand
+          console.log(colors.gray(`  → Downloading ${colors.cyan(file.path)}...`));
+          
+          for (const server of servers) {
+            try {
+              const downloadService = DownloadService.create();
+              const downloadedData = await downloadService.downloadFromServer(server, file.sha256);
+              if (downloadedData) {
+                fileData = downloadedData;
+                // Cache the file
+                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now() });
+                console.log(colors.gray(`  → Downloaded from ${server}`));
+                break;
+              }
+            } catch (error) {
+              log.debug(`Failed to download from ${server}: ${error}`);
+            }
+          }
+          
+          if (!fileData) {
+            return new Response("Failed to download file from any server", {
+              status: 500,
+              headers: { "Content-Type": "text/plain" },
+            });
           }
         }
-
-        if (!fileData) {
-          return new Response("Failed to download file from any blossom server", {
-            status: 500,
-            headers: { "Content-Type": "text/plain" },
-          });
-        }
-
-        // Determine content type
+        
+        // Serve the file
         const contentType = getContentType(file.path);
-
+        console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)})`));
+        
         return new Response(fileData, {
           status: 200,
           headers: {
             "Content-Type": contentType,
             "Content-Length": fileData.byteLength.toString(),
+            "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
           },
         });
       } catch (error: unknown) {
@@ -277,6 +338,93 @@ export async function runCommand(options: RunOptions): Promise<void> {
       logger: log,
     });
   }
+}
+
+/**
+ * Generate loading page
+ */
+function generateLoadingPage(npub: string, profile: any): string {
+  const profileContent = profile ? JSON.parse(profile.content || "{}") : {};
+  const name = profileContent.name || profileContent.display_name || npub.slice(0, 12) + "...";
+  
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Loading ${name}'s nsite...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #fafafa;
+      color: #333;
+    }
+    .container {
+      text-align: center;
+      max-width: 400px;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      color: #555;
+    }
+    .npub {
+      font-family: monospace;
+      font-size: 0.875rem;
+      color: #999;
+      word-break: break-all;
+      margin-bottom: 2rem;
+    }
+    .loader {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 2rem;
+      border: 3px solid #e0e0e0;
+      border-top-color: #666;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .status {
+      font-size: 0.875rem;
+      color: #666;
+      line-height: 1.5;
+    }
+    .profile-pic {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      background: #e0e0e0;
+      overflow: hidden;
+    }
+    .profile-pic img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${profileContent.picture ? `<div class="profile-pic"><img src="${profileContent.picture}" alt="${name}" onerror="this.style.display='none'"></div>` : ''}
+    <h1>Loading ${name}'s nsite</h1>
+    <div class="npub">${npub}</div>
+    <div class="loader"></div>
+    <div class="status">
+      Connecting to nostr relays...<br>
+      This will only take a moment.
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 /**
@@ -342,35 +490,6 @@ function getContentType(filename: string): string {
   };
 
   return types[ext || ""] || "application/octet-stream";
-}
-
-/**
- * Download file from a blossom server
- */
-async function downloadFromBlossom(server: string, sha256: string): Promise<Uint8Array | null> {
-  const serverUrl = server.endsWith("/") ? server : `${server}/`;
-  const downloadUrl = `${serverUrl}${sha256}`;
-
-  try {
-    const response = await fetch(downloadUrl, {
-      method: "GET",
-      headers: {
-        "Accept": "*/*",
-      },
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    return new Uint8Array(arrayBuffer);
-  } catch (error) {
-    throw error;
-  }
 }
 
 /**

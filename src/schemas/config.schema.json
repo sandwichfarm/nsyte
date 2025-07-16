@@ -92,6 +92,11 @@
       "description": "Whether to publish NIP-94 file metadata for release artifacts",
       "default": false
     },
+    "publishAppHandler": {
+      "type": "boolean",
+      "description": "Whether to publish NIP-89 app handler events",
+      "default": false
+    },
     "fallback": {
       "type": "string",
       "description": "HTML file to use as 404.html for client-side routing"
@@ -110,11 +115,6 @@
       "type": "object",
       "description": "NIP-89 app handler configuration",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "Whether to publish app handler events",
-          "default": false
-        },
         "kinds": {
           "type": "array",
           "description": "Event kinds this nsite can handle/display",
@@ -189,7 +189,7 @@
           }
         }
       },
-      "required": ["enabled", "kinds"],
+      "required": ["kinds"],
       "additionalProperties": false
     },
     "application": {
@@ -275,6 +275,16 @@
         "id": "com.example.myapp",
         "summary": "A powerful decentralized app",
         "platforms": ["web", "linux", "windows"]
+      }
+    },
+    {
+      "relays": ["wss://relay.damus.io"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "publishAppHandler": true,
+      "appHandler": {
+        "kinds": [1, 30023],
+        "name": "My Nostr Viewer",
+        "description": "A viewer for notes and articles"
       }
     }
   ]

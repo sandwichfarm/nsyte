@@ -30,10 +30,10 @@ export type ProjectConfig = {
   publishServerList: boolean;
   publishRelayList: boolean;
   publishProfile?: boolean;
+  publishAppHandler?: boolean;
   fallback?: string;
   gatewayHostnames?: string[];
   appHandler?: {
-    enabled: boolean;
     kinds: number[]; // Event kinds this nsite can handle/display
     name?: string; // Optional app name for the handler
     description?: string; // Optional description

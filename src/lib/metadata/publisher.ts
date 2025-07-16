@@ -197,7 +197,7 @@ export async function publishMetadata(
     const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
     const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
     const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-    const shouldPublishAppHandler = options.publishAppHandler || (config.appHandler?.enabled ?? false);
+    const shouldPublishAppHandler = options.publishAppHandler || config.publishAppHandler || false;
 
     log.debug(
       `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}, appHandler=${shouldPublishAppHandler}`,

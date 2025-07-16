@@ -121,17 +121,81 @@ export async function fetchFileEvents(
   try {
     // Create tmp event store to deduplicate events
     const store = new EventStore();
-    return await lastValueFrom(
+    const events = await lastValueFrom(
       pool
         .request(relays, {
           kinds: [NSITE_KIND],
           authors: [pubkey],
         })
-        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+        .pipe(
+          simpleTimeout(5000),
+          mapEventsToStore(store),
+          mapEventsToTimeline()
+        ),
+      { defaultValue: [] }
     );
+    return events;
   } catch (error) {
     log.error(`Error fetching events: ${getErrorMessage(error)}`);
     return [];
+  }
+}
+
+/** Fetch profile event (kind 0) from nostr relays */
+export async function fetchProfileEvent(
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  log.debug(`Fetching profile for ${pubkey} from ${relays.join(", ")}`);
+
+  try {
+    const store = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [0],
+          authors: [pubkey],
+        })
+        .pipe(
+          simpleTimeout(5000),
+          mapEventsToStore(store),
+          mapEventsToTimeline()
+        ),
+      { defaultValue: [] }
+    );
+    return events.length > 0 ? events[0] : null;
+  } catch (error) {
+    log.error(`Error fetching profile: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
+
+/** Fetch relay list event (kind 10002) from nostr relays */
+export async function fetchRelayListEvent(
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  log.debug(`Fetching relay list for ${pubkey} from ${relays.join(", ")}`);
+
+  try {
+    const store = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [10002],
+          authors: [pubkey],
+        })
+        .pipe(
+          simpleTimeout(5000),
+          mapEventsToStore(store),
+          mapEventsToTimeline()
+        ),
+      { defaultValue: [] }
+    );
+    return events.length > 0 ? events[0] : null;
+  } catch (error) {
+    log.error(`Error fetching relay list: ${getErrorMessage(error)}`);
+    return null;
   }
 }
 

@@ -14,8 +14,8 @@
   "publishProfile": true,
   "publishRelayList": true,
   "publishServerList": true,
+  "publishAppHandler": true,
   "appHandler": {
-    "enabled": true,
     "kinds": [1, 30023, 30311, 1063],
     "name": "My Custom Event Viewer",
     "description": "Displays various Nostr event types including notes, long-form content, and live events"

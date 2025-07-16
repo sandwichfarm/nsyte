@@ -13,6 +13,7 @@
   "publishRelayList": true,
   "publishProfile": true,
   "publishFileMetadata": true,
+  "publishAppHandler": true,
   "profile": {
     "name": "My Awesome Project",
     "display_name": "Awesome Project",
@@ -22,7 +23,6 @@
     "nip05": "project@example.com"
   },
   "appHandler": {
-    "enabled": true,
     "kinds": [1, 30023, 30311],
     "name": "Awesome App",
     "description": "Handles notes, long-form content, and live events"

@@ -33,7 +33,15 @@ Here's a basic configuration file with all available options:
     "enabled": true,
     "kinds": [1, 30023],
     "name": "My Event Viewer",
-    "description": "Views notes and articles"
+    "description": "Views notes and articles",
+    "platforms": {
+      "web": {
+        "patterns": [
+          { "url": "https://myapp.com/e/<bech32>", "entities": ["nevent", "note"] },
+          { "url": "https://myapp.com/a/<bech32>", "entities": ["naddr"] }
+        ]
+      }
+    }
   }
 }
 ```
@@ -67,6 +75,15 @@ Here's a basic configuration file with all available options:
 - `appHandler.kinds`: Array of event kind numbers this nsite can handle
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description of what your handler does
+- `appHandler.platforms`: Platform-specific handler configurations
+  - `platforms.web.patterns`: Array of custom URL patterns for web handling
+    - `url`: Full URL pattern with `<bech32>` placeholder
+    - `entities`: Supported entity types (`nevent`, `naddr`, `nprofile`, etc.)
+  - `platforms.android`: Android app intent URL or package name
+  - `platforms.ios`: iOS app URL scheme or universal link
+  - `platforms.macos`: macOS app URL scheme or bundle identifier
+  - `platforms.windows`: Windows app protocol or executable path
+  - `platforms.linux`: Linux app command or desktop file
 
 ### NIP-94 File Metadata
 

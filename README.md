@@ -437,6 +437,7 @@ nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md
 - `appHandler.kinds`: Array of event kind numbers this nsite can display
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description
+- `appHandler.platforms`: Platform-specific handler configurations (web, android, ios, etc.)
 
 **Command Line:**
 ```bash
