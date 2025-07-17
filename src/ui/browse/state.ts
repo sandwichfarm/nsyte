@@ -16,6 +16,8 @@ export interface BrowseState {
   treeItems: TreeItem[]; // Flat list of all items in tree order
   selectedIndex: number; // Index in treeItems
   selectedItems: Set<string>; // Set of paths instead of indices
+  deletingItems: Set<string>; // Items currently being deleted
+  deletedItems: Set<string>; // Items that have been deleted
   showSelectedOnly: boolean;
   page: number;
   pageSize: number;
@@ -129,6 +131,8 @@ export function createInitialState(
     treeItems,
     selectedIndex: initialIndex,
     selectedItems: new Set(),
+    deletingItems: new Set(),
+    deletedItems: new Set(),
     showSelectedOnly: false,
     page: 0,
     pageSize,

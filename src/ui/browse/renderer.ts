@@ -51,14 +51,14 @@ export function renderHeader(state: BrowseState) {
   if (state.relayColorMap.size > 0) {
     state.relayColorMap.forEach((colorFn, relay) => {
       const shortRelay = relay.replace(/^wss?:\/\//, '').substring(0, 15);
-      legendItems.push(`${colorFn(RELAY_SYMBOL)}${shortRelay}`);
+      legendItems.push(`${colorFn(RELAY_SYMBOL)} ${shortRelay}`);
     });
   }
   
   if (state.serverColorMap.size > 0) {
     state.serverColorMap.forEach((colorFn, server) => {
       const shortServer = server.replace(/^https?:\/\//, '').substring(0, 15);
-      legendItems.push(`${colorFn(SERVER_SYMBOL)}${shortServer}`);
+      legendItems.push(`${colorFn(SERVER_SYMBOL)} ${shortServer}`);
     });
   }
   
@@ -147,8 +147,8 @@ export function renderFileList(state: BrowseState) {
     }
   }
   
-  // Render the path indicator in gray
-  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`Path: ${pathIndicator}`) + "\n"));
+  // Render the path indicator
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}]`) + "\n"));
   
   // Move to start of actual file list (row 4)
   moveCursor(4, 1);
@@ -197,8 +197,17 @@ export function renderFileList(state: BrowseState) {
       const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
       
       // Format file info
+      const isDeleting = state.deletingItems.has(item.path);
+      const isDeleted = state.deletedItems.has(item.path);
+      
       let pathColor;
-      if (isFocused) {
+      let indicatorColor = (str: string) => str;
+      
+      if (isDeleting || isDeleted) {
+        // Show in red when deleting or deleted
+        pathColor = colors.red;
+        indicatorColor = colors.red;
+      } else if (isFocused) {
         pathColor = colors.bgMagenta.white;
       } else if (isSelected) {
         pathColor = colors.brightMagenta;
@@ -208,15 +217,18 @@ export function renderFileList(state: BrowseState) {
         pathColor = colors.white;
       }
       
+      // Apply red color to indicators if deleting
+      const coloredIndicators = isDeleting || isDeleted ? indicatorColor(indicators) : indicators;
+      
       const hashDisplay = colors.gray(` [${truncateHash(item.file.sha256)}]`);
       const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`;
       
-      if (isFocused) {
+      if (isFocused && !isDeleting && !isDeleted) {
         const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
         const paddingNeeded = cols - lineContent.length;
         console.log(colors.bgMagenta.white(`${indicators} ${treePrefix}${fileName}${hashDisplay}` + " ".repeat(Math.max(0, paddingNeeded))));
       } else {
-        console.log(`${indicators} ${fileDisplay}`);
+        console.log(`${coloredIndicators} ${fileDisplay}`);
       }
     }
   });
