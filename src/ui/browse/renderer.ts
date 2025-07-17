@@ -66,7 +66,10 @@ export function renderHeader(state: BrowseState) {
   const legendMaxWidth = cols - title.length - 3;
   const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
   
+  // Clear lines before writing
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   console.log(`${title} ${colors.gray(truncatedLegend)}`);
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   console.log(colors.gray("─".repeat(cols)));
 }
 
@@ -117,6 +120,15 @@ export function renderFileList(state: BrowseState) {
   const contentRows = rows - 4; // Header (2) + Footer (2)
   
   // Move cursor to start of file list area (row 3)
+  moveCursor(3, 1);
+  
+  // Clear the entire file list area
+  for (let i = 0; i < contentRows; i++) {
+    moveCursor(3 + i, 1);
+    Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
+  }
+  
+  // Move back to start of file list
   moveCursor(3, 1);
   
   const startIndex = state.page * state.pageSize;
@@ -191,11 +203,7 @@ export function renderFileList(state: BrowseState) {
     }
   });
   
-  // Fill remaining space
-  const remainingRows = contentRows - pageItems.length;
-  for (let i = 0; i < remainingRows; i++) {
-    console.log(" ".repeat(cols));
-  }
+  // No need to fill remaining space since we cleared the entire area first
 }
 
 export function renderDetailView(state: BrowseState) {
@@ -263,5 +271,19 @@ export function render(state: BrowseState) {
     renderDetailView(state);
   }
   
+  renderFooter(state);
+}
+
+export function renderUpdate(state: BrowseState) {
+  hideCursor();
+  
+  // Update page size based on current terminal size
+  const { rows } = getTerminalSize();
+  state.pageSize = rows - 4;
+  
+  // Don't clear screen, just update parts
+  moveCursor(1, 1);
+  renderHeader(state);
+  renderFileList(state);
   renderFooter(state);
 }

@@ -15,8 +15,7 @@ import { Keypress } from "@cliffy/keypress";
 import { createInitialState } from "../ui/browse/state.ts";
 import { 
   render, 
-  renderFileList,
-  renderFooter,
+  renderUpdate,
   getTerminalSize, 
   showCursor, 
   enterAlternateScreen, 
@@ -165,8 +164,7 @@ export async function command(options: any): Promise<void> {
       
       // For up/down navigation, do a partial render
       if (event.key === "up" || event.key === "down") {
-        renderFileList(state);
-        renderFooter(state);
+        renderUpdate(state);
       } else {
         // Full render for other keys
         render(state);

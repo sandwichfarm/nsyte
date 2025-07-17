@@ -113,11 +113,20 @@ export function createInitialState(
 ): BrowseState {
   const treeItems = buildTreeItems(files);
   
+  // Find first file (non-directory) index
+  let initialIndex = 0;
+  for (let i = 0; i < treeItems.length; i++) {
+    if (!treeItems[i].isDirectory) {
+      initialIndex = i;
+      break;
+    }
+  }
+  
   return {
     files,
     filteredFiles: files,
     treeItems,
-    selectedIndex: 0,
+    selectedIndex: initialIndex,
     selectedItems: new Set(),
     showSelectedOnly: false,
     page: 0,
@@ -153,17 +162,31 @@ export function updateFilteredFiles(state: BrowseState): void {
 }
 
 export function navigateUp(state: BrowseState): void {
-  if (state.selectedIndex > 0) {
-    state.selectedIndex--;
+  let newIndex = state.selectedIndex - 1;
+  
+  // Skip directories, only navigate to files
+  while (newIndex >= 0 && state.treeItems[newIndex].isDirectory) {
+    newIndex--;
+  }
+  
+  if (newIndex >= 0) {
+    state.selectedIndex = newIndex;
     if (state.selectedIndex < state.page * state.pageSize) {
-      state.page--;
+      state.page = Math.max(0, state.page - 1);
     }
   }
 }
 
 export function navigateDown(state: BrowseState): void {
-  if (state.selectedIndex < state.treeItems.length - 1) {
-    state.selectedIndex++;
+  let newIndex = state.selectedIndex + 1;
+  
+  // Skip directories, only navigate to files
+  while (newIndex < state.treeItems.length && state.treeItems[newIndex].isDirectory) {
+    newIndex++;
+  }
+  
+  if (newIndex < state.treeItems.length) {
+    state.selectedIndex = newIndex;
     if (state.selectedIndex >= (state.page + 1) * state.pageSize) {
       state.page++;
     }
