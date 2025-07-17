@@ -5,6 +5,7 @@ import {
   navigatePageLeft, 
   navigatePageRight, 
   toggleSelection,
+  deselectAll,
   updateFilteredFiles,
   getSelectedFiles
 } from "./state.ts";
@@ -320,12 +321,14 @@ export async function deleteFiles(
       
       if (acceptedCount === 0) {
         log.error("All relays rejected the delete event");
-        state.status = `Delete failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected the event`;
+        const fileCount = eventIds.length;
+        state.status = `Delete failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected deletion of ${fileCount} file${fileCount > 1 ? 's' : ''}`;
         state.statusColor = colors.red;
         return false;
       } else if (rejectedCount > 0) {
         log.warn(`Delete event accepted by ${acceptedCount} relay(s), rejected by ${rejectedCount}`);
-        state.status = `Delete partially successful: ${acceptedCount} accepted, ${rejectedCount} rejected`;
+        const fileCount = eventIds.length;
+        state.status = `Delete partially successful for ${fileCount} file${fileCount > 1 ? 's' : ''}: ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${rejectedCount} rejected`;
         state.statusColor = colors.yellow;
       }
     } catch (error) {
@@ -514,6 +517,12 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
     case "s":
       state.showSelectedOnly = !state.showSelectedOnly;
       updateFilteredFiles(state);
+      return true;
+      
+    case "a":
+      if (state.selectedItems.size > 0) {
+        deselectAll(state);
+      }
       return true;
       
     case "return":

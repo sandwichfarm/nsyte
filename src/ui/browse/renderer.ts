@@ -108,12 +108,19 @@ export function renderFooter(state: BrowseState) {
         `${colors.gray("↑↓")} Navigate`,
         `${colors.gray("←→")} Pages`,
         `${colors.gray("SPACE")} Select`,
-        `${colors.gray("s")} Toggle selected${state.selectedItems.size > 0 ? ` [${state.selectedItems.size}]` : ''}`,
+        `${colors.gray("s")} ${state.showSelectedOnly ? 'View All' : 'View Selected'}${state.selectedItems.size > 0 ? ` [${state.selectedItems.size}]` : ''}`,
+      ];
+      
+      if (state.selectedItems.size > 0) {
+        hotkeys.push(`${colors.gray("a")} Deselect all`);
+      }
+      
+      hotkeys.push(
         `${colors.gray("ENTER")} Details`,
         `${colors.gray("/")} Filter`,
         `${colors.gray("DEL")} Delete`,
         `${colors.gray("q")} Quit`
-      ];
+      );
     }
   } else {
     hotkeys = [`${colors.gray("Any key")} Back to list`];
@@ -233,6 +240,7 @@ export function renderFileList(state: BrowseState) {
       
       let pathColor;
       let indicatorColor = (str: string) => str;
+      let rowBackground = false;
       
       if (isDeleting || isDeleted) {
         // Show in red when deleting or deleted
@@ -240,8 +248,10 @@ export function renderFileList(state: BrowseState) {
         indicatorColor = colors.red;
       } else if (isFocused) {
         pathColor = colors.bgMagenta.white;
+        rowBackground = true;
       } else if (isSelected) {
-        pathColor = colors.brightMagenta;
+        pathColor = colors.bgBrightMagenta.black;
+        rowBackground = true;
       } else if (shouldBeIgnored) {
         pathColor = colors.red;
       } else {
@@ -251,14 +261,22 @@ export function renderFileList(state: BrowseState) {
       // Apply red color to indicators if deleting
       const coloredIndicators = isDeleting || isDeleted ? indicatorColor(indicators) : indicators;
       
-      const hashDisplay = colors.gray(` [${truncateHash(item.file.sha256)}]`);
-      const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`;
+      const hashDisplay = ` [${truncateHash(item.file.sha256)}]`;
       
-      if (isFocused && !isDeleting && !isDeleted) {
+      if (rowBackground && !isDeleting && !isDeleted) {
+        // Apply background color to entire row
         const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
         const paddingNeeded = cols - lineContent.length;
-        console.log(colors.bgMagenta.white(`${indicators} ${treePrefix}${fileName}${hashDisplay}` + " ".repeat(Math.max(0, paddingNeeded))));
+        const fullLine = lineContent + " ".repeat(Math.max(0, paddingNeeded));
+        
+        if (isFocused) {
+          console.log(colors.bgMagenta.white(fullLine));
+        } else if (isSelected) {
+          console.log(colors.bgBrightMagenta.black(fullLine));
+        }
       } else {
+        // Normal rendering without background
+        const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${colors.gray(hashDisplay)}`;
         console.log(`${coloredIndicators} ${fileDisplay}`);
       }
     }

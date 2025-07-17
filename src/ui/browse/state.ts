@@ -263,6 +263,10 @@ export function toggleSelection(state: BrowseState): void {
   }
 }
 
+export function deselectAll(state: BrowseState): void {
+  state.selectedItems.clear();
+}
+
 export function getSelectedFiles(state: BrowseState): FileEntryWithSources[] {
   if (state.selectedItems.size > 0) {
     return Array.from(state.selectedItems)
