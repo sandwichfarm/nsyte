@@ -285,7 +285,7 @@ export async function deleteFiles(
           state.status = `Publishing to ${relay.replace(/^wss?:\/\//, '').substring(0, 20)}...`;
           render(state);
           
-          const results = await lastValueFrom(
+          const results: any[] = await lastValueFrom(
             pool.publish([relay], deleteEvent, { retries: 1 })
               .pipe(timeout(5000), toArray())
           );
@@ -298,7 +298,15 @@ export async function deleteFiles(
           } else {
             rejectedCount++;
             rejectedRelays.push(relay);
-            log.warn(`Delete event rejected by ${relay}`);
+            // Log rejection details
+            const rejection = results.find(r => !r.ok);
+            if (rejection && rejection.message) {
+              log.warn(`Delete event rejected by ${relay}: ${rejection.message}`);
+              console.error(colors.red(`Relay ${relay} rejected delete: ${rejection.message}`));
+            } else {
+              log.warn(`Delete event rejected by ${relay} (no reason provided)`);
+              console.error(colors.red(`Relay ${relay} rejected delete (no reason provided)`));
+            }
           }
         } catch (error) {
           // Timeout or connection error
