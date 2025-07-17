@@ -75,17 +75,15 @@ export async function handleDeleteConfirmation(
             state.deletingItems.delete(path);
           });
           
-          // Update status
-          state.status = "Delete failed";
-          state.statusColor = colors.red;
+          // Status is already set by deleteFiles with specific error
           render(state);
           
-          // Reset status after 3 seconds
+          // Reset status after 5 seconds to give user time to read error
           setTimeout(() => {
             state.status = "Ready";
             state.statusColor = undefined;
             render(state);
-          }, 3000);
+          }, 5000);
         }
       });
       
