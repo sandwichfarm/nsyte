@@ -112,7 +112,8 @@ export async function command(options: any): Promise<void> {
     
     // Setup keypress handler
     const keypress = new Keypress();
-    keypress.on("keypress", async (event) => {
+    
+    for await (const event of keypress) {
       if (state.confirmingDelete) {
         const shouldRender = await handleDeleteConfirmation(state, event.key || "", event.sequence);
         if (shouldRender) {
@@ -122,7 +123,7 @@ export async function command(options: any): Promise<void> {
             setTimeout(() => render(state), 2000);
           }
         }
-        return;
+        continue;
       }
       
       if (state.viewMode === "detail") {
@@ -130,20 +131,19 @@ export async function command(options: any): Promise<void> {
         if (shouldContinue) {
           render(state);
         }
-        return;
+        continue;
       }
       
       const shouldContinue = handleListModeKey(state, event.key || "");
       if (!shouldContinue) {
         // Clean up resize listener
         Deno.removeSignalListener("SIGWINCH", handleResize);
+        keypress.dispose();
         Deno.exit(0);
       }
       
       render(state);
-    });
-    
-    await keypress.listenKeypress();
+    }
     
   } catch (error: unknown) {
     handleError("Error in browse mode", error, {

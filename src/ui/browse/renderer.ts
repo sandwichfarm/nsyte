@@ -10,11 +10,15 @@ export function truncateHash(hash: string): string {
 
 export function clearScreen() {
   console.clear();
-  console.write("\x1b[H");
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[H"));
 }
 
 export function getTerminalSize() {
-  return Deno.consoleSize();
+  const size = Deno.consoleSize();
+  return {
+    rows: size.rows,
+    cols: size.columns
+  };
 }
 
 export function renderHeader(state: BrowseState) {
@@ -91,73 +95,148 @@ export function renderFileList(state: BrowseState) {
   const endIndex = Math.min(startIndex + state.pageSize, state.filteredFiles.length);
   const pageFiles = state.filteredFiles.slice(startIndex, endIndex);
   
-  // Calculate max relay/server counts for alignment
-  const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 1);
-  const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 1);
+  // Calculate max relay/server counts for alignment (minimum 3 for visual consistency)
+  const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
+  const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
   
-  pageFiles.forEach((file, index) => {
-    const globalIndex = startIndex + index;
-    const isSelected = state.selectedItems.has(globalIndex);
-    const isFocused = globalIndex === state.selectedIndex;
+  // Build directory tree structure
+  const directories = new Map<string, Set<string>>();
+  const rootFiles = new Set<string>();
+  
+  // Organize files into directory structure
+  state.filteredFiles.forEach(file => {
+    const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+    const parts = path.split('/');
     
-    const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-    const shouldBeIgnored = isIgnored(relativePath, state.ignoreRules, false);
-    
-    // Build indicators with proper alignment
-    let relayIndicators = "";
-    file.foundOnRelays.forEach(relay => {
-      const colorFn = state.relayColorMap.get(relay) || colors.white;
-      relayIndicators += colorFn(RELAY_SYMBOL);
-    });
-    relayIndicators = relayIndicators.padEnd(maxRelayCount);
-    
-    let serverIndicators = "";
-    file.availableOnServers.forEach(server => {
-      const colorFn = state.serverColorMap.get(server) || colors.white;
-      serverIndicators += colorFn(SERVER_SYMBOL);
-    });
-    serverIndicators = serverIndicators.padEnd(maxServerCount);
-    
-    const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
-    
-    // Format file info
-    let pathColor;
-    if (isFocused) {
-      pathColor = colors.bgMagenta.white;
-    } else if (isSelected) {
-      pathColor = colors.brightMagenta;
-    } else if (shouldBeIgnored) {
-      pathColor = colors.red;
+    if (parts.length === 1) {
+      rootFiles.add(path);
     } else {
-      pathColor = colors.white;
+      let currentPath = '';
+      for (let i = 0; i < parts.length - 1; i++) {
+        const parentPath = currentPath;
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        
+        if (!directories.has(parentPath)) {
+          directories.set(parentPath, new Set());
+        }
+        directories.get(parentPath)!.add(currentPath);
+        
+        if (!directories.has(currentPath)) {
+          directories.set(currentPath, new Set());
+        }
+      }
+      
+      // Add file to its parent directory
+      const parentDir = parts.slice(0, -1).join('/');
+      directories.get(parentDir)!.add(path);
+    }
+  });
+  
+  // Render files with tree structure
+  let currentRow = 0;
+  const renderedPaths = new Set<string>();
+  
+  const renderTreeNode = (path: string, depth: number, isLast: boolean, parentPrefix: string = '') => {
+    if (currentRow >= endIndex || currentRow < startIndex) {
+      currentRow++;
+      return;
     }
     
-    const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
+    const file = state.filteredFiles.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
+    const isDirectory = !file && directories.has(path);
     
-    // Calculate available width for path
-    const indicatorsWidth = maxRelayCount + 3 + maxServerCount + 1; // +1 for space after indicators
-    const hashWidth = hashDisplay.length;
-    const availablePathWidth = cols - indicatorsWidth - hashWidth - 2;
-    
-    let displayPath = file.path;
-    if (displayPath.length > availablePathWidth) {
-      displayPath = "..." + displayPath.substring(displayPath.length - availablePathWidth + 3);
+    if (currentRow >= startIndex && currentRow < endIndex) {
+      const globalIndex = state.filteredFiles.findIndex(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
+      const isSelected = globalIndex >= 0 && state.selectedItems.has(globalIndex);
+      const isFocused = globalIndex === state.selectedIndex;
+      
+      // Build tree prefix
+      let treePrefix = parentPrefix;
+      if (depth > 0) {
+        treePrefix += isLast ? "└─ " : "├─ ";
+      }
+      
+      if (isDirectory) {
+        // Render directory
+        const dirName = path.split('/').pop() || path;
+        const emptyIndicators = " ".repeat(maxRelayCount) + " │ " + " ".repeat(maxServerCount);
+        console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
+      } else if (file) {
+        // Render file
+        const fileName = path.split('/').pop() || path;
+        const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+        const shouldBeIgnored = isIgnored(relativePath, state.ignoreRules, false);
+        
+        // Build indicators
+        let relayIndicators = "";
+        file.foundOnRelays.forEach(relay => {
+          const colorFn = state.relayColorMap.get(relay) || colors.white;
+          relayIndicators += colorFn(RELAY_SYMBOL);
+        });
+        relayIndicators += " ".repeat(maxRelayCount - file.foundOnRelays.length);
+        
+        let serverIndicators = "";
+        file.availableOnServers.forEach(server => {
+          const colorFn = state.serverColorMap.get(server) || colors.white;
+          serverIndicators += colorFn(SERVER_SYMBOL);
+        });
+        serverIndicators += " ".repeat(maxServerCount - file.availableOnServers.length);
+        
+        const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
+        
+        // Format file info
+        let pathColor;
+        if (isFocused) {
+          pathColor = colors.bgMagenta.white;
+        } else if (isSelected) {
+          pathColor = colors.brightMagenta;
+        } else if (shouldBeIgnored) {
+          pathColor = colors.red;
+        } else {
+          pathColor = colors.white;
+        }
+        
+        const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
+        const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`;
+        
+        if (isFocused) {
+          const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
+          const paddingNeeded = cols - lineContent.length;
+          console.log(colors.bgMagenta.white(`${indicators} ${treePrefix}${fileName}${hashDisplay}` + " ".repeat(Math.max(0, paddingNeeded))));
+        } else {
+          console.log(`${indicators} ${fileDisplay}`);
+        }
+      }
     }
     
-    let line = `${indicators} ${pathColor(displayPath)}${hashDisplay}`;
+    currentRow++;
+    renderedPaths.add(path);
     
-    if (isFocused) {
-      // Fill the entire line width for focused item
-      const lineContent = `${indicators} ${displayPath}${hashDisplay}`;
-      const paddingNeeded = cols - lineContent.length;
-      line = colors.bgMagenta.white(lineContent + " ".repeat(Math.max(0, paddingNeeded)));
+    // Render children
+    if (isDirectory && directories.has(path)) {
+      const children = Array.from(directories.get(path)!).sort();
+      const childPrefix = parentPrefix + (depth > 0 ? (isLast ? "   " : "│  ") : "");
+      
+      children.forEach((child, index) => {
+        if (!renderedPaths.has(child)) {
+          renderTreeNode(child, depth + 1, index === children.length - 1, childPrefix);
+        }
+      });
     }
-    
-    console.log(line);
+  };
+  
+  // Render root level items
+  const rootItems = Array.from(rootFiles).concat(
+    Array.from(directories.get('') || [])
+  ).sort();
+  
+  rootItems.forEach((item, index) => {
+    renderTreeNode(item, 0, index === rootItems.length - 1);
   });
   
   // Fill remaining space
-  const remainingRows = contentRows - pageFiles.length;
+  const renderedRows = Math.min(currentRow - startIndex, pageFiles.length);
+  const remainingRows = contentRows - renderedRows;
   for (let i = 0; i < remainingRows; i++) {
     console.log(" ".repeat(cols));
   }

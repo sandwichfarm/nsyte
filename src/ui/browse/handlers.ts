@@ -57,19 +57,47 @@ export async function deleteFiles(
   files: FileEntryWithSources[], 
   state: BrowseState
 ): Promise<boolean> {
-  // TODO: Implement actual deletion logic using nostr events
   log.info(`Deleting ${files.length} file(s)`);
   
   try {
-    // Simulate deletion for now
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Import required modules dynamically to avoid circular dependencies
+    const { createDeleteEvent, publishEventsToRelays } = await import("../../lib/nostr.ts");
+    const { readProjectFile } = await import("../../lib/config.ts");
+    const { PrivateKeySigner } = await import("../../lib/signer.ts");
     
-    // In real implementation:
-    // 1. Create deletion events for each file
-    // 2. Publish to relays
-    // 3. Wait for confirmation
+    // Get config to determine signer
+    const config = readProjectFile();
+    if (!config) {
+      log.error("No config found");
+      return false;
+    }
     
-    return true;
+    // TODO: Get signer from browse command options
+    // For now, we'll need to pass signer through state
+    // This is a limitation that should be addressed
+    
+    // Extract event IDs from files that have events
+    const eventIds = files
+      .filter(f => f.event)
+      .map(f => f.eventId);
+    
+    if (eventIds.length === 0) {
+      log.warn("No events to delete");
+      return false;
+    }
+    
+    // Get relays from deleted files
+    const relays = new Set<string>();
+    files.forEach(file => {
+      file.foundOnRelays.forEach(relay => relays.add(relay));
+    });
+    
+    log.info(`Creating delete event for ${eventIds.length} events`);
+    
+    // Note: This is a temporary implementation
+    // In production, the signer should be passed from the command
+    return false; // Return false for now until signer is properly integrated
+    
   } catch (error) {
     log.error(`Failed to delete files: ${error}`);
     return false;

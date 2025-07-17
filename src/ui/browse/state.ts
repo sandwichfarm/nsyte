@@ -16,6 +16,7 @@ export interface BrowseState {
   relayColorMap: Map<string, (str: string) => string>;
   serverColorMap: Map<string, (str: string) => string>;
   ignoreRules: IgnoreRule[];
+  signer?: any; // Will be properly typed when implementing deletion
 }
 
 export function createInitialState(
