@@ -24,7 +24,7 @@ import {
 import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey } from "../ui/browse/handlers.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
-import { Confirm, Input, Select } from "@cliffy/prompt";
+import { Confirm, Input, Select, Secret } from "@cliffy/prompt";
 
 const log = createLogger("browse");
 
@@ -81,9 +81,8 @@ export async function command(options: any): Promise<void> {
           
           let authInput;
           if (authChoice === "nbunksec") {
-            authInput = await Input.prompt({
-              message: "Enter nbunksec:",
-              type: "password"
+            authInput = await Secret.prompt({
+              message: "Enter nbunksec:"
             });
             
             const nbunksecSigner = await createSigner({ nbunksec: authInput });
@@ -93,9 +92,8 @@ export async function command(options: any): Promise<void> {
             }
             signer = nbunksecSigner.signer;
           } else {
-            authInput = await Input.prompt({
-              message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`,
-              type: "password"
+            authInput = await Secret.prompt({
+              message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`
             });
             
             const privateKeySigner = await createSigner({ privateKey: authInput });
