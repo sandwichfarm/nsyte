@@ -23,6 +23,8 @@ import {
 } from "../ui/browse/renderer.ts";
 import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey } from "../ui/browse/handlers.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { readProjectFile } from "../lib/config.ts";
+import { Confirm, Input, Select } from "@cliffy/prompt";
 
 const log = createLogger("browse");
 
@@ -43,22 +45,73 @@ export function registerBrowseCommand(program: Command): void {
 
 export async function command(options: any): Promise<void> {
   try {
-    // Create signer if auth options are provided
+    // Get config to check for bunker
+    const config = readProjectFile();
+    
+    // Create signer from CLI options or config
     let signer = undefined;
-    if (options.privatekey || options.bunker || options.nbunksec) {
+    if (options.privatekey || options.bunker || options.nbunksec || config?.bunkerPubkey) {
       const signerResult = await createSigner({
         privateKey: options.privatekey,
         bunkerUrl: options.bunker,
-        nbunksec: options.nbunksec
+        nbunksec: options.nbunksec,
+        bunkerPubkey: config?.bunkerPubkey
       });
       
       if ('error' in signerResult) {
         log.error(signerResult.error);
         console.error(colors.red(signerResult.error));
-        Deno.exit(1);
+        
+        // If no signer available, prompt for private key
+        console.log(colors.yellow("\nNo signer available for deletion. Would you like to provide a private key?"));
+        const usePrivateKey = await Confirm.prompt({
+          message: "Use private key for this session?",
+          default: true
+        });
+        
+        if (usePrivateKey) {
+          const authChoice = await Select.prompt({
+            message: "Choose authentication method:",
+            options: [
+              { name: "Private Key (hex)", value: "hex" },
+              { name: "Private Key (nsec)", value: "nsec" },
+              { name: "NostrBunker (nbunksec)", value: "nbunksec" }
+            ]
+          });
+          
+          let authInput;
+          if (authChoice === "nbunksec") {
+            authInput = await Input.prompt({
+              message: "Enter nbunksec:",
+              type: "password"
+            });
+            
+            const nbunksecSigner = await createSigner({ nbunksec: authInput });
+            if ('error' in nbunksecSigner) {
+              console.error(colors.red(nbunksecSigner.error));
+              Deno.exit(1);
+            }
+            signer = nbunksecSigner.signer;
+          } else {
+            authInput = await Input.prompt({
+              message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`,
+              type: "password"
+            });
+            
+            const privateKeySigner = await createSigner({ privateKey: authInput });
+            if ('error' in privateKeySigner) {
+              console.error(colors.red(privateKeySigner.error));
+              Deno.exit(1);
+            }
+            signer = privateKeySigner.signer;
+          }
+          
+          // Clear sensitive data from memory
+          authInput = undefined;
+        }
+      } else {
+        signer = signerResult.signer;
       }
-      
-      signer = signerResult.signer;
     }
     
     const pubkey = await resolvePubkey(options);
