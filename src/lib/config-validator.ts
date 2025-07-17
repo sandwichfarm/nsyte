@@ -1,5 +1,7 @@
-import Ajv from "https://esm.sh/ajv@8.17.1";
-import addFormats from "https://esm.sh/ajv-formats@3.0.1";
+import Ajv from "npm:ajv@8.17.1";
+import addFormats from "npm:ajv-formats@3.0.1";
+const AjvConstructor = Ajv as unknown as typeof Ajv.default;
+const addFormatsFunction = addFormats as unknown as typeof addFormats.default;
 import configSchema from "../schemas/config.schema.json" with { type: "json" };
 import { createLogger } from "./logger.ts";
 
@@ -19,7 +21,7 @@ export interface ValidationResult {
  * Create and configure AJV validator instance
  */
 function createValidator() {
-  const ajv = new Ajv({
+  const ajv = new AjvConstructor({
     allErrors: true,
     verbose: true,
     strictSchema: true,
@@ -27,7 +29,7 @@ function createValidator() {
   });
   
   // Add format validators for uri, hostname, etc.
-  addFormats(ajv);
+  addFormatsFunction(ajv);
   
   return ajv;
 }
@@ -42,7 +44,7 @@ export function validateConfig(config: unknown): ValidationResult {
   const valid = validate(config);
   
   if (!valid && validate.errors) {
-    const errors: ValidationError[] = validate.errors.map(err => ({
+    const errors: ValidationError[] = validate.errors.map((err: any) => ({
       path: err.instancePath || "/",
       message: err.message || "Unknown validation error",
     }));

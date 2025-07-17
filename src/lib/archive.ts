@@ -2,9 +2,9 @@ import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, join, relative, basename } from "@std/path";
 import { createLogger } from "./logger.ts";
 import type { FileEntry } from "./nostr.ts";
-import { Tar } from "https://deno.land/std@0.220.0/archive/tar.ts";
-import { Buffer } from "https://deno.land/std@0.220.0/io/buffer.ts";
-import { readAll } from "https://deno.land/std@0.220.0/io/read_all.ts";
+import { Tar } from "jsr:@std/archive@0.225.4/tar";
+import { Buffer } from "jsr:@std/io@0.224.9/buffer";
+import { readAll } from "jsr:@std/io@0.224.9/read-all";
 
 const log = createLogger("archive");
 
