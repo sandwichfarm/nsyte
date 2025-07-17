@@ -16,6 +16,11 @@ export function clearScreen() {
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[2J\x1b[H"));
 }
 
+export function clearLine() {
+  // Clear the current line
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
+}
+
 export function enterAlternateScreen() {
   // Enter alternate screen buffer
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049h"));
@@ -74,7 +79,7 @@ export function getTerminalSize() {
   };
 }
 
-export function renderHeader(state: BrowseState) {
+export function renderHeader(state: BrowseState, startLine: number = 1) {
   const { cols } = getTerminalSize();
   const title = colors.bold.cyan("nsyte browse");
   
@@ -104,7 +109,7 @@ export function renderHeader(state: BrowseState) {
   const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
   
   // Move to header position and clear lines
-  moveCursor(1, 1);
+  moveCursor(startLine, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   Deno.stdout.writeSync(new TextEncoder().encode(`${titleAndIdentity} ${colors.gray(truncatedLegend)}\n`));
   moveCursor(2, 1);
@@ -112,7 +117,7 @@ export function renderHeader(state: BrowseState) {
   Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
 }
 
-export function renderFooter(state: BrowseState) {
+export function renderFooter(state: BrowseState, startLine: number = 1) {
   const { rows, cols } = getTerminalSize();
   
   // Move cursor to footer position (rows - 1 for separator, rows for status/hotkeys)
@@ -175,16 +180,16 @@ export function renderFooter(state: BrowseState) {
   Deno.stdout.writeSync(new TextEncoder().encode(hotkeysText + " ".repeat(padding) + statusText));
 }
 
-export function renderFileList(state: BrowseState) {
+export function renderFileList(state: BrowseState, startLine: number = 1) {
   const { rows, cols } = getTerminalSize();
   const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   // Move cursor to start of file list area (row 3)
-  moveCursor(3, 1);
+  moveCursor(startLine + 2, 1);
   
   // Clear the entire display area including path row
   for (let i = 0; i < contentRows + 1; i++) {
-    moveCursor(3 + i, 1);
+    moveCursor(startLine + 2 + i, 1);
     Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
   }
   
@@ -323,7 +328,7 @@ export function renderFileList(state: BrowseState) {
   // No need to fill remaining space since we cleared the entire area first
 }
 
-export function renderDetailView(state: BrowseState) {
+export function renderDetailView(state: BrowseState, startLine: number = 1) {
   const { rows, cols } = getTerminalSize();
   const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
@@ -398,28 +403,37 @@ export function renderDetailView(state: BrowseState) {
   }
 }
 
-export function render(state: BrowseState) {
+export function render(state: BrowseState, startLine: number = 1) {
   if (!state.filterMode) {
     hideCursor();
   }
-  clearScreen();
+  if (startLine === 1) {
+    clearScreen();
+  } else {
+    // Clear from startLine to bottom
+    const { rows } = getTerminalSize();
+    for (let i = startLine; i <= rows; i++) {
+      moveCursor(1, i);
+      clearLine();
+    }
+  }
   
   // Update page size based on current terminal size
   const { rows } = getTerminalSize();
   state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
-  renderHeader(state);
+  renderHeader(state, startLine);
   
   if (state.viewMode === "list") {
-    renderFileList(state);
+    renderFileList(state, startLine);
   } else {
-    renderDetailView(state);
+    renderDetailView(state, startLine);
   }
   
-  renderFooter(state);
+  renderFooter(state, startLine);
 }
 
-export function renderUpdate(state: BrowseState) {
+export function renderUpdate(state: BrowseState, startLine: number = 1) {
   if (!state.filterMode) {
     hideCursor();
   }
@@ -429,7 +443,7 @@ export function renderUpdate(state: BrowseState) {
   state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   // Don't clear screen, just update parts
-  renderHeader(state);
-  renderFileList(state);
-  renderFooter(state);
+  renderHeader(state, startLine);
+  renderFileList(state, startLine);
+  renderFooter(state, startLine);
 }
