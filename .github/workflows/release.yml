@@ -222,9 +222,41 @@ jobs:
             dist/nsyte-windows-${{ env.VERSION }}.exe
             dist/nsyte-windows-compressed-${{ env.VERSION }}.exe
 
+  publish-jsr:
+    name: Publish to JSR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication with JSR
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          fi
+
+      - name: Update version in deno.json
+        run: |
+          # Update the version in deno.json to match the tag/input version
+          sed -i 's/"version": "[^"]*"/"version": "${{ env.VERSION }}"/' deno.json
+
+      - name: Publish to JSR
+        run: deno publish
+
   release:
     name: Create Release
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux, build-macos, build-windows, publish-jsr]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -292,6 +324,18 @@ jobs:
             - **Compressed**: UPX-compressed binaries (~30MB) - smaller download, slightly slower startup
 
             ### Installation
+
+            #### Install from JSR (Recommended)
+            ```bash
+            # Using Deno
+            deno install -Agr jsr:@nsyte/cli
+
+            # Using npm (requires Node.js)
+            npx jsr add -g @nsyte/cli
+
+            # Using other package managers
+            # See https://jsr.io/@nsyte/cli for more options
+            ```
 
             #### macOS
             ```bash
