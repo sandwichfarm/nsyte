@@ -65,9 +65,17 @@ export const consoleCommand = new Command()
       state.views = views
       state.currentView = 'config'
 
+      // Set up resize handler
+      Deno.addSignalListener('SIGWINCH', handleResize)
+
+      // Initial render
+      render(state)
+
       // Set up keyboard handler
-      state.keyboardHandler = keypress()
-      state.keyboardHandler.on('keypress', async (event: any) => {
+      const keypressIterator = keypress()
+      state.keyboardHandler = keypressIterator
+      
+      for await (const event of keypressIterator) {
         // Global hotkeys
         if (event.ctrlKey && event.key === 'c') {
           cleanup()
@@ -82,13 +90,13 @@ export const consoleCommand = new Command()
         // Tab switching with number keys
         if (state) {
           const viewKeys = Object.keys(state.views)
-          const keyNum = parseInt(event.key)
+          const keyNum = parseInt(event.key || '')
           if (!isNaN(keyNum) && keyNum > 0 && keyNum <= viewKeys.length) {
             const newView = viewKeys[keyNum - 1]
             if (newView !== state.currentView) {
               state.currentView = newView
               render(state)
-              return
+              continue
             }
           }
 
@@ -98,16 +106,7 @@ export const consoleCommand = new Command()
             render(state)
           }
         }
-      })
-
-      // Set up resize handler
-      Deno.addSignalListener('SIGWINCH', handleResize)
-
-      // Initial render
-      render(state)
-
-      // Keep the process running
-      await new Promise(() => {})
+      }
     } catch (error) {
       cleanup()
       console.error('Error in console:', error)

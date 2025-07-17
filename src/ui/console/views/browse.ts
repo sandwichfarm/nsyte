@@ -91,7 +91,7 @@ export class BrowseView implements ConsoleView {
     }
 
     // Fetch files
-    this.files = await listRemoteFilesWithProgress(this.relays, pubkey)
+    this.files = await listRemoteFilesWithProgress(this.relays, pubkey, true) // silent mode
 
     // Create color mappings
     const allRelays = new Set<string>()

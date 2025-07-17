@@ -18,12 +18,15 @@ function getTagValues(event: NostrEvent, tagName: string): string[] {
 export async function listRemoteFilesWithProgress(
   relays: string[],
   pubkey: string,
+  silent: boolean = false,
 ): Promise<FileEntryWithSources[]> {
   const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
   let completedRelays = 0;
   let totalEvents = 0;
 
-  renderLoadingScreen("Connecting to relays...", `0 / ${relays.length} relays`);
+  if (!silent) {
+    renderLoadingScreen("Connecting to relays...", `0 / ${relays.length} relays`);
+  }
 
   // Subscribe to each relay individually to track sources
   const promises = relays.map(async (relay) => {
@@ -71,10 +74,12 @@ export async function listRemoteFilesWithProgress(
       log.debug(`Failed to fetch from relay ${relay}: ${error}`);
     } finally {
       completedRelays++;
-      renderLoadingScreen(
-        "Loading files from relays...",
-        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`
-      );
+      if (!silent) {
+        renderLoadingScreen(
+          "Loading files from relays...",
+          `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`
+        );
+      }
     }
   });
 
@@ -85,7 +90,9 @@ export async function listRemoteFilesWithProgress(
     return [];
   }
 
-  renderLoadingScreen("Processing files...", `${eventMap.size} events`);
+  if (!silent) {
+    renderLoadingScreen("Processing files...", `${eventMap.size} events`);
+  }
 
   const fileEntries: FileEntryWithSources[] = [];
 
@@ -110,7 +117,9 @@ export async function listRemoteFilesWithProgress(
     }
   }
 
-  renderLoadingScreen("Deduplicating files...", `${fileEntries.length} files`);
+  if (!silent) {
+    renderLoadingScreen("Deduplicating files...", `${fileEntries.length} files`);
+  }
 
   // Deduplicate by path, keeping the newest event
   const uniqueFiles = fileEntries.reduce((acc, current) => {
