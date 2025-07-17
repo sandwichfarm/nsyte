@@ -12,6 +12,7 @@ import { createLogger } from "../../lib/logger.ts";
 import type { FileEntryWithSources } from "../../commands/ls.ts";
 import { render } from "./renderer.ts";
 import { colors } from "@cliffy/ansi/colors";
+import type { NostrEvent } from "../../lib/nostr.ts";
 
 const log = createLogger("browse-handlers");
 
@@ -368,8 +369,8 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
             kinds: [1063]
           };
           
-          const events = await lastValueFrom(
-            pool.query([relay], filter)
+          const events: NostrEvent[] = await lastValueFrom(
+            pool.request([relay], filter)
               .pipe(timeout(3000), toArray())
           );
           
