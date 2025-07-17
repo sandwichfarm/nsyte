@@ -120,23 +120,38 @@ export function renderFooter(state: BrowseState) {
 
 export function renderFileList(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
-  const contentRows = rows - 4; // Header (2) + Footer (2)
+  const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   // Move cursor to start of file list area (row 3)
   moveCursor(3, 1);
   
-  // Clear the entire file list area
-  for (let i = 0; i < contentRows; i++) {
+  // Clear the entire display area including path row
+  for (let i = 0; i < contentRows + 1; i++) {
     moveCursor(3 + i, 1);
     Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
   }
   
-  // Move back to start of file list
+  // Render path indicator row
   moveCursor(3, 1);
-  
   const startIndex = state.page * state.pageSize;
   const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
   const pageItems = state.treeItems.slice(startIndex, endIndex);
+  
+  // Get the parent path of the first item on the page
+  let pathIndicator = "/";
+  if (pageItems.length > 0) {
+    const firstItem = pageItems[0];
+    const parts = firstItem.path.split('/');
+    if (parts.length > 1) {
+      pathIndicator = "/" + parts.slice(0, -1).join('/');
+    }
+  }
+  
+  // Render the path indicator in gray
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`Path: ${pathIndicator}`) + "\n"));
+  
+  // Move to start of actual file list (row 4)
+  moveCursor(4, 1);
   
   // Calculate max relay/server counts for alignment (minimum 3 for visual consistency)
   const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
@@ -211,7 +226,7 @@ export function renderFileList(state: BrowseState) {
 
 export function renderDetailView(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
-  const contentRows = rows - 4;
+  const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   if (state.detailIndex === null || !state.treeItems[state.detailIndex] || !state.treeItems[state.detailIndex].file) {
     return;
@@ -264,7 +279,7 @@ export function render(state: BrowseState) {
   
   // Update page size based on current terminal size
   const { rows } = getTerminalSize();
-  state.pageSize = rows - 4;
+  state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   renderHeader(state);
   
@@ -282,7 +297,7 @@ export function renderUpdate(state: BrowseState) {
   
   // Update page size based on current terminal size
   const { rows } = getTerminalSize();
-  state.pageSize = rows - 4;
+  state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
   // Don't clear screen, just update parts
   renderHeader(state);

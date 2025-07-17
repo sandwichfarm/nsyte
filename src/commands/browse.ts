@@ -113,7 +113,7 @@ export async function command(options: any): Promise<void> {
     const { rows } = Deno.consoleSize();
     const state = createInitialState(
       files,
-      rows - 4,
+      rows - 5, // Header (2) + Path row (1) + Footer (2)
       relayColorMap,
       serverColorMap,
       ignoreRules,
@@ -129,7 +129,7 @@ export async function command(options: any): Promise<void> {
       resizeTimeout = setTimeout(() => {
         // Update page size based on new terminal size
         const { rows } = getTerminalSize();
-        state.pageSize = rows - 4;
+        state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
         // Ensure selected index is still valid
         const maxIndex = Math.min((state.page + 1) * state.pageSize, state.treeItems.length) - 1;
         if (state.selectedIndex > maxIndex) {
