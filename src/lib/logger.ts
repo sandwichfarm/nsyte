@@ -1,7 +1,55 @@
 import { colors } from "@cliffy/ansi/colors";
 import { getDisplayManager } from "./display-mode.ts";
+import { join } from "@std/path";
 
 let inProgressMode = false;
+
+// File logging setup
+const LOG_LEVEL = Deno.env.get("LOG_LEVEL") || "info";
+const FILE_LOGGING_ENABLED = LOG_LEVEL === "debug";
+let logFile: string | null = null;
+let logFileHandle: Deno.FsFile | null = null;
+
+// Initialize log file if debug logging is enabled
+if (FILE_LOGGING_ENABLED) {
+  const tempDir = Deno.env.get("TMPDIR") || Deno.env.get("TMP") || Deno.env.get("TEMP") || "/tmp";
+  logFile = join(tempDir, "nsyte.log");
+  
+  try {
+    // Create or truncate the log file
+    logFileHandle = await Deno.open(logFile, {
+      create: true,
+      write: true,
+      truncate: true,
+    });
+    
+    // Write initial log entry
+    const timestamp = new Date().toISOString();
+    const initialMessage = `${timestamp} [INFO] logger: Debug logging enabled - writing to ${logFile}\n`;
+    await logFileHandle.write(new TextEncoder().encode(initialMessage));
+    console.log(colors.gray(`Debug logging enabled - writing to ${logFile}`));
+  } catch (error) {
+    console.error(colors.red(`Failed to initialize log file: ${error}`));
+    logFile = null;
+    logFileHandle = null;
+  }
+}
+
+/**
+ * Write a log message to the file if file logging is enabled
+ */
+async function writeToLogFile(level: string, namespace: string, message: string): Promise<void> {
+  if (!logFileHandle || !logFile) return;
+  
+  try {
+    const timestamp = new Date().toISOString();
+    const logEntry = `${timestamp} [${level.toUpperCase()}] ${namespace}: ${message}\n`;
+    await logFileHandle.write(new TextEncoder().encode(logEntry));
+    await logFileHandle.sync(); // Ensure it's written to disk
+  } catch (error) {
+    // Silently fail to avoid recursive logging issues
+  }
+}
 
 /**
  * Set whether we're in progress mode
@@ -90,13 +138,21 @@ export function createLogger(namespace: string) {
 
   return {
     debug(message: string): void {
-      if (shouldLog("debug") && shouldShowLog("debug")) {
-        console.log(formatLogMessage("debug", namespace, message));
+      if (shouldLog("debug")) {
+        // Always write debug messages to file if file logging is enabled
+        writeToLogFile("debug", namespace, message);
+        
+        if (shouldShowLog("debug")) {
+          console.log(formatLogMessage("debug", namespace, message));
+        }
       }
     },
 
     info(message: string): void {
       if (shouldLog("info")) {
+        // Always write to file if file logging is enabled
+        writeToLogFile("info", namespace, message);
+        
         if (inProgressMode) {
           queuedLogs.push({ level: "info", namespace, message });
         } else if (shouldShowLog("info")) {
@@ -107,6 +163,9 @@ export function createLogger(namespace: string) {
 
     warn(message: string): void {
       if (shouldLog("warn")) {
+        // Always write to file if file logging is enabled
+        writeToLogFile("warn", namespace, message);
+        
         if (inProgressMode) {
           queuedLogs.push({ level: "warn", namespace, message });
         } else if (shouldShowLog("warn")) {
@@ -117,6 +176,9 @@ export function createLogger(namespace: string) {
 
     error(message: string): void {
       if (shouldLog("error")) {
+        // Always write to file if file logging is enabled
+        writeToLogFile("error", namespace, message);
+        
         if (inProgressMode) {
           queuedLogs.push({ level: "error", namespace, message });
         } else if (shouldShowLog("error")) {
@@ -126,6 +188,9 @@ export function createLogger(namespace: string) {
     },
 
     success(message: string): void {
+      // Always write to file if file logging is enabled
+      writeToLogFile("success", namespace, message);
+      
       if (shouldShowLog("success")) {
         console.log(formatLogMessage("success", namespace, message));
       }
@@ -134,3 +199,24 @@ export function createLogger(namespace: string) {
 }
 
 export const log = createLogger("nsite");
+
+/**
+ * Get the current log file path (if file logging is enabled)
+ */
+export function getLogFilePath(): string | null {
+  return logFile;
+}
+
+/**
+ * Cleanup function to close the log file handle
+ */
+export async function cleanupLogger(): Promise<void> {
+  if (logFileHandle) {
+    try {
+      await logFileHandle.close();
+    } catch (error) {
+      // Silently ignore errors during cleanup
+    }
+    logFileHandle = null;
+  }
+}

@@ -182,10 +182,58 @@ export async function command(options: any): Promise<void> {
     // Initial render
     render(state);
     
-    // Setup keypress handler
+    // Setup keypress handler with aggressive trackpad filtering
     const keypress = new Keypress();
     
+    // Track trackpad activity to help with input queue management
+    let trackpadActivityCount = 0;
+    let lastTrackpadTime = 0;
+    
     for await (const event of keypress) {
+      const key = event.key || "";
+      const now = Date.now();
+      
+      // VERY aggressive pre-filtering of trackpad/mouse events
+      // This happens BEFORE any processing to prevent input buffer overflow
+      if (key && (
+        key.includes('\u001b[M') || // Mouse events
+        key.includes('\u001b[<') || // SGR mouse events
+        key.includes('\u001b[?') || // Mouse mode events
+        key.includes('\u001b[O') || // Function key events
+        key.includes('\u001b[1;') || // Modified key events
+        key.includes('\u001b[2;') || key.includes('\u001b[3;') || key.includes('\u001b[4;') || 
+        key.includes('\u001b[5;') || key.includes('\u001b[6;') || key.includes('\u001b[7;') || 
+        key.includes('\u001b[8;') || key.includes('\u001b[9;') ||
+        key.includes('\u001b\u001b') || // Double escape sequences
+        (key.length > 10) || // Very long sequences
+        (key.length > 4 && key.startsWith('\u001b[') && !key.match(/^\u001b\[[ABCD]$/)) || // Complex escape sequences (but allow arrow keys)
+        key.includes('\u001b[2~') || key.includes('\u001b[3~') || // Insert/Delete
+        key.includes('\u001b[5~') || key.includes('\u001b[6~') || // Page Up/Down
+        key.includes('\u001b[H') || key.includes('\u001b[F') || // Home/End
+        key.match(/\u001b\[[0-9]+[a-zA-Z]/) || // Numbered escape sequences
+        (!key.match(/^[a-zA-Z0-9 \t\n\r\u001b\[ABCD\/]$/) && key.length === 1 && key.charCodeAt(0) > 127) // Non-ASCII single chars
+      )) {
+        trackpadActivityCount++;
+        lastTrackpadTime = now;
+        log.debug(`Pre-filtered trackpad event: "${key}" (count: ${trackpadActivityCount})`);
+        continue; // Skip this event entirely
+      }
+      
+      // Also filter empty/null keys
+      if (!key || key === '\u0000') {
+        continue;
+      }
+      
+      // Reset trackpad activity if we haven't seen trackpad events recently
+      if (now - lastTrackpadTime > 200) {
+        trackpadActivityCount = 0;
+      }
+      
+      // If we just had a lot of trackpad activity, add a small delay to let the input buffer settle
+      if (trackpadActivityCount > 10 && now - lastTrackpadTime < 100) {
+        log.debug(`Delaying keyboard input after trackpad activity: "${key}"`);
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
       if (state.filterMode) {
         const shouldRender = handleFilterMode(state, event.key || "", event.sequence);
         if (shouldRender) {

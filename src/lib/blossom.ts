@@ -8,6 +8,7 @@ const log = createLogger("blossom");
  * Create a Blossom delete authorization for a single blob
  */
 async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<string> {
+  log.debug(`Creating delete auth for blob ${blobSha256}`);
   const currentTime = Math.floor(Date.now() / 1000);
 
   const authTemplate = {
@@ -21,7 +22,10 @@ async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<str
     content: "",
   };
 
+  log.debug(`Signing delete auth event for blob ${blobSha256}`);
   const authEvent = await signer.signEvent(authTemplate);
+  log.debug(`Delete auth event signed successfully for blob ${blobSha256}`);
+  
   const encodedEvent = encodeBase64(JSON.stringify(authEvent));
   return `Nostr ${encodedEvent}`;
 }
@@ -36,8 +40,10 @@ export async function deleteBlob(
   signer: Signer
 ): Promise<boolean> {
   try {
+    log.debug(`Starting delete operation for blob ${blobSha256} on server ${server}`);
     const authHeader = await createDeleteAuth(blobSha256, signer);
     
+    log.debug(`Sending DELETE request to ${server}/${blobSha256}`);
     const response = await fetch(`${server}/${blobSha256}`, {
       method: "DELETE",
       headers: {
@@ -45,6 +51,8 @@ export async function deleteBlob(
       },
     });
 
+    log.debug(`DELETE request completed with status ${response.status}`);
+    
     if (response.ok) {
       log.info(`Successfully deleted ${blobSha256} from ${server}`);
       return true;

@@ -249,7 +249,77 @@ export async function deleteFiles(
       return false;
     }
     
-    // Get relays from deleted files
+    // First, delete from Blossom servers
+    let blossomDeletedCount = 0;
+    let blossomFailedCount = 0;
+    const blossomErrors: string[] = [];
+    
+    log.info(`Checking if files have Blossom servers available...`);
+    const hasBlossomServers = files.some(f => f.availableOnServers.length > 0);
+    log.info(`Has Blossom servers: ${hasBlossomServers}`);
+    
+    if (hasBlossomServers) {
+      const { deleteBlob } = await import("../../lib/blossom.ts");
+      const allServers = new Set<string>();
+      const fileHashMap = new Map<string, Set<string>>(); // hash -> servers
+      
+      files.forEach(file => {
+        if (file.availableOnServers.length > 0) {
+          fileHashMap.set(file.sha256, new Set(file.availableOnServers));
+          file.availableOnServers.forEach(server => allServers.add(server));
+        }
+      });
+      
+      state.status = `Deleting from ${allServers.size} Blossom server${allServers.size > 1 ? 's' : ''}...`;
+      state.statusColor = colors.cyan;
+      render(state);
+      
+      // Delete each hash from each server
+      for (const [hash, servers] of fileHashMap.entries()) {
+        for (const server of servers) {
+          try {
+            state.status = `Deleting from ${server.replace(/^https?:\/\//, '').substring(0, 20)}...`;
+            render(state);
+            
+            log.info(`Attempting to delete ${hash} from ${server}`);
+            
+            // Add timeout to prevent hanging
+            const deletePromise = deleteBlob(server, hash, signer);
+            const timeoutPromise = new Promise<boolean>((_, reject) => {
+              setTimeout(() => reject(new Error('Timeout after 30 seconds')), 30000);
+            });
+            
+            const result = await Promise.race([deletePromise, timeoutPromise]);
+            
+            if (result) {
+              blossomDeletedCount++;
+              log.info(`Deleted ${hash} from ${server}`);
+            } else {
+              blossomFailedCount++;
+              blossomErrors.push(`${server}: Delete returned false`);
+              log.warn(`Failed to delete ${hash} from ${server}`);
+            }
+          } catch (error) {
+            blossomFailedCount++;
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            blossomErrors.push(`${server}: ${errorMsg}`);
+            log.error(`Failed to delete from ${server}: ${error}`);
+          }
+        }
+      }
+      
+      // Update status after Blossom deletion
+      if (blossomDeletedCount > 0) {
+        state.status = `Deleted from ${blossomDeletedCount} Blossom server${blossomDeletedCount > 1 ? 's' : ''}`;
+        state.statusColor = colors.green;
+      } else {
+        state.status = `Blossom deletion failed`;
+        state.statusColor = colors.yellow;
+      }
+      render(state);
+    }
+    
+    // Now delete from nostr relays
     const relays = new Set<string>();
     files.forEach(file => {
       file.foundOnRelays.forEach(relay => relays.add(relay));
@@ -319,98 +389,60 @@ export async function deleteFiles(
       
       await Promise.all(publishPromises);
       
+      // Combined final status message
       if (acceptedCount === 0) {
         log.error("All relays rejected the delete event");
         const fileCount = eventIds.length;
-        state.status = `Delete failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected deletion of ${fileCount} file${fileCount > 1 ? 's' : ''}`;
-        state.statusColor = colors.red;
+        if (blossomDeletedCount > 0) {
+          state.status = `Blossom deletion succeeded but relay deletion failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected deletion of ${fileCount} file${fileCount > 1 ? 's' : ''}`;
+          state.statusColor = colors.yellow;
+        } else {
+          state.status = `Delete failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected deletion of ${fileCount} file${fileCount > 1 ? 's' : ''}`;
+          state.statusColor = colors.red;
+        }
         return false;
       } else if (rejectedCount > 0) {
         log.warn(`Delete event accepted by ${acceptedCount} relay(s), rejected by ${rejectedCount}`);
         const fileCount = eventIds.length;
-        state.status = `Delete partially successful for ${fileCount} file${fileCount > 1 ? 's' : ''}: ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${rejectedCount} rejected`;
-        state.statusColor = colors.yellow;
+        if (blossomDeletedCount > 0) {
+          state.status = `Partial success: ${blossomDeletedCount} Blossom deleted, ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${rejectedCount} rejected`;
+          state.statusColor = colors.yellow;
+        } else {
+          state.status = `Partial success for ${fileCount} file${fileCount > 1 ? 's' : ''}: ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${rejectedCount} rejected`;
+          state.statusColor = colors.yellow;
+        }
+      } else {
+        // All relays accepted
+        if (blossomDeletedCount > 0) {
+          state.status = `Successfully deleted from ${blossomDeletedCount} Blossom server${blossomDeletedCount > 1 ? 's' : ''} and ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''}`;
+          state.statusColor = colors.green;
+        } else {
+          state.status = `Successfully deleted from ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''}`;
+          state.statusColor = colors.green;
+        }
       }
     } catch (error) {
       log.error(`Error during relay publication: ${error}`);
-      state.status = `Delete failed: ${error instanceof Error ? error.message : 'Relay communication error'}`;
-      state.statusColor = colors.red;
+      if (blossomDeletedCount > 0) {
+        state.status = `Blossom deletion succeeded but relay deletion failed: ${error instanceof Error ? error.message : 'Relay communication error'}`;
+        state.statusColor = colors.yellow;
+      } else {
+        state.status = `Delete failed: ${error instanceof Error ? error.message : 'Relay communication error'}`;
+        state.statusColor = colors.red;
+      }
       return false;
     }
     
-    log.info(`Delete event published successfully`);
+    log.info(`Delete operation completed successfully`);
     
-    // Now delete from Blossom servers
-    if (files.some(f => f.availableOnServers.length > 0)) {
-      state.status = "Deleting from Blossom servers...";
-      state.statusColor = colors.cyan;
-      render(state);
-      
-      const { deleteBlob } = await import("../../lib/blossom.ts");
-      const allServers = new Set<string>();
-      const fileHashMap = new Map<string, Set<string>>(); // hash -> servers
-      
-      files.forEach(file => {
-        if (file.availableOnServers.length > 0) {
-          fileHashMap.set(file.sha256, new Set(file.availableOnServers));
-          file.availableOnServers.forEach(server => allServers.add(server));
-        }
-      });
-      
-      let blossomDeletedCount = 0;
-      let blossomFailedCount = 0;
-      const blossomErrors: string[] = [];
-      
-      // Delete each hash from each server
-      for (const [hash, servers] of fileHashMap.entries()) {
-        for (const server of servers) {
-          try {
-            state.status = `Deleting from ${server.replace(/^https?:\/\//, '').substring(0, 20)}...`;
-            render(state);
-            
-            const result = await deleteBlob(server, hash, signer);
-            if (result) {
-              blossomDeletedCount++;
-              log.info(`Deleted ${hash} from ${server}`);
-            } else {
-              blossomFailedCount++;
-              blossomErrors.push(`${server}: Delete returned false`);
-              log.warn(`Failed to delete ${hash} from ${server}`);
-            }
-          } catch (error) {
-            blossomFailedCount++;
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            blossomErrors.push(`${server}: ${errorMsg}`);
-            log.error(`Failed to delete from ${server}: ${error}`);
-          }
-        }
-      }
-      
-      // Report Blossom deletion results
-      if (blossomFailedCount > 0 && blossomDeletedCount === 0) {
-        // All Blossom deletions failed
-        log.error("All Blossom server deletions failed");
-        state.status = `Nostr events deleted but Blossom deletion failed: ${blossomErrors[0]}`;
-        state.statusColor = colors.yellow;
-        
-        // Show all errors in console
-        if (blossomErrors.length > 1) {
-          console.error(colors.red("\nBlossom deletion errors:"));
-          blossomErrors.forEach(err => console.error(colors.red(`  - ${err}`)));
-        }
-      } else if (blossomFailedCount > 0) {
-        // Some Blossom deletions failed
-        log.warn(`Blossom: ${blossomDeletedCount} deleted, ${blossomFailedCount} failed`);
-        state.status = `Partial success: ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${blossomDeletedCount} Blossom deleted`;
-        state.statusColor = colors.yellow;
-        
-        // Show errors in console
+    // Report any Blossom errors to console
+    if (blossomFailedCount > 0) {
+      if (blossomDeletedCount === 0) {
+        console.error(colors.red("\nAll Blossom deletions failed:"));
+      } else {
         console.error(colors.yellow("\nSome Blossom deletions failed:"));
-        blossomErrors.forEach(err => console.error(colors.yellow(`  - ${err}`)));
-      } else if (blossomDeletedCount > 0) {
-        // All Blossom deletions succeeded
-        log.info(`Successfully deleted from ${blossomDeletedCount} Blossom server(s)`);
       }
+      blossomErrors.forEach(err => console.error(colors.red(`  - ${err}`)));
     }
     
     // Clear signer from memory immediately after use
@@ -566,6 +598,11 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
 }
 
 export function handleListModeKey(state: BrowseState, key: string): boolean {
+  // Log key events in debug mode for trackpad troubleshooting
+  if (key && key.length > 0) {
+    log.debug(`Processing key event: "${key}" (length: ${key.length}, codes: ${key.split('').map(c => c.charCodeAt(0)).join(',')})`);
+  }
+  
   switch (key) {
     case "up":
       navigateUp(state);
