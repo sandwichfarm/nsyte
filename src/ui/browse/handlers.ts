@@ -105,16 +105,125 @@ export async function deleteFiles(
     // Import required modules dynamically to avoid circular dependencies
     const { createDeleteEvent, publishEventsToRelays } = await import("../../lib/nostr.ts");
     const { readProjectFile } = await import("../../lib/config.ts");
+    const { createSigner } = await import("../../lib/auth/signer-factory.ts");
+    const { Confirm, Select, Secret } = await import("@cliffy/prompt");
     
-    // Get config to determine signer
+    // Get config to check for bunker
     const config = readProjectFile();
-    if (!config) {
-      log.error("No config found");
-      return false;
+    
+    // Try to create signer from CLI options or config
+    let signer = undefined;
+    if (state.authOptions?.privatekey || state.authOptions?.bunker || state.authOptions?.nbunksec || config?.bunkerPubkey) {
+      const signerResult = await createSigner({
+        privateKey: state.authOptions?.privatekey,
+        bunkerUrl: state.authOptions?.bunker,
+        nbunksec: state.authOptions?.nbunksec,
+        bunkerPubkey: config?.bunkerPubkey
+      });
+      
+      if ('error' in signerResult) {
+        log.error(signerResult.error);
+        
+        // Prompt for authentication
+        console.log(colors.yellow("\nNo signer available for deletion."));
+        const useAuth = await Confirm.prompt({
+          message: "Would you like to provide authentication?",
+          default: true
+        });
+        
+        if (!useAuth) {
+          state.status = "Delete cancelled";
+          state.statusColor = colors.yellow;
+          render(state);
+          return false;
+        }
+        
+        const authChoice = await Select.prompt({
+          message: "Choose authentication method:",
+          options: [
+            { name: "Private Key (hex)", value: "hex" },
+            { name: "Private Key (nsec)", value: "nsec" },
+            { name: "NostrBunker (nbunksec)", value: "nbunksec" }
+          ]
+        });
+        
+        let authInput;
+        if (authChoice === "nbunksec") {
+          authInput = await Secret.prompt({
+            message: "Enter nbunksec:"
+          });
+          
+          const nbunksecSigner = await createSigner({ nbunksec: authInput });
+          if ('error' in nbunksecSigner) {
+            console.error(colors.red(nbunksecSigner.error));
+            authInput = undefined; // Clear from memory
+            return false;
+          }
+          signer = nbunksecSigner.signer;
+        } else {
+          authInput = await Secret.prompt({
+            message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`
+          });
+          
+          const privateKeySigner = await createSigner({ privateKey: authInput });
+          if ('error' in privateKeySigner) {
+            console.error(colors.red(privateKeySigner.error));
+            authInput = undefined; // Clear from memory
+            return false;
+          }
+          signer = privateKeySigner.signer;
+        }
+        
+        // Clear sensitive data from memory immediately
+        authInput = undefined;
+      } else {
+        signer = signerResult.signer;
+      }
+    } else {
+      // No auth options provided, prompt for authentication
+      console.log(colors.yellow("\nAuthentication required for deletion."));
+      const authChoice = await Select.prompt({
+        message: "Choose authentication method:",
+        options: [
+          { name: "Private Key (hex)", value: "hex" },
+          { name: "Private Key (nsec)", value: "nsec" },
+          { name: "NostrBunker (nbunksec)", value: "nbunksec" }
+        ]
+      });
+      
+      let authInput;
+      if (authChoice === "nbunksec") {
+        authInput = await Secret.prompt({
+          message: "Enter nbunksec:"
+        });
+        
+        const nbunksecSigner = await createSigner({ nbunksec: authInput });
+        if ('error' in nbunksecSigner) {
+          console.error(colors.red(nbunksecSigner.error));
+          authInput = undefined; // Clear from memory
+          return false;
+        }
+        signer = nbunksecSigner.signer;
+      } else {
+        authInput = await Secret.prompt({
+          message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`
+        });
+        
+        const privateKeySigner = await createSigner({ privateKey: authInput });
+        if ('error' in privateKeySigner) {
+          console.error(colors.red(privateKeySigner.error));
+          authInput = undefined; // Clear from memory
+          return false;
+        }
+        signer = privateKeySigner.signer;
+      }
+      
+      // Clear sensitive data from memory immediately
+      authInput = undefined;
     }
     
-    if (!state.signer) {
-      log.error("No signer available for deletion. Please provide authentication.");
+    if (!signer) {
+      log.error("Failed to create signer");
       return false;
     }
     
@@ -157,6 +266,10 @@ export async function deleteFiles(
     }
     
     log.info(`Delete event published successfully`);
+    
+    // Clear signer from memory immediately after use
+    signer = undefined;
+    
     return true
     
   } catch (error) {

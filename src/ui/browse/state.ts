@@ -28,7 +28,12 @@ export interface BrowseState {
   relayColorMap: Map<string, (str: string) => string>;
   serverColorMap: Map<string, (str: string) => string>;
   ignoreRules: IgnoreRule[];
-  signer?: any; // Will be properly typed when implementing deletion
+  signer?: any; // Temporary signer, only used during delete
+  authOptions?: { // CLI auth options for creating signer when needed
+    privatekey?: string;
+    bunker?: string;
+    nbunksec?: string;
+  };
   status: string; // Current status message
   statusColor?: (str: string) => string; // Optional color function for status
 }
