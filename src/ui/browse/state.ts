@@ -29,6 +29,8 @@ export interface BrowseState {
   serverColorMap: Map<string, (str: string) => string>;
   ignoreRules: IgnoreRule[];
   signer?: any; // Will be properly typed when implementing deletion
+  status: string; // Current status message
+  statusColor?: (str: string) => string; // Optional color function for status
 }
 
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
@@ -144,6 +146,7 @@ export function createInitialState(
     serverColorMap,
     ignoreRules,
     signer,
+    status: "Ready",
   };
 }
 

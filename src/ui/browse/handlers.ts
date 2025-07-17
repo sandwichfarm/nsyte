@@ -11,6 +11,7 @@ import {
 import { createLogger } from "../../lib/logger.ts";
 import type { FileEntryWithSources } from "../../commands/ls.ts";
 import { render } from "./renderer.ts";
+import { colors } from "@cliffy/ansi/colors";
 
 const log = createLogger("browse-handlers");
 
@@ -39,6 +40,11 @@ export async function handleDeleteConfirmation(
       state.confirmingDelete = false;
       state.deleteConfirmText = "";
       
+      // Update status
+      state.status = `Deleting ${filesToDelete.length} file${filesToDelete.length > 1 ? 's' : ''}...`;
+      state.statusColor = colors.yellow;
+      render(state);
+      
       // Start deletion in background
       deleteFiles(filesToDelete, state).then(success => {
         if (success) {
@@ -49,8 +55,16 @@ export async function handleDeleteConfirmation(
             state.deletedItems.add(path);
           });
           
+          // Update status
+          state.status = `Deleted ${filesToDelete.length} file${filesToDelete.length > 1 ? 's' : ''}. Verifying...`;
+          state.statusColor = colors.green;
+          render(state);
+          
           // After 2 seconds, verify deletion and update state
           setTimeout(async () => {
+            state.status = "Verifying deletion...";
+            state.statusColor = colors.cyan;
+            render(state);
             await verifyDeletion(filesToDelete, state);
           }, 2000);
         } else {
@@ -59,6 +73,18 @@ export async function handleDeleteConfirmation(
             const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
             state.deletingItems.delete(path);
           });
+          
+          // Update status
+          state.status = "Delete failed";
+          state.statusColor = colors.red;
+          render(state);
+          
+          // Reset status after 3 seconds
+          setTimeout(() => {
+            state.status = "Ready";
+            state.statusColor = undefined;
+            render(state);
+          }, 3000);
         }
       });
       
@@ -110,8 +136,17 @@ export async function deleteFiles(
     
     log.info(`Creating delete event for ${eventIds.length} events`);
     
+    // Update status
+    state.status = "Creating delete event...";
+    state.statusColor = colors.cyan;
+    render(state);
+    
     // Create delete event
     const deleteEvent = await createDeleteEvent(state.signer, eventIds);
+    
+    // Update status
+    state.status = `Publishing to ${relays.size} relay${relays.size > 1 ? 's' : ''}...`;
+    render(state);
     
     // Publish to relays
     const success = await publishEventsToRelays(Array.from(relays), [deleteEvent]);
@@ -173,7 +208,28 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
       state.selectedIndex = Math.max(0, state.selectedIndex);
       
       // Re-render to show updated list
+      state.status = `Removed ${deletedPaths.length} deleted file${deletedPaths.length > 1 ? 's' : ''}`;
+      state.statusColor = colors.green;
       render(state);
+      
+      // Reset status after 2 seconds
+      setTimeout(() => {
+        state.status = "Ready";
+        state.statusColor = undefined;
+        render(state);
+      }, 2000);
+    } else {
+      // No files were deleted
+      state.status = "No files removed (may still exist on relays)";
+      state.statusColor = colors.yellow;
+      render(state);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        state.status = "Ready";
+        state.statusColor = undefined;
+        render(state);
+      }, 3000);
     }
     
     // Clear any remaining items from deleted tracking

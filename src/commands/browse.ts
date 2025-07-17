@@ -134,6 +134,9 @@ export async function command(options: any): Promise<void> {
       }
     }
     
+    // Show loading message
+    console.log(colors.cyan("Loading files from relays..."));
+    
     // Fetch files
     const files = await listRemoteFilesWithSources(relays, pubkey);
     
@@ -141,6 +144,8 @@ export async function command(options: any): Promise<void> {
       console.log(colors.yellow("No files found for this user."));
       Deno.exit(0);
     }
+    
+    console.log(colors.green(`Found ${files.length} files`));
     
     // Create color mappings
     const relayColorMap = new Map<string, (str: string) => string>();

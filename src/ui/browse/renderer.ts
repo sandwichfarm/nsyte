@@ -78,15 +78,20 @@ export function renderHeader(state: BrowseState) {
 export function renderFooter(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
   
-  // Move cursor to footer position (rows - 1 for separator, rows for hotkeys)
+  // Move cursor to footer position (rows - 1 for separator, rows for status/hotkeys)
   moveCursor(rows - 1, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
   
-  // Move to last line for hotkeys
+  // Move to last line for status and hotkeys
   moveCursor(rows, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   
+  // Prepare status text
+  const statusColor = state.statusColor || colors.gray;
+  const statusText = statusColor(state.status);
+  
+  // Prepare hotkeys
   let hotkeys: string[] = [];
   
   if (state.viewMode === "list") {
@@ -114,8 +119,14 @@ export function renderFooter(state: BrowseState) {
   }
   
   const hotkeysText = hotkeys.join(" │ ");
-  const padding = Math.max(0, cols - hotkeysText.length) / 2;
-  Deno.stdout.writeSync(new TextEncoder().encode(" ".repeat(Math.floor(padding)) + hotkeysText));
+  
+  // Calculate padding to right-align hotkeys
+  const statusLength = statusText.replace(/\x1b\[[0-9;]*m/g, '').length; // Remove ANSI codes for length
+  const hotkeysLength = hotkeysText.replace(/\x1b\[[0-9;]*m/g, '').length;
+  const padding = Math.max(1, cols - statusLength - hotkeysLength - 1);
+  
+  // Render status on left and hotkeys on right
+  Deno.stdout.writeSync(new TextEncoder().encode(statusText + " ".repeat(padding) + hotkeysText));
 }
 
 export function renderFileList(state: BrowseState) {
