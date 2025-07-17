@@ -29,6 +29,7 @@ import { registerPurgeCommand } from "./commands/purge.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { registerDebugCommand } from "./commands/debug.ts";
 import { registerAnnounceCommand } from "./commands/announce.ts";
+import { registerConfigCommand } from "./commands/config.ts";
 import { setupProject } from "./lib/config.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
@@ -72,6 +73,7 @@ registerPurgeCommand(nsite);
 validateCommand(nsite);
 registerDebugCommand(nsite);
 registerAnnounceCommand(nsite);
+registerConfigCommand(nsite);
 
 /**
  * Display the nsyte header in a random color

@@ -11,6 +11,11 @@ interface MenuItem {
   type: "bunker" | "action";
 }
 
+export async function showBunkerMenu(currentPubkey?: string): Promise<{ type: string; value: string }> {
+  // This is the same as showBrowseMenu but can be called from other commands
+  return showBrowseMenu(currentPubkey);
+}
+
 export async function showBrowseMenu(currentPubkey?: string): Promise<{ type: "pubkey" | "privatekey" | "bunker" | "npub"; value: string }> {
   enterAlternateScreen();
   hideCursor();

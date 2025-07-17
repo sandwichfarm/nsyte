@@ -182,20 +182,106 @@ export async function command(options: any): Promise<void> {
     // Initial render
     render(state);
     
-    // Setup keypress handler with aggressive trackpad filtering
+    // Setup keypress handler with priority-based input queue
     const keypress = new Keypress();
     
-    // Track trackpad activity to help with input queue management
-    let trackpadActivityCount = 0;
+    // Priority input queue to handle keyboard events properly
+    const inputQueue: Array<{ key: string; sequence?: string; timestamp: number; priority: number }> = [];
+    let processingQueue = false;
+    let shouldExitLoop = false;
+    
+    // Process the input queue in priority order
+    const processInputQueue = async () => {
+      if (processingQueue || inputQueue.length === 0) return;
+      processingQueue = true;
+      
+      try {
+        // Sort by priority (higher priority first), then by timestamp (FIFO)
+        inputQueue.sort((a, b) => {
+          if (a.priority !== b.priority) return b.priority - a.priority;
+          return a.timestamp - b.timestamp;
+        });
+        
+        while (inputQueue.length > 0) {
+          const input = inputQueue.shift()!;
+          const key = input.key;
+          const sequence = input.sequence;
+          
+          // Process the key event
+          if (state.filterMode) {
+            const shouldRender = handleFilterMode(state, key, sequence);
+            if (shouldRender) {
+              render(state);
+            }
+            continue;
+          }
+          
+          if (state.confirmingDelete) {
+            const shouldRender = await handleDeleteConfirmation(state, key, sequence);
+            if (shouldRender) {
+              render(state);
+              if (!state.confirmingDelete) {
+                // Refresh after deletion complete
+                setTimeout(() => render(state), 2000);
+              }
+            }
+            continue;
+          }
+          
+          if (state.viewMode === "detail") {
+            const shouldContinue = handleDetailModeKey(state);
+            if (shouldContinue) {
+              render(state);
+            }
+            continue;
+          }
+          
+          const shouldContinue = handleListModeKey(state, key);
+          if (!shouldContinue) {
+            // Clean up
+            Deno.removeSignalListener("SIGWINCH", handleResize);
+            keypress.dispose();
+            showCursor();
+            exitAlternateScreen();
+            
+            // Check if we should switch identity
+            if (state.switchIdentity) {
+              // Signal to exit the input loop
+              shouldExitLoop = true;
+              processingQueue = false;
+              return;
+            } else {
+              // Normal exit
+              Deno.exit(0);
+            }
+          }
+          
+          // For up/down navigation, do a partial render
+          if (key === "up" || key === "down") {
+            renderUpdate(state);
+          } else {
+            // Full render for other keys
+            render(state);
+          }
+        }
+      } finally {
+        processingQueue = false;
+      }
+    };
+    
+    // Track trackpad activity for debugging
+    let trackpadEventCount = 0;
     let lastTrackpadTime = 0;
     
     for await (const event of keypress) {
+      if (shouldExitLoop) break;
+      
       const key = event.key || "";
+      const sequence = event.sequence;
       const now = Date.now();
       
-      // VERY aggressive pre-filtering of trackpad/mouse events
-      // This happens BEFORE any processing to prevent input buffer overflow
-      if (key && (
+      // Comprehensive trackpad/mouse event filtering
+      const isTrackpadEvent = key && (
         key.includes('\u001b[M') || // Mouse events
         key.includes('\u001b[<') || // SGR mouse events
         key.includes('\u001b[?') || // Mouse mode events
@@ -212,11 +298,13 @@ export async function command(options: any): Promise<void> {
         key.includes('\u001b[H') || key.includes('\u001b[F') || // Home/End
         key.match(/\u001b\[[0-9]+[a-zA-Z]/) || // Numbered escape sequences
         (!key.match(/^[a-zA-Z0-9 \t\n\r\u001b\[ABCD\/]$/) && key.length === 1 && key.charCodeAt(0) > 127) // Non-ASCII single chars
-      )) {
-        trackpadActivityCount++;
+      );
+      
+      if (isTrackpadEvent) {
+        trackpadEventCount++;
         lastTrackpadTime = now;
-        log.debug(`Pre-filtered trackpad event: "${key}" (count: ${trackpadActivityCount})`);
-        continue; // Skip this event entirely
+        log.debug(`Filtered trackpad event: "${key}" (count: ${trackpadEventCount})`);
+        continue; // Completely skip trackpad events
       }
       
       // Also filter empty/null keys
@@ -224,69 +312,26 @@ export async function command(options: any): Promise<void> {
         continue;
       }
       
-      // Reset trackpad activity if we haven't seen trackpad events recently
-      if (now - lastTrackpadTime > 200) {
-        trackpadActivityCount = 0;
+      // Reset trackpad counter if no recent activity
+      if (now - lastTrackpadTime > 500) {
+        trackpadEventCount = 0;
       }
       
-      // If we just had a lot of trackpad activity, add a small delay to let the input buffer settle
-      if (trackpadActivityCount > 10 && now - lastTrackpadTime < 100) {
-        log.debug(`Delaying keyboard input after trackpad activity: "${key}"`);
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      if (state.filterMode) {
-        const shouldRender = handleFilterMode(state, event.key || "", event.sequence);
-        if (shouldRender) {
-          render(state);
-        }
-        continue;
+      // Determine priority for this key event
+      let priority = 1; // Default priority
+      if (key === "q" || key === "escape") {
+        priority = 10; // High priority for quit/escape
+      } else if (key === "up" || key === "down" || key === "left" || key === "right") {
+        priority = 5; // Medium-high priority for navigation
+      } else if (key === "return" || key === "space") {
+        priority = 3; // Medium priority for actions
       }
       
-      if (state.confirmingDelete) {
-        const shouldRender = await handleDeleteConfirmation(state, event.key || "", event.sequence);
-        if (shouldRender) {
-          render(state);
-          if (!state.confirmingDelete) {
-            // Refresh after deletion complete
-            setTimeout(() => render(state), 2000);
-          }
-        }
-        continue;
-      }
+      // Add to priority queue
+      inputQueue.push({ key, sequence, timestamp: now, priority });
       
-      if (state.viewMode === "detail") {
-        const shouldContinue = handleDetailModeKey(state);
-        if (shouldContinue) {
-          render(state);
-        }
-        continue;
-      }
-      
-      const shouldContinue = handleListModeKey(state, event.key || "");
-      if (!shouldContinue) {
-        // Clean up
-        Deno.removeSignalListener("SIGWINCH", handleResize);
-        keypress.dispose();
-        showCursor();
-        exitAlternateScreen();
-        
-        // Check if we should switch identity
-        if (state.switchIdentity) {
-          // Break out of keypress loop to show menu again
-          break;
-        } else {
-          // Normal exit
-          Deno.exit(0);
-        }
-      }
-      
-      // For up/down navigation, do a partial render
-      if (event.key === "up" || event.key === "down") {
-        renderUpdate(state);
-      } else {
-        // Full render for other keys
-        render(state);
-      }
+      // Process queue
+      await processInputQueue();
     }
     
     // If we get here, user wants to switch identity
