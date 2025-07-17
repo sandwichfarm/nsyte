@@ -6,6 +6,7 @@ set -e
 REPO="sandwichfarm/nsyte"
 BINARY_NAME="nsyte"
 FORCE_INSTALL=false
+USE_COMPRESSED=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -192,15 +193,27 @@ install_binary() {
     # Determine binary name and install directory based on OS
     case "$OS" in
         macos)
-            BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos"
+            if [ "$USE_COMPRESSED" = true ]; then
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos-compressed-${VERSION#v}"
+            else
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos"
+            fi
             INSTALL_DIR="/usr/local/bin"
             ;;
         linux)
-            BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-linux"
+            if [ "$USE_COMPRESSED" = true ]; then
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-linux-compressed-${VERSION#v}"
+            else
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-linux"
+            fi
             INSTALL_DIR="/usr/local/bin"
             ;;
         windows)
-            BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-windows.exe"
+            if [ "$USE_COMPRESSED" = true ]; then
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-windows-compressed-${VERSION#v}.exe"
+            else
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-windows.exe"
+            fi
             BINARY_NAME="nsyte.exe"
             INSTALL_DIR="$HOME/bin"
             ;;
@@ -213,7 +226,11 @@ install_binary() {
         print_info "Creating backup of existing binary at $backup_path"
     fi
     
-    print_info "Downloading nsyte $VERSION..."
+    if [ "$USE_COMPRESSED" = true ]; then
+        print_info "Downloading compressed nsyte $VERSION (~23MB)..."
+    else
+        print_info "Downloading nsyte $VERSION (~100MB)..."
+    fi
     
     # Create temp file
     TEMP_FILE=$(mktemp)
@@ -307,14 +324,19 @@ parse_args() {
                 FORCE_INSTALL=true
                 shift
                 ;;
+            -c|--compressed)
+                USE_COMPRESSED=true
+                shift
+                ;;
             -h|--help)
                 echo "nsyte Install Script"
                 echo ""
                 echo "Usage: install.sh [OPTIONS]"
                 echo ""
                 echo "Options:"
-                echo "  -f, --force    Force installation even if version is already up to date"
-                echo "  -h, --help     Show this help message"
+                echo "  -f, --force       Force installation even if version is already up to date"
+                echo "  -c, --compressed  Install compressed executable (~23MB instead of ~100MB)"
+                echo "  -h, --help        Show this help message"
                 exit 0
                 ;;
             *)
