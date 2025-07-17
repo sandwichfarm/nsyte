@@ -1,11 +1,21 @@
 import type { FileEntryWithSources } from "../../commands/ls.ts";
 import type { IgnoreRule } from "../../lib/files.ts";
 
+export interface TreeItem {
+  path: string;
+  isDirectory: boolean;
+  file?: FileEntryWithSources;
+  depth: number;
+  isLast: boolean;
+  parentPrefix: string;
+}
+
 export interface BrowseState {
   files: FileEntryWithSources[];
   filteredFiles: FileEntryWithSources[];
-  selectedIndex: number;
-  selectedItems: Set<number>;
+  treeItems: TreeItem[]; // Flat list of all items in tree order
+  selectedIndex: number; // Index in treeItems
+  selectedItems: Set<string>; // Set of paths instead of indices
   showSelectedOnly: boolean;
   page: number;
   pageSize: number;
@@ -19,6 +29,81 @@ export interface BrowseState {
   signer?: any; // Will be properly typed when implementing deletion
 }
 
+export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
+  const directories = new Map<string, Set<string>>();
+  const rootFiles = new Set<string>();
+  
+  // Organize files into directory structure
+  files.forEach(file => {
+    const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+    const parts = path.split('/');
+    
+    if (parts.length === 1) {
+      rootFiles.add(path);
+    } else {
+      let currentPath = '';
+      for (let i = 0; i < parts.length - 1; i++) {
+        const parentPath = currentPath;
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+        
+        if (!directories.has(parentPath)) {
+          directories.set(parentPath, new Set());
+        }
+        directories.get(parentPath)!.add(currentPath);
+        
+        if (!directories.has(currentPath)) {
+          directories.set(currentPath, new Set());
+        }
+      }
+      
+      // Add file to its parent directory
+      const parentDir = parts.slice(0, -1).join('/');
+      directories.get(parentDir)!.add(path);
+    }
+  });
+  
+  // Build flat list of all items in tree order
+  const treeItems: TreeItem[] = [];
+  
+  const buildFlatList = (path: string, depth: number, isLast: boolean, parentPrefix: string = '') => {
+    const file = files.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
+    const isDirectory = !file && directories.has(path);
+    
+    treeItems.push({
+      path,
+      isDirectory,
+      file,
+      depth,
+      isLast,
+      parentPrefix
+    });
+    
+    // Add children
+    if (isDirectory && directories.has(path)) {
+      const children = Array.from(directories.get(path)!).sort();
+      const childPrefix = parentPrefix + (depth > 0 ? (isLast ? "   " : "│  ") : "");
+      
+      children.forEach((child, index) => {
+        // Avoid duplicates
+        if (!treeItems.some(item => item.path === child)) {
+          buildFlatList(child, depth + 1, index === children.length - 1, childPrefix);
+        }
+      });
+    }
+  };
+  
+  // Build the flat list
+  const rootItems = Array.from(rootFiles).concat(
+    Array.from(directories.get('') || [])
+  ).sort();
+  
+  rootItems.forEach((item, index) => {
+    buildFlatList(item, 0, index === rootItems.length - 1);
+  });
+  
+  return treeItems;
+}
+
 export function createInitialState(
   files: FileEntryWithSources[],
   pageSize: number,
@@ -26,9 +111,12 @@ export function createInitialState(
   serverColorMap: Map<string, (str: string) => string>,
   ignoreRules: IgnoreRule[]
 ): BrowseState {
+  const treeItems = buildTreeItems(files);
+  
   return {
     files,
     filteredFiles: files,
+    treeItems,
     selectedIndex: 0,
     selectedItems: new Set(),
     showSelectedOnly: false,
@@ -46,16 +134,21 @@ export function createInitialState(
 
 export function updateFilteredFiles(state: BrowseState): void {
   if (state.showSelectedOnly && state.selectedItems.size > 0) {
-    const selectedIndices = Array.from(state.selectedItems);
-    state.filteredFiles = selectedIndices
-      .map(index => state.files[index])
-      .filter(Boolean);
+    const selectedPaths = Array.from(state.selectedItems);
+    state.filteredFiles = state.files.filter(file => {
+      const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+      return selectedPaths.includes(path);
+    });
   } else {
     state.filteredFiles = state.files;
   }
   
+  // Rebuild tree items
+  state.treeItems = buildTreeItems(state.filteredFiles);
+  
   // Reset index and page if needed
-  state.selectedIndex = Math.min(state.selectedIndex, state.filteredFiles.length - 1);
+  state.selectedIndex = Math.min(state.selectedIndex, state.treeItems.length - 1);
+  state.selectedIndex = Math.max(0, state.selectedIndex);
   state.page = 0;
 }
 
@@ -69,7 +162,7 @@ export function navigateUp(state: BrowseState): void {
 }
 
 export function navigateDown(state: BrowseState): void {
-  if (state.selectedIndex < state.filteredFiles.length - 1) {
+  if (state.selectedIndex < state.treeItems.length - 1) {
     state.selectedIndex++;
     if (state.selectedIndex >= (state.page + 1) * state.pageSize) {
       state.page++;
@@ -85,7 +178,7 @@ export function navigatePageLeft(state: BrowseState): void {
 }
 
 export function navigatePageRight(state: BrowseState): void {
-  const maxPage = Math.floor((state.filteredFiles.length - 1) / state.pageSize);
+  const maxPage = Math.floor((state.treeItems.length - 1) / state.pageSize);
   if (state.page < maxPage) {
     state.page++;
     state.selectedIndex = state.page * state.pageSize;
@@ -93,18 +186,28 @@ export function navigatePageRight(state: BrowseState): void {
 }
 
 export function toggleSelection(state: BrowseState): void {
-  if (state.selectedItems.has(state.selectedIndex)) {
-    state.selectedItems.delete(state.selectedIndex);
-  } else {
-    state.selectedItems.add(state.selectedIndex);
+  const currentItem = state.treeItems[state.selectedIndex];
+  if (currentItem && currentItem.file) {
+    const path = currentItem.path;
+    if (state.selectedItems.has(path)) {
+      state.selectedItems.delete(path);
+    } else {
+      state.selectedItems.add(path);
+    }
   }
 }
 
 export function getSelectedFiles(state: BrowseState): FileEntryWithSources[] {
   if (state.selectedItems.size > 0) {
     return Array.from(state.selectedItems)
-      .map(i => state.filteredFiles[i])
-      .filter(Boolean);
+      .map(path => state.files.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path))
+      .filter((f): f is FileEntryWithSources => f !== undefined);
   }
-  return [state.filteredFiles[state.selectedIndex]].filter(Boolean);
+  
+  const currentItem = state.treeItems[state.selectedIndex];
+  if (currentItem && currentItem.file) {
+    return [currentItem.file];
+  }
+  
+  return [];
 }

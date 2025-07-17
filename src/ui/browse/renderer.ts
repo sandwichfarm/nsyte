@@ -92,151 +92,79 @@ export function renderFileList(state: BrowseState) {
   const contentRows = rows - 4; // Header (2) + Footer (2)
   
   const startIndex = state.page * state.pageSize;
-  const endIndex = Math.min(startIndex + state.pageSize, state.filteredFiles.length);
-  const pageFiles = state.filteredFiles.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+  const pageItems = state.treeItems.slice(startIndex, endIndex);
   
   // Calculate max relay/server counts for alignment (minimum 3 for visual consistency)
   const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
   const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
   
-  // Build directory tree structure
-  const directories = new Map<string, Set<string>>();
-  const rootFiles = new Set<string>();
-  
-  // Organize files into directory structure
-  state.filteredFiles.forEach(file => {
-    const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-    const parts = path.split('/');
+  pageItems.forEach((item, listIndex) => {
+    const globalIndex = startIndex + listIndex;
+    const isSelected = state.selectedItems.has(item.path);
+    const isFocused = globalIndex === state.selectedIndex;
     
-    if (parts.length === 1) {
-      rootFiles.add(path);
-    } else {
-      let currentPath = '';
-      for (let i = 0; i < parts.length - 1; i++) {
-        const parentPath = currentPath;
-        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-        
-        if (!directories.has(parentPath)) {
-          directories.set(parentPath, new Set());
-        }
-        directories.get(parentPath)!.add(currentPath);
-        
-        if (!directories.has(currentPath)) {
-          directories.set(currentPath, new Set());
-        }
-      }
-      
-      // Add file to its parent directory
-      const parentDir = parts.slice(0, -1).join('/');
-      directories.get(parentDir)!.add(path);
-    }
-  });
-  
-  // Render files with tree structure
-  let currentRow = 0;
-  const renderedPaths = new Set<string>();
-  
-  const renderTreeNode = (path: string, depth: number, isLast: boolean, parentPrefix: string = '') => {
-    if (currentRow >= endIndex || currentRow < startIndex) {
-      currentRow++;
-      return;
+    // Build tree prefix
+    let treePrefix = item.parentPrefix;
+    if (item.depth > 0) {
+      treePrefix += item.isLast ? "└─ " : "├─ ";
     }
     
-    const file = state.filteredFiles.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
-    const isDirectory = !file && directories.has(path);
-    
-    if (currentRow >= startIndex && currentRow < endIndex) {
-      const globalIndex = state.filteredFiles.findIndex(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
-      const isSelected = globalIndex >= 0 && state.selectedItems.has(globalIndex);
-      const isFocused = globalIndex === state.selectedIndex;
+    if (item.isDirectory) {
+      // Render directory
+      const dirName = item.path.split('/').pop() || item.path;
+      const emptyIndicators = " ".repeat(maxRelayCount) + ` ${colors.gray("│")} ` + " ".repeat(maxServerCount);
+      console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
+    } else if (item.file) {
+      // Render file
+      const fileName = item.path.split('/').pop() || item.path;
+      const relativePath = item.file.path.startsWith("/") ? item.file.path.substring(1) : item.file.path;
+      const shouldBeIgnored = isIgnored(relativePath, state.ignoreRules, false);
       
-      // Build tree prefix
-      let treePrefix = parentPrefix;
-      if (depth > 0) {
-        treePrefix += isLast ? "└─ " : "├─ ";
-      }
-      
-      if (isDirectory) {
-        // Render directory
-        const dirName = path.split('/').pop() || path;
-        const emptyIndicators = " ".repeat(maxRelayCount) + ` ${colors.gray("│")} ` + " ".repeat(maxServerCount);
-        console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
-      } else if (file) {
-        // Render file
-        const fileName = path.split('/').pop() || path;
-        const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-        const shouldBeIgnored = isIgnored(relativePath, state.ignoreRules, false);
-        
-        // Build indicators
-        let relayIndicators = "";
-        file.foundOnRelays.forEach(relay => {
-          const colorFn = state.relayColorMap.get(relay) || colors.white;
-          relayIndicators += colorFn(RELAY_SYMBOL);
-        });
-        relayIndicators += " ".repeat(maxRelayCount - file.foundOnRelays.length);
-        
-        let serverIndicators = "";
-        file.availableOnServers.forEach(server => {
-          const colorFn = state.serverColorMap.get(server) || colors.white;
-          serverIndicators += colorFn(SERVER_SYMBOL);
-        });
-        serverIndicators += " ".repeat(maxServerCount - file.availableOnServers.length);
-        
-        const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
-        
-        // Format file info
-        let pathColor;
-        if (isFocused) {
-          pathColor = colors.bgMagenta.white;
-        } else if (isSelected) {
-          pathColor = colors.brightMagenta;
-        } else if (shouldBeIgnored) {
-          pathColor = colors.red;
-        } else {
-          pathColor = colors.white;
-        }
-        
-        const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
-        const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`;
-        
-        if (isFocused) {
-          const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
-          const paddingNeeded = cols - lineContent.length;
-          console.log(colors.bgMagenta.white(`${indicators} ${treePrefix}${fileName}${hashDisplay}` + " ".repeat(Math.max(0, paddingNeeded))));
-        } else {
-          console.log(`${indicators} ${fileDisplay}`);
-        }
-      }
-    }
-    
-    currentRow++;
-    renderedPaths.add(path);
-    
-    // Render children
-    if (isDirectory && directories.has(path)) {
-      const children = Array.from(directories.get(path)!).sort();
-      const childPrefix = parentPrefix + (depth > 0 ? (isLast ? "   " : "│  ") : "");
-      
-      children.forEach((child, index) => {
-        if (!renderedPaths.has(child)) {
-          renderTreeNode(child, depth + 1, index === children.length - 1, childPrefix);
-        }
+      // Build indicators
+      let relayIndicators = "";
+      item.file.foundOnRelays.forEach(relay => {
+        const colorFn = state.relayColorMap.get(relay) || colors.white;
+        relayIndicators += colorFn(RELAY_SYMBOL);
       });
+      relayIndicators += " ".repeat(maxRelayCount - item.file.foundOnRelays.length);
+      
+      let serverIndicators = "";
+      item.file.availableOnServers.forEach(server => {
+        const colorFn = state.serverColorMap.get(server) || colors.white;
+        serverIndicators += colorFn(SERVER_SYMBOL);
+      });
+      serverIndicators += " ".repeat(maxServerCount - item.file.availableOnServers.length);
+      
+      const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
+      
+      // Format file info
+      let pathColor;
+      if (isFocused) {
+        pathColor = colors.bgMagenta.white;
+      } else if (isSelected) {
+        pathColor = colors.brightMagenta;
+      } else if (shouldBeIgnored) {
+        pathColor = colors.red;
+      } else {
+        pathColor = colors.white;
+      }
+      
+      const hashDisplay = colors.gray(` [${truncateHash(item.file.sha256)}]`);
+      const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`;
+      
+      if (isFocused) {
+        const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
+        const paddingNeeded = cols - lineContent.length;
+        console.log(colors.bgMagenta.white(`${indicators} ${treePrefix}${fileName}${hashDisplay}` + " ".repeat(Math.max(0, paddingNeeded))));
+      } else {
+        console.log(`${indicators} ${fileDisplay}`);
+      }
     }
-  };
-  
-  // Render root level items
-  const rootItems = Array.from(rootFiles).concat(
-    Array.from(directories.get('') || [])
-  ).sort();
-  
-  rootItems.forEach((item, index) => {
-    renderTreeNode(item, 0, index === rootItems.length - 1);
   });
   
   // Fill remaining space
-  const renderedRows = Math.min(currentRow - startIndex, pageFiles.length);
-  const remainingRows = contentRows - renderedRows;
+  const remainingRows = contentRows - pageItems.length;
   for (let i = 0; i < remainingRows; i++) {
     console.log(" ".repeat(cols));
   }
@@ -246,11 +174,11 @@ export function renderDetailView(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
   const contentRows = rows - 4;
   
-  if (state.detailIndex === null || !state.filteredFiles[state.detailIndex]) {
+  if (state.detailIndex === null || !state.treeItems[state.detailIndex] || !state.treeItems[state.detailIndex].file) {
     return;
   }
   
-  const file = state.filteredFiles[state.detailIndex];
+  const file = state.treeItems[state.detailIndex].file!;
   let currentRow = 0;
   
   const printLine = (text: string = "") => {

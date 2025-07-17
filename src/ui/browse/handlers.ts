@@ -132,7 +132,8 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
       return true;
       
     case "return":
-      if (state.filteredFiles.length > 0) {
+      const currentItem = state.treeItems[state.selectedIndex];
+      if (currentItem && currentItem.file) {
         state.viewMode = "detail";
         state.detailIndex = state.selectedIndex;
       }
