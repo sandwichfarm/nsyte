@@ -159,7 +159,7 @@ export function renderFileList(state: BrowseState) {
       if (isDirectory) {
         // Render directory
         const dirName = path.split('/').pop() || path;
-        const emptyIndicators = " ".repeat(maxRelayCount) + " │ " + " ".repeat(maxServerCount);
+        const emptyIndicators = " ".repeat(maxRelayCount) + ` ${colors.gray("│")} ` + " ".repeat(maxServerCount);
         console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
       } else if (file) {
         // Render file
