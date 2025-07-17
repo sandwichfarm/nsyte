@@ -13,7 +13,15 @@ import {
 } from "../lib/files.ts";
 import { Keypress } from "@cliffy/keypress";
 import { createInitialState } from "../ui/browse/state.ts";
-import { render } from "../ui/browse/renderer.ts";
+import { 
+  render, 
+  renderFileList,
+  renderFooter,
+  getTerminalSize, 
+  showCursor, 
+  enterAlternateScreen, 
+  exitAlternateScreen 
+} from "../ui/browse/renderer.ts";
 import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey } from "../ui/browse/handlers.ts";
 
 const log = createLogger("browse");
@@ -100,9 +108,20 @@ export async function command(options: any): Promise<void> {
         clearTimeout(resizeTimeout);
       }
       resizeTimeout = setTimeout(() => {
+        // Update page size based on new terminal size
+        const { rows } = getTerminalSize();
+        state.pageSize = rows - 4;
+        // Ensure selected index is still valid
+        const maxIndex = Math.min((state.page + 1) * state.pageSize, state.treeItems.length) - 1;
+        if (state.selectedIndex > maxIndex) {
+          state.selectedIndex = maxIndex;
+        }
         render(state);
       }, 100);
     };
+    
+    // Enter alternate screen buffer
+    enterAlternateScreen();
     
     // Listen for terminal resize
     Deno.addSignalListener("SIGWINCH", handleResize);
@@ -136,13 +155,22 @@ export async function command(options: any): Promise<void> {
       
       const shouldContinue = handleListModeKey(state, event.key || "");
       if (!shouldContinue) {
-        // Clean up resize listener
+        // Clean up and exit
         Deno.removeSignalListener("SIGWINCH", handleResize);
         keypress.dispose();
+        showCursor();
+        exitAlternateScreen();
         Deno.exit(0);
       }
       
-      render(state);
+      // For up/down navigation, do a partial render
+      if (event.key === "up" || event.key === "down") {
+        renderFileList(state);
+        renderFooter(state);
+      } else {
+        // Full render for other keys
+        render(state);
+      }
     }
     
   } catch (error: unknown) {

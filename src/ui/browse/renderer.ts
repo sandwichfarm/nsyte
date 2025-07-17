@@ -9,8 +9,30 @@ export function truncateHash(hash: string): string {
 }
 
 export function clearScreen() {
-  console.clear();
-  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[H"));
+  // Clear screen and move cursor to top-left
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[2J\x1b[H"));
+}
+
+export function enterAlternateScreen() {
+  // Enter alternate screen buffer
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049h"));
+}
+
+export function exitAlternateScreen() {
+  // Exit alternate screen buffer
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049l"));
+}
+
+export function hideCursor() {
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?25l"));
+}
+
+export function showCursor() {
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?25h"));
+}
+
+export function moveCursor(row: number, col: number) {
+  Deno.stdout.writeSync(new TextEncoder().encode(`\x1b[${row};${col}H`));
 }
 
 export function getTerminalSize() {
@@ -49,8 +71,15 @@ export function renderHeader(state: BrowseState) {
 }
 
 export function renderFooter(state: BrowseState) {
-  const { cols } = getTerminalSize();
+  const { rows, cols } = getTerminalSize();
+  
+  // Move cursor to footer position
+  moveCursor(rows - 1, 1);
+  
+  // Clear the footer area
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   console.log(colors.gray("─".repeat(cols)));
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   
   let hotkeys: string[] = [];
   
@@ -68,15 +97,11 @@ export function renderFooter(state: BrowseState) {
         `${colors.gray("↑↓")} Navigate`,
         `${colors.gray("←→")} Pages`,
         `${colors.gray("SPACE")} Select`,
-        `${colors.gray("s")} Toggle selected`,
+        `${colors.gray("s")} Toggle selected${state.selectedItems.size > 0 ? ` [${state.selectedItems.size}]` : ''}`,
         `${colors.gray("ENTER")} Details`,
         `${colors.gray("DEL")} Delete`,
         `${colors.gray("q")} Quit`
       ];
-      
-      if (state.selectedItems.size > 0) {
-        hotkeys.push(`${colors.magenta(`[${state.selectedItems.size} selected]`)}`);
-      }
     }
   } else {
     hotkeys = [`${colors.gray("Any key")} Back to list`];
@@ -90,6 +115,9 @@ export function renderFooter(state: BrowseState) {
 export function renderFileList(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
   const contentRows = rows - 4; // Header (2) + Footer (2)
+  
+  // Move cursor to start of file list area (row 3)
+  moveCursor(3, 1);
   
   const startIndex = state.page * state.pageSize;
   const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
@@ -220,6 +248,7 @@ export function renderDetailView(state: BrowseState) {
 }
 
 export function render(state: BrowseState) {
+  hideCursor();
   clearScreen();
   
   // Update page size based on current terminal size
