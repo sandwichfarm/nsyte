@@ -5,6 +5,7 @@ import { handleError } from "../lib/error-utils.ts";
 import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
 import { listRemoteFilesWithProgress } from "./browse-loader.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { readProjectFile } from "../lib/config.ts";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import {
@@ -44,12 +45,45 @@ export function registerBrowseCommand(program: Command): void {
 
 export async function command(options: any): Promise<void> {
   try {
-    // Enter TUI immediately
-    enterAlternateScreen();
-    renderLoadingScreen("Initializing...");
+    let useDiscoveryRelays = false;
     
-    const pubkey = await resolvePubkey(options);
-    const relays = resolveRelays(options);
+    // Loop to allow identity switching
+    while (true) {
+      // Check if we have explicit auth options or project config
+      const hasExplicitAuth = options.pubkey || options.privatekey || options.bunker || options.nbunksec;
+      const projectConfig = readProjectFile();
+      const hasProjectAuth = projectConfig?.bunkerPubkey;
+      
+      let pubkey: string;
+      
+      // Show menu if no auth provided and not in a project, or if switching identity
+      if ((!hasExplicitAuth && !hasProjectAuth) || useDiscoveryRelays) {
+        // Show interactive menu
+        const { showBrowseMenu } = await import("../ui/browse/menu.ts");
+        const result = await showBrowseMenu(options._currentPubkey);
+        
+        if (result.type === "bunker") {
+          // Use bunker from secrets manager
+          pubkey = result.value;
+        } else {
+          pubkey = result.value;
+        }
+        
+        // Clear the current pubkey after use
+        delete options._currentPubkey;
+      } else {
+        // Use normal resolution
+        pubkey = await resolvePubkey(options);
+      }
+      
+      // Enter TUI after auth is resolved
+      enterAlternateScreen();
+      renderLoadingScreen("Initializing...");
+      
+      // Use discovery relays if identity was switched or no project
+      const relays = useDiscoveryRelays || (!hasExplicitAuth && !hasProjectAuth)
+        ? resolveRelays({}, null, true) // Force discovery relays
+        : resolveRelays(options);
     
     renderLoadingScreen("Loading configuration...");
     
@@ -112,6 +146,7 @@ export async function command(options: any): Promise<void> {
       relayColorMap,
       serverColorMap,
       ignoreRules,
+      pubkey,
       undefined // Don't store signer in state
     );
     
@@ -181,12 +216,20 @@ export async function command(options: any): Promise<void> {
       
       const shouldContinue = handleListModeKey(state, event.key || "");
       if (!shouldContinue) {
-        // Clean up and exit
+        // Clean up
         Deno.removeSignalListener("SIGWINCH", handleResize);
         keypress.dispose();
         showCursor();
         exitAlternateScreen();
-        Deno.exit(0);
+        
+        // Check if we should switch identity
+        if (state.switchIdentity) {
+          // Break out of keypress loop to show menu again
+          break;
+        } else {
+          // Normal exit
+          Deno.exit(0);
+        }
       }
       
       // For up/down navigation, do a partial render
@@ -198,7 +241,20 @@ export async function command(options: any): Promise<void> {
       }
     }
     
+    // If we get here, user wants to switch identity
+    // Pass current pubkey to menu
+    const currentPubkey = state.pubkey;
+    // Set flag to use discovery relays
+    useDiscoveryRelays = true;
+    // Store current pubkey to pass to menu
+    options._currentPubkey = currentPubkey;
+    // Continue the loop - the menu will be shown at the top
+    continue;
+    
+    } // End of while loop
   } catch (error: unknown) {
+    exitAlternateScreen();
+    showCursor();
     handleError("Error in browse mode", error, {
       showConsole: true,
       exit: true,

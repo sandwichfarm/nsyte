@@ -46,6 +46,7 @@ nsyte browse --privatekey nsec1...
 ### Navigation
 - `↑/↓` — Navigate through files
 - `←/→` — Navigate between pages
+- `i` — Switch identity (shows identity selection menu)
 - `q` — Quit the browser
 
 ### Selection
@@ -87,6 +88,16 @@ Delete operations require authentication. The browse command supports:
 5. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to delete
 
 ## Features
+
+### Identity Selection and Display
+The current identity (npub) is displayed in the header next to "nsyte browse" in green. When run outside a project or without explicit authentication, browse shows an interactive menu to select a nostr identity. You can:
+- Choose from existing bunkers (displayed as full npub strings)
+- Enter an npub manually
+- Generate a new private key
+- Use an existing private key
+- Connect to a new NSEC bunker
+
+Press `i` at any time during browsing to switch to a different identity. The header will update to show the new identity.
 
 ### File Tree View
 Files are displayed in a hierarchical tree structure with directories collapsed by default. Only files (not directories) can be selected or operated on.

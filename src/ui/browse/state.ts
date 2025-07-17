@@ -38,6 +38,8 @@ export interface BrowseState {
   statusColor?: (str: string) => string; // Optional color function for status
   filterMode: boolean; // Whether filter is active
   filterText: string; // Current filter text
+  switchIdentity: boolean; // Signal to switch identity
+  pubkey: string; // Current pubkey being browsed
 }
 
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
@@ -121,6 +123,7 @@ export function createInitialState(
   relayColorMap: Map<string, (str: string) => string>,
   serverColorMap: Map<string, (str: string) => string>,
   ignoreRules: IgnoreRule[],
+  pubkey: string,
   signer?: any
 ): BrowseState {
   const treeItems = buildTreeItems(files);
@@ -156,6 +159,8 @@ export function createInitialState(
     status: "Ready",
     filterMode: false,
     filterText: "",
+    switchIdentity: false,
+    pubkey,
   };
 }
 

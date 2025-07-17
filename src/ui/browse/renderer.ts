@@ -1,7 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
+import { nip19 } from "nostr-tools";
 import type { BrowseState } from "./state.ts";
 import { RELAY_SYMBOL, SERVER_SYMBOL } from "../../commands/ls.ts";
 import { isIgnored } from "../../lib/files.ts";
+import { formatTimestamp } from "../time-formatter.ts";
+import { highlightJson, addLineNumbers } from "../json-highlighter.ts";
 
 export function truncateHash(hash: string): string {
   if (hash.length <= 16) return hash;
@@ -74,6 +77,11 @@ export function getTerminalSize() {
 export function renderHeader(state: BrowseState) {
   const { cols } = getTerminalSize();
   const title = colors.bold.cyan("nsyte browse");
+  
+  // Format the npub
+  const npub = nip19.npubEncode(state.pubkey);
+  const identity = colors.green(`[${npub.substring(0, 12)}...${npub.substring(npub.length - 6)}]`);
+  
   const legendItems: string[] = [];
   
   if (state.relayColorMap.size > 0) {
@@ -91,13 +99,14 @@ export function renderHeader(state: BrowseState) {
   }
   
   const legend = legendItems.join(" ");
-  const legendMaxWidth = cols - title.length - 3;
+  const titleAndIdentity = `${title} ${identity}`;
+  const legendMaxWidth = cols - titleAndIdentity.length - 3;
   const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
   
   // Move to header position and clear lines
   moveCursor(1, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  Deno.stdout.writeSync(new TextEncoder().encode(`${title} ${colors.gray(truncatedLegend)}\n`));
+  Deno.stdout.writeSync(new TextEncoder().encode(`${titleAndIdentity} ${colors.gray(truncatedLegend)}\n`));
   moveCursor(2, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
@@ -147,6 +156,7 @@ export function renderFooter(state: BrowseState) {
         `${colors.gray("ENTER")} Details`,
         `${colors.gray("/")} Filter`,
         `${colors.gray("DEL")} Delete`,
+        `${colors.gray("i")} Identity`,
         `${colors.gray("q")} Quit`
       );
     }
@@ -336,6 +346,13 @@ export function renderDetailView(state: BrowseState) {
   printLine(`${colors.gray("Path:")} ${file.path}`);
   printLine(`${colors.gray("SHA256:")} ${file.sha256}`);
   printLine(`${colors.gray("Event ID:")} ${file.eventId}`);
+  
+  // Add creation time if event exists
+  if (file.event?.created_at) {
+    const timeStr = formatTimestamp(file.event.created_at);
+    printLine(`${colors.gray("Created:")} ${timeStr}`);
+  }
+  
   printLine();
   
   if (file.foundOnRelays.length > 0) {
@@ -354,6 +371,25 @@ export function renderDetailView(state: BrowseState) {
       printLine(`  ${colorFn(SERVER_SYMBOL)} ${server}`);
     });
     printLine();
+  }
+  
+  // Show JSON event with syntax highlighting
+  if (file.event) {
+    printLine(colors.bold("Event JSON:"));
+    printLine();
+    
+    try {
+      const jsonStr = JSON.stringify(file.event, null, 2);
+      const highlighted = highlightJson(jsonStr);
+      const withLineNumbers = addLineNumbers(highlighted);
+      
+      // Print each line of the JSON
+      withLineNumbers.split('\n').forEach(line => {
+        printLine(line);
+      });
+    } catch (error) {
+      printLine(colors.red("Error formatting event JSON"));
+    }
   }
   
   // Fill remaining space

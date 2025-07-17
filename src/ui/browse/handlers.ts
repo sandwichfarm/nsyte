@@ -598,6 +598,10 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
       }
       return true;
       
+    case "i":
+      state.switchIdentity = true;
+      return false; // Signal to exit the browse loop
+      
     case "return":
       const currentItem = state.treeItems[state.selectedIndex];
       if (currentItem && currentItem.file) {
