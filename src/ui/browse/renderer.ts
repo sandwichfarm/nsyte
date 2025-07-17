@@ -110,6 +110,7 @@ export function renderFooter(state: BrowseState) {
         `${colors.gray("SPACE")} Select`,
         `${colors.gray("s")} Toggle selected${state.selectedItems.size > 0 ? ` [${state.selectedItems.size}]` : ''}`,
         `${colors.gray("ENTER")} Details`,
+        `${colors.gray("/")} Filter`,
         `${colors.gray("DEL")} Delete`,
         `${colors.gray("q")} Quit`
       ];
@@ -120,13 +121,13 @@ export function renderFooter(state: BrowseState) {
   
   const hotkeysText = hotkeys.join(" │ ");
   
-  // Calculate padding to right-align hotkeys
+  // Calculate padding to right-align status
   const statusLength = statusText.replace(/\x1b\[[0-9;]*m/g, '').length; // Remove ANSI codes for length
   const hotkeysLength = hotkeysText.replace(/\x1b\[[0-9;]*m/g, '').length;
   const padding = Math.max(1, cols - statusLength - hotkeysLength - 1);
   
-  // Render status on left and hotkeys on right
-  Deno.stdout.writeSync(new TextEncoder().encode(statusText + " ".repeat(padding) + hotkeysText));
+  // Render hotkeys on left and status on right
+  Deno.stdout.writeSync(new TextEncoder().encode(hotkeysText + " ".repeat(padding) + statusText));
 }
 
 export function renderFileList(state: BrowseState) {
@@ -142,27 +143,46 @@ export function renderFileList(state: BrowseState) {
     Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
   }
   
-  // Render path indicator row
+  // Render path indicator row or filter input
   moveCursor(3, 1);
-  const startIndex = state.page * state.pageSize;
-  const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
-  const pageItems = state.treeItems.slice(startIndex, endIndex);
   
-  // Get the parent path of the first item on the page
-  let pathIndicator = "/";
-  if (pageItems.length > 0) {
-    const firstItem = pageItems[0];
-    const parts = firstItem.path.split('/');
-    if (parts.length > 1) {
-      pathIndicator = "/" + parts.slice(0, -1).join('/');
+  if (state.filterMode) {
+    // Show filter input with blinking cursor
+    showCursor();
+    const filterDisplay = `Filter: ${state.filterText}_`;
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.cyan(filterDisplay) + "\n"));
+  } else {
+    // Make sure cursor is hidden
+    hideCursor();
+    // Show path indicator
+    const startIndex = state.page * state.pageSize;
+    const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+    const pageItems = state.treeItems.slice(startIndex, endIndex);
+    
+    // Get the parent path of the first item on the page
+    let pathIndicator = "/";
+    if (pageItems.length > 0) {
+      const firstItem = pageItems[0];
+      const parts = firstItem.path.split('/');
+      if (parts.length > 1) {
+        pathIndicator = "/" + parts.slice(0, -1).join('/');
+      }
+    }
+    
+    // Show filter indicator if active
+    if (state.filterText) {
+      Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}] `) + colors.cyan(`(filtered: ${state.filterText})`) + "\n"));
+    } else {
+      Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}]`) + "\n"));
     }
   }
   
-  // Render the path indicator
-  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}]`) + "\n"));
-  
   // Move to start of actual file list (row 4)
   moveCursor(4, 1);
+  
+  const startIndex = state.page * state.pageSize;
+  const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+  const pageItems = state.treeItems.slice(startIndex, endIndex);
   
   // Calculate max relay/server counts for alignment (minimum 3 for visual consistency)
   const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
@@ -297,7 +317,9 @@ export function renderDetailView(state: BrowseState) {
 }
 
 export function render(state: BrowseState) {
-  hideCursor();
+  if (!state.filterMode) {
+    hideCursor();
+  }
   clearScreen();
   
   // Update page size based on current terminal size
@@ -316,7 +338,9 @@ export function render(state: BrowseState) {
 }
 
 export function renderUpdate(state: BrowseState) {
-  hideCursor();
+  if (!state.filterMode) {
+    hideCursor();
+  }
   
   // Update page size based on current terminal size
   const { rows } = getTerminalSize();

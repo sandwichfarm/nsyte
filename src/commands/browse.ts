@@ -21,7 +21,7 @@ import {
   enterAlternateScreen, 
   exitAlternateScreen 
 } from "../ui/browse/renderer.ts";
-import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey } from "../ui/browse/handlers.ts";
+import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey, handleFilterMode } from "../ui/browse/handlers.ts";
 
 const log = createLogger("browse");
 
@@ -145,6 +145,14 @@ export async function command(options: any): Promise<void> {
     const keypress = new Keypress();
     
     for await (const event of keypress) {
+      if (state.filterMode) {
+        const shouldRender = handleFilterMode(state, event.key || "", event.sequence);
+        if (shouldRender) {
+          render(state);
+        }
+        continue;
+      }
+      
       if (state.confirmingDelete) {
         const shouldRender = await handleDeleteConfirmation(state, event.key || "", event.sequence);
         if (shouldRender) {

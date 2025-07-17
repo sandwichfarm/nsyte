@@ -405,6 +405,14 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
       }
       return true;
       
+    case "/":
+      // Activate filter mode
+      state.filterMode = true;
+      state.filterText = "";
+      state.status = "Filter: ";
+      state.statusColor = colors.cyan;
+      return true;
+      
     case "q":
       return false; // Signal to quit
       
@@ -415,5 +423,42 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
 
 export function handleDetailModeKey(state: BrowseState): boolean {
   state.viewMode = "list";
+  return true;
+}
+
+export function handleFilterMode(state: BrowseState, key: string, sequence?: string): boolean {
+  if (key === "escape") {
+    // Cancel filter
+    state.filterMode = false;
+    state.filterText = "";
+    state.status = "Ready";
+    state.statusColor = undefined;
+    updateFilteredFiles(state);
+    return true;
+  }
+  
+  if (key === "return") {
+    // Apply filter and exit filter mode
+    state.filterMode = false;
+    state.status = state.filterText ? `Filtered: ${state.filterText}` : "Ready";
+    state.statusColor = state.filterText ? colors.cyan : undefined;
+    return true;
+  }
+  
+  if (key === "backspace") {
+    // Remove last character
+    if (state.filterText.length > 0) {
+      state.filterText = state.filterText.slice(0, -1);
+      updateFilteredFiles(state);
+    }
+    return true;
+  }
+  
+  if (sequence && sequence.length === 1 && sequence >= ' ') {
+    // Add character to filter
+    state.filterText += sequence;
+    updateFilteredFiles(state);
+  }
+  
   return true;
 }

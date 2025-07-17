@@ -36,6 +36,8 @@ export interface BrowseState {
   };
   status: string; // Current status message
   statusColor?: (str: string) => string; // Optional color function for status
+  filterMode: boolean; // Whether filter is active
+  filterText: string; // Current filter text
 }
 
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
@@ -152,19 +154,35 @@ export function createInitialState(
     ignoreRules,
     signer,
     status: "Ready",
+    filterMode: false,
+    filterText: "",
   };
 }
 
 export function updateFilteredFiles(state: BrowseState): void {
+  let filtered = state.files;
+  
+  // Apply selected only filter
   if (state.showSelectedOnly && state.selectedItems.size > 0) {
     const selectedPaths = Array.from(state.selectedItems);
-    state.filteredFiles = state.files.filter(file => {
+    filtered = filtered.filter(file => {
       const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
       return selectedPaths.includes(path);
     });
-  } else {
-    state.filteredFiles = state.files;
   }
+  
+  // Apply text filter
+  if (state.filterText) {
+    const searchTerm = state.filterText.toLowerCase();
+    filtered = filtered.filter(file => {
+      const fileName = file.path.split('/').pop() || file.path;
+      return fileName.toLowerCase().includes(searchTerm) ||
+             file.path.toLowerCase().includes(searchTerm) ||
+             file.sha256.toLowerCase().includes(searchTerm);
+    });
+  }
+  
+  state.filteredFiles = filtered;
   
   // Rebuild tree items
   state.treeItems = buildTreeItems(state.filteredFiles);
@@ -172,6 +190,17 @@ export function updateFilteredFiles(state: BrowseState): void {
   // Reset index and page if needed
   state.selectedIndex = Math.min(state.selectedIndex, state.treeItems.length - 1);
   state.selectedIndex = Math.max(0, state.selectedIndex);
+  
+  // Find first file (non-directory) index
+  let firstFileIndex = 0;
+  for (let i = 0; i < state.treeItems.length; i++) {
+    if (!state.treeItems[i].isDirectory) {
+      firstFileIndex = i;
+      break;
+    }
+  }
+  state.selectedIndex = Math.max(firstFileIndex, state.selectedIndex);
+  
   state.page = 0;
 }
 
