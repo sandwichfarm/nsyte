@@ -157,6 +157,8 @@ export async function deleteFiles(
           if ('error' in nbunksecSigner) {
             console.error(colors.red(nbunksecSigner.error));
             authInput = undefined; // Clear from memory
+            state.status = "Delete failed: Invalid nbunksec";
+            state.statusColor = colors.red;
             return false;
           }
           signer = nbunksecSigner.signer;
@@ -169,6 +171,8 @@ export async function deleteFiles(
           if ('error' in privateKeySigner) {
             console.error(colors.red(privateKeySigner.error));
             authInput = undefined; // Clear from memory
+            state.status = "Delete failed: Invalid private key";
+            state.statusColor = colors.red;
             return false;
           }
           signer = privateKeySigner.signer;
@@ -201,6 +205,8 @@ export async function deleteFiles(
         if ('error' in nbunksecSigner) {
           console.error(colors.red(nbunksecSigner.error));
           authInput = undefined; // Clear from memory
+          state.status = "Delete failed: Invalid nbunksec";
+          state.statusColor = colors.red;
           return false;
         }
         signer = nbunksecSigner.signer;
@@ -213,6 +219,8 @@ export async function deleteFiles(
         if ('error' in privateKeySigner) {
           console.error(colors.red(privateKeySigner.error));
           authInput = undefined; // Clear from memory
+          state.status = "Delete failed: Invalid private key";
+          state.statusColor = colors.red;
           return false;
         }
         signer = privateKeySigner.signer;
@@ -224,6 +232,8 @@ export async function deleteFiles(
     
     if (!signer) {
       log.error("Failed to create signer");
+      state.status = "Delete failed: No signer available";
+      state.statusColor = colors.red;
       return false;
     }
     
@@ -234,6 +244,8 @@ export async function deleteFiles(
     
     if (eventIds.length === 0) {
       log.warn("No events to delete");
+      state.status = "Delete failed: No events found for selected files";
+      state.statusColor = colors.red;
       return false;
     }
     
@@ -257,11 +269,62 @@ export async function deleteFiles(
     state.status = `Publishing to ${relays.size} relay${relays.size > 1 ? 's' : ''}...`;
     render(state);
     
-    // Publish to relays
-    const success = await publishEventsToRelays(Array.from(relays), [deleteEvent]);
+    // Publish to relays with detailed results
+    const relayArray = Array.from(relays);
+    let acceptedCount = 0;
+    let rejectedCount = 0;
+    const rejectedRelays: string[] = [];
     
-    if (!success) {
-      log.error("Failed to publish delete event to any relay");
+    try {
+      // Import pool for direct access
+      const { pool } = await import("../../lib/nostr.ts");
+      const { lastValueFrom, toArray, timeout } = await import("rxjs");
+      
+      // Publish to each relay and track results
+      const publishPromises = relayArray.map(async (relay) => {
+        try {
+          state.status = `Publishing to ${relay.replace(/^wss?:\/\//, '').substring(0, 20)}...`;
+          render(state);
+          
+          const results = await lastValueFrom(
+            pool.publish([relay], deleteEvent, { retries: 1 })
+              .pipe(timeout(5000), toArray())
+          );
+          
+          // Check if any results indicate success
+          const success = results.some(r => r.ok);
+          if (success) {
+            acceptedCount++;
+            log.info(`Delete event accepted by ${relay}`);
+          } else {
+            rejectedCount++;
+            rejectedRelays.push(relay);
+            log.warn(`Delete event rejected by ${relay}`);
+          }
+        } catch (error) {
+          // Timeout or connection error
+          rejectedCount++;
+          rejectedRelays.push(relay);
+          log.error(`Failed to publish to ${relay}: ${error}`);
+        }
+      });
+      
+      await Promise.all(publishPromises);
+      
+      if (acceptedCount === 0) {
+        log.error("All relays rejected the delete event");
+        state.status = `Delete failed: All ${rejectedCount} relay${rejectedCount > 1 ? 's' : ''} rejected the event`;
+        state.statusColor = colors.red;
+        return false;
+      } else if (rejectedCount > 0) {
+        log.warn(`Delete event accepted by ${acceptedCount} relay(s), rejected by ${rejectedCount}`);
+        state.status = `Delete partially successful: ${acceptedCount} accepted, ${rejectedCount} rejected`;
+        state.statusColor = colors.yellow;
+      }
+    } catch (error) {
+      log.error(`Error during relay publication: ${error}`);
+      state.status = `Delete failed: ${error instanceof Error ? error.message : 'Relay communication error'}`;
+      state.statusColor = colors.red;
       return false;
     }
     
@@ -274,40 +337,75 @@ export async function deleteFiles(
     
   } catch (error) {
     log.error(`Failed to delete files: ${error}`);
+    state.status = `Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    state.statusColor = colors.red;
     return false;
   }
 }
 
 async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState): Promise<void> {
   try {
-    const { fetchFileEvents } = await import("../../lib/nostr.ts");
+    const { pool } = await import("../../lib/nostr.ts");
+    const { lastValueFrom, toArray, timeout } = await import("rxjs");
     
     // Get the pubkey from the first file's event
     if (files.length === 0 || !files[0].event) return;
     const pubkey = files[0].event.pubkey;
     
-    // Get all relays where files were found
-    const relays = new Set<string>();
+    // Check each relay individually to see which still have the events
+    const eventIds = files.map(f => f.eventId);
+    const stillExistsOn = new Map<string, Set<string>>(); // eventId -> relays that still have it
+    
+    for (const file of files) {
+      stillExistsOn.set(file.eventId, new Set());
+      
+      // Check each relay where this file was found
+      for (const relay of file.foundOnRelays) {
+        try {
+          const filter = {
+            ids: [file.eventId],
+            authors: [pubkey],
+            kinds: [1063]
+          };
+          
+          const events = await lastValueFrom(
+            pool.query([relay], filter)
+              .pipe(timeout(3000), toArray())
+          );
+          
+          if (events.length > 0) {
+            // Event still exists on this relay
+            stillExistsOn.get(file.eventId)!.add(relay);
+          }
+        } catch (error) {
+          // Relay timeout or error - assume event might still exist
+          log.warn(`Could not verify deletion on ${relay}: ${error}`);
+        }
+      }
+    }
+    
+    // Categorize results
+    const fullyDeleted: string[] = [];
+    const partiallyDeleted: string[] = [];
+    const notDeleted: string[] = [];
+    
     files.forEach(file => {
-      file.foundOnRelays.forEach(relay => relays.add(relay));
+      const remainingRelays = stillExistsOn.get(file.eventId) || new Set();
+      if (remainingRelays.size === 0) {
+        fullyDeleted.push(file.path);
+      } else if (remainingRelays.size < file.foundOnRelays.length) {
+        partiallyDeleted.push(file.path);
+      } else {
+        notDeleted.push(file.path);
+      }
     });
     
-    // Check if events still exist
-    const eventIds = files.map(f => f.eventId);
-    const existingEvents = await fetchFileEvents(Array.from(relays), pubkey);
-    const existingEventIds = new Set(existingEvents.filter(e => eventIds.includes(e.id)).map(e => e.id));
-    
-    // Remove files that were successfully deleted
-    const deletedPaths = files
-      .filter(f => !existingEventIds.has(f.eventId))
-      .map(f => f.path);
-    
-    if (deletedPaths.length > 0) {
-      // Remove deleted files from state
-      state.files = state.files.filter(f => !deletedPaths.includes(f.path));
+    if (fullyDeleted.length > 0) {
+      // Remove fully deleted files from state
+      state.files = state.files.filter(f => !fullyDeleted.includes(f.path));
       
       // Clear items from tracking sets
-      deletedPaths.forEach(path => {
+      fullyDeleted.forEach(path => {
         const normalizedPath = path.startsWith("/") ? path.substring(1) : path;
         state.deletedItems.delete(normalizedPath);
         state.selectedItems.delete(normalizedPath);
@@ -321,7 +419,7 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
       state.selectedIndex = Math.max(0, state.selectedIndex);
       
       // Re-render to show updated list
-      state.status = `Removed ${deletedPaths.length} deleted file${deletedPaths.length > 1 ? 's' : ''}`;
+      state.status = `Verified: ${fullyDeleted.length} removed`;
       state.statusColor = colors.green;
       render(state);
       
@@ -331,18 +429,40 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
         state.statusColor = undefined;
         render(state);
       }, 2000);
-    } else {
-      // No files were deleted
-      state.status = "No files removed (may still exist on relays)";
+    } else if (partiallyDeleted.length > 0) {
+      // Some files partially deleted
+      state.status = `Warning: ${partiallyDeleted.length} file${partiallyDeleted.length > 1 ? 's' : ''} still on some relays`;
       state.statusColor = colors.yellow;
       render(state);
       
-      // Reset status after 3 seconds
+      // Show detailed info in console
+      console.log(colors.yellow("\nPartially deleted files (still exist on some relays):"));
+      partiallyDeleted.forEach(path => {
+        const file = files.find(f => f.path === path);
+        if (file) {
+          const remaining = stillExistsOn.get(file.eventId) || new Set();
+          console.log(`  ${path}: Still on ${Array.from(remaining).join(", ")}`);
+        }
+      });
+      
+      // Reset status after 5 seconds
       setTimeout(() => {
         state.status = "Ready";
         state.statusColor = undefined;
         render(state);
-      }, 3000);
+      }, 5000);
+    } else if (notDeleted.length > 0) {
+      // No files were successfully deleted
+      state.status = `Delete accepted but ${notDeleted.length} file${notDeleted.length > 1 ? 's' : ''} still exist on all relays`;
+      state.statusColor = colors.red;
+      render(state);
+      
+      // Reset status after 5 seconds
+      setTimeout(() => {
+        state.status = "Ready";
+        state.statusColor = undefined;
+        render(state);
+      }, 5000);
     }
     
     // Clear any remaining items from deleted tracking
