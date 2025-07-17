@@ -49,7 +49,7 @@ export const consoleCommand = new Command()
       // Set up views
       const views: Record<string, ConsoleView> = {
         config: new ConfigView(state.projectPath, state.config),
-        browse: new BrowseView(state.auth, state.config, options.noCache),
+        browse: new BrowseView(state.auth, state.config, !options.cache),
       }
 
       // Preload all views
@@ -67,34 +67,36 @@ export const consoleCommand = new Command()
 
       // Set up keyboard handler
       state.keyboardHandler = keypress()
-      state.keyboardHandler.on('keypress', async (event) => {
+      state.keyboardHandler.on('keypress', async (event: any) => {
         // Global hotkeys
         if (event.ctrlKey && event.key === 'c') {
           cleanup()
           Deno.exit(0)
         }
 
-        if (event.key === 'q' && !state.views[state.currentView].isEditing?.()) {
+        if (event.key === 'q' && state && !state.views[state.currentView].isEditing?.()) {
           cleanup()
           Deno.exit(0)
         }
 
         // Tab switching with number keys
-        const viewKeys = Object.keys(state.views)
-        const keyNum = parseInt(event.key)
-        if (!isNaN(keyNum) && keyNum > 0 && keyNum <= viewKeys.length) {
-          const newView = viewKeys[keyNum - 1]
-          if (newView !== state.currentView) {
-            state.currentView = newView
-            render(state)
-            return
+        if (state) {
+          const viewKeys = Object.keys(state.views)
+          const keyNum = parseInt(event.key)
+          if (!isNaN(keyNum) && keyNum > 0 && keyNum <= viewKeys.length) {
+            const newView = viewKeys[keyNum - 1]
+            if (newView !== state.currentView) {
+              state.currentView = newView
+              render(state)
+              return
+            }
           }
-        }
 
-        // Pass event to current view
-        const handled = await state.views[state.currentView].handleInput(event)
-        if (handled) {
-          render(state)
+          // Pass event to current view
+          const handled = await state.views[state.currentView].handleInput(event)
+          if (handled) {
+            render(state)
+          }
         }
       })
 
