@@ -10,17 +10,22 @@ Run a resolver server that serves nsites via npub subdomains. This command start
 ## Usage
 
 ```bash
-nsyte run [options]
+nsyte run [npub] [options]
 ```
+
+## Arguments
+
+- `npub` (optional): Specific npub to launch when accessing localhost (defaults to a demo npub)
 
 ## Options
 
-- `--port <port>`: Port number to run the resolver on (default: 3000)
-- `--host <host>`: Host to bind to (default: localhost)
-- `--domain <domain>`: Base domain for npub subdomains (default: localhost)
-- `--relays <relays>`: Comma-separated list of relay URLs to use
-- `--servers <servers>`: Comma-separated list of blossom server URLs to use
-- `--help`: Show help information
+- `-p, --port <port>`: Port number to run the resolver on (default: 8080)
+- `-r, --relays <relays>`: Comma-separated list of nostr relays to use
+- `-k, --privatekey <nsec>`: Private key for signing operations
+- `-b, --bunker <url>`: NIP-46 bunker URL for signing
+- `--nbunksec <nbunksec>`: nbunksec string for authentication
+- `-c, --cache-dir <dir>`: Directory to cache downloaded files
+- `--no-open`: Don't automatically open browser
 
 ## Examples
 
@@ -30,34 +35,33 @@ nsyte run [options]
 nsyte run
 ```
 
-Starts the resolver on `http://localhost:3000`. You can then access nsites at:
-- `http://npub1abc123.localhost:3000`
-- `http://npub1def456.localhost:3000`
+Starts the resolver on `http://localhost:8080`. Accessing localhost redirects to a demo npub. You can access any nsite at:
+- `http://npub1abc123.localhost:8080`
+- `http://npub1def456.localhost:8080`
 
-### Custom Port and Domain
-
-```bash
-nsyte run --port 8080 --domain local.dev
-```
-
-Serves on port 8080 with custom domain. Access nsites at:
-- `http://npub1abc123.local.dev:8080`
-
-### Custom Relays and Servers
+### Launch Specific npub
 
 ```bash
-nsyte run --relays wss://relay1.com,wss://relay2.com --servers https://server1.com,https://server2.com
+nsyte run npub1abc123def456ghi789
 ```
 
-Uses specific relays and blossom servers for resolving nsites.
+Starts the resolver and when you access localhost, it will redirect to the specified npub instead of the default demo.
 
-### Network Access
+### Custom Port
 
 ```bash
-nsyte run --host 0.0.0.0 --domain local
+nsyte run --port 3000
 ```
 
-Allows access from other devices on your network.
+Serves on port 3000 instead of the default 8080.
+
+### Custom Relays
+
+```bash
+nsyte run --relays wss://relay1.com,wss://relay2.com
+```
+
+Uses specific relays for discovering nsite events.
 
 ## How It Works
 

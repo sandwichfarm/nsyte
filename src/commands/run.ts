@@ -27,7 +27,8 @@ export function registerRunCommand(program: Command): void {
   program
     .command("run")
     .alias("rn")
-    .description("Run a resolver server that serves nsites via npub subdomains")
+    .description("Run a resolver server that serves nsites via npub subdomains. Optionally specify an npub to launch instead of default.")
+    .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 8080 })
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
@@ -35,8 +36,8 @@ export function registerRunCommand(program: Command): void {
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
     .option("-c, --cache-dir <dir:string>", "Directory to cache downloaded files (uses temp dir if not specified)")
     .option("--no-open", "Don't automatically open the browser")
-    .action(async (options: RunOptions) => {
-      await runCommand(options);
+    .action(async (options: RunOptions, npub?: string) => {
+      await runCommand(options, npub);
     });
 }
 
@@ -69,9 +70,19 @@ function extractNpubFromHost(hostname: string): string | null {
 /**
  * Main run command implementation - runs a resolver server
  */
-export async function runCommand(options: RunOptions): Promise<void> {
+export async function runCommand(options: RunOptions, npub?: string): Promise<void> {
   try {
     const port = options.port || 8080;
+    
+    // Validate npub parameter if provided
+    let targetNpub = "npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta"; // default
+    if (npub) {
+      if (!validateNpub(npub)) {
+        console.log(colors.red(`✗ Invalid npub format: ${npub}`));
+        Deno.exit(1);
+      }
+      targetNpub = npub;
+    }
     
     // Set up cache directory
     let cacheDir: string | null = null;
@@ -106,7 +117,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
     console.log(colors.gray(`\nAccess nsites via: http://{npub}.localhost:${port}/path/to/file`));
     console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html`));
     console.log(colors.gray(`\nNote: http://localhost:${port} redirects to:`));
-    console.log(colors.gray(`http://npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta.localhost:${port}\n`));
+    console.log(colors.gray(`http://${targetNpub}.localhost:${port}\n`));
     console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
 
     // Open browser automatically unless disabled
@@ -129,7 +140,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
 
       // Handle root localhost redirect
       if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
-        const redirectUrl = `http://npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta.localhost:${port}${url.pathname}${url.search}`;
+        const redirectUrl = `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.cyan(`→ Redirecting to ${redirectUrl} - ${elapsed}ms`));
         return new Response(null, {
@@ -211,8 +222,8 @@ export async function runCommand(options: RunOptions): Promise<void> {
         // Get or fetch file list
         let fileListEntry = fileListCache.get(npub);
         
-        // If we're loading file list for the first time, show loading page
-        if (!fileListEntry && requestedPath === "/") {
+        // If we're loading file list for the first time, show loading page (only for HTML requests)
+        if (!fileListEntry && (requestedPath === "/" || requestedPath.endsWith(".html") || requestedPath.endsWith(".htm"))) {
           // Start loading file list in background
           fileListCache.set(npub, { files: [], timestamp: Date.now(), loading: true });
           
@@ -250,18 +261,29 @@ export async function runCommand(options: RunOptions): Promise<void> {
           });
         }
         
-        // If still loading, show loading page
+        // If still loading, show loading page (only for HTML requests)
         if (fileListEntry?.loading) {
-          const loadingHtml = generateLoadingPage(npub, profileData?.profile);
-          const elapsed = Math.round(performance.now() - startTime);
-          console.log(colors.blue(`  → Loading page served (still fetching) - ${elapsed}ms`));
-          return new Response(loadingHtml, {
-            status: 200,
-            headers: { 
-              "Content-Type": "text/html",
-              "Refresh": "2"
-            },
-          });
+          // Only serve loading page for HTML files and root path
+          if (requestedPath === "/" || requestedPath.endsWith(".html") || requestedPath.endsWith(".htm")) {
+            const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.blue(`  → Loading page served (still fetching) - ${elapsed}ms`));
+            return new Response(loadingHtml, {
+              status: 200,
+              headers: { 
+                "Content-Type": "text/html",
+                "Refresh": "2"
+              },
+            });
+          } else {
+            // For non-HTML files like favicon.ico, return 404 while still loading
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.yellow(`  → File not found (still loading) - ${elapsed}ms`));
+            return new Response("File not found", {
+              status: 404,
+              headers: { "Content-Type": "text/plain" },
+            });
+          }
         }
         
         // Refresh file list if needed
