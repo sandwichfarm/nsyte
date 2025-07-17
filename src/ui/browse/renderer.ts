@@ -69,21 +69,22 @@ export function renderHeader(state: BrowseState) {
   // Move to header position and clear lines
   moveCursor(1, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  console.log(`${title} ${colors.gray(truncatedLegend)}`);
+  Deno.stdout.writeSync(new TextEncoder().encode(`${title} ${colors.gray(truncatedLegend)}\n`));
   moveCursor(2, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  console.log(colors.gray("─".repeat(cols)));
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
 }
 
 export function renderFooter(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
   
-  // Move cursor to footer position
+  // Move cursor to footer position (rows - 1 for separator, rows for hotkeys)
   moveCursor(rows - 1, 1);
-  
-  // Clear the footer area
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  console.log(colors.gray("─".repeat(cols)));
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
+  
+  // Move to last line for hotkeys
+  moveCursor(rows, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   
   let hotkeys: string[] = [];
@@ -114,7 +115,7 @@ export function renderFooter(state: BrowseState) {
   
   const hotkeysText = hotkeys.join(" │ ");
   const padding = Math.max(0, cols - hotkeysText.length) / 2;
-  console.log(" ".repeat(Math.floor(padding)) + hotkeysText);
+  Deno.stdout.writeSync(new TextEncoder().encode(" ".repeat(Math.floor(padding)) + hotkeysText));
 }
 
 export function renderFileList(state: BrowseState) {

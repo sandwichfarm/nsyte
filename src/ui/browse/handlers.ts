@@ -95,19 +95,17 @@ export async function deleteFiles(
     log.info(`Creating delete event for ${eventIds.length} events`);
     
     // Create delete event
-    const deleteEvent = await createDeleteEvent(state.signer, eventIds, "Deleted via nsyte browse");
+    const deleteEvent = await createDeleteEvent(state.signer, eventIds);
     
     // Publish to relays
-    const results = await publishEventsToRelays(Array.from(relays), [deleteEvent]);
+    const success = await publishEventsToRelays(Array.from(relays), [deleteEvent]);
     
-    // Check if published to at least one relay
-    const successCount = results.filter(r => r.success).length;
-    if (successCount === 0) {
+    if (!success) {
       log.error("Failed to publish delete event to any relay");
       return false;
     }
     
-    log.info(`Delete event published to ${successCount}/${results.length} relays`);
+    log.info(`Delete event published successfully`);
     return true
     
   } catch (error) {
