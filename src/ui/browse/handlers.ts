@@ -262,7 +262,7 @@ export async function deleteFiles(
     render(state);
     
     // Create delete event
-    const deleteEvent = await createDeleteEvent(state.signer, eventIds);
+    const deleteEvent = await createDeleteEvent(signer, eventIds);
     
     // Update status
     state.status = `Publishing to ${relays.size} relay${relays.size > 1 ? 's' : ''}...`;
