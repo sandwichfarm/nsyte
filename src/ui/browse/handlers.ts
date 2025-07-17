@@ -63,7 +63,6 @@ export async function deleteFiles(
     // Import required modules dynamically to avoid circular dependencies
     const { createDeleteEvent, publishEventsToRelays } = await import("../../lib/nostr.ts");
     const { readProjectFile } = await import("../../lib/config.ts");
-    const { PrivateKeySigner } = await import("../../lib/signer.ts");
     
     // Get config to determine signer
     const config = readProjectFile();
@@ -72,9 +71,10 @@ export async function deleteFiles(
       return false;
     }
     
-    // TODO: Get signer from browse command options
-    // For now, we'll need to pass signer through state
-    // This is a limitation that should be addressed
+    if (!state.signer) {
+      log.error("No signer available for deletion. Please provide authentication.");
+      return false;
+    }
     
     // Extract event IDs from files that have events
     const eventIds = files
@@ -94,9 +94,21 @@ export async function deleteFiles(
     
     log.info(`Creating delete event for ${eventIds.length} events`);
     
-    // Note: This is a temporary implementation
-    // In production, the signer should be passed from the command
-    return false; // Return false for now until signer is properly integrated
+    // Create delete event
+    const deleteEvent = await createDeleteEvent(state.signer, eventIds, "Deleted via nsyte browse");
+    
+    // Publish to relays
+    const results = await publishEventsToRelays(Array.from(relays), [deleteEvent]);
+    
+    // Check if published to at least one relay
+    const successCount = results.filter(r => r.success).length;
+    if (successCount === 0) {
+      log.error("Failed to publish delete event to any relay");
+      return false;
+    }
+    
+    log.info(`Delete event published to ${successCount}/${results.length} relays`);
+    return true
     
   } catch (error) {
     log.error(`Failed to delete files: ${error}`);

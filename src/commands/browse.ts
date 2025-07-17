@@ -22,6 +22,7 @@ import {
   exitAlternateScreen 
 } from "../ui/browse/renderer.ts";
 import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey } from "../ui/browse/handlers.ts";
+import { createSigner } from "../lib/auth/signer-factory.ts";
 
 const log = createLogger("browse");
 
@@ -42,6 +43,24 @@ export function registerBrowseCommand(program: Command): void {
 
 export async function command(options: any): Promise<void> {
   try {
+    // Create signer if auth options are provided
+    let signer = undefined;
+    if (options.privatekey || options.bunker || options.nbunksec) {
+      const signerResult = await createSigner({
+        privateKey: options.privatekey,
+        bunkerUrl: options.bunker,
+        nbunksec: options.nbunksec
+      });
+      
+      if ('error' in signerResult) {
+        log.error(signerResult.error);
+        console.error(colors.red(signerResult.error));
+        Deno.exit(1);
+      }
+      
+      signer = signerResult.signer;
+    }
+    
     const pubkey = await resolvePubkey(options);
     const relays = resolveRelays(options);
     
@@ -97,7 +116,8 @@ export async function command(options: any): Promise<void> {
       rows - 4,
       relayColorMap,
       serverColorMap,
-      ignoreRules
+      ignoreRules,
+      signer
     );
     
     // Set up terminal resize handler

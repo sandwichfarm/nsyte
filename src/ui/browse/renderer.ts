@@ -66,9 +66,11 @@ export function renderHeader(state: BrowseState) {
   const legendMaxWidth = cols - title.length - 3;
   const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
   
-  // Clear lines before writing
+  // Move to header position and clear lines
+  moveCursor(1, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   console.log(`${title} ${colors.gray(truncatedLegend)}`);
+  moveCursor(2, 1);
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
   console.log(colors.gray("─".repeat(cols)));
 }
@@ -282,7 +284,6 @@ export function renderUpdate(state: BrowseState) {
   state.pageSize = rows - 4;
   
   // Don't clear screen, just update parts
-  moveCursor(1, 1);
   renderHeader(state);
   renderFileList(state);
   renderFooter(state);

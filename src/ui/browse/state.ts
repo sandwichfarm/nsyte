@@ -109,7 +109,8 @@ export function createInitialState(
   pageSize: number,
   relayColorMap: Map<string, (str: string) => string>,
   serverColorMap: Map<string, (str: string) => string>,
-  ignoreRules: IgnoreRule[]
+  ignoreRules: IgnoreRule[],
+  signer?: any
 ): BrowseState {
   const treeItems = buildTreeItems(files);
   
@@ -138,6 +139,7 @@ export function createInitialState(
     relayColorMap,
     serverColorMap,
     ignoreRules,
+    signer,
   };
 }
 
