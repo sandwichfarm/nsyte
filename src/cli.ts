@@ -19,6 +19,7 @@ import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { registerDeployCommand } from "./commands/deploy.ts";
 import { registerLsCommand } from "./commands/ls.ts";
+import { registerBrowseCommand } from "./commands/browse.ts";
 import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
 import { registerInitCommand } from "./commands/init.ts";
@@ -62,6 +63,7 @@ const nsite = new Command()
 registerInitCommand(nsite);
 registerDeployCommand(nsite);
 registerLsCommand(nsite);
+registerBrowseCommand(nsite);
 registerDownloadCommand(nsite);
 registerCICommand(nsite);
 registerRunCommand(nsite);

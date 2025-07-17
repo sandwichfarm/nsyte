@@ -27,7 +27,7 @@ function getTagValues(event: NostrEvent, tagName: string): string[] {
 }
 
 // Enhanced FileEntry with source tracking
-interface FileEntryWithSources {
+export interface FileEntryWithSources {
   path: string;
   sha256: string;
   eventId: string;
@@ -37,7 +37,7 @@ interface FileEntryWithSources {
 }
 
 // Color palette for relays and servers
-const RELAY_COLORS = [
+export const RELAY_COLORS = [
   colors.cyan,
   colors.green,
   colors.yellow,
@@ -50,7 +50,7 @@ const RELAY_COLORS = [
   colors.brightBlue,
 ];
 
-const SERVER_COLORS = [
+export const SERVER_COLORS = [
   colors.red,
   colors.brightRed,
   colors.white,
@@ -59,8 +59,8 @@ const SERVER_COLORS = [
 ];
 
 // Symbols for relays and servers
-const RELAY_SYMBOL = "●";  // Filled circle for relays
-const SERVER_SYMBOL = "■"; // Filled square for servers
+export const RELAY_SYMBOL = "●";  // Filled circle for relays
+export const SERVER_SYMBOL = "■"; // Filled square for servers
 
 /**
  * Truncate hash to show first 8 and last 8 characters
@@ -85,20 +85,29 @@ async function fetchFileEventsWithSourceTracking(
     // Subscribe to each relay individually to track sources
     const promises = relays.map(async (relay) => {
       try {
+        log.debug(`Connecting to relay: ${relay}`);
         const store = new EventStore();
-        const events = await lastValueFrom(
+        
+        // Add a race condition with manual timeout to handle EOSE issues
+        const requestPromise = lastValueFrom(
           pool
             .request([relay], {
               kinds: [NSITE_KIND],
               authors: [pubkey],
             })
             .pipe(
-              simpleTimeout(5000),
+              simpleTimeout(8000), // Increased timeout
               mapEventsToStore(store),
               mapEventsToTimeline()
             ),
           { defaultValue: [] }
         );
+        
+        const timeoutPromise = new Promise<any[]>((_, reject) => {
+          setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
+        });
+        
+        const events = await Promise.race([requestPromise, timeoutPromise]);
 
         // Track which relay returned each event
         for (const event of events) {
@@ -116,6 +125,7 @@ async function fetchFileEventsWithSourceTracking(
         log.debug(`Found ${events.length} events from relay ${relay}`);
       } catch (error) {
         log.debug(`Failed to fetch from relay ${relay}: ${error}`);
+        // Don't throw - just log and continue with other relays
       }
     });
 
@@ -130,7 +140,7 @@ async function fetchFileEventsWithSourceTracking(
 /**
  * List remote files with enhanced source information
  */
-async function listRemoteFilesWithSources(
+export async function listRemoteFilesWithSources(
   relays: string[],
   pubkey: string,
 ): Promise<FileEntryWithSources[]> {
@@ -205,6 +215,8 @@ export function registerLsCommand(program: Command): void {
       "-p, --pubkey <npub:string>",
       "The public key to list files for (if not using private key).",
     )
+    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
+    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
     .action(command);
 }
 
@@ -265,8 +277,10 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           return filePath.startsWith(normalizedPathFilter);
         }
         
-        // Otherwise, exact match or prefix match
-        return filePath === normalizedPathFilter || filePath.startsWith(normalizedPathFilter);
+        // Otherwise, match exact file, file with extension, or directory prefix
+        return filePath === normalizedPathFilter || 
+               filePath.startsWith(normalizedPathFilter + '.') || 
+               filePath.startsWith(normalizedPathFilter + '/');
       });
     }
 
@@ -277,6 +291,7 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         console.log(colors.yellow("\nNo files found for this user."));
       }
     } else {
+      // Display files in non-interactive mode
       console.log(colors.green(`\nFound ${files.length} files:`));
 
       // Create color mappings
@@ -337,13 +352,7 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         let currentPath = '';
         for (let i = 0; i < pathParts.length - 1; i++) {
           currentPath += (currentPath ? '/' : '') + pathParts[i];
-          
-          // Only add directories that match the filter (if specified)
-          if (!normalizedPathFilter || 
-              currentPath.startsWith(normalizedPathFilter) || 
-              normalizedPathFilter.startsWith(currentPath + '/')) {
-            directories.add(currentPath);
-          }
+          directories.add(currentPath);
         }
       });
 
@@ -352,6 +361,8 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         path: string;
         isDirectory: boolean;
         file?: FileEntryWithSources;
+        displayLine?: string;
+        row?: number;
       }
 
       const allItems: ListItem[] = [
