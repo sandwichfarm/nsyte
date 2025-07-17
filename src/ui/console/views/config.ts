@@ -99,6 +99,12 @@ export class ConfigView implements ConsoleView {
   render(): void {
     const { rows, cols } = getTerminalSize()
     
+    // Clear content area first
+    for (let i = 3; i <= rows; i++) {
+      moveCursor(i, 1)
+      Deno.stdout.writeSync(new TextEncoder().encode('\x1b[K'))
+    }
+    
     // Content area (starting from line 3 because of tab bar)
     const contentStart = 3
     const contentHeight = rows - contentStart - 5 // Leave room for footer

@@ -8,9 +8,9 @@ export function renderTabBar(state: ConsoleState) {
   
   // Clear first two lines for tab bar
   moveCursor(1, 1)
-  console.log(' '.repeat(cols))
-  moveCursor(1, 2)
-  console.log(' '.repeat(cols))
+  Deno.stdout.writeSync(new TextEncoder().encode('\x1b[K')) // Clear line
+  moveCursor(2, 1)
+  Deno.stdout.writeSync(new TextEncoder().encode('\x1b[K')) // Clear line
   
   // Render tabs
   moveCursor(1, 1)
@@ -40,9 +40,9 @@ export function renderTabBar(state: ConsoleState) {
     tabLine += ' '.repeat(padding) + helpText
   }
   
-  console.log(tabLine)
+  Deno.stdout.writeSync(new TextEncoder().encode(tabLine))
   
   // Render separator line
-  moveCursor(1, 2)
-  console.log(colors.dim('─'.repeat(cols)))
+  moveCursor(2, 1)
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('─'.repeat(cols))))
 }

@@ -46,21 +46,33 @@ export const consoleCommand = new Command()
       // Initialize console with unified loader
       state = await initializeConsole(options)
 
+      // Clear screen and show loading state
+      clearScreen()
+      const { rows, cols } = getTerminalSize()
+      
+      // Show loading message
+      const loadingMsg = 'Loading console views...'
+      moveCursor(Math.floor(rows / 2), Math.floor((cols - loadingMsg.length) / 2))
+      console.log(loadingMsg)
+
       // Set up views
       const views: Record<string, ConsoleView> = {
         config: new ConfigView(state.projectPath, state.config),
         browse: new BrowseView(state.auth, state.config, !options.cache),
       }
 
-      // Preload all views
-      moveCursor(1, 1)
-      console.log('Loading views...')
+      // Show progress for each view
+      let loadedCount = 0
+      const totalViews = Object.keys(views).length
       
-      await Promise.all(
-        Object.entries(views).map(async ([name, view]) => {
-          await view.preload()
-        })
-      )
+      for (const [name, view] of Object.entries(views)) {
+        const progressMsg = `Loading ${name}... (${loadedCount + 1}/${totalViews})`
+        moveCursor(Math.floor(rows / 2) + 2, Math.floor((cols - progressMsg.length) / 2))
+        console.log(progressMsg)
+        
+        await view.preload()
+        loadedCount++
+      }
 
       state.views = views
       state.currentView = 'config'
@@ -121,6 +133,5 @@ function render(state: ConsoleState) {
   renderTabBar(state)
   
   // Render current view (starting from line 3 to leave room for tab bar)
-  moveCursor(1, 3)
   state.views[state.currentView].render()
 }
