@@ -37,8 +37,8 @@ curl -fsSL https://nsyte.run/get/install.sh | bash
 # Initialize project (interactive setup)
 nsyte init
 
-# Upload website
-nsyte upload ./dist
+# Deploy website
+nsyte deploy ./dist
 ```
 
 ## Table of Contents
@@ -80,8 +80,9 @@ deno task compile:all
 | ----------------------- | ------------------------------------------------ |
 | `nsyte`                 | Interactive setup wizard                         |
 | `nsyte init`            | Initialize configuration                         |
-| `nsyte upload <dir>`    | Upload files                                     |
+| `nsyte deploy <dir>`    | Deploy files                                     |
 | `nsyte ls`              | List published files                             |
+| `nsyte browse`          | Interactive TUI browser for files                |
 | `nsyte download <dir>`  | Download files                                   |
 | `nsyte run`             | Run resolver server with npub subdomains         |
 | `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default)           |
@@ -91,26 +92,26 @@ deno task compile:all
 | `nsyte ci`              | Generate CI/CD credentials (nbunksec)            |
 | `nsyte bunker <action>` | Manage NIP-46 bunkers                            |
 
-### Uploading Files
+### Deploying Files
 
 ```bash
-# Basic upload
-nsyte upload ./dist
+# Basic deploy
+nsyte deploy ./dist
 
 # With options
-nsyte upload ./dist --force --concurrency 8 --verbose
+nsyte deploy ./dist --force --concurrency 8 --verbose
 
 # With metadata publishing
-nsyte upload ./dist --publish-profile --publish-relay-list --publish-server-list
+nsyte deploy ./dist --publish-profile --publish-relay-list --publish-server-list
 
 # With NIP-89 app handler
-nsyte upload ./dist --app-handler --handler-kinds "1,30023"
+nsyte deploy ./dist --app-handler --handler-kinds "1,30023"
 
 # With NIP-94 release artifacts (auto-create archive)
-nsyte upload ./dist --publish-file-metadata --version v1.0.0
+nsyte deploy ./dist --publish-file-metadata --version v1.0.0
 
 # With NIP-94 release artifacts (use existing archives)
-nsyte upload ./dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
+nsyte deploy ./dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ### Purging Files
@@ -331,7 +332,7 @@ nsyte ci
 
 # Add the nbunksec to your CI/CD secrets (e.g., NBUNK_SECRET)
 # Then use in your pipeline:
-nsyte upload ./dist --nbunksec ${NBUNK_SECRET}
+nsyte deploy ./dist --nbunksec ${NBUNK_SECRET}
 ```
 
 **Security Best Practices:**
@@ -350,7 +351,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v1
-      - run: nsyte upload ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
+      - run: nsyte deploy ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ## Configuration
@@ -442,7 +443,7 @@ nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md
 **Command Line:**
 ```bash
 # Publish app handler for specific event kinds
-nsyte upload ./dist --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy ./dist --app-handler --handler-kinds "1,30023,30311"
 ```
 
 When enabled, other Nostr clients can suggest your nsite when users encounter the specified event types.
@@ -496,7 +497,7 @@ nsyte bunker migrate
 For client-side routing (React, Vue, etc.):
 
 ```bash
-nsyte upload ./dist --fallback=/index.html
+nsyte deploy ./dist --fallback=/index.html
 ```
 
 ## Troubleshooting

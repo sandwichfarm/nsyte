@@ -27,7 +27,7 @@ jobs:
       
       - name: Publish Linux build
         run: |
-          nsyte upload dist \
+          nsyte deploy dist \
             --publish-file-metadata \
             --version ${{ github.ref_name }} \
             --release-artifacts dist-linux.tar.gz \
@@ -47,7 +47,7 @@ jobs:
       
       - name: Publish Windows build
         run: |
-          nsyte upload dist `
+          nsyte deploy dist `
             --publish-file-metadata `
             --version ${{ github.ref_name }} `
             --release-artifacts dist-windows.zip `
@@ -93,7 +93,7 @@ jobs:
       
       - name: Publish artifact
         run: |
-          nsyte upload dist \
+          nsyte deploy dist \
             --publish-file-metadata \
             --version ${{ github.event.release.tag_name }} \
             --release-artifacts ${{ matrix.artifact }} \
@@ -114,7 +114,7 @@ variables:
 .release_template: &release_definition
   stage: release
   script:
-    - nsyte upload dist
+    - nsyte deploy dist
         --publish-file-metadata
         --version $VERSION
         --release-artifacts $ARTIFACT_PATH
@@ -178,7 +178,7 @@ pipeline {
                         sh 'npm ci && npm run build'
                         sh 'tar -czf dist-linux.tar.gz dist/'
                         sh """
-                            nsyte upload dist \
+                            nsyte deploy dist \
                                 --publish-file-metadata \
                                 --version ${params.VERSION} \
                                 --release-artifacts dist-linux.tar.gz \
@@ -193,7 +193,7 @@ pipeline {
                         sh 'npm ci && npm run build'
                         sh 'tar -czf dist-macos.tar.gz dist/'
                         sh """
-                            nsyte upload dist \
+                            nsyte deploy dist \
                                 --publish-file-metadata \
                                 --version ${params.VERSION} \
                                 --release-artifacts dist-macos.tar.gz \
@@ -208,7 +208,7 @@ pipeline {
                         bat 'npm ci && npm run build'
                         powershell 'Compress-Archive -Path dist/* -DestinationPath dist-windows.zip'
                         bat """
-                            nsyte upload dist ^
+                            nsyte deploy dist ^
                                 --publish-file-metadata ^
                                 --version ${params.VERSION} ^
                                 --release-artifacts dist-windows.zip ^
@@ -231,7 +231,7 @@ Use git tags for consistent versioning:
 ```bash
 # In your CI script
 VERSION=$(git describe --tags --abbrev=0)
-nsyte upload --version "$VERSION" ...
+nsyte deploy --version "$VERSION" ...
 ```
 
 ### 2. Secure Key Management
@@ -266,12 +266,12 @@ Take advantage of nsyte's append capability:
 # Job 1: Build and release Linux
 - name: Release Linux
   run: |
-    nsyte upload --version v1.0.0 --release-artifacts linux.tar.gz
+    nsyte deploy --version v1.0.0 --release-artifacts linux.tar.gz
 
 # Job 2: Build and release Windows (runs later)
 - name: Release Windows
   run: |
-    nsyte upload --version v1.0.0 --release-artifacts windows.zip
+    nsyte deploy --version v1.0.0 --release-artifacts windows.zip
     # Automatically appends to existing v1.0.0 release
 ```
 
@@ -291,7 +291,7 @@ upload_with_retry() {
     while [ $attempt -le $max_attempts ]; do
         echo "Upload attempt $attempt of $max_attempts"
         
-        if nsyte upload dist \
+        if nsyte deploy dist \
             --publish-file-metadata \
             --version "$VERSION" \
             --release-artifacts "$1" \
@@ -339,7 +339,7 @@ RELEASE_NOTES=$(git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 
 echo "$RELEASE_NOTES" > release-notes.txt
 
 # Include in your release
-nsyte upload dist \
+nsyte deploy dist \
     --publish-file-metadata \
     --version "$VERSION" \
     --release-artifacts dist.tar.gz,release-notes.txt
@@ -366,7 +366,7 @@ When updating a release with a fixed artifact:
 Enable verbose output for troubleshooting:
 
 ```bash
-nsyte upload dist \
+nsyte deploy dist \
     --publish-file-metadata \
     --version v1.0.0 \
     --release-artifacts dist.tar.gz \

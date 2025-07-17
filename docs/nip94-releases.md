@@ -51,13 +51,13 @@ Add the `publishFileMetadata` option and optional `application` metadata to your
 When uploading with file metadata enabled, you must provide a version:
 
 ```bash
-# Upload with a specific version
-nsyte upload --version v1.0.0
+# Deploy with a specific version
+nsyte deploy --version v1.0.0
 
 # Or use any version tag
-nsyte upload --version latest
-nsyte upload --version nightly
-nsyte upload --version v2.1.0-beta
+nsyte deploy --version latest
+nsyte deploy --version nightly
+nsyte deploy --version v2.1.0-beta
 ```
 
 ### Command Line Options
@@ -71,8 +71,8 @@ nsyte upload --version v2.1.0-beta
 #### Automatic Archive Creation
 
 ```bash
-# Upload your site and automatically create release artifacts
-nsyte upload --publish-file-metadata --version v1.0.0
+# Deploy your site and automatically create release artifacts
+nsyte deploy --publish-file-metadata --version v1.0.0
 
 # This will:
 # 1. Upload your files normally
@@ -85,8 +85,8 @@ nsyte upload --publish-file-metadata --version v1.0.0
 #### Using Pre-made Archives
 
 ```bash
-# Upload your site with existing release archives
-nsyte upload --publish-file-metadata --version v2.0.0 --release-artifacts dist.tar.gz,dist.zip
+# Deploy your site with existing release archives
+nsyte deploy --publish-file-metadata --version v2.0.0 --release-artifacts dist.tar.gz,dist.zip
 
 # This will:
 # 1. Upload your files normally
@@ -98,8 +98,8 @@ nsyte upload --publish-file-metadata --version v2.0.0 --release-artifacts dist.t
 #### Multiple Platform Releases
 
 ```bash
-# Upload platform-specific builds
-nsyte upload --publish-file-metadata --version v1.5.0 \
+# Deploy platform-specific builds
+nsyte deploy --publish-file-metadata --version v1.5.0 \
   --release-artifacts build/app-linux.tar.gz,build/app-macos.zip,build/app-windows.zip
 
 # Creates a single release with multiple platform-specific artifacts
@@ -184,13 +184,13 @@ nsyte intelligently manages release artifacts:
 
 ```bash
 # Initial release with one artifact
-nsyte upload --publish-file-metadata --version v1.0.0 --release-artifacts linux.tar.gz
+nsyte deploy --publish-file-metadata --version v1.0.0 --release-artifacts linux.tar.gz
 
 # Add Windows build to the same release (appends)
-nsyte upload --publish-file-metadata --version v1.0.0 --release-artifacts windows.zip
+nsyte deploy --publish-file-metadata --version v1.0.0 --release-artifacts windows.zip
 
 # Update Linux build with a fix (replaces due to different hash)
-nsyte upload --publish-file-metadata --version v1.0.0 --release-artifacts linux.tar.gz
+nsyte deploy --publish-file-metadata --version v1.0.0 --release-artifacts linux.tar.gz
 
 # Final release contains: updated linux.tar.gz + windows.zip
 ```

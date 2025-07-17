@@ -70,7 +70,7 @@ jobs:
           RELAYS: "wss://some.relay.xyz,wss://another.relay.abc"
           SERVERS: "https://a.blossom.server.com,https://another.blossom.server"
         run: |
-          nsyte upload ./dist -i \
+          nsyte deploy ./dist -i \
             --nbunksec ${{ secrets.NBUNKSEC }} \
             --relays ${{ env.RELAYS }} \
             --servers ${{ env.SERVERS }} \

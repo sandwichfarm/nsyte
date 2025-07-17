@@ -63,5 +63,5 @@ Files marked in red in the output would be ignored during upload based on:
 - Custom patterns in `.nsite-ignore` file
 - Implicit dotfile ignoring (except `.well-known/`)
 
-This helps you understand which remote files would not be re-uploaded in a subsequent `nsyte upload`
+This helps you understand which remote files would not be re-deployed in a subsequent `nsyte deploy`
 command.

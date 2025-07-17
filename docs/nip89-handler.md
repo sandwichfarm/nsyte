@@ -66,10 +66,10 @@ You can also publish handler announcements via command line:
 
 ```bash
 # Publish handler announcement with command line options
-nsyte upload ./site --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy ./site --app-handler --handler-kinds "1,30023,30311"
 
 # Or use the config file
-nsyte upload ./site --app-handler
+nsyte deploy ./site --app-handler
 ```
 
 ## Common Event Kinds

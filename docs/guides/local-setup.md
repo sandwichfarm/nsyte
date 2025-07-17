@@ -61,10 +61,10 @@ echo "<html><body><h1>Test Site</h1></body></html>" > index.html
 echo "# Test" > README.md
 ```
 
-### Test Upload
+### Test Deploy
 
 ```bash
-nsyte upload .
+nsyte deploy .
 ```
 
 ### Verify Deployment
@@ -106,8 +106,8 @@ npx serve dist/
 ### Deploy to Test Environment
 
 ```bash
-# Upload to staging relays first
-nsyte upload ./dist --relays "wss://test-relay.example.com"
+# Deploy to staging relays first
+nsyte deploy ./dist --relays "wss://test-relay.example.com"
 ```
 
 ## Development Commands
@@ -130,7 +130,7 @@ deno task test
 Use verbose output for debugging:
 
 ```bash
-nsyte upload . --verbose
+nsyte deploy . --verbose
 ```
 
 ## Configuration Tips

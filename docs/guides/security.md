@@ -73,7 +73,7 @@ nsyte ci
 # This creates a dedicated nbunksec for CI/CD use
 
 # Use in CI/CD with secrets
-nsyte upload ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
+nsyte deploy ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ### Key Rotation
@@ -98,7 +98,7 @@ Choose relays carefully:
 
 ```bash
 # Use multiple trusted relays
-nsyte upload ./dist \
+nsyte deploy ./dist \
   --relays "wss://relay.damus.io,wss://relay.nostr.band,wss://nos.lol"
 ```
 
@@ -128,7 +128,7 @@ jobs:
       - name: Deploy
         env:
           NSYTE_BUNKER_KEY: ${{ secrets.NSYTE_BUNKER_KEY }}
-        run: nsyte upload ./dist
+        run: nsyte deploy ./dist
 ```
 
 ### Content Security

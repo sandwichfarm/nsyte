@@ -169,4 +169,4 @@ Many editors support JSON schema validation when the `$schema` property is prese
 
 - [`nsyte init`](init.md) - Initialize a new project with valid configuration
 - [`nsyte debug`](debug.md) - Debug nsite setup and configuration
-- [`nsyte upload`](upload.md) - Upload files (validates config automatically)
+- [`nsyte deploy`](deploy.md) - Deploy files (validates config automatically)

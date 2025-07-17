@@ -25,17 +25,17 @@ This interactive command will:
 
 ![nsyte init demo](../assets/init-demo.png)
 
-## Uploading Your Site
+## Deploying Your Site
 
-The most common command you'll use is `upload`. This command publishes your website files to the
+The most common command you'll use is `deploy`. This command publishes your website files to the
 configured relays and servers.
 
 ```bash
-# Basic upload
-nsyte upload ./dist
+# Basic deploy
+nsyte deploy ./dist
 
-# Upload with options
-nsyte upload ./dist --force --concurrency 8 --verbose
+# Deploy with options
+nsyte deploy ./dist --force --concurrency 8 --verbose
 ```
 
 Common options:
@@ -138,10 +138,10 @@ nsyte bunker list
 npm run build  # or your build command
 ```
 
-2. Upload the built files:
+2. Deploy the built files:
 
 ```bash
-nsyte upload ./dist
+nsyte deploy ./dist
 ```
 
 ### Deploying a Single Page Application (SPA)
@@ -149,17 +149,17 @@ nsyte upload ./dist
 For SPAs with client-side routing:
 
 ```bash
-nsyte upload ./dist --fallback=/index.html
+nsyte deploy ./dist --fallback=/index.html
 ```
 
 ### Updating Your Site
 
 1. Make your changes
 2. Build your site
-3. Upload the changes:
+3. Deploy the changes:
 
 ```bash
-nsyte upload ./dist
+nsyte deploy ./dist
 ```
 
 ### CI/CD Integration
@@ -179,7 +179,7 @@ nsyte ci
 3. Use in your pipeline:
 
 ```bash
-nsyte upload ./dist --nbunksec $NBUNK_SECRET
+nsyte deploy ./dist --nbunksec $NBUNK_SECRET
 ```
 
 ## Next Steps

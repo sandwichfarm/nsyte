@@ -246,6 +246,6 @@ Monitor these metrics:
 ## Related Commands
 
 - [`nsyte serve`](serve.md) - Serve local files for development
-- [`nsyte upload`](upload.md) - Upload files to create nsites
+- [`nsyte deploy`](deploy.md) - Deploy files to create nsites
 - [`nsyte debug`](debug.md) - Debug nsite configuration and connectivity
 - [`nsyte ls`](ls.md) - List published nsite files

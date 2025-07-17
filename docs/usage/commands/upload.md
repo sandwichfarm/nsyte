@@ -5,6 +5,10 @@ description: Upload files from a directory to relays and blossom servers
 
 # upload
 
+> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
+> 
+> **[→ View the deploy documentation](deploy.md)**
+
 Upload files from a directory to configured relays and blossom servers.
 
 ## Usage

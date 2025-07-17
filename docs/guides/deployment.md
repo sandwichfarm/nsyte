@@ -10,10 +10,10 @@ nsyte.
 
 ## Basic Deployment
 
-The simplest way to deploy your site is using the `upload` command:
+The simplest way to deploy your site is using the `deploy` command:
 
 ```bash
-nsyte upload ./dist
+nsyte deploy ./dist
 ```
 
 This will:
@@ -35,7 +35,7 @@ Suitable for:
 Steps:
 
 1. Build your site
-2. Run `nsyte upload`
+2. Run `nsyte deploy`
 3. Verify the deployment
 
 ### 2. Automated Deployment
@@ -70,34 +70,34 @@ Steps:
 
 ## Deployment Options
 
-### Basic Upload
+### Basic Deploy
 
 ```bash
-nsyte upload ./dist
+nsyte deploy ./dist
 ```
 
-### Force Re-upload
+### Force Re-deploy
 
 ```bash
-nsyte upload ./dist --force
+nsyte deploy ./dist --force
 ```
 
 ### Purge Deleted Files
 
 ```bash
-nsyte upload ./dist --purge
+nsyte deploy ./dist --purge
 ```
 
 ### Set Concurrency
 
 ```bash
-nsyte upload ./dist --concurrency 8
+nsyte deploy ./dist --concurrency 8
 ```
 
 ### SPA Support
 
 ```bash
-nsyte upload ./dist --fallback=/index.html
+nsyte deploy ./dist --fallback=/index.html
 ```
 
 ## Deployment Checklist
@@ -122,7 +122,7 @@ Before deploying:
 
 4. **Deployment**
    - [ ] Backup current site
-   - [ ] Run upload
+   - [ ] Run deploy
    - [ ] Verify deployment
    - [ ] Check site metadata
 
@@ -160,7 +160,7 @@ Before deploying:
 
 ### Common Issues
 
-1. **Upload Failures**
+1. **Deploy Failures**
    - Check network connectivity
    - Verify relay liveness
    - Ensure you are allowed to publish to provided relays

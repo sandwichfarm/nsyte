@@ -27,27 +27,27 @@
 
 ### Auto-create Archive
 ```bash
-nsyte upload ./dist --publish-file-metadata --version v1.0.0
+nsyte deploy ./dist --publish-file-metadata --version v1.0.0
 ```
 
 ### Use Existing Archives
 ```bash
-nsyte upload ./dist --publish-file-metadata --version v1.0.0 \
+nsyte deploy ./dist --publish-file-metadata --version v1.0.0 \
   --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ### Multiple Platform Builds
 ```bash
 # First build
-nsyte upload ./dist --publish-file-metadata --version v2.0.0 \
+nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
   --release-artifacts linux.tar.gz
 
 # Second build (appends)
-nsyte upload ./dist --publish-file-metadata --version v2.0.0 \
+nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
   --release-artifacts windows.zip
 
 # Third build (appends)
-nsyte upload ./dist --publish-file-metadata --version v2.0.0 \
+nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
   --release-artifacts macos.tar.gz
 ```
 
@@ -89,7 +89,7 @@ nsyte upload ./dist --publish-file-metadata --version v2.0.0 \
 - name: Release
   run: |
     VERSION=$(git describe --tags --abbrev=0)
-    nsyte upload dist \
+    nsyte deploy dist \
       --publish-file-metadata \
       --version "$VERSION" \
       --release-artifacts "build/*.tar.gz"

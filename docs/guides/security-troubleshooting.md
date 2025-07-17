@@ -183,7 +183,7 @@ nsyte ci  # Follow interactive prompts
 echo $NBUNK_SECRET | head -c 50  # Should start with "nbunksec1"
 
 # Test locally first
-nsyte upload ./dist --nbunksec $NBUNK_SECRET
+nsyte deploy ./dist --nbunksec $NBUNK_SECRET
 
 # Check secret configuration in CI/CD platform
 # GitHub Actions: Repository Settings > Secrets

@@ -2,7 +2,8 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
-import { listRemoteFilesWithSources, RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
+import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
+import { listRemoteFilesWithProgress } from "./browse-loader.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
@@ -19,7 +20,8 @@ import {
   getTerminalSize, 
   showCursor, 
   enterAlternateScreen, 
-  exitAlternateScreen 
+  exitAlternateScreen,
+  renderLoadingScreen
 } from "../ui/browse/renderer.ts";
 import { handleDeleteConfirmation, handleListModeKey, handleDetailModeKey, handleFilterMode } from "../ui/browse/handlers.ts";
 
@@ -42,8 +44,14 @@ export function registerBrowseCommand(program: Command): void {
 
 export async function command(options: any): Promise<void> {
   try {
+    // Enter TUI immediately
+    enterAlternateScreen();
+    renderLoadingScreen("Initializing...");
+    
     const pubkey = await resolvePubkey(options);
     const relays = resolveRelays(options);
+    
+    renderLoadingScreen("Loading configuration...");
     
     // Load ignore rules
     const cwd = Deno.cwd();
@@ -62,18 +70,17 @@ export async function command(options: any): Promise<void> {
       }
     }
     
-    // Show loading message
-    console.log(colors.cyan("Loading files from relays..."));
-    
-    // Fetch files
-    const files = await listRemoteFilesWithSources(relays, pubkey);
+    // Fetch files with progress
+    const files = await listRemoteFilesWithProgress(relays, pubkey);
     
     if (files.length === 0) {
+      exitAlternateScreen();
+      showCursor();
       console.log(colors.yellow("No files found for this user."));
       Deno.exit(0);
     }
     
-    console.log(colors.green(`Found ${files.length} files`));
+    renderLoadingScreen("Processing files...", `${files.length} unique files found`);
     
     // Create color mappings
     const relayColorMap = new Map<string, (str: string) => string>();
@@ -94,6 +101,8 @@ export async function command(options: any): Promise<void> {
     Array.from(allServers).forEach((server, index) => {
       serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length]);
     });
+    
+    renderLoadingScreen("Building file tree...", `${allRelays.size} relays • ${allServers.size} servers`);
     
     // Initialize state
     const { rows } = Deno.consoleSize();
@@ -131,9 +140,6 @@ export async function command(options: any): Promise<void> {
         render(state);
       }, 100);
     };
-    
-    // Enter alternate screen buffer
-    enterAlternateScreen();
     
     // Listen for terminal resize
     Deno.addSignalListener("SIGWINCH", handleResize);

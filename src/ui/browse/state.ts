@@ -239,7 +239,18 @@ export function navigateDown(state: BrowseState): void {
 export function navigatePageLeft(state: BrowseState): void {
   if (state.page > 0) {
     state.page--;
-    state.selectedIndex = state.page * state.pageSize;
+    const startIndex = state.page * state.pageSize;
+    const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+    
+    // Find first file on the page
+    let firstFileIndex = startIndex;
+    for (let i = startIndex; i < endIndex; i++) {
+      if (!state.treeItems[i].isDirectory) {
+        firstFileIndex = i;
+        break;
+      }
+    }
+    state.selectedIndex = firstFileIndex;
   }
 }
 
@@ -247,7 +258,18 @@ export function navigatePageRight(state: BrowseState): void {
   const maxPage = Math.floor((state.treeItems.length - 1) / state.pageSize);
   if (state.page < maxPage) {
     state.page++;
-    state.selectedIndex = state.page * state.pageSize;
+    const startIndex = state.page * state.pageSize;
+    const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+    
+    // Find first file on the page
+    let firstFileIndex = startIndex;
+    for (let i = startIndex; i < endIndex; i++) {
+      if (!state.treeItems[i].isDirectory) {
+        firstFileIndex = i;
+        break;
+      }
+    }
+    state.selectedIndex = firstFileIndex;
   }
 }
 

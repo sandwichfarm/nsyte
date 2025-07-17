@@ -23,6 +23,34 @@ export function exitAlternateScreen() {
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?1049l"));
 }
 
+export function renderLoadingScreen(status: string, progress?: string) {
+  hideCursor();
+  clearScreen();
+  
+  const { rows, cols } = getTerminalSize();
+  const title = "nsyte browse";
+  const titleRow = Math.floor(rows / 2) - 3;
+  const statusRow = titleRow + 2;
+  const progressRow = statusRow + 1;
+  
+  // Center and display title
+  const titleCol = Math.floor((cols - title.length) / 2);
+  moveCursor(titleRow, titleCol);
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.bold.cyan(title)));
+  
+  // Center and display status
+  const statusCol = Math.floor((cols - status.length) / 2);
+  moveCursor(statusRow, statusCol);
+  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(status)));
+  
+  // Display progress if provided
+  if (progress) {
+    const progressCol = Math.floor((cols - progress.length) / 2);
+    moveCursor(progressRow, progressCol);
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.green(progress)));
+  }
+}
+
 export function hideCursor() {
   Deno.stdout.writeSync(new TextEncoder().encode("\x1b[?25l"));
 }

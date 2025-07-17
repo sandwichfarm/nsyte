@@ -40,7 +40,7 @@ Ensure your `deno.json` includes:
 ```json
 {
   "name": "@nsyte/cli",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "exports": "./src/cli.ts"
 }
 ```

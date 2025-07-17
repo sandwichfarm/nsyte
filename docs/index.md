@@ -19,8 +19,8 @@ curl -fsSL https://nsyte.run/get/install.sh | bash
 # Initialize your project
 nsyte init
 
-# Upload your website
-nsyte upload ./dist
+# Deploy your website
+nsyte deploy ./dist
 ```
 
 ## Documentation Sections

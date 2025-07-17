@@ -340,6 +340,79 @@ export async function deleteFiles(
     
     log.info(`Delete event published successfully`);
     
+    // Now delete from Blossom servers
+    if (files.some(f => f.availableOnServers.length > 0)) {
+      state.status = "Deleting from Blossom servers...";
+      state.statusColor = colors.cyan;
+      render(state);
+      
+      const { deleteBlob } = await import("../../lib/blossom.ts");
+      const allServers = new Set<string>();
+      const fileHashMap = new Map<string, Set<string>>(); // hash -> servers
+      
+      files.forEach(file => {
+        if (file.availableOnServers.length > 0) {
+          fileHashMap.set(file.sha256, new Set(file.availableOnServers));
+          file.availableOnServers.forEach(server => allServers.add(server));
+        }
+      });
+      
+      let blossomDeletedCount = 0;
+      let blossomFailedCount = 0;
+      const blossomErrors: string[] = [];
+      
+      // Delete each hash from each server
+      for (const [hash, servers] of fileHashMap.entries()) {
+        for (const server of servers) {
+          try {
+            state.status = `Deleting from ${server.replace(/^https?:\/\//, '').substring(0, 20)}...`;
+            render(state);
+            
+            const result = await deleteBlob(server, hash, signer);
+            if (result) {
+              blossomDeletedCount++;
+              log.info(`Deleted ${hash} from ${server}`);
+            } else {
+              blossomFailedCount++;
+              blossomErrors.push(`${server}: Delete returned false`);
+              log.warn(`Failed to delete ${hash} from ${server}`);
+            }
+          } catch (error) {
+            blossomFailedCount++;
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            blossomErrors.push(`${server}: ${errorMsg}`);
+            log.error(`Failed to delete from ${server}: ${error}`);
+          }
+        }
+      }
+      
+      // Report Blossom deletion results
+      if (blossomFailedCount > 0 && blossomDeletedCount === 0) {
+        // All Blossom deletions failed
+        log.error("All Blossom server deletions failed");
+        state.status = `Nostr events deleted but Blossom deletion failed: ${blossomErrors[0]}`;
+        state.statusColor = colors.yellow;
+        
+        // Show all errors in console
+        if (blossomErrors.length > 1) {
+          console.error(colors.red("\nBlossom deletion errors:"));
+          blossomErrors.forEach(err => console.error(colors.red(`  - ${err}`)));
+        }
+      } else if (blossomFailedCount > 0) {
+        // Some Blossom deletions failed
+        log.warn(`Blossom: ${blossomDeletedCount} deleted, ${blossomFailedCount} failed`);
+        state.status = `Partial success: ${acceptedCount} relay${acceptedCount > 1 ? 's' : ''} accepted, ${blossomDeletedCount} Blossom deleted`;
+        state.statusColor = colors.yellow;
+        
+        // Show errors in console
+        console.error(colors.yellow("\nSome Blossom deletions failed:"));
+        blossomErrors.forEach(err => console.error(colors.yellow(`  - ${err}`)));
+      } else if (blossomDeletedCount > 0) {
+        // All Blossom deletions succeeded
+        log.info(`Successfully deleted from ${blossomDeletedCount} Blossom server(s)`);
+      }
+    }
+    
     // Clear signer from memory immediately after use
     signer = undefined;
     
