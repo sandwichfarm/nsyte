@@ -758,7 +758,7 @@ export class ConfigView implements ConsoleView {
     this.state.hasChanges = true
   }
 
-  private flattenConfig(config: any, prefix = '', expandedPaths: Set<string> = new Set()): ConfigField[] {
+  private flattenConfig(config: Record<string, any>, prefix = '', expandedPaths: Set<string> = new Set()): ConfigField[] {
     const fields: ConfigField[] = []
     
     for (const [key, value] of Object.entries(config)) {
