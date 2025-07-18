@@ -63,7 +63,7 @@ const FIELD_DESCRIPTIONS: Record<string, { description: string; required?: boole
 
 export class ConfigView implements ConsoleView {
   name = 'Config'
-  private state: ConfigViewState
+  state: ConfigViewState  // Made public so console can check editing state
   private projectPath: string
 
   constructor(projectPath: string, config: ProjectConfig) {
@@ -87,7 +87,11 @@ export class ConfigView implements ConsoleView {
     }
   }
 
-  async preload(): Promise<void> {
+  async initialize(contextManager: any): Promise<void> {
+    // TODO: Implement context integration
+  }
+
+  async preload(onProgress?: (message: string) => void): Promise<void> {
     // Validate config
     const validationResult = validateConfigWithFeedback(this.state.config)
     if (!validationResult.valid) {
@@ -128,7 +132,7 @@ export class ConfigView implements ConsoleView {
       
       let line = ''
       const currentRow = contentStart + relativeIndex
-      moveCursor(1, currentRow)
+      moveCursor(currentRow, 1)
       
       // Selection indicator
       if (isSelected) {
@@ -194,41 +198,24 @@ export class ConfigView implements ConsoleView {
       
       // Description on next line if selected
       if (isSelected && field.description && relativeIndex < visibleItems - 1) {
-        moveCursor(1, currentRow + 1)
+        moveCursor(currentRow + 1, 1)
         console.log(colors.gray(`     ${field.description}`))
       }
     })
     
     // Footer
     const footerStart = rows - 4
-    moveCursor(1, footerStart)
+    moveCursor(footerStart, 1)
     console.log(colors.dim('─'.repeat(cols)))
     
     // Status line
-    moveCursor(1, footerStart + 1)
-    if (this.state.status) {
-      const statusFn = this.state.statusColor || colors.white
-      console.log(statusFn(this.state.status))
-    } else {
-      console.log(colors.gray('Ready'))
-    }
-    
-    // Changes indicator
+    moveCursor(footerStart + 1, 1)
     if (this.state.hasChanges) {
-      const changesText = '* Unsaved changes'
-      moveCursor(cols - changesText.length - 1, footerStart + 1)
+      const changesText = `${this.state.status} (unsaved changes)`
       console.log(colors.yellow(changesText))
     }
     
-    // Help line
-    moveCursor(1, footerStart + 2)
-    if (this.state.editingIndex !== null) {
-      console.log(colors.gray('ESC Cancel • ENTER Save • BACKSPACE Delete'))
-    } else if (this.state.expandedPaths.size > 0) {
-      console.log(colors.gray('↑/↓ Navigate • ENTER Edit/Expand • DEL Delete • ESC Collapse all • s Save'))
-    } else {
-      console.log(colors.gray('↑/↓ Navigate • ENTER Edit/Expand • s Save • r Reset'))
-    }
+    // Remove the help line - it will be handled by the parent console's footer
     
     // Render bunker selection overlay if active
     if (this.state.bunkerSelection?.active) {

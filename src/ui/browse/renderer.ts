@@ -81,12 +81,11 @@ export function getTerminalSize() {
 
 export function renderHeader(state: BrowseState, startLine: number = 1) {
   const { cols } = getTerminalSize();
-  const title = colors.bold.cyan("nsyte browse");
   
-  // Format the npub
-  const npub = nip19.npubEncode(state.pubkey);
-  const identity = colors.green(`[${npub.substring(0, 12)}...${npub.substring(npub.length - 6)}]`);
+  // IMPORTANT: Ensure we never write above startLine
+  if (startLine < 1) startLine = 1;
   
+  // Don't show title in console mode - it's already in the tab bar
   const legendItems: string[] = [];
   
   if (state.relayColorMap.size > 0) {
@@ -104,17 +103,24 @@ export function renderHeader(state: BrowseState, startLine: number = 1) {
   }
   
   const legend = legendItems.join(" ");
-  const titleAndIdentity = `${title} ${identity}`;
-  const legendMaxWidth = cols - titleAndIdentity.length - 3;
-  const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
   
-  // Move to header position and clear lines
-  moveCursor(startLine, 1);
-  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  Deno.stdout.writeSync(new TextEncoder().encode(`${titleAndIdentity} ${colors.gray(truncatedLegend)}\n`));
-  moveCursor(2, 1);
-  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K"));
-  Deno.stdout.writeSync(new TextEncoder().encode(colors.gray("─".repeat(cols)) + "\n"));
+  // In standalone mode, show title + identity + legend
+  if (startLine === 1) {
+    const title = colors.bold.cyan("nsyte browse") + " " + colors.green(`[${nip19.npubEncode(state.pubkey).substring(0, 12)}...${nip19.npubEncode(state.pubkey).substring(nip19.npubEncode(state.pubkey).length - 6)}]`);
+    const legendMaxWidth = cols - title.replace(/\x1b\[[0-9;]*m/g, '').length - 3;
+    const truncatedLegend = legend.length > legendMaxWidth ? legend.substring(0, legendMaxWidth - 3) + "..." : legend;
+    
+    moveCursor(startLine, 1);
+    Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K" + title + " " + colors.gray(truncatedLegend)));
+  } else {
+    // In console mode, just show the legend
+    moveCursor(startLine, 1);
+    Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K" + colors.gray(legend)));
+  }
+  
+  // Move to separator line and draw it
+  moveCursor(startLine + 1, 1);
+  Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K" + colors.gray("─".repeat(cols))));
 }
 
 export function renderFooter(state: BrowseState, startLine: number = 1) {
@@ -182,19 +188,24 @@ export function renderFooter(state: BrowseState, startLine: number = 1) {
 
 export function renderFileList(state: BrowseState, startLine: number = 1) {
   const { rows, cols } = getTerminalSize();
-  const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
   
-  // Move cursor to start of file list area (row 3)
-  moveCursor(startLine + 2, 1);
-  
-  // Clear the entire display area including path row
-  for (let i = 0; i < contentRows + 1; i++) {
-    moveCursor(startLine + 2 + i, 1);
-    Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
+  // IMPORTANT: When in console mode (startLine > 1), we must not clear above startLine
+  // The console has already cleared the appropriate area
+  if (startLine === 1) {
+    // Standalone mode - we can clear from path row onwards
+    const startRow = startLine + 2; // After header
+    const maxRow = rows - 2; // Leave room for footer
+    
+    // Clear from path row to bottom (but not footer area)
+    for (let row = startRow; row <= maxRow; row++) {
+      moveCursor(row, 1);
+      Deno.stdout.writeSync(new TextEncoder().encode("\x1b[K")); // Clear line
+    }
   }
+  // In console mode, don't clear - console already did it
   
   // Render path indicator row or filter input
-  moveCursor(3, 1);
+  moveCursor(startLine + 2, 1);
   
   if (state.filterMode) {
     // Show filter input with blinking cursor
@@ -227,8 +238,8 @@ export function renderFileList(state: BrowseState, startLine: number = 1) {
     }
   }
   
-  // Move to start of actual file list (row 4)
-  moveCursor(4, 1);
+  // Move to start of actual file list (after path row)
+  moveCursor(startLine + 3, 1);
   
   const startIndex = state.page * state.pageSize;
   const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
@@ -403,24 +414,26 @@ export function renderDetailView(state: BrowseState, startLine: number = 1) {
   }
 }
 
-export function render(state: BrowseState, startLine: number = 1) {
+export function render(state: BrowseState, startLine: number = 1, renderFooterFlag: boolean = true) {
   if (!state.filterMode) {
     hideCursor();
   }
+  
+  // Never clear the entire screen when startLine > 1 (console mode)
   if (startLine === 1) {
     clearScreen();
   } else {
-    // Clear from startLine to bottom
-    const { rows } = getTerminalSize();
-    for (let i = startLine; i <= rows; i++) {
-      moveCursor(1, i);
-      clearLine();
-    }
+    // In console mode, we should NOT clear anything - the console already cleared the content area
+    // Just render our content starting from startLine
   }
   
-  // Update page size based on current terminal size
-  const { rows } = getTerminalSize();
-  state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
+  // Update page size based on current terminal size (only if not already set by console mode)
+  if (startLine === 1) {
+    const { rows } = getTerminalSize();
+    const footerLines = renderFooterFlag ? 2 : 0; // No footer lines if not rendering footer
+    // Calculate available lines: total rows - lines above content - header(2) - path(1) - footer
+    state.pageSize = rows - (startLine - 1) - 2 - 1 - footerLines;
+  }
   
   renderHeader(state, startLine);
   
@@ -430,20 +443,40 @@ export function render(state: BrowseState, startLine: number = 1) {
     renderDetailView(state, startLine);
   }
   
-  renderFooter(state, startLine);
+  if (renderFooterFlag) {
+    renderFooter(state, startLine);
+  }
 }
 
-export function renderUpdate(state: BrowseState, startLine: number = 1) {
+export function renderUpdate(state: BrowseState, startLine: number = 1, renderFooterFlag: boolean = true) {
   if (!state.filterMode) {
     hideCursor();
   }
   
   // Update page size based on current terminal size
   const { rows } = getTerminalSize();
-  state.pageSize = rows - 5; // Header (2) + Path row (1) + Footer (2)
+  const footerLines = renderFooterFlag ? 2 : 0; // No footer lines if not rendering footer
+  // Calculate available lines: total rows - lines above content - header(2) - path(1) - footer
+  state.pageSize = rows - (startLine - 1) - 2 - 1 - footerLines;
   
   // Don't clear screen, just update parts
   renderHeader(state, startLine);
   renderFileList(state, startLine);
-  renderFooter(state, startLine);
+  if (renderFooterFlag) {
+    renderFooter(state, startLine);
+  }
+}
+
+// Console-specific render functions that don't render footer
+export function renderForConsole(state: BrowseState, startLine: number = 1) {
+  // In console mode, we need to account for the console footer (2 lines)
+  const { rows } = getTerminalSize();
+  const consoleFooterLines = 2;
+  state.pageSize = rows - (startLine - 1) - 2 - 1 - consoleFooterLines; // header(2) + path(1) + console footer(2)
+  
+  render(state, startLine, false);
+}
+
+export function renderUpdateForConsole(state: BrowseState, startLine: number = 1) {
+  renderUpdate(state, startLine, false);
 }

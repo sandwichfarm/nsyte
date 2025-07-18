@@ -1,7 +1,6 @@
-import { readProjectFile } from '../../lib/config.ts'
+import { readProjectFile, ProjectConfig } from '../../lib/config.ts'
 import { resolvePubkey, createSigner } from '../../lib/resolver-utils.ts'
 import { showBrowseMenu } from '../browse/menu.ts'
-import { ConsoleState } from './types.ts'
 import {
   clearScreen,
   moveCursor,
@@ -16,7 +15,16 @@ interface InitOptions {
   noCache?: boolean
 }
 
-export async function initializeConsole(options: InitOptions): Promise<ConsoleState> {
+interface InitialConsoleState {
+  projectPath: string
+  config: ProjectConfig
+  auth: string
+  currentView: string
+  views: {}
+  isProjectBunker?: boolean
+}
+
+export async function initializeConsole(options: InitOptions): Promise<InitialConsoleState> {
   clearScreen()
   const { rows, cols } = getTerminalSize()
   
@@ -52,21 +60,26 @@ export async function initializeConsole(options: InitOptions): Promise<ConsoleSt
 
     // Resolve authentication
     let auth = options.auth
-    if (!auth && options.bunker) {
-      const { getSecrets } = await import('../../lib/secrets/platform.ts')
-      const { getBunker } = await getSecrets()
-      const bunkerUrl = await getBunker(options.bunker)
-      if (!bunkerUrl) {
-        throw new Error(`Bunker '${options.bunker}' not found in secrets manager`)
-      }
-      auth = bunkerUrl
-    }
-
+    let isProjectBunker = false
+    
     if (!auth) {
-      clearInterval(spinnerInterval)
-      clearScreen()
-      const result = await showBrowseMenu()
-      auth = result.value
+      // Try to resolve from project config using resolvePubkey
+      try {
+        const pubkey = await resolvePubkey({}, config, false) // non-interactive
+        auth = pubkey
+        // Check if this came from project bunker
+        isProjectBunker = config.bunkerPubkey === pubkey
+      } catch {
+        // No project auth available, show menu
+        clearInterval(spinnerInterval)
+        clearScreen()
+        const result = await showBrowseMenu()
+        auth = result.value
+      }
+    }
+    
+    if (!auth) {
+      throw new Error('No authentication method selected')
     }
 
     // Extract pubkey from auth
@@ -95,6 +108,7 @@ export async function initializeConsole(options: InitOptions): Promise<ConsoleSt
       auth,
       currentView: 'config',
       views: {},
+      isProjectBunker
     }
   } catch (error) {
     clearInterval(spinnerInterval)

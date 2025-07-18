@@ -19,6 +19,7 @@ export async function listRemoteFilesWithProgress(
   relays: string[],
   pubkey: string,
   silent: boolean = false,
+  onProgress?: (message: string) => void,
 ): Promise<FileEntryWithSources[]> {
   const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
   let completedRelays = 0;
@@ -79,6 +80,9 @@ export async function listRemoteFilesWithProgress(
           "Loading files from relays...",
           `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`
         );
+      }
+      if (onProgress) {
+        onProgress(`Checking ${completedRelays}/${relays.length} relays, found ${totalEvents} events`);
       }
     }
   });

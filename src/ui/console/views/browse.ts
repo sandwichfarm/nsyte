@@ -1,7 +1,8 @@
-import { ConsoleView } from '../types.ts'
+import { ConsoleView, Identity } from '../types.ts'
 import { KeyPressEvent } from '@cliffy/keypress'
 import { ProjectConfig } from '../../../lib/config.ts'
-import { listRemoteFilesWithProgress } from '../../../commands/browse-loader.ts'
+import { ConsoleContextManager } from '../contexts/manager.ts'
+import { NsiteContext } from '../contexts/types.ts'
 import { createInitialState, type BrowseState } from '../../browse/state.ts'
 import { RELAY_COLORS, SERVER_COLORS } from '../../../commands/ls.ts'
 import {
@@ -16,8 +17,8 @@ import {
   clearScreen,
   moveCursor,
   getTerminalSize,
-  render as renderBrowse,
-  renderUpdate,
+  renderForConsole as renderBrowse,
+  renderUpdateForConsole as renderUpdate,
 } from '../../browse/renderer.ts'
 import {
   handleDeleteConfirmation,
@@ -34,27 +35,27 @@ export class BrowseView implements ConsoleView {
   private state: BrowseState | null = null
   private auth: string
   private config: ProjectConfig
+  private identity: Identity
   private noCache: boolean
-  private relays: string[] = []
-  private files: any[] = []
+  private contextManager: ConsoleContextManager | null = null
+  private nsiteContext: NsiteContext | null = null
   private relayColorMap = new Map<string, (str: string) => string>()
   private serverColorMap = new Map<string, (str: string) => string>()
   private ignoreRules: IgnoreRule[] = []
 
-  constructor(auth: string, config: ProjectConfig, noCache: boolean = false) {
+  constructor(auth: string, config: ProjectConfig, identity: Identity, noCache: boolean = false) {
     this.auth = auth
     this.config = config
+    this.identity = identity
     this.noCache = noCache
   }
 
-  async preload(): Promise<void> {
-    // Resolve relays from config
-    if (this.config.relays && this.config.relays.length > 0) {
-      this.relays = this.config.relays
-    } else {
-      // Use discovery relays as fallback
-      const { resolveRelays } = await import('../../../lib/resolver-utils.ts')
-      this.relays = resolveRelays({}, null, true)
+  async initialize(contextManager: ConsoleContextManager): Promise<void> {
+    this.contextManager = contextManager
+    this.nsiteContext = contextManager.getContext<NsiteContext>('nsite')
+    
+    if (!this.nsiteContext) {
+      throw new Error('NsiteContext not available')
     }
 
     // Load ignore rules
@@ -74,52 +75,49 @@ export class BrowseView implements ConsoleView {
       }
     }
 
-    // Resolve pubkey from auth
-    const { resolvePubkey } = await import('../../../lib/resolver-utils.ts')
-    let pubkey: string
-    if (this.auth.startsWith('bunker://')) {
-      // Parse bunker URL to get pubkey
-      const url = new URL(this.auth)
-      const hexPubkey = url.hostname || url.pathname.replace(/^\/+/, '')
-      if (!hexPubkey || hexPubkey.length !== 64) {
-        throw new Error('Invalid bunker URL')
-      }
-      pubkey = hexPubkey
-    } else {
-      // Use resolvePubkey for other auth types
-      pubkey = await resolvePubkey({ privatekey: this.auth })
-    }
+    // Subscribe to context updates
+    contextManager.subscribe('nsite', (context) => {
+      this.nsiteContext = context as NsiteContext
+      this.updateBrowseState()
+    })
 
-    // Fetch files
-    this.files = await listRemoteFilesWithProgress(this.relays, pubkey, true) // silent mode
+    // Initialize browse state
+    this.updateBrowseState()
+  }
+
+  private updateBrowseState(): void {
+    if (!this.nsiteContext) return
+
+    const files = this.nsiteContext.files
 
     // Create color mappings
     const allRelays = new Set<string>()
     const allServers = new Set<string>()
     
-    this.files.forEach(file => {
+    files.forEach(file => {
       file.foundOnRelays.forEach((relay: string) => allRelays.add(relay))
       file.availableOnServers.forEach((server: string) => allServers.add(server))
     })
-    
+
+    // Create color mappings for relays
     Array.from(allRelays).forEach((relay, index) => {
       this.relayColorMap.set(relay, RELAY_COLORS[index % RELAY_COLORS.length])
     })
-    
+
+    // Create color mappings for servers
     Array.from(allServers).forEach((server, index) => {
       this.serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length])
     })
 
-    // Initialize state
+    // Update browse state
     const { rows } = getTerminalSize()
     this.state = createInitialState(
-      this.files,
+      files,
       rows - 7, // Tab bar (2) + Path row (1) + Footer (2) + Header (2)
       this.relayColorMap,
       this.serverColorMap,
       this.ignoreRules,
-      pubkey,
-      undefined
+      this.identity.pubkey
     )
     
     // Store auth for delete operations
@@ -131,15 +129,11 @@ export class BrowseView implements ConsoleView {
 
   render(): void {
     if (!this.state) {
-      moveCursor(1, 3)
+      moveCursor(3, 1)
       console.log(colors.red('Browse view not initialized'))
       return
     }
 
-    // Adjust for console layout (tab bar takes 2 lines)
-    const { rows } = getTerminalSize()
-    this.state.pageSize = rows - 7 // Tab bar (2) + Path row (1) + Footer (2) + Header (2)
-    
     // Use the original browse renderer with adjusted state
     renderBrowse(this.state, 3) // Start at line 3 due to tab bar
   }
@@ -180,16 +174,67 @@ export class BrowseView implements ConsoleView {
     
     const shouldContinue = handleListModeKey(this.state, key)
     
-    // For up/down navigation, do a partial render
-    if (key === 'up' || key === 'down') {
-      renderUpdate(this.state, 3) // Start at line 3 due to tab bar
-      return true
-    }
-    
+    // Return true to trigger a full render through console
     return shouldContinue
   }
 
   isEditing(): boolean {
     return this.state?.filterMode === true || this.state?.confirmingDelete === true
+  }
+  
+  getStatus(): { text: string; color?: (str: string) => string } {
+    if (!this.state) {
+      return { text: 'Not initialized' }
+    }
+    
+    // Use the same status logic from browse renderer
+    const status = this.state.status || `${this.state.selectedItems.size} selected`
+    const color = this.state.statusColor
+    
+    return { text: status, color }
+  }
+  
+  getHotkeys(): string[] {
+    if (!this.state) return []
+    
+    const hotkeys: string[] = []
+    
+    if (this.state.viewMode === 'list') {
+      if (this.state.confirmingDelete) {
+        hotkeys.push(
+          `${colors.red("Type 'yes' to confirm")}`,
+          `${colors.gray('ESC')} Cancel`
+        )
+        if (this.state.deleteConfirmText) {
+          hotkeys.push(`${colors.yellow(`[${this.state.deleteConfirmText}]`)}`)
+        }
+      } else if (this.state.filterMode) {
+        hotkeys.push(
+          `${colors.gray('ENTER')} Apply`,
+          `${colors.gray('ESC')} Cancel`
+        )
+      } else {
+        hotkeys.push(
+          `${colors.gray('↑↓')} Navigate`,
+          `${colors.gray('←→')} Pages`,
+          `${colors.gray('SPACE')} Select`,
+          `${colors.gray('s')} ${this.state.showSelectedOnly ? 'View All' : 'View Selected'}${this.state.selectedItems.size > 0 ? ` [${this.state.selectedItems.size}]` : ''}`,
+        )
+        
+        if (this.state.selectedItems.size > 0) {
+          hotkeys.push(`${colors.gray('a')} Deselect all`)
+        }
+        
+        hotkeys.push(
+          `${colors.gray('ENTER')} Details`,
+          `${colors.gray('/')} Filter`,
+          `${colors.gray('DEL')} Delete`
+        )
+      }
+    } else {
+      hotkeys.push(`${colors.gray('Any key')} Back to list`)
+    }
+    
+    return hotkeys
   }
 }
