@@ -30,6 +30,7 @@ import { validateCommand } from "./commands/validate.ts";
 import { registerDebugCommand } from "./commands/debug.ts";
 import { registerAnnounceCommand } from "./commands/announce.ts";
 import { registerConfigCommand } from "./commands/config.ts";
+import { consoleCommand } from "./commands/console.ts";
 import { setupProject } from "./lib/config.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
@@ -74,6 +75,7 @@ validateCommand(nsite);
 registerDebugCommand(nsite);
 registerAnnounceCommand(nsite);
 registerConfigCommand(nsite);
+nsite.command("console", consoleCommand);
 
 /**
  * Display the nsyte header in a random color

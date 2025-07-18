@@ -2,7 +2,7 @@ import { npubEncode } from "nostr-tools/nip19";
 import { createLogger } from "../logger.ts";
 import { getErrorMessage } from "../error-utils.ts";
 import type { ProjectConfig } from "../config.ts";
-import type { Signer } from "../upload.ts";
+import type { Signer } from "../auth/signer.ts";
 import type { FileEntry } from "../nostr.ts";
 import {
   createProfileEvent,

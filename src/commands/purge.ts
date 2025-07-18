@@ -13,7 +13,7 @@ import {
   publishEventsToRelays,
 } from "../lib/nostr.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
-import type { Signer } from "../lib/upload.ts";
+import type { Signer } from "../lib/auth/signer.ts";
 import { npubEncode } from "../lib/utils.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
 

@@ -42,7 +42,8 @@ import {
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { PrivateKeySigner } from "../lib/signer.ts";
-import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
+import { processUploads, type UploadResponse } from "../lib/upload.ts";
+import type { Signer } from "../lib/auth/signer.ts";
 import { npubEncode } from "../lib/utils.ts";
 import {
   formatConfigValue,
