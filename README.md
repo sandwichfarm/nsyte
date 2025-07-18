@@ -362,14 +362,15 @@ Configuration is stored in `.nsite/config.json`. A complete [JSON Schema](src/sc
 {
   "$schema": "https://nsyte.run/schemas/config.schema.json",
   "bunkerPubkey": "abc123...",
+  "fallback": "/index.html",
+  "publishProfile": false,
+  "publishServerList": true,
+  "publishRelayList": true,
+  "publishAppHandler": true,
   "relays": ["wss://relay1", "wss://relay2"],
   "servers": ["https://server1", "https://server2"],
   "profile": { "name": "My Site", "about": "Description" },
-  "publishServerList": true,
-  "publishRelayList": true,
-  "fallback": "/index.html",
   "appHandler": {
-    "enabled": true,
     "kinds": [1, 30023],
     "name": "My Event Viewer",
     "description": "Views notes and articles"
@@ -434,7 +435,7 @@ secrets.json
 nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) app handler announcements, allowing your nsite to be discovered as a viewer for specific Nostr event types.
 
 **Configuration:**
-- `appHandler.enabled`: Enable app handler announcements
+- `publishAppHandler`: Enable app handler announcements
 - `appHandler.kinds`: Array of event kind numbers this nsite can display
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description
