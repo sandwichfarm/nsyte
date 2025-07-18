@@ -209,6 +209,11 @@ export class SyncStatusRenderer extends BaseRenderer {
         statusIcon = '↻'
         fileColor = colors.blue
         statusColor = colors.blue
+      } else {
+        // Default for other active items
+        statusIcon = '◆'
+        fileColor = colors.white
+        statusColor = colors.white
       }
     } else {
       // Low contrast for inactive items
@@ -528,8 +533,10 @@ export class SyncStatusRenderer extends BaseRenderer {
         if (currentRow - startRow >= height - 1) return
         
         const relayHost = relay.replace(/^wss?:\/\//, '').split('/')[0]
-        const truncatedHost = relayHost.length > width - 10 ? 
-          relayHost.slice(0, width - 13) + '...' : relayHost
+        // Reserve space for icon (2) + space (1) + dots (5) + spacing (4) = 12 chars
+        const maxHostLen = Math.max(10, width - 12)
+        const truncatedHost = relayHost.length > maxHostLen ? 
+          relayHost.slice(0, maxHostLen - 3) + '...' : relayHost
         
         // Get sync status for this relay
         const colorFn = this.relayColorMap.get(relay) || colors.white
@@ -543,8 +550,12 @@ export class SyncStatusRenderer extends BaseRenderer {
         // Create status dots
         const dots = this.createStatusDots(syncedCount, state.files.length)
         
-        this.writeAt(currentRow, startCol + 2, `${colorFn('○')} ${truncatedHost}`)
-        this.writeAt(currentRow, startCol + width - dots.length - 1, dots)
+        // Write relay name and dots on same line
+        const relayLine = `${colorFn('○')} ${truncatedHost}`
+        this.writeAt(currentRow, startCol + 2, relayLine)
+        // Position dots to the right with proper spacing
+        const dotsCol = Math.min(startCol + 2 + relayLine.length + 2, startCol + width - dots.length - 1)
+        this.writeAt(currentRow, dotsCol, dots)
         currentRow++
       })
     }
@@ -559,8 +570,10 @@ export class SyncStatusRenderer extends BaseRenderer {
         if (currentRow - startRow >= height - 1) return
         
         const serverHost = server.replace(/^https?:\/\//, '').split('/')[0]
-        const truncatedHost = serverHost.length > width - 10 ? 
-          serverHost.slice(0, width - 13) + '...' : serverHost
+        // Reserve space for icon (2) + space (1) + dots (5) + spacing (4) = 12 chars
+        const maxHostLen = Math.max(10, width - 12)
+        const truncatedHost = serverHost.length > maxHostLen ? 
+          serverHost.slice(0, maxHostLen - 3) + '...' : serverHost
         
         // Get sync status for this server
         const colorFn = this.serverColorMap.get(server) || colors.white
@@ -574,8 +587,12 @@ export class SyncStatusRenderer extends BaseRenderer {
         // Create status dots
         const dots = this.createStatusDots(syncedCount, state.files.length)
         
-        this.writeAt(currentRow, startCol + 2, `${colorFn('□')} ${truncatedHost}`)
-        this.writeAt(currentRow, startCol + width - dots.length - 1, dots)
+        // Write server name and dots on same line
+        const serverLine = `${colorFn('□')} ${truncatedHost}`
+        this.writeAt(currentRow, startCol + 2, serverLine)
+        // Position dots to the right with proper spacing
+        const dotsCol = Math.min(startCol + 2 + serverLine.length + 2, startCol + width - dots.length - 1)
+        this.writeAt(currentRow, dotsCol, dots)
         currentRow++
       })
     }
