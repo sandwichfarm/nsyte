@@ -28,8 +28,8 @@ interface ConfigViewState {
   selectedIndex: number
   editingIndex: number | null
   editValue: string
-  config: any
-  originalConfig: any
+  config: ProjectConfig
+  originalConfig: ProjectConfig
   configPath: string
   hasChanges: boolean
   status: string
