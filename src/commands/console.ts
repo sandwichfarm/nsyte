@@ -216,7 +216,7 @@ export const consoleCommand = new Command()
             render(state)
           }
         }
-      }, 500) // Update every 500ms during active operations
+      }, RENDER_INTERVAL_MS) // Update every 500ms during active operations
       
       for await (const event of keypressIterator) {
         // Check if any view is currently typing (text input active)
