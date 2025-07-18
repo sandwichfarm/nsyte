@@ -1,6 +1,6 @@
 import { encodeBase64 } from "@std/encoding/base64";
 import { createLogger } from "./logger.ts";
-import type { Signer } from "./upload.ts";
+import type { Signer } from "./auth/signer.ts";
 
 const log = createLogger("blossom");
 

@@ -4,7 +4,7 @@ import { createNip46ClientFromUrl } from "../nostr.ts";
 import { SecretsManager } from "../secrets/mod.ts";
 import { PrivateKeySigner } from "../signer.ts";
 import { getErrorMessage } from "../error-utils.ts";
-import type { Signer } from "../upload.ts";
+import type { Signer } from "./signer.ts";
 
 const log = createLogger("auth");
 

@@ -167,6 +167,10 @@ export class DashboardView implements ConsoleView {
     return false
   }
 
+  isTyping(): boolean {
+    return false
+  }
+
   private formatPubkey(npub: string): string {
     return `${npub.substring(0, 16)}...${npub.substring(npub.length - 8)}`
   }

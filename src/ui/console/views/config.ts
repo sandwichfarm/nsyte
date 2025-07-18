@@ -246,6 +246,10 @@ export class ConfigView implements ConsoleView {
     return this.state.editingIndex !== null || this.state.bunkerSelection?.active === true
   }
 
+  isTyping(): boolean {
+    return this.state.editingIndex !== null
+  }
+
   private async handleBunkerSelection(event: KeyPressEvent): Promise<boolean> {
     const key = event.key || ''
     const sequence = event.sequence || ''

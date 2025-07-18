@@ -18,6 +18,7 @@ import { parseIgnorePatterns, DEFAULT_IGNORE_PATTERNS } from '../../../lib/files
 import { join } from '@std/path'
 import { existsSync } from '@std/fs/exists'
 import { createLogger } from '../../../lib/logger.ts'
+import { colors } from '@cliffy/ansi/colors'
 
 const log = createLogger('context-manager')
 
@@ -316,23 +317,110 @@ export class ConsoleContextManager implements ContextManager {
     }
 
     // Load local files
-    const files = await this.loadLocalFiles()
-    context.files = files.map(file => ({
-      path: file.path,
-      size: file.size,
-      hash: file.hash,
-      status: 'pending',
-      progress: 0,
-      servers: {},
-      relays: {}
-    }))
+    const localFiles = await this.loadLocalFiles()
+    
+    // Get nsite context to check existing deployment state
+    const nsiteContext = this.getContext<NsiteContext>('nsite')
+    if (!nsiteContext || nsiteContext.status !== 'loaded') {
+      log.warn('Nsite context not fully loaded, upload context may not have sync status')
+    }
+    const remoteFiles = nsiteContext?.files || []
+    
+    if (onProgress) {
+      onProgress(`Checking sync status for ${localFiles.length} files against ${remoteFiles.length} remote files...`)
+    }
+    
+    // Create a map of remote files by path for quick lookup
+    const remoteFileMap = new Map<string, any>()
+    remoteFiles.forEach(rf => {
+      remoteFileMap.set(rf.path, rf)
+    })
+    
+    log.debug(`Remote file map has ${remoteFileMap.size} entries`)
+    
+    // Get servers and relays from config
+    const servers = this.config.servers || []
+    const relays = this.config.relays || []
+    
+    let syncedCount = 0
+    context.files = localFiles.map(file => {
+      const remoteFile = remoteFileMap.get(file.path)
+      
+      if (remoteFile) {
+        log.debug(`Found remote file for ${file.path}: local hash=${file.hash}, remote hash=${remoteFile.sha256}, servers=${JSON.stringify(remoteFile.availableOnServers)}, relays=${JSON.stringify(remoteFile.foundOnRelays)}`)
+      }
+      
+      // Initialize server status based on remote file data
+      const serverStatus: any = {}
+      servers.forEach(server => {
+        if (remoteFile && remoteFile.sha256 === file.hash && remoteFile.availableOnServers?.includes(server)) {
+          // File exists on this server with same hash
+          serverStatus[server] = {
+            status: 'completed',
+            progress: 100
+          }
+        } else {
+          // File doesn't exist on this server or has different hash
+          serverStatus[server] = {
+            status: 'pending',
+            progress: 0
+          }
+        }
+      })
+      
+      // Initialize relay status based on remote file data
+      const relayStatus: any = {}
+      relays.forEach(relay => {
+        if (remoteFile && remoteFile.sha256 === file.hash && remoteFile.foundOnRelays?.includes(relay)) {
+          // File event exists on this relay
+          relayStatus[relay] = {
+            status: 'published',
+            progress: 100
+          }
+        } else {
+          // File event doesn't exist on this relay
+          relayStatus[relay] = {
+            status: 'pending',
+            progress: 0
+          }
+        }
+      })
+      
+      // Determine overall file status
+      const hasAnyServer = servers.some(s => serverStatus[s]?.status === 'completed')
+      const hasAnyRelay = relays.some(r => relayStatus[r]?.status === 'published')
+      const isFullySynced = remoteFile && remoteFile.sha256 === file.hash && hasAnyServer && hasAnyRelay
+      
+      if (isFullySynced) {
+        syncedCount++
+      }
+      
+      return {
+        path: file.path,
+        size: file.size,
+        hash: file.hash,
+        status: isFullySynced ? 'completed' : 'pending',
+        progress: isFullySynced ? 100 : 0,
+        servers: serverStatus,
+        relays: relayStatus
+      }
+    })
+    
+    log.debug(`Upload context: ${syncedCount}/${localFiles.length} files already synced`)
 
-    context.stats.totalFiles = files.length
-    context.stats.totalSize = files.reduce((sum, file) => sum + file.size, 0)
+    // Update stats to reflect already synced files
+    const syncedFiles = context.files.filter(f => f.status === 'completed').length
+    context.stats.totalFiles = localFiles.length
+    context.stats.totalSize = localFiles.reduce((sum, file) => sum + file.size, 0)
+    context.stats.skippedFiles = syncedFiles
     context.stage = 'preparing'
 
     if (onProgress) {
-      onProgress(`Loaded ${files.length} files for upload`)
+      if (syncedFiles > 0) {
+        onProgress(`Loaded ${localFiles.length} files (${syncedFiles} already deployed)`)
+      } else {
+        onProgress(`Loaded ${localFiles.length} files for upload`)
+      }
     }
   }
 
@@ -354,17 +442,29 @@ export class ConsoleContextManager implements ContextManager {
   private async loadLocalFiles(): Promise<any[]> {
     // Import the getLocalFiles function
     const { getLocalFiles } = await import('../../../lib/files.ts')
+    
+    log.info(`Loading files from directory: ${this.projectPath}`)
     const result = await getLocalFiles(this.projectPath)
     
     // getLocalFiles already applies .nsite-ignore patterns
     // The result.includedFiles contains only files that should be uploaded
     // The result.ignoredFilePaths contains files that were ignored
     
+    log.info(`Found ${result.includedFiles?.length || 0} files in ${this.projectPath}`)
+    if (result.includedFiles && result.includedFiles.length > 0) {
+      log.info(`First few files: ${result.includedFiles.slice(0, 5).map(f => f.path).join(', ')}`)
+      // Check if these are actually from the dist directory
+      const hasDistFiles = result.includedFiles.some(f => f.path.includes('dist'))
+      const hasNonDistFiles = result.includedFiles.some(f => !f.path.includes('dist'))
+      log.info(`Has dist files: ${hasDistFiles}, Has non-dist files: ${hasNonDistFiles}`)
+    }
+    
     return result.includedFiles || []
   }
   
   // Method to update project path and reload upload context
   async updateProjectPath(newPath: string): Promise<void> {
+    log.info(`Updating project path from ${this.projectPath} to ${newPath}`)
     this.projectPath = newPath
     
     // Clear existing upload context
@@ -390,6 +490,7 @@ export class ConsoleContextManager implements ContextManager {
     }
     
     // Reload upload context with new path
+    log.info(`Reloading upload context for path: ${this.projectPath}`)
     await this.loadContext('upload')
   }
 
@@ -452,6 +553,35 @@ export class ConsoleContextManager implements ContextManager {
     return operationId
   }
 
+  async cancelOperation(operationId: string): Promise<void> {
+    const operationContext = this.getContext<OperationContext>('operations')
+    const uploadContext = this.getContext<UploadContext>('upload')
+    
+    if (!operationContext) {
+      throw new Error('Operation context not available')
+    }
+    
+    const operation = operationContext.activeOperations.get(operationId)
+    if (!operation || !operation.canCancel) {
+      throw new Error('Operation cannot be cancelled')
+    }
+    
+    // Mark operation as cancelled
+    operation.status = 'cancelled'
+    operation.endTime = Date.now()
+    operationContext.activeOperations.delete(operationId)
+    operationContext.failedOperations.push(operation)
+    
+    // Update upload context
+    if (uploadContext) {
+      uploadContext.isActive = false
+      uploadContext.stage = 'idle'
+      this.notifySubscribers('upload', uploadContext)
+    }
+    
+    this.notifySubscribers('operations', operationContext)
+  }
+
   private async processUploadOperation(operationId: string): Promise<void> {
     const uploadContext = this.getContext<UploadContext>('upload')
     const operationContext = this.getContext<OperationContext>('operations')
@@ -476,7 +606,52 @@ export class ConsoleContextManager implements ContextManager {
       uploadContext.isActive = true
       this.notifySubscribers('operations', operationContext)
 
-      // Stage 1: Load signer and prepare events
+      // First check if any files need to be uploaded
+      const nsiteContext = this.getContext<NsiteContext>('nsite')
+      if (!nsiteContext) {
+        throw new Error('NsiteContext not available')
+      }
+
+      // Quick check for already deployed files
+      const { compareFiles } = await import('../../../lib/files.ts')
+      const localFiles = uploadContext.files.map(f => ({
+        path: f.path,
+        size: f.size,
+        sha256: f.hash,
+        contentType: 'application/octet-stream'
+      }))
+      const remoteFiles = nsiteContext.files || []
+      const { toTransfer, existing } = compareFiles(localFiles, remoteFiles)
+      
+      // If no files to transfer, skip signer loading and mark as completed
+      if (toTransfer.length === 0) {
+        uploadContext.stage = 'completed'
+        uploadContext.stats.totalFiles = localFiles.length
+        uploadContext.stats.skippedFiles = existing.length
+        uploadContext.stats.uploadedFiles = 0
+        uploadContext.stats.endTime = Date.now()
+        uploadContext.isActive = false
+        
+        // Update all files as already deployed
+        uploadContext.files.forEach(file => {
+          file.status = 'completed'
+          file.progress = 100
+          file.uploadEndTime = Date.now()
+        })
+        
+        operation.status = 'completed'
+        operation.progress = 100
+        operation.endTime = Date.now()
+        
+        operationContext.activeOperations.delete(operationId)
+        operationContext.completedOperations.push(operation)
+        
+        this.notifySubscribers('upload', uploadContext)
+        this.notifySubscribers('operations', operationContext)
+        return
+      }
+
+      // Stage 1: Load signer and prepare events (only if we have files to upload)
       uploadContext.stage = 'signing'
       uploadContext.stats.startTime = Date.now()
       this.notifySubscribers('upload', uploadContext)
@@ -546,71 +721,120 @@ export class ConsoleContextManager implements ContextManager {
   }
 
   private async loadSigner(): Promise<any> {
-    const { createSigner } = await import('../../../lib/auth/signer-factory.ts')
-    const { importFromNbunk } = await import('../../../lib/nip46.ts')
-    const { SecretsManager } = await import('../../../lib/secrets/mod.ts')
+    // Use the standard initSigner for all auth methods
+    const { initSigner } = await import('../../../lib/auth/signer.ts')
     
     const originalAuth = this.identity.originalAuth
+    
+    // If using project bunker, we don't have the private key but initSigner will handle it
+    if (this.identity.authMethod === 'bunker' && this.config.bunkerPubkey && !originalAuth) {
+      log.info('Using project bunker authentication...')
+      // initSigner will check for stored nbunksec when no auth is provided but bunker is configured
+      const result = await initSigner(
+        null,
+        {
+          nonInteractive: false // Allow keychain prompts in console mode
+        },
+        this.config
+      )
+      
+      if ('error' in result) {
+        throw new Error(result.error)
+      }
+      
+      return result
+    }
+    
     if (!originalAuth) {
       throw new Error('No authentication method available')
     }
     
-    // Follow the same initSigner logic as deploy command
+    log.info(`Loading signer using initSigner with auth: ${originalAuth.substring(0, 20)}...`)
     
-    // Priority 1: bunker URL from auth
+    // Convert auth to the format initSigner expects
+    let authKeyHex: string | null = null
+    let bunkerUrl: string | undefined
+    
     if (originalAuth.startsWith('bunker://')) {
-      try {
-        const { createNip46ClientFromUrl } = await import('../../../lib/nostr.ts')
-        const { client } = await createNip46ClientFromUrl(originalAuth)
-        return client
-      } catch (error) {
-        throw new Error(`Failed to connect to bunker: ${error}`)
-      }
-    }
-    
-    // Priority 2: nsec from auth
-    if (originalAuth.startsWith('nsec')) {
-      try {
-        const result = await createSigner({ privateKey: originalAuth })
-        if ('error' in result) {
-          throw new Error(result.error)
-        }
-        return result.signer
-      } catch (error) {
-        throw new Error(`Failed to create signer from nsec: ${error}`)
-      }
-    }
-    
-    // Priority 3: project bunker with stored nbunksec
-    if (this.config.bunkerPubkey && originalAuth === this.config.bunkerPubkey) {
-      const secretsManager = SecretsManager.getInstance()
-      const nbunkString = await secretsManager.getNbunk(this.config.bunkerPubkey)
-      if (nbunkString) {
-        try {
-          const bunkerSigner = await importFromNbunk(nbunkString)
-          await bunkerSigner.getPublicKey()
-          return bunkerSigner
-        } catch (error) {
-          throw new Error(`Failed to use stored nbunksec: ${error}`)
-        }
+      bunkerUrl = originalAuth
+    } else if (originalAuth.startsWith('nsec')) {
+      // initSigner expects hex key, so convert nsec to hex
+      const { nip19 } = await import('nostr-tools')
+      const decoded = nip19.decode(originalAuth)
+      if (decoded.type === 'nsec') {
+        const bytes = decoded.data as Uint8Array
+        authKeyHex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
       } else {
-        throw new Error('No stored nbunksec found for configured bunker')
+        throw new Error('Invalid nsec format')
       }
+    } else if (originalAuth.length === 64 && /^[0-9a-fA-F]+$/.test(originalAuth)) {
+      authKeyHex = originalAuth
     }
     
-    throw new Error('No valid signing method available. Please provide a private key, bunker URL, or nbunksec.')
+    // Call initSigner with proper options
+    const result = await initSigner(
+      authKeyHex,
+      {
+        bunker: bunkerUrl,
+        nonInteractive: false // Allow keychain prompts in console mode
+      },
+      this.config
+    )
+    
+    if ('error' in result) {
+      throw new Error(result.error)
+    }
+    
+    return result
   }
 
   private async preSignEvents(uploadContext: UploadContext): Promise<void> {
-    // TODO: Implement bulk event signing
-    // This would create and sign all file metadata events, profile events, etc.
-    // NOTE: This is a placeholder implementation. When the upload functionality is completed,
-    // this should use the signer to create and sign events for each file, similar to:
-    // - createNsiteEvent() from lib/upload.ts
-    // - Sign profile, relay list, and app handler events
-    // For now, we're just updating the stats to indicate the expected number of events
-    uploadContext.stats.signedEvents = uploadContext.files.length
-    uploadContext.stats.totalEvents = uploadContext.files.length + 3 // files + profile + relay list + app handler
+    const { createNsiteEvent } = await import('../../../lib/nostr.ts')
+    const signer = uploadContext.signer
+    
+    if (!signer) {
+      throw new Error('Signer not available for event signing')
+    }
+    
+    // Get publisher pubkey
+    const userPubkey = await signer.getPublicKey()
+    
+    // Clear any existing signed events
+    uploadContext.signedEvents.clear()
+    
+    // Create and sign events for each uploaded file
+    for (const file of uploadContext.files) {
+      // Only create events for files that will be uploaded
+      if (file.status === 'pending' || file.status === 'uploading') {
+        try {
+          const nsiteEvent = await createNsiteEvent(
+            signer,
+            userPubkey,
+            file.path,
+            file.hash
+          )
+          
+          // Store the signed event
+          uploadContext.signedEvents.set(file.path, nsiteEvent)
+        } catch (error) {
+          log.error(`Failed to create event for file ${file.path}: ${error}`)
+          file.status = 'failed'
+          file.error = `Failed to sign event: ${error instanceof Error ? error.message : String(error)}`
+        }
+      }
+    }
+    
+    // Update stats
+    uploadContext.stats.signedEvents = uploadContext.signedEvents.size
+    
+    // Calculate total events including meta events
+    let metaEventCount = 0
+    if (this.config.publishProfile) metaEventCount++
+    if (this.config.publishRelayList) metaEventCount++
+    if (this.config.publishServerList) metaEventCount++
+    if (this.config.publishAppHandler) metaEventCount++
+    
+    uploadContext.stats.totalEvents = uploadContext.signedEvents.size + metaEventCount
   }
 
   private async uploadFiles(uploadContext: UploadContext, operation: any): Promise<void> {
@@ -641,47 +865,30 @@ export class ConsoleContextManager implements ContextManager {
     // Use existing remote files from nsite context
     const remoteFiles = nsiteContext.files || []
 
-    // Compare files
+    // Compare files again to get detailed info for upload process
     const { toTransfer, existing, toDelete } = compareFiles(localFiles, remoteFiles)
     
-    // Update upload context to show comparison results
+    // Update stats
     uploadContext.stats.totalFiles = localFiles.length
+    uploadContext.stats.skippedFiles = existing.length
+    uploadContext.stats.uploadedFiles = 0
+    uploadContext.stats.uploadedSize = 0
     
-    // Update all files in upload context based on comparison results
+    // Update file statuses
     uploadContext.files.forEach(file => {
-      // Check if file already exists remotely
       const existingFile = existing.find(ef => ef.path === file.path)
       if (existingFile) {
-        // File already exists remotely - mark as deployed
         file.status = 'completed'
         file.progress = 100
         file.uploadEndTime = Date.now()
       } else {
-        // Check if file needs to be uploaded
         const fileToUpload = toTransfer.find(tf => tf.path === file.path)
         if (fileToUpload) {
-          // File needs to be uploaded - mark as pending
           file.status = 'pending'
           file.progress = 0
         }
       }
     })
-    
-    // Update stats for already deployed files (skipped)
-    const alreadyDeployedCount = existing.length
-    uploadContext.stats.skippedFiles = alreadyDeployedCount
-    uploadContext.stats.uploadedFiles = 0 // Will be updated as files are actually uploaded
-    uploadContext.stats.uploadedSize = 0 // Will be updated as files are actually uploaded
-    
-    // If no files to transfer, mark as completed (all files are up-to-date)
-    if (toTransfer.length === 0) {
-      uploadContext.stage = 'completed'
-      uploadContext.stats.endTime = Date.now()
-      uploadContext.isActive = false
-      
-      this.notifySubscribers('upload', uploadContext)
-      return
-    }
     
     // Notify subscribers with updated file statuses
     this.notifySubscribers('upload', uploadContext)
@@ -817,16 +1024,18 @@ export class ConsoleContextManager implements ContextManager {
 
   private async publishEvents(uploadContext: UploadContext, operation: any): Promise<void> {
     try {
-      // TODO: Implement actual event publishing
-      // This is a placeholder implementation that simulates publishing progress.
-      // When the upload functionality is completed, this should:
-      // 1. Retrieve pre-signed events from uploadContext
-      // 2. Publish events to relays using publishEventToRelays() from lib/upload.ts
-      // 3. Update stats based on actual publishing results
-      // For now, we're just simulating the publishing process
+      // Import required functions
+      const { publishEventsToRelays } = await import('../../../lib/nostr.ts')
+      const { publishMetadata } = await import('../../../lib/metadata/publisher.ts')
+      
+      const relays = this.config.relays || []
+      const signer = uploadContext.signer
+      
+      if (!signer) {
+        throw new Error('Signer not available for publishing events')
+      }
       
       // Mark relays as publishing for active files
-      const relays = this.config.relays || []
       uploadContext.files.forEach(file => {
         if (file.status === 'completed' && file.relays) {
           relays.forEach(relay => {
@@ -838,8 +1047,50 @@ export class ConsoleContextManager implements ContextManager {
         }
       })
       
-      // Simulate publishing delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      this.notifySubscribers('upload', uploadContext)
+      
+      // Publish file metadata events if we have any
+      const nsiteEvents: any[] = []
+      for (const [eventId, event] of uploadContext.signedEvents) {
+        nsiteEvents.push(event)
+      }
+      
+      if (nsiteEvents.length > 0) {
+        log.info(`Publishing ${nsiteEvents.length} file metadata events to ${relays.length} relays`)
+        await publishEventsToRelays(relays, nsiteEvents)
+        uploadContext.stats.publishedEvents = nsiteEvents.length
+      }
+      
+      operation.progress = 90
+      this.notifySubscribers('operations', this.getContext('operations')!)
+      
+      // Create a simple status display for metadata publisher
+      const statusDisplay = {
+        update: (msg: string) => log.info(msg),
+        success: (msg: string) => log.info(`✓ ${msg}`),
+        error: (msg: string) => log.error(msg)
+      }
+      
+      // Publish metadata events (profile, relay list, server list, app handler)
+      await publishMetadata(
+        this.config,
+        signer,
+        relays,
+        statusDisplay,
+        {
+          publishProfile: this.config.publishProfile,
+          publishRelayList: this.config.publishRelayList,
+          publishServerList: this.config.publishServerList,
+          publishAppHandler: this.config.publishAppHandler
+        },
+        [] // includedFiles not needed for metadata
+      )
+      
+      // Update stats based on what was published
+      uploadContext.stats.profileEvents = this.config.publishProfile ? 1 : 0
+      uploadContext.stats.relayListEvents = this.config.publishRelayList ? 1 : 0
+      uploadContext.stats.serverListEvents = this.config.publishServerList ? 1 : 0
+      uploadContext.stats.appHandlerEvents = this.config.publishAppHandler ? 1 : 0
       
       // Mark relays as published
       uploadContext.files.forEach(file => {
@@ -858,20 +1109,18 @@ export class ConsoleContextManager implements ContextManager {
       this.notifySubscribers('operations', this.getContext('operations')!)
       this.notifySubscribers('upload', uploadContext)
       
-      // Update meta event stats
+      // Update total event count
       const actuallyUploadedFiles = uploadContext.files.filter(f => f.status === 'completed' && f.uploadEndTime && f.uploadEndTime > (uploadContext.stats.startTime || 0))
-      uploadContext.stats.publishedEvents = actuallyUploadedFiles.length // One event per uploaded file
-      uploadContext.stats.totalEvents = actuallyUploadedFiles.length + 4 // files + profile + relay + server + app handler
-      
-      // Track meta events (these would be actual counts when implemented)
-      uploadContext.stats.profileEvents = this.config.publishProfile ? 1 : 0
-      uploadContext.stats.relayListEvents = this.config.publishRelayList ? 1 : 0
-      uploadContext.stats.serverListEvents = this.config.publishServerList ? 1 : 0
-      uploadContext.stats.appHandlerEvents = this.config.publishAppHandler ? 1 : 0
+      uploadContext.stats.totalEvents = actuallyUploadedFiles.length + 
+        uploadContext.stats.profileEvents + 
+        uploadContext.stats.relayListEvents + 
+        uploadContext.stats.serverListEvents + 
+        uploadContext.stats.appHandlerEvents
       
     } catch (error) {
       // Failed to publish events
       uploadContext.stats.failedEvents = uploadContext.stats.totalEvents - uploadContext.stats.publishedEvents
+      throw error
     }
   }
 

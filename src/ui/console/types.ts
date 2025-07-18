@@ -8,9 +8,11 @@ export interface ConsoleView {
   render(): void
   handleInput(event: KeyPressEvent): Promise<boolean>
   isEditing?(): boolean
+  isTyping?(): boolean  // New method to indicate active text input
   hasActiveUploadOperations?(): boolean
   getStatus?(): { text: string; color?: (str: string) => string }
   getHotkeys?(): string[]
+  setViewSwitchCallback?(callback: (viewName: string) => void): void
 }
 
 export interface Identity {

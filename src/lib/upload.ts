@@ -1,7 +1,7 @@
-import type { Nip07Interface } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { createNsiteEvent } from "./nostr.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
+import type { Signer } from "./auth/signer.ts";
 
 const log = createLogger("upload");
 
@@ -9,9 +9,6 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 const DEFAULT_CONCURRENCY = 4;
-
-/** @deprecated use Nip07Interface from applesauce-signers */
-export interface Signer extends Nip07Interface {}
 
 export interface UploadProgress {
   total: number;

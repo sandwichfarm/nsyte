@@ -105,7 +105,8 @@ export const consoleCommand = new Command()
           pubkey: initialState.auth,
           npub: nip19.npubEncode(initialState.auth),
           authMethod: initialState.isProjectBunker ? 'bunker' : 'hex',
-          originalAuth: initialState.auth
+          // Don't set originalAuth for project bunker - the signer will use the config
+          originalAuth: initialState.isProjectBunker ? undefined : initialState.auth
         }
       }
 
@@ -171,6 +172,15 @@ export const consoleCommand = new Command()
       // Initialize views with context manager
       for (const [name, view] of Object.entries(views)) {
         await view.initialize(contextManager)
+        // Set up view switch callback for views that need it
+        if (view.setViewSwitchCallback) {
+          view.setViewSwitchCallback((viewName: string) => {
+            if (state && state.views[viewName]) {
+              state.currentView = viewName
+              render(state)
+            }
+          })
+        }
       }
       
       // Show final status
@@ -209,25 +219,28 @@ export const consoleCommand = new Command()
       }, 500) // Update every 500ms during active operations
       
       for await (const event of keypressIterator) {
-        // Global hotkeys
-        if (event.ctrlKey && event.key === 'c') {
+        // Check if any view is currently typing (text input active)
+        const isTyping = state && state.views[state.currentView].isTyping?.()
+        
+        // Global hotkeys (only when not typing)
+        if (!isTyping && event.ctrlKey && event.key === 'c') {
           cleanup()
           Deno.exit(0)
         }
 
-        if (event.key === 'q' && state && !state.views[state.currentView].isEditing?.()) {
+        if (!isTyping && event.key === 'q' && state) {
           cleanup()
           Deno.exit(0)
         }
         
-        // Global identity switch (available from any view when not editing)
-        if (event.key === 'i' && state && !state.views[state.currentView].isEditing?.()) {
+        // Global identity switch (available from any view when not editing and not typing)
+        if (!isTyping && event.key === 'i' && state && !state.views[state.currentView].isEditing?.()) {
           await handleIdentitySwitch(state)
           continue
         }
 
-        // Tab switching with number keys
-        if (state) {
+        // Tab switching with number keys (only when not typing)
+        if (!isTyping && state) {
           const viewKeys = Object.keys(state.views)
           const keyNum = parseInt(event.key || '')
           if (!isNaN(keyNum) && keyNum > 0 && keyNum <= viewKeys.length) {
@@ -238,8 +251,10 @@ export const consoleCommand = new Command()
               continue
             }
           }
+        }
 
-          // Pass event to current view
+        // Always pass event to current view (for both typing and non-typing modes)
+        if (state) {
           const handled = await state.views[state.currentView].handleInput(event)
           if (handled) {
             render(state)
@@ -255,6 +270,9 @@ export const consoleCommand = new Command()
 
 async function handleIdentitySwitch(state: ConsoleState): Promise<void> {
   try {
+    // Save current view before switching
+    const currentViewName = state.currentView
+    
     // Show loading message
     clearScreen()
     const { rows, cols } = getTerminalSize()
@@ -268,7 +286,15 @@ async function handleIdentitySwitch(state: ConsoleState): Promise<void> {
     console.log(status)
     
     // Initialize new identity (reuse existing initialization logic)
-    const newInitialState = await initializeConsole({ noCache: false })
+    let newInitialState
+    try {
+      newInitialState = await initializeConsole({ noCache: false })
+    } catch (error) {
+      // User cancelled or error occurred
+      clearScreen()
+      render(state)
+      return
+    }
     
     // Extract new identity
     let newIdentity: Identity
@@ -289,7 +315,8 @@ async function handleIdentitySwitch(state: ConsoleState): Promise<void> {
         newIdentity = {
           pubkey,
           npub: nip19.npubEncode(pubkey),
-          authMethod: 'nsec'
+          authMethod: 'nsec',
+          originalAuth: newInitialState.auth
         }
       } else {
         throw new Error('Invalid nsec')
@@ -298,7 +325,9 @@ async function handleIdentitySwitch(state: ConsoleState): Promise<void> {
       newIdentity = {
         pubkey: newInitialState.auth,
         npub: nip19.npubEncode(newInitialState.auth),
-        authMethod: newInitialState.isProjectBunker ? 'bunker' : 'hex'
+        authMethod: newInitialState.isProjectBunker ? 'bunker' : 'hex',
+        // Don't set originalAuth for project bunker - the signer will use the config
+        originalAuth: newInitialState.isProjectBunker ? undefined : newInitialState.auth
       }
     }
     
@@ -363,9 +392,21 @@ async function handleIdentitySwitch(state: ConsoleState): Promise<void> {
     render(state)
     
   } catch (error) {
+    // Log error for debugging
+    console.error('Identity switch error:', error)
+    
+    // Show user-friendly error message
     clearScreen()
-    console.error(colors.red('Failed to switch identity:'), error)
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    const { rows, cols } = getTerminalSize()
+    const errorMsg = 'Failed to switch identity. Returning to console...'
+    const errorRow = Math.floor(rows / 2)
+    moveCursor(errorRow, Math.floor((cols - errorMsg.length) / 2))
+    console.log(colors.red(errorMsg))
+    
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // Return to normal console view
+    clearScreen()
     render(state)
   }
 }

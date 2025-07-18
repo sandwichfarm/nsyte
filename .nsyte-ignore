@@ -1,3 +1,5 @@
 ./dist/nsyte*
 .DS_Store
 **/.DS_Store
+.env*
+*secret*

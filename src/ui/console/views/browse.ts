@@ -181,6 +181,10 @@ export class BrowseView implements ConsoleView {
   isEditing(): boolean {
     return this.state?.filterMode === true || this.state?.confirmingDelete === true
   }
+
+  isTyping(): boolean {
+    return this.state?.filterMode === true
+  }
   
   getStatus(): { text: string; color?: (str: string) => string } {
     if (!this.state) {

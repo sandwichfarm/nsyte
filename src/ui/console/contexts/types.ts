@@ -60,7 +60,7 @@ export interface UploadContext extends BaseContext {
   stats: UploadStats
   signedEvents: Map<string, NostrEvent> // Pre-signed events
   signer?: any // Loaded signer
-  stage: 'preparing' | 'signing' | 'uploading' | 'publishing' | 'completed' | 'failed'
+  stage: 'idle' | 'preparing' | 'signing' | 'uploading' | 'publishing' | 'completed' | 'failed'
 }
 
 export interface OperationContext extends BaseContext {
@@ -72,7 +72,7 @@ export interface OperationContext extends BaseContext {
 export interface Operation {
   id: string
   type: 'upload' | 'download' | 'sync'
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
   progress: number
   startTime: number
   endTime?: number

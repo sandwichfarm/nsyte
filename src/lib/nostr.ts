@@ -9,7 +9,7 @@ import { toArray } from "rxjs/operators";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
-import type { Signer } from "./upload.ts";
+import type { Signer } from "./auth/signer.ts";
 import type { EventTemplate, NostrEvent } from "nostr-tools";
 
 const log = createLogger("nostr");
