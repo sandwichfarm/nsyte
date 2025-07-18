@@ -7,6 +7,9 @@ import { getDeployBadge, calculateColumnWidths } from '../utils.ts'
 import { renderSyncLegend } from '../../../components/file-sync-indicators.ts'
 
 export class SyncStatusRenderer extends BaseRenderer {
+  private relayColorMap: Map<string, (str: string) => string>
+  private serverColorMap: Map<string, (str: string) => string>
+  
   constructor(
     getState: () => UploadViewState,
     private syncStatusManager: FileSyncStatusManager,
@@ -15,13 +18,24 @@ export class SyncStatusRenderer extends BaseRenderer {
     private configServers: string[]
   ) {
     super(getState)
+    // Get color maps from sync status manager
+    this.relayColorMap = (this.syncStatusManager as any).relayColorMap || new Map()
+    this.serverColorMap = (this.syncStatusManager as any).serverColorMap || new Map()
   }
   
   renderSyncStatusView(startRow: number, width: number, height: number): void {
     const state = this.getState()
     const nsiteContext = this.getNsiteContext()
     
-    // Get sync summary
+    // Show activity stream
+    this.renderActivityStream(startRow, width, height)
+  }
+  
+  private renderActivityStream(startRow: number, width: number, height: number): void {
+    const state = this.getState()
+    const nsiteContext = this.getNsiteContext()
+    
+    // Get sync summary for overview
     const summary = this.syncStatusManager.getSyncSummary(state.files, nsiteContext, state.isDeploying)
     const allSynced = summary.synced === state.files.length && state.files.length > 0
     
@@ -32,9 +46,10 @@ export class SyncStatusRenderer extends BaseRenderer {
     const badgeCol = this.centerText(deployBadge, width)
     this.writeAt(startRow, badgeCol, deployBadge)
     
-    // Show deployment statistics
+    let currentRow = startRow + 2
+    
+    // Show deployment statistics if active
     if (state.stats.totalFiles > 0 || state.stats.totalEvents > 0) {
-      const statsRow = startRow + 1
       const statsParts = []
       
       // Always show blob stats
@@ -53,38 +68,185 @@ export class SyncStatusRenderer extends BaseRenderer {
       
       const statsText = statsParts.join(' ')
       const statsCol = this.centerText(statsText, width)
-      this.writeAt(statsRow, statsCol, statsText)
+      this.writeAt(currentRow, statsCol, statsText)
+      currentRow += 2
     }
     
-    
-    // Show progress grid if files exist
     if (state.files.length > 0) {
-      let gridStartRow = startRow + 2
-      if (state.stats.totalFiles > 0 || state.stats.totalEvents > 0) {
-        gridStartRow += 1
-      }
-      if (!allSynced) {
-        gridStartRow += 1
-      }
-      this.renderProgressGrid(gridStartRow, 1, width)
+      // Calculate remaining height
+      const remainingHeight = height - (currentRow - startRow)
       
-      // Show file list below grid with endpoint status
-      const listStartRow = gridStartRow + 5
-      const listHeight = height - (listStartRow - startRow)
-      if (listHeight > 0) {
-        // Split the width for file list and endpoint status
-        const fileListWidth = Math.floor(width * 0.6)
-        const endpointWidth = width - fileListWidth - 2
-        
-        this.renderCompactFileList(listStartRow, 1, fileListWidth, listHeight)
-        this.renderEndpointStatus(listStartRow, fileListWidth + 2, endpointWidth, listHeight)
+      // Split screen: left for grid, right for endpoints
+      const leftWidth = Math.floor(width * 0.5)
+      const rightWidth = width - leftWidth - 2
+      
+      // Render square grid on the left
+      const gridRows = this.renderSquareProgressGrid(currentRow, 1, leftWidth, remainingHeight)
+      
+      // Render endpoint status on the right
+      this.renderEndpointOverview(currentRow, leftWidth + 2, rightWidth, gridRows + 2)
+      
+      currentRow += gridRows + 2
+      
+      // Show activity stream below in full width
+      const streamHeight = height - (currentRow - startRow)
+      if (streamHeight > 0) {
+        this.renderFileActivityStream(currentRow, 1, width, streamHeight)
       }
     } else {
       // Show empty state
       const emptyMsg = colors.dim('No files loaded. Enter a directory path above.')
       const emptyCol = this.centerText(emptyMsg, width)
-      this.writeAt(startRow + 3, emptyCol, emptyMsg)
+      this.writeAt(currentRow, emptyCol, emptyMsg)
     }
+  }
+  
+  private renderFileActivityStream(startRow: number, startCol: number, width: number, height: number): void {
+    const state = this.getState()
+    const nsiteContext = this.getNsiteContext()
+    
+    // Create activity items from files
+    const activityItems = this.createActivityItems(state.files, nsiteContext, state.isDeploying)
+    
+    // Sort by activity level (most active first)
+    activityItems.sort((a, b) => {
+      // Active items first
+      if (a.isActive && !b.isActive) return -1
+      if (!a.isActive && b.isActive) return 1
+      
+      // Then by priority (errors > partial > local > synced)
+      const priorityOrder: Record<string, number> = { 'error': 4, 'partial': 3, 'local': 2, 'synced': 1 }
+      const aPriority = priorityOrder[a.status] || 0
+      const bPriority = priorityOrder[b.status] || 0
+      
+      if (aPriority !== bPriority) return bPriority - aPriority
+      
+      // Finally by file name
+      return a.fileName.localeCompare(b.fileName)
+    })
+    
+    // Render activity items
+    const visibleItems = activityItems.slice(0, height)
+    
+    visibleItems.forEach((item, index) => {
+      const row = startRow + index
+      this.renderActivityItem(row, startCol, width, item)
+    })
+    
+    // Show overflow indicator if needed
+    if (activityItems.length > height) {
+      const remaining = activityItems.length - height
+      const overflowText = colors.dim(`+${remaining} more files`)
+      this.writeAt(startRow + height - 1, startCol, overflowText)
+    }
+  }
+  
+  private createActivityItems(files: any[], nsiteContext: any, isDeploying: boolean): any[] {
+    return files.map(file => {
+      const syncStatus = this.syncStatusManager.getFileSyncStatus(file, nsiteContext, isDeploying)
+      const isActive = this.isFileActive(file, syncStatus, isDeploying)
+      
+      return {
+        fileName: file.path,
+        status: syncStatus,
+        isActive,
+        file,
+        progress: file.progress || 0,
+        error: file.error
+      }
+    })
+  }
+  
+  private isFileActive(file: any, syncStatus: string, isDeploying: boolean): boolean {
+    // File is active if:
+    // 1. Currently being deployed
+    // 2. Has errors 
+    // 3. Is partially synced
+    // 4. Is uploading or in progress
+    
+    if (isDeploying && (file.status === 'uploading' || file.status === 'signing')) {
+      return true
+    }
+    
+    if (syncStatus === 'error' || file.error) {
+      return true
+    }
+    
+    if (syncStatus === 'partial') {
+      return true
+    }
+    
+    if (file.status === 'uploading' || file.status === 'signing' || file.status === 'publishing') {
+      return true
+    }
+    
+    return false
+  }
+  
+  private renderActivityItem(row: number, startCol: number, width: number, item: any): void {
+    const { fileName, status, isActive, progress, error } = item
+    
+    // Choose colors based on activity level
+    let statusIcon = ' '
+    let fileColor = colors.dim
+    let statusColor = colors.dim
+    
+    if (isActive) {
+      // High contrast for active items
+      if (status === 'error' || error) {
+        statusIcon = '✗'
+        fileColor = colors.red
+        statusColor = colors.red
+      } else if (status === 'partial') {
+        statusIcon = '◐'
+        fileColor = colors.yellow
+        statusColor = colors.yellow
+      } else if (status === 'local') {
+        statusIcon = '○'
+        fileColor = colors.cyan
+        statusColor = colors.cyan
+      } else if (progress > 0 && progress < 100) {
+        statusIcon = '↻'
+        fileColor = colors.blue
+        statusColor = colors.blue
+      }
+    } else {
+      // Low contrast for inactive items
+      if (status === 'synced') {
+        statusIcon = '●'
+        fileColor = colors.dim
+        statusColor = colors.dim
+      } else if (status === 'local') {
+        statusIcon = '○'
+        fileColor = colors.dim
+        statusColor = colors.dim
+      } else {
+        statusIcon = '·'
+        fileColor = colors.dim
+        statusColor = colors.dim
+      }
+    }
+    
+    // Truncate filename to fit
+    const maxFileLen = width - 6
+    const displayName = fileName.length > maxFileLen ? 
+      '...' + fileName.slice(-(maxFileLen - 3)) : fileName
+    
+    // Show progress for active uploading files
+    let progressText = ''
+    if (isActive && progress > 0 && progress < 100) {
+      progressText = colors.dim(` ${progress}%`)
+    }
+    
+    // Show error message for failed files
+    let errorText = ''
+    if (error && isActive) {
+      const maxErrorLen = Math.max(10, width - displayName.length - 10)
+      errorText = colors.red(` ${error.substring(0, maxErrorLen)}`)
+    }
+    
+    const line = `${statusColor(statusIcon)} ${fileColor(displayName)}${progressText}${errorText}`
+    this.writeAt(row, startCol, line)
   }
   
   private renderFileSyncOverview(startRow: number, startCol: number, width: number, height: number): void {
@@ -273,56 +435,176 @@ export class SyncStatusRenderer extends BaseRenderer {
     this.writeAt(row, startCol, endpointStatus)
   }
   
-  private renderProgressGrid(startRow: number, startCol: number, width: number): void {
+  private renderSquareProgressGrid(startRow: number, startCol: number, maxWidth: number, availableHeight: number): number {
     const state = this.getState()
     const nsiteContext = this.getNsiteContext()
     
-    // Calculate grid dimensions to show ALL files
-    const gridWidth = Math.min(width - 2, 80)
-    const gridCols = Math.min(20, Math.floor(gridWidth / 4)) // Larger blocks (4 chars wide)
-    const gridRows = Math.ceil(state.files.length / gridCols)
-    const maxRows = Math.min(gridRows, 8) // Show more rows to fit all files
+    if (state.files.length === 0) return 0
+    
+    // Calculate grid dimensions for square layout
+    const blockSize = 2 // Each block is 2 chars wide
+    const maxCols = Math.floor((maxWidth - 2) / blockSize)
+    
+    // Try to make it square first
+    const idealSize = Math.ceil(Math.sqrt(state.files.length))
+    let gridCols = Math.min(idealSize, maxCols)
+    let gridRows = Math.ceil(state.files.length / gridCols)
+    
+    // Limit height to available space
+    const maxRows = Math.min(availableHeight - 2, 20) // Leave room for overflow text
+    if (gridRows > maxRows) {
+      gridRows = maxRows
+      gridCols = Math.min(Math.ceil(state.files.length / gridRows), maxCols)
+    }
     
     // Center the grid
-    const gridStartCol = startCol + Math.floor((width - (gridCols * 4)) / 2)
+    const gridWidth = gridCols * blockSize
+    const gridStartCol = startCol + Math.floor((maxWidth - gridWidth) / 2)
     
     let fileIndex = 0
-    for (let row = 0; row < maxRows; row++) {
+    for (let row = 0; row < gridRows; row++) {
+      let rowContent = ''
+      
       for (let col = 0; col < gridCols; col++) {
         if (fileIndex >= state.files.length) break
         
         const file = state.files[fileIndex]
         const syncStatus = this.syncStatusManager.getFileSyncStatus(file, nsiteContext, state.isDeploying)
         
-        // Use large blocks with subtle colors
-        let symbol = '██'
-        let color = colors.dim
+        // Choose block style and color based on status
+        let block = '██'
+        let colorFn = colors.dim
         
         if (syncStatus === 'synced') {
-          symbol = '██'
-          color = colors.dim  // Subtle gray for synced files
+          block = '██'
+          colorFn = colors.dim  // Subtle gray for synced files
         } else if (syncStatus === 'partial') {
-          symbol = '▓▓'
-          color = colors.yellow
+          block = '▓▓'
+          colorFn = colors.yellow
         } else if (syncStatus === 'local') {
-          symbol = '▒▒'
-          color = colors.cyan
+          block = '▒▒'
+          colorFn = colors.cyan
         } else if (syncStatus === 'error') {
-          symbol = '××'
-          color = colors.red
+          block = '××'
+          colorFn = colors.red
         }
         
-        this.writeAt(startRow + row, gridStartCol + (col * 4), color(symbol))
+        rowContent += colorFn(block)
         fileIndex++
       }
+      
+      // Write the entire row at once
+      this.writeAt(startRow + row, gridStartCol, rowContent)
     }
     
-    // Only show overflow if we truly can't fit all files
+    // Show overflow indicator if we can't fit all files
+    let usedRows = gridRows
     if (fileIndex < state.files.length) {
       const remaining = state.files.length - fileIndex
       const overflowText = colors.dim(`+${remaining} more`)
-      this.writeAt(startRow + maxRows, gridStartCol, overflowText)
+      this.writeAt(startRow + gridRows, gridStartCol, overflowText)
+      usedRows += 1
     }
+    
+    return usedRows // Return number of rows used
+  }
+  
+  private renderEndpointOverview(startRow: number, startCol: number, width: number, height: number): void {
+    const state = this.getState()
+    const nsiteContext = this.getNsiteContext()
+    
+    // Header
+    this.writeAt(startRow, startCol, colors.bold('Endpoints'))
+    this.drawHorizontalLine(startRow + 1, startCol, Math.min(width, 40))
+    
+    let currentRow = startRow + 3
+    
+    // Relay status with colored dots
+    if (this.configRelays.length > 0 && currentRow - startRow < height) {
+      this.writeAt(currentRow, startCol, colors.dim('Relays:'))
+      currentRow++
+      
+      this.configRelays.slice(0, 5).forEach((relay) => { // Show max 5 relays
+        if (currentRow - startRow >= height - 1) return
+        
+        const relayHost = relay.replace(/^wss?:\/\//, '').split('/')[0]
+        const truncatedHost = relayHost.length > width - 10 ? 
+          relayHost.slice(0, width - 13) + '...' : relayHost
+        
+        // Get sync status for this relay
+        const colorFn = this.relayColorMap.get(relay) || colors.white
+        
+        // Count files synced to this relay
+        const syncedCount = state.files.filter(file => {
+          const status = file.relays?.[relay] as any
+          return status?.status === 'published' || status?.status === 'completed'
+        }).length
+        
+        // Create status dots
+        const dots = this.createStatusDots(syncedCount, state.files.length)
+        
+        this.writeAt(currentRow, startCol + 2, `${colorFn('○')} ${truncatedHost}`)
+        this.writeAt(currentRow, startCol + width - dots.length - 1, dots)
+        currentRow++
+      })
+    }
+    
+    // Server status with colored squares
+    if (this.configServers.length > 0 && currentRow - startRow < height - 2) {
+      currentRow++ // spacing
+      this.writeAt(currentRow, startCol, colors.dim('Servers:'))
+      currentRow++
+      
+      this.configServers.slice(0, 3).forEach((server) => { // Show max 3 servers
+        if (currentRow - startRow >= height - 1) return
+        
+        const serverHost = server.replace(/^https?:\/\//, '').split('/')[0]
+        const truncatedHost = serverHost.length > width - 10 ? 
+          serverHost.slice(0, width - 13) + '...' : serverHost
+        
+        // Get sync status for this server
+        const colorFn = this.serverColorMap.get(server) || colors.white
+        
+        // Count files synced to this server
+        const syncedCount = state.files.filter(file => {
+          const status = file.servers?.[server]
+          return status?.status === 'completed'
+        }).length
+        
+        // Create status dots
+        const dots = this.createStatusDots(syncedCount, state.files.length)
+        
+        this.writeAt(currentRow, startCol + 2, `${colorFn('□')} ${truncatedHost}`)
+        this.writeAt(currentRow, startCol + width - dots.length - 1, dots)
+        currentRow++
+      })
+    }
+  }
+  
+  private createStatusDots(synced: number, total: number): string {
+    if (total === 0) return colors.dim('○○○○○')
+    
+    const percent = (synced / total) * 100
+    const filledDots = Math.round((percent / 100) * 5)
+    
+    let dots = ''
+    for (let i = 0; i < 5; i++) {
+      if (i < filledDots) {
+        if (percent === 100) {
+          dots += colors.green('●')
+        } else if (percent >= 80) {
+          dots += colors.blue('●')
+        } else if (percent >= 50) {
+          dots += colors.yellow('●')
+        } else {
+          dots += colors.red('●')
+        }
+      } else {
+        dots += colors.dim('○')
+      }
+    }
+    
+    return dots
   }
   
   private renderEndpointStatus(startRow: number, startCol: number, width: number, height: number): void {
