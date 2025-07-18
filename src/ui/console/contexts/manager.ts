@@ -944,7 +944,7 @@ export class ConsoleContextManager implements ContextManager {
         servers,
         signer,
         relays,
-        4, // concurrency
+        DEFAULT_CONCURRENCY, // concurrency
         (progress: any) => {
           // Update progress in upload context
           const progressValue = typeof progress === 'number' ? progress : 0
