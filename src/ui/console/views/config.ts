@@ -798,7 +798,7 @@ export class ConfigView implements ConsoleView {
           fields.push({
             key: `${fullKey}[+]`,
             value: '<Add new item>',
-            type: 'special' as any,
+            type: 'special',
             description: 'Add a new item to this array',
             editable: true,
           })
