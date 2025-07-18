@@ -36,17 +36,7 @@ import { createLogger } from "./lib/logger.ts";
 import { header } from "./ui/header.ts";
 import { version } from "./version.ts";
 
-// import {
-//   // bunkerCommand as bunkerCommandHandler,
-//   listBunkers,
-//   importNbunk,
-//   exportNbunk,
-//   connectBunker,
-//   useBunkerForProject,
-//   removeBunker,
-//   showBunkerHelp
-// } from "./commands/bunker.backup.ts";
-
+import { registerBunkerCommand } from "./commands/bunker-cliffy.ts";
 import { handleBunkerCommand } from "./commands/bunker.ts";
 
 const log = createLogger("cli");
@@ -74,6 +64,7 @@ validateCommand(nsite);
 registerDebugCommand(nsite);
 registerAnnounceCommand(nsite);
 registerConfigCommand(nsite);
+registerBunkerCommand(nsite);
 
 /**
  * Display the nsyte header in a random color
@@ -117,6 +108,10 @@ async function main() {
       log.debug(`Config cleanup check failed: ${error}`);
     }
 
+    // Intercept bunker commands before cliffy to preserve control flow
+    // The bunker command requires complex async handling that doesn't work well
+    // with cliffy's execution model. We register it with cliffy for help display
+    // but handle execution directly to maintain proper timeout and cleanup behavior.
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
       await handleBunkerCommand(false);
       return;
