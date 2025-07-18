@@ -735,7 +735,7 @@ export class ConfigView implements ConsoleView {
     }
   }
 
-  private updateConfigValue(fieldIndex: number, newValue: any): void {
+  private updateConfigValue(fieldIndex: number, newValue: ConfigValue): void {
     const field = this.state.fields[fieldIndex]
     const keys = field.key.split('.')
     
