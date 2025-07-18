@@ -632,22 +632,33 @@ export class ConsoleContextManager implements ContextManager {
     // Update upload context to show comparison results
     uploadContext.stats.totalFiles = localFiles.length
     
+    // Update all files in upload context based on comparison results
+    uploadContext.files.forEach(file => {
+      // Check if file already exists remotely
+      const existingFile = existing.find(ef => ef.path === file.path)
+      if (existingFile) {
+        // File already exists remotely - mark as deployed
+        file.status = 'completed'
+        file.progress = 100
+        file.uploadEndTime = Date.now()
+      } else {
+        // Check if file needs to be uploaded
+        const fileToUpload = toTransfer.find(tf => tf.path === file.path)
+        if (fileToUpload) {
+          // File needs to be uploaded - mark as pending
+          file.status = 'pending'
+          file.progress = 0
+        }
+      }
+    })
+    
+    // Update stats for already deployed files
+    const alreadyDeployedCount = existing.length
+    uploadContext.stats.uploadedFiles = alreadyDeployedCount
+    uploadContext.stats.uploadedSize = existing.reduce((sum, file) => sum + (file.size || 0), 0)
+    
     // If no files to transfer, mark as completed (all files are up-to-date)
     if (toTransfer.length === 0) {
-      uploadContext.stats.uploadedFiles = existing.length
-      uploadContext.stats.uploadedSize = existing.reduce((sum, file) => sum + (file.size || 0), 0)
-      
-      // Mark all files as completed (they're already up-to-date)
-      uploadContext.files.forEach(file => {
-        const existingFile = existing.find(ef => ef.path === file.path)
-        if (existingFile) {
-          file.status = 'completed'
-          file.progress = 100
-          file.uploadEndTime = Date.now()
-        }
-      })
-      
-      // Update stage to completed
       uploadContext.stage = 'completed'
       uploadContext.stats.endTime = Date.now()
       uploadContext.isActive = false
@@ -655,6 +666,9 @@ export class ConsoleContextManager implements ContextManager {
       this.notifySubscribers('upload', uploadContext)
       return
     }
+    
+    // Notify subscribers with updated file statuses
+    this.notifySubscribers('upload', uploadContext)
 
     // Load file data for files to transfer
     const preparedFiles: any[] = []
@@ -672,12 +686,31 @@ export class ConsoleContextManager implements ContextManager {
         throw new Error('No servers configured for upload')
       }
       
-      // Mark files as uploading
+      // Mark files as uploading and initialize server/relay status
       uploadContext.files.forEach(file => {
         const fileToUpload = toTransfer.find(tf => tf.path === file.path)
         if (fileToUpload) {
           file.status = 'uploading'
           file.progress = 0
+          
+          // Initialize server status for each server
+          file.servers = file.servers || {}
+          servers.forEach(server => {
+            file.servers![server] = {
+              status: 'uploading',
+              progress: 0,
+              startTime: Date.now()
+            }
+          })
+          
+          // Initialize relay status for each relay (will be used during publishing)
+          file.relays = file.relays || {}
+          relays.forEach(relay => {
+            file.relays![relay] = {
+              status: 'pending',
+              progress: 0
+            }
+          })
         }
       })
       this.notifySubscribers('upload', uploadContext)
@@ -698,10 +731,29 @@ export class ConsoleContextManager implements ContextManager {
           if (typeof progress === 'object' && progress.fileName) {
             const fileIndex = uploadContext.files.findIndex(f => f.path === progress.fileName)
             if (fileIndex !== -1) {
-              uploadContext.files[fileIndex].status = progress.status === 'completed' ? 'completed' : 'uploading'
-              uploadContext.files[fileIndex].progress = progress.progress || 0
+              const file = uploadContext.files[fileIndex]
+              file.status = progress.status === 'completed' ? 'completed' : 'uploading'
+              file.progress = progress.progress || 0
+              
+              // Update server status for this file
+              if (progress.server && file.servers) {
+                file.servers[progress.server] = {
+                  status: progress.status === 'completed' ? 'completed' : 'uploading',
+                  progress: progress.progress || 0,
+                  startTime: file.servers[progress.server]?.startTime || Date.now()
+                }
+              }
+              
               if (progress.status === 'completed') {
-                uploadContext.files[fileIndex].uploadEndTime = Date.now()
+                file.uploadEndTime = Date.now()
+                
+                // Mark all servers as completed for this file
+                if (file.servers) {
+                  Object.keys(file.servers).forEach(server => {
+                    file.servers![server].status = 'completed'
+                    file.servers![server].progress = 100
+                  })
+                }
               }
             }
           }
@@ -717,9 +769,18 @@ export class ConsoleContextManager implements ContextManager {
           const filePath = preparedFiles[index].path
           const fileIndex = uploadContext.files.findIndex(f => f.path === filePath)
           if (fileIndex !== -1) {
-            uploadContext.files[fileIndex].status = 'completed'
-            uploadContext.files[fileIndex].progress = 100
-            uploadContext.files[fileIndex].uploadEndTime = Date.now()
+            const file = uploadContext.files[fileIndex]
+            file.status = 'completed'
+            file.progress = 100
+            file.uploadEndTime = Date.now()
+            
+            // Mark all servers as completed for this file
+            if (file.servers) {
+              Object.keys(file.servers).forEach(server => {
+                file.servers![server].status = 'completed'
+                file.servers![server].progress = 100
+              })
+            }
           }
         }
       })
@@ -729,11 +790,10 @@ export class ConsoleContextManager implements ContextManager {
     }
 
     // Update upload context with completed files
-    uploadContext.stats.uploadedFiles = existing.length + preparedFiles.length
+    const completedFiles = uploadContext.files.filter(f => f.status === 'completed')
+    uploadContext.stats.uploadedFiles = completedFiles.length
     uploadContext.stats.totalFiles = uploadContext.files.length
-    uploadContext.stats.uploadedSize = uploadContext.files
-      .filter(f => f.status === 'completed')
-      .reduce((sum, file) => sum + file.size, 0)
+    uploadContext.stats.uploadedSize = completedFiles.reduce((sum, file) => sum + file.size, 0)
   }
 
   private async publishEvents(uploadContext: UploadContext, operation: any): Promise<void> {
@@ -741,9 +801,38 @@ export class ConsoleContextManager implements ContextManager {
       // For now, skip event publishing since preSignEvents is not implemented
       // In the future, this would publish file metadata events, profile events, etc.
       
+      // Mark relays as publishing for active files
+      const relays = this.config.relays || []
+      uploadContext.files.forEach(file => {
+        if (file.status === 'completed' && file.relays) {
+          relays.forEach(relay => {
+            if (file.relays![relay]) {
+              file.relays![relay].status = 'publishing'
+              file.relays![relay].progress = 50
+            }
+          })
+        }
+      })
+      
+      // Simulate publishing delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Mark relays as published
+      uploadContext.files.forEach(file => {
+        if (file.status === 'completed' && file.relays) {
+          relays.forEach(relay => {
+            if (file.relays![relay]) {
+              file.relays![relay].status = 'published'
+              file.relays![relay].progress = 100
+            }
+          })
+        }
+      })
+      
       // Update progress for publishing phase
       operation.progress = 100
       this.notifySubscribers('operations', this.getContext('operations')!)
+      this.notifySubscribers('upload', uploadContext)
       
       // Mark as no events published for now
       uploadContext.stats.publishedEvents = 0

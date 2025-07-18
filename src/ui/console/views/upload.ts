@@ -6,6 +6,7 @@ import { UploadContext, OperationContext, UploadFileStatus, TimelineEntry, Uploa
 import { colors } from '@cliffy/ansi/colors'
 import { moveCursor, getTerminalSize, clearScreen } from '../../browse/renderer.ts'
 import { createLogger } from '../../../lib/logger.ts'
+import { RELAY_SYMBOL, SERVER_SYMBOL, RELAY_COLORS, SERVER_COLORS } from '../../../commands/ls.ts'
 
 const log = createLogger('upload-view')
 
@@ -26,6 +27,8 @@ export interface UploadViewState {
   currentPath: string
   pathConfirmed: boolean
   isLoadingFiles: boolean
+  propagationPage: number
+  propagationPageSize: number
 }
 
 export class UploadView implements ConsoleView {
@@ -67,7 +70,9 @@ export class UploadView implements ConsoleView {
       deployPath: projectPath,
       currentPath: Deno.realPathSync(projectPath),
       pathConfirmed: false,
-      isLoadingFiles: false
+      isLoadingFiles: false,
+      propagationPage: 0,
+      propagationPageSize: 20
     }
   }
 
@@ -436,9 +441,31 @@ export class UploadView implements ConsoleView {
       return 'inactive'
     }
     
-    // During deployment, check actual connection status
-    // This would be populated by the upload context
-    return 'inactive' // TODO: Get actual status from upload context
+    // During deployment, check if any files are being uploaded to this endpoint
+    const hasActiveFiles = this.state.files.some(file => {
+      if (type === 'server') {
+        const serverStatus = file.servers?.[endpoint]
+        return serverStatus?.status === 'uploading' || serverStatus?.status === 'completed'
+      } else {
+        const relayStatus = file.relays?.[endpoint]
+        return relayStatus?.status === 'publishing' || relayStatus?.status === 'published'
+      }
+    })
+    
+    if (hasActiveFiles) {
+      // Check if currently active
+      const isCurrentlyActive = this.state.files.some(file => {
+        if (type === 'server') {
+          return file.servers?.[endpoint]?.status === 'uploading'
+        } else {
+          return file.relays?.[endpoint]?.status === 'publishing'
+        }
+      })
+      
+      return isCurrentlyActive ? 'connecting' : 'connected'
+    }
+    
+    return 'inactive'
   }
 
   private getConnectionColor(status: string): (str: string) => string {
@@ -569,22 +596,32 @@ export class UploadView implements ConsoleView {
     moveCursor(startRow, startCol)
     Deno.stdout.writeSync(new TextEncoder().encode(colors.bold('File Propagation')))
     
-    // Calculate symbol column width
-    const maxSymbols = this.calculateMaxSymbols()
-    const symbolWidth = Math.min(maxSymbols * 2, 14) // 2 chars per symbol, max 14
+    // Calculate symbol column widths (like browse view)
+    const servers = this.config.servers || []
+    const relays = this.config.relays || []
+    const maxRelayCount = Math.max(relays.length, 3)
+    const maxServerCount = Math.max(servers.length, 3)
+    const symbolWidth = maxRelayCount + 3 + maxServerCount // relays + " | " + servers
     const nameWidth = width - symbolWidth - 3 // Leave space for tree characters
     
-    // Render header
+    // Render header with pagination info
     moveCursor(startRow + 1, startCol)
-    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('─'.repeat(width - 2))))
+    const totalPages = Math.ceil(this.state.files.length / this.state.propagationPageSize)
+    const pageInfo = totalPages > 1 ? ` (${this.state.propagationPage + 1}/${totalPages})` : ''
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('─'.repeat(width - 2 - pageInfo.length)) + pageInfo))
     
-    // Group files by directory for tree structure
-    const fileTree = this.buildFileTree(this.state.files)
+    // Calculate paginated file slice
+    const startIndex = this.state.propagationPage * this.state.propagationPageSize
+    const endIndex = Math.min(startIndex + this.state.propagationPageSize, this.state.files.length)
+    const paginatedFiles = this.state.files.slice(startIndex, endIndex)
+    
+    // Group paginated files by directory for tree structure
+    const fileTree = this.buildFileTree(paginatedFiles)
     
     let currentRow = startRow + 2
     const maxRows = height - 2
     
-    this.renderFileTree(fileTree, currentRow, startCol, nameWidth, symbolWidth, maxRows, '')
+    this.renderFileTree(fileTree, currentRow, startCol, nameWidth, symbolWidth, maxRows, '', maxRelayCount, maxServerCount)
   }
 
   private buildFileTree(files: UploadFileStatus[]): Record<string, any> {
@@ -613,6 +650,8 @@ export class UploadView implements ConsoleView {
     symbolWidth: number, 
     maxRows: number, 
     prefix: string,
+    maxRelayCount: number,
+    maxServerCount: number,
     currentRow: number = startRow
   ): number {
     const entries = Object.entries(tree)
@@ -626,24 +665,26 @@ export class UploadView implements ConsoleView {
       moveCursor(currentRow, startCol)
       
       // Tree structure characters
-      const connector = isLast ? '└── ' : '├── '
+      const connector = isLast ? '└─ ' : '├─ '
       const displayName = name.length > nameWidth - prefix.length - 4 
         ? name.slice(0, nameWidth - prefix.length - 7) + '...'
         : name
       
-      // File name with tree structure
-      const fullName = `${prefix}${connector}${displayName}`
-      
       if (isFile) {
-        // Show file with propagation symbols
+        // Show file with propagation symbols (like browse view)
         const file = subtree.__file as UploadFileStatus
-        const symbols = this.getFilePropagationSymbols(file, symbolWidth)
-        const spacing = ' '.repeat(Math.max(0, nameWidth - fullName.length))
+        const symbols = this.getFilePropagationSymbols(file, maxRelayCount, maxServerCount)
+        const treePrefix = `${prefix}${connector}`
+        const fileName = colors.white(displayName)
         
-        Deno.stdout.writeSync(new TextEncoder().encode(`${fullName}${spacing}${symbols}`))
+        Deno.stdout.writeSync(new TextEncoder().encode(`${symbols} ${colors.gray(treePrefix)}${fileName}`))
       } else {
         // Show directory
-        Deno.stdout.writeSync(new TextEncoder().encode(colors.dim(fullName)))
+        const emptyIndicators = ' '.repeat(maxRelayCount) + ` ${colors.gray('|')} ` + ' '.repeat(maxServerCount)
+        const treePrefix = `${prefix}${connector}`
+        const dirName = colors.gray(displayName + '/')
+        
+        Deno.stdout.writeSync(new TextEncoder().encode(`${emptyIndicators} ${colors.gray(treePrefix)}${dirName}`))
       }
       
       currentRow++
@@ -651,60 +692,62 @@ export class UploadView implements ConsoleView {
       // Recurse into subdirectories
       if (!isFile && subtree && typeof subtree === 'object' && Object.keys(subtree).length > 0) {
         const newPrefix = prefix + (isLast ? '    ' : '│   ')
-        currentRow = this.renderFileTree(subtree, startRow, startCol, nameWidth, symbolWidth, maxRows, newPrefix, currentRow)
+        currentRow = this.renderFileTree(subtree, startRow, startCol, nameWidth, symbolWidth, maxRows, newPrefix, maxRelayCount, maxServerCount, currentRow)
       }
     })
     
     return currentRow
   }
 
-  private getFilePropagationSymbols(file: UploadFileStatus, maxWidth: number): string {
-    let symbols = ''
+  private getFilePropagationSymbols(file: UploadFileStatus, maxRelayCount: number, maxServerCount: number): string {
+    const relays = this.config.relays || []
+    const servers = this.config.servers || []
     
-    // Server symbols (●○✗)
-    const servers = (this.config as any).servers || []
-    servers.forEach(() => {
-      if (symbols.length < maxWidth) {
-        symbols += colors.gray('○') // Default to inactive
+    // Build relay indicators with proper colors - only show symbols for propagated files
+    let relayIndicators = ''
+    relays.forEach((relay, index) => {
+      if (index < maxRelayCount) {
+        const relayStatus = file.relays?.[relay]
+        const colorFn = RELAY_COLORS[index % RELAY_COLORS.length]
+        
+        if (relayStatus?.status === 'published') {
+          relayIndicators += colorFn(RELAY_SYMBOL)
+        } else if (relayStatus?.status === 'publishing') {
+          relayIndicators += colors.yellow(RELAY_SYMBOL)
+        } else if (relayStatus?.status === 'failed') {
+          relayIndicators += colors.red(RELAY_SYMBOL)
+        } else {
+          // Pad with space for non-propagated
+          relayIndicators += ' '
+        }
       }
     })
+    // Pad with spaces for remaining relay slots
+    relayIndicators += ' '.repeat(maxRelayCount - relays.length)
     
-    // Relay symbols (◆◇✗)
-    const relays = (this.config as any).relays || []
-    relays.forEach(() => {
-      if (symbols.length < maxWidth) {
-        symbols += colors.gray('◇') // Default to inactive
+    // Build server indicators with proper colors - only show symbols for propagated files
+    let serverIndicators = ''
+    servers.forEach((server, index) => {
+      if (index < maxServerCount) {
+        const serverStatus = file.servers?.[server]
+        const colorFn = SERVER_COLORS[index % SERVER_COLORS.length]
+        
+        if (serverStatus?.status === 'completed') {
+          serverIndicators += colorFn(SERVER_SYMBOL)
+        } else if (serverStatus?.status === 'uploading') {
+          serverIndicators += colors.yellow(SERVER_SYMBOL)
+        } else if (serverStatus?.status === 'failed') {
+          serverIndicators += colors.red(SERVER_SYMBOL)
+        } else {
+          // Pad with space for non-propagated
+          serverIndicators += ' '
+        }
       }
     })
+    // Pad with spaces for remaining server slots
+    serverIndicators += ' '.repeat(maxServerCount - servers.length)
     
-    // Override with actual statuses if available
-    if (file.servers && typeof file.servers === 'object') {
-      Object.entries(file.servers).forEach(([server, status]) => {
-        // Find position and update symbol
-        if (status && typeof status === 'object' && status.status === 'completed') {
-          symbols = symbols.replace(/○/, colors.green('●'))
-        } else if (status && typeof status === 'object' && status.status === 'uploading') {
-          symbols = symbols.replace(/○/, colors.yellow('○'))
-        } else if (status && typeof status === 'object' && status.status === 'failed') {
-          symbols = symbols.replace(/○/, colors.red('✗'))
-        }
-      })
-    }
-    
-    if (file.relays && typeof file.relays === 'object') {
-      Object.entries(file.relays).forEach(([relay, status]) => {
-        // Find position and update symbol
-        if (status && typeof status === 'object' && status.status === 'published') {
-          symbols = symbols.replace(/◇/, colors.cyan('◆'))
-        } else if (status && typeof status === 'object' && status.status === 'publishing') {
-          symbols = symbols.replace(/◇/, colors.blue('◇'))
-        } else if (status && typeof status === 'object' && status.status === 'failed') {
-          symbols = symbols.replace(/◇/, colors.red('✗'))
-        }
-      })
-    }
-    
-    return symbols
+    return `${relayIndicators} ${colors.gray('│')} ${serverIndicators}`
   }
 
   private renderConfirmDialog(): void {
@@ -842,6 +885,23 @@ export class UploadView implements ConsoleView {
           if (this.state.selectedFile >= this.state.scrollOffset + maxVisible) {
             this.state.scrollOffset++
           }
+          return true
+        }
+        break
+        
+      case 'ArrowLeft':
+        // Previous page in propagation column
+        if (this.state.propagationPage > 0) {
+          this.state.propagationPage--
+          return true
+        }
+        break
+        
+      case 'ArrowRight':
+        // Next page in propagation column
+        const maxPage = Math.ceil(this.state.files.length / this.state.propagationPageSize) - 1
+        if (this.state.propagationPage < maxPage) {
+          this.state.propagationPage++
           return true
         }
         break

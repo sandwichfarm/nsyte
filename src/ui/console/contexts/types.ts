@@ -95,12 +95,14 @@ export interface UploadFileStatus {
     [server: string]: {
       status: 'pending' | 'uploading' | 'completed' | 'failed'
       progress: number
+      startTime?: number
       error?: string
     }
   }
   relays: {
     [relay: string]: {
       status: 'pending' | 'publishing' | 'published' | 'failed'
+      progress: number
       error?: string
     }
   }
