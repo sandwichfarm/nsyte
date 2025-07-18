@@ -12,6 +12,7 @@ import {
 } from '../ui/browse/renderer.ts'
 import { ConsoleView, ConsoleState, Identity } from '../ui/console/types.ts'
 import { ConsoleContextManager } from '../ui/console/contexts/manager.ts'
+import { ContextType } from '../ui/console/contexts/types.ts'
 import { DashboardView } from '../ui/console/views/dashboard.ts'
 import { ConfigView } from '../ui/console/views/config.ts'
 import { BrowseView } from '../ui/console/views/browse.ts'
@@ -201,7 +202,7 @@ export const consoleCommand = new Command()
         if (state) {
           // Check if any view has active operations
           const currentView = state.views[state.currentView]
-          if (currentView && typeof currentView.hasActiveOperations === 'function' && currentView.hasActiveOperations()) {
+          if (currentView && typeof currentView.hasActiveUploadOperations === 'function' && currentView.hasActiveUploadOperations()) {
             render(state)
           }
         }

@@ -8,7 +8,7 @@ export interface ConsoleView {
   render(): void
   handleInput(event: KeyPressEvent): Promise<boolean>
   isEditing?(): boolean
-  hasActiveOperations?(): boolean
+  hasActiveUploadOperations?(): boolean
   getStatus?(): { text: string; color?: (str: string) => string }
   getHotkeys?(): string[]
 }

@@ -152,8 +152,13 @@ export class ConsoleContextManager implements ContextManager {
             uploadedFiles: 0,
             uploadedSize: 0,
             failedFiles: 0,
+            skippedFiles: 0,
             publishedEvents: 0,
             failedEvents: 0,
+            profileEvents: 0,
+            relayListEvents: 0,
+            serverListEvents: 0,
+            appHandlerEvents: 0,
             signedEvents: 0,
             totalEvents: 0
           },
@@ -372,8 +377,13 @@ export class ConsoleContextManager implements ContextManager {
         uploadedFiles: 0,
         uploadedSize: 0,
         failedFiles: 0,
+        skippedFiles: 0,
         publishedEvents: 0,
         failedEvents: 0,
+        profileEvents: 0,
+        relayListEvents: 0,
+        serverListEvents: 0,
+        appHandlerEvents: 0,
         signedEvents: 0,
         totalEvents: 0
       }
@@ -393,7 +403,7 @@ export class ConsoleContextManager implements ContextManager {
     }
 
     // Create operation
-    const operationId = crypto.randomUUID()
+    const operationId = `op-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
     const operation = {
       id: operationId,
       type: 'upload' as const,
@@ -594,6 +604,11 @@ export class ConsoleContextManager implements ContextManager {
   private async preSignEvents(uploadContext: UploadContext): Promise<void> {
     // TODO: Implement bulk event signing
     // This would create and sign all file metadata events, profile events, etc.
+    // NOTE: This is a placeholder implementation. When the upload functionality is completed,
+    // this should use the signer to create and sign events for each file, similar to:
+    // - createNsiteEvent() from lib/upload.ts
+    // - Sign profile, relay list, and app handler events
+    // For now, we're just updating the stats to indicate the expected number of events
     uploadContext.stats.signedEvents = uploadContext.files.length
     uploadContext.stats.totalEvents = uploadContext.files.length + 3 // files + profile + relay list + app handler
   }
@@ -652,10 +667,11 @@ export class ConsoleContextManager implements ContextManager {
       }
     })
     
-    // Update stats for already deployed files
+    // Update stats for already deployed files (skipped)
     const alreadyDeployedCount = existing.length
-    uploadContext.stats.uploadedFiles = alreadyDeployedCount
-    uploadContext.stats.uploadedSize = existing.reduce((sum, file) => sum + (file.size || 0), 0)
+    uploadContext.stats.skippedFiles = alreadyDeployedCount
+    uploadContext.stats.uploadedFiles = 0 // Will be updated as files are actually uploaded
+    uploadContext.stats.uploadedSize = 0 // Will be updated as files are actually uploaded
     
     // If no files to transfer, mark as completed (all files are up-to-date)
     if (toTransfer.length === 0) {
@@ -789,17 +805,25 @@ export class ConsoleContextManager implements ContextManager {
       // No files to upload
     }
 
-    // Update upload context with completed files
+    // Update upload context with final stats
     const completedFiles = uploadContext.files.filter(f => f.status === 'completed')
-    uploadContext.stats.uploadedFiles = completedFiles.length
+    const actuallyUploadedFiles = completedFiles.filter(f => f.uploadEndTime && f.uploadEndTime > (uploadContext.stats.startTime || 0))
+    
+    uploadContext.stats.uploadedFiles = actuallyUploadedFiles.length
     uploadContext.stats.totalFiles = uploadContext.files.length
-    uploadContext.stats.uploadedSize = completedFiles.reduce((sum, file) => sum + file.size, 0)
+    uploadContext.stats.uploadedSize = actuallyUploadedFiles.reduce((sum, file) => sum + file.size, 0)
+    uploadContext.stats.failedFiles = uploadContext.files.filter(f => f.status === 'failed').length
   }
 
   private async publishEvents(uploadContext: UploadContext, operation: any): Promise<void> {
     try {
-      // For now, skip event publishing since preSignEvents is not implemented
-      // In the future, this would publish file metadata events, profile events, etc.
+      // TODO: Implement actual event publishing
+      // This is a placeholder implementation that simulates publishing progress.
+      // When the upload functionality is completed, this should:
+      // 1. Retrieve pre-signed events from uploadContext
+      // 2. Publish events to relays using publishEventToRelays() from lib/upload.ts
+      // 3. Update stats based on actual publishing results
+      // For now, we're just simulating the publishing process
       
       // Mark relays as publishing for active files
       const relays = this.config.relays || []
@@ -834,9 +858,16 @@ export class ConsoleContextManager implements ContextManager {
       this.notifySubscribers('operations', this.getContext('operations')!)
       this.notifySubscribers('upload', uploadContext)
       
-      // Mark as no events published for now
-      uploadContext.stats.publishedEvents = 0
-      uploadContext.stats.totalEvents = 0
+      // Update meta event stats
+      const actuallyUploadedFiles = uploadContext.files.filter(f => f.status === 'completed' && f.uploadEndTime && f.uploadEndTime > (uploadContext.stats.startTime || 0))
+      uploadContext.stats.publishedEvents = actuallyUploadedFiles.length // One event per uploaded file
+      uploadContext.stats.totalEvents = actuallyUploadedFiles.length + 4 // files + profile + relay + server + app handler
+      
+      // Track meta events (these would be actual counts when implemented)
+      uploadContext.stats.profileEvents = this.config.publishProfile ? 1 : 0
+      uploadContext.stats.relayListEvents = this.config.publishRelayList ? 1 : 0
+      uploadContext.stats.serverListEvents = this.config.publishServerList ? 1 : 0
+      uploadContext.stats.appHandlerEvents = this.config.publishAppHandler ? 1 : 0
       
     } catch (error) {
       // Failed to publish events

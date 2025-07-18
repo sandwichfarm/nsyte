@@ -17,7 +17,7 @@ type ConfigValue = string | number | boolean | Record<string, any> | string[]
 
 interface ConfigField {
   key: string
-  value: string | number | boolean | string[] | Record<string, any>
+  value: ConfigValue
   type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'special'
   description?: string
   required?: boolean
@@ -65,8 +65,12 @@ const FIELD_DESCRIPTIONS: Record<string, { description: string; required?: boole
 
 export class ConfigView implements ConsoleView {
   name = 'Config'
-  state: ConfigViewState  // Made public so console can check editing state
+  private state: ConfigViewState  // Encapsulated to maintain internal state integrity
   private projectPath: string
+
+  public getState(): ConfigViewState {
+    return this.state;
+  }
 
   constructor(projectPath: string, config: ProjectConfig) {
     this.projectPath = projectPath
@@ -217,7 +221,7 @@ export class ConfigView implements ConsoleView {
       console.log(colors.yellow(changesText))
     }
     
-    // Remove the help line - it will be handled by the parent console's footer
+    // Help line rendering logic has been fully removed as it is now handled by the parent console's footer.
     
     // Render bunker selection overlay if active
     if (this.state.bunkerSelection?.active) {
@@ -827,7 +831,7 @@ export class ConfigView implements ConsoleView {
             fields.push({
               key: `${fullKey}.+`,
               value: '<Add new property>',
-              type: 'special' as any,
+              type: 'special',
               description: 'Add a new property to this object',
               editable: true,
             })

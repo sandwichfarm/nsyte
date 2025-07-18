@@ -10,6 +10,17 @@ import { RELAY_SYMBOL, SERVER_SYMBOL, RELAY_COLORS, SERVER_COLORS } from '../../
 
 const log = createLogger('upload-view')
 
+export interface SessionConfigOverrides {
+  force?: boolean
+  purge?: boolean
+  publishProfile?: boolean
+  publishRelayList?: boolean
+  publishServerList?: boolean
+  publishAppHandler?: boolean
+  servers?: string[]
+  relays?: string[]
+}
+
 export interface UploadViewState {
   isDeploying: boolean
   isAuthenticated: boolean
@@ -21,6 +32,7 @@ export interface UploadViewState {
   scrollOffset: number
   showConfirmDialog: boolean
   errorMessage?: string
+  errorTimeoutId?: number
   currentOperationId?: string
   isEditingPath: boolean
   deployPath: string
@@ -29,6 +41,11 @@ export interface UploadViewState {
   isLoadingFiles: boolean
   propagationPage: number
   propagationPageSize: number
+  // Session config overrides
+  sessionOverrides: SessionConfigOverrides
+  showConfigOverrides: boolean
+  selectedOverride: number
+  editingOverride: string | null
 }
 
 export class UploadView implements ConsoleView {
@@ -48,7 +65,7 @@ export class UploadView implements ConsoleView {
     
     this.state = {
       isDeploying: false,
-      isAuthenticated: this.identity.authMethod !== 'hex', // Read-only if hex
+      isAuthenticated: this.identity.authMethod !== 'hex', // Not read-only if authMethod is not 'hex'
       files: [],
       timeline: [],
       stats: {
@@ -57,12 +74,17 @@ export class UploadView implements ConsoleView {
         uploadedFiles: 0,
         uploadedSize: 0,
         failedFiles: 0,
+        skippedFiles: 0,
         publishedEvents: 0,
         failedEvents: 0,
+        profileEvents: 0,
+        relayListEvents: 0,
+        serverListEvents: 0,
+        appHandlerEvents: 0,
         signedEvents: 0,
         totalEvents: 0
       },
-      concurrency: (this.config as any).concurrency || 4,
+              concurrency: 4, // Default concurrency, not configurable in ProjectConfig
       selectedFile: 0,
       scrollOffset: 0,
       showConfirmDialog: false,
@@ -72,7 +94,21 @@ export class UploadView implements ConsoleView {
       pathConfirmed: false,
       isLoadingFiles: false,
       propagationPage: 0,
-      propagationPageSize: 20
+      propagationPageSize: 20,
+      // Session config overrides
+      sessionOverrides: {},
+      showConfigOverrides: false,
+      selectedOverride: 0,
+      editingOverride: null
+    }
+  }
+
+  private getEffectiveConfig(): ProjectConfig {
+    return {
+      ...this.config,
+      ...this.state.sessionOverrides,
+      servers: this.state.sessionOverrides.servers || this.config.servers,
+      relays: this.state.sessionOverrides.relays || this.config.relays,
     }
   }
 
@@ -160,25 +196,33 @@ export class UploadView implements ConsoleView {
     const columnsStartRow = 3 + timelineHeight + 1 // After tab bar + timeline + separator
     const remainingHeight = rows - columnsStartRow - 2 // Leave room for footer
     
-    // Calculate column widths - give propagation column space for symbols
-    const maxSymbols = this.calculateMaxSymbols()
-    const propagationWidth = Math.min(Math.floor(cols * 0.4), 50) // Max 40% of screen or 50 chars
-    const remainingWidth = cols - propagationWidth
-    const gridWidth = Math.floor(remainingWidth * 0.4)
-    const statusWidth = remainingWidth - gridWidth
+    // Calculate column widths with proper spacing
+    const gapWidth = 2 // Gap between columns
+    const totalGaps = gapWidth * 2 // Two gaps between three columns
+    const availableWidth = cols - totalGaps
+    
+    // Better column proportions: smaller grid, larger file list, much larger propagation
+    const gridWidth = Math.floor(availableWidth * 0.25) // 25% for grid
+    const statusWidth = Math.floor(availableWidth * 0.35) // 35% for file status
+    const propagationWidth = availableWidth - gridWidth - statusWidth // 40% for propagation
+    
+    // Calculate column start positions with gaps
+    const gridStartCol = 1
+    const statusStartCol = gridStartCol + gridWidth + gapWidth
+    const propagationStartCol = statusStartCol + statusWidth + gapWidth
     
     // Render timeline at top (starting at row 3 after tab bar)
     this.renderTimeline(3, timelineHeight, cols)
     
-    // Render three columns below timeline
+    // Render three columns below timeline with gaps
     // Column 1: Upload progress grid
-    this.renderProgressGrid(columnsStartRow, 1, gridWidth, remainingHeight)
+    this.renderProgressGrid(columnsStartRow, gridStartCol, gridWidth, remainingHeight)
     
     // Column 2: File status list  
-    this.renderFileStatus(columnsStartRow, gridWidth + 1, statusWidth, remainingHeight)
+    this.renderFileStatus(columnsStartRow, statusStartCol, statusWidth, remainingHeight)
     
     // Column 3: File structure propagation (tree-like)
-    this.renderFilePropagation(columnsStartRow, gridWidth + statusWidth + 1, propagationWidth, remainingHeight)
+    this.renderFilePropagation(columnsStartRow, propagationStartCol, propagationWidth, remainingHeight)
     
     // Render confirm dialog if needed
     if (this.state.showConfirmDialog) {
@@ -187,50 +231,87 @@ export class UploadView implements ConsoleView {
   }
 
   private renderPathInput(startRow: number, width: number, height: number): void {
-    const centerRow = startRow + Math.floor(height / 2)
-    const centerCol = Math.floor(width / 2)
+    if (this.state.showConfigOverrides) {
+      this.renderConfigOverrides(startRow, width, height)
+      return
+    }
+
+    // Split screen: left side for path, right side for session config
+    const leftWidth = Math.floor(width * 0.5)
+    const rightWidth = width - leftWidth - 2 // 2 for gap
     
-    // Title
-    moveCursor(centerRow - 3, centerCol - 15)
-    Deno.stdout.writeSync(new TextEncoder().encode(colors.bold.green('🌐 Static Website Files')))
+    // Left side: Path configuration
+    moveCursor(startRow, 1)
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.bold.green('📁 Website Files')))
     
-    // Current path display
-    moveCursor(centerRow - 1, 1)
-    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Current path: ') + colors.cyan(this.state.currentPath)))
-    
-    // Configuration info
-    moveCursor(centerRow, 1)
-    const servers = this.config.servers || []
-    const relays = this.config.relays || []
-    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim(`Config: ${servers.length} servers, ${relays.length} relays`)))
-    
-    // Path input field
-    moveCursor(centerRow + 2, 1)
-    const pathLabel = colors.bold('Website files directory: ')
+    moveCursor(startRow + 2, 1)
+    const pathLabel = colors.bold('Directory: ')
     const pathValue = this.state.deployPath
     const cursor = this.state.isEditingPath ? colors.yellow('█') : ''
     Deno.stdout.writeSync(new TextEncoder().encode(`${pathLabel}${colors.yellow(pathValue)}${cursor}`))
     
-    // Instructions
-    moveCursor(centerRow + 4, 1)
     if (this.state.isEditingPath) {
-      Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Press [Enter] to scan directory, [Esc] to cancel')))
-    } else {
-      Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Press [Enter] to edit path, [Ctrl+Enter] to use current path')))
+      moveCursor(startRow + 3, 1)
+      Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Press [Enter] to scan directory')))
     }
+    
+    moveCursor(startRow + 5, 1)
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Current: ') + colors.cyan(this.state.currentPath)))
+    
+    // Right side: Session config overrides
+    const rightStartCol = leftWidth + 3
+    moveCursor(startRow, rightStartCol)
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.bold.cyan('⚙️  Session Config')))
+    
+    const effectiveConfig = this.getEffectiveConfig()
+    
+    moveCursor(startRow + 2, rightStartCol)
+    Deno.stdout.writeSync(new TextEncoder().encode(`Servers: ${colors.cyan(effectiveConfig.servers?.length || 0)}`))
+    
+    moveCursor(startRow + 3, rightStartCol)
+    Deno.stdout.writeSync(new TextEncoder().encode(`Relays: ${colors.cyan(effectiveConfig.relays?.length || 0)}`))
+    
+    moveCursor(startRow + 5, rightStartCol)
+    const forceText = effectiveConfig.force ? colors.green('enabled') : colors.gray('disabled')
+    Deno.stdout.writeSync(new TextEncoder().encode(`Force deploy: ${forceText}`))
+    
+    moveCursor(startRow + 6, rightStartCol)
+    const purgeText = effectiveConfig.purge ? colors.red('enabled') : colors.gray('disabled')
+    Deno.stdout.writeSync(new TextEncoder().encode(`Purge: ${purgeText}`))
+    
+    moveCursor(startRow + 8, rightStartCol)
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.bold('Meta Events:')))
+    
+    moveCursor(startRow + 9, rightStartCol)
+    const profileText = effectiveConfig.publishProfile ? colors.green('✓') : colors.gray('✗')
+    Deno.stdout.writeSync(new TextEncoder().encode(`${profileText} Profile`))
+    
+    moveCursor(startRow + 10, rightStartCol)
+    const relayListText = effectiveConfig.publishRelayList ? colors.green('✓') : colors.gray('✗')
+    Deno.stdout.writeSync(new TextEncoder().encode(`${relayListText} Relay List`))
+    
+    moveCursor(startRow + 11, rightStartCol)
+    const serverListText = effectiveConfig.publishServerList ? colors.green('✓') : colors.gray('✗')
+    Deno.stdout.writeSync(new TextEncoder().encode(`${serverListText} Server List`))
+    
+    moveCursor(startRow + 12, rightStartCol)
+    const appHandlerText = effectiveConfig.publishAppHandler ? colors.green('✓') : colors.gray('✗')
+    Deno.stdout.writeSync(new TextEncoder().encode(`${appHandlerText} App Handler`))
+    
+    // Bottom instructions
+    moveCursor(startRow + height - 6, 1)
+    Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Press [c] to customize session config, [Enter] to proceed')))
     
     // Error message if any
     if (this.state.errorMessage) {
-      moveCursor(centerRow + 6, 1)
+      moveCursor(startRow + height - 4, 1)
       Deno.stdout.writeSync(new TextEncoder().encode(colors.red('❌ ' + this.state.errorMessage)))
     }
     
     // Authentication warning if needed
     if (!this.state.isAuthenticated) {
-      moveCursor(centerRow + 8, 1)
+      moveCursor(startRow + height - 2, 1)
       Deno.stdout.writeSync(new TextEncoder().encode(colors.red('⚠️  Authentication required for deployment')))
-      moveCursor(centerRow + 9, 1)
-      Deno.stdout.writeSync(new TextEncoder().encode(colors.dim('Switch to an authenticated identity to deploy')))
     }
   }
   
@@ -247,8 +328,8 @@ export class UploadView implements ConsoleView {
 
   private calculateMaxSymbols(): number {
     // Calculate max possible symbols from config
-    const servers = (this.config as any).servers?.length || 0
-    const relays = (this.config as any).relays?.length || 0
+    const servers = this.config.servers?.length || 0
+    const relays = this.config.relays?.length || 0
     return servers + relays
   }
 
@@ -328,8 +409,14 @@ export class UploadView implements ConsoleView {
         
         // Clear error after 5 seconds
         if (!this.state.isDeploying) {
-          setTimeout(() => {
+          // Clear any existing error timeout
+          if (this.state.errorTimeoutId) {
+            clearTimeout(this.state.errorTimeoutId)
+          }
+          
+          this.state.errorTimeoutId = setTimeout(() => {
             this.state.errorMessage = undefined
+            this.state.errorTimeoutId = undefined
           }, 5000)
         }
       }
@@ -341,17 +428,29 @@ export class UploadView implements ConsoleView {
     Deno.stdout.writeSync(new TextEncoder().encode(colors.bold.green('✅ Deployment Complete')))
     
     const duration = this.state.stats.endTime! - this.state.stats.startTime!
-    const successRate = this.state.stats.totalFiles > 0 ? 
-      (this.state.stats.uploadedFiles / this.state.stats.totalFiles * 100).toFixed(1) : '0'
     
+    // File deployment stats: Deployed / Failed / Skipped
     moveCursor(startRow + 1, 1)
-    Deno.stdout.writeSync(new TextEncoder().encode(`${this.state.stats.uploadedFiles}/${this.state.stats.totalFiles} files • ` +
-                `${this.formatSize(this.state.stats.uploadedSize)} • ` +
-                `${this.formatDuration(duration)} • ` +
-                `${successRate}% success`))
+    const deployedText = colors.green(`${this.state.stats.uploadedFiles} deployed`)
+    const failedText = this.state.stats.failedFiles > 0 ? colors.red(`${this.state.stats.failedFiles} failed`) : ''
+    const skippedText = this.state.stats.skippedFiles > 0 ? colors.yellow(`${this.state.stats.skippedFiles} skipped`) : ''
     
+    const fileParts = [deployedText, failedText, skippedText].filter(Boolean)
+    Deno.stdout.writeSync(new TextEncoder().encode(`Files: ${fileParts.join(' • ')} • ${this.formatDuration(duration)}`))
+    
+    // Meta events stats
     moveCursor(startRow + 2, 1)
-    Deno.stdout.writeSync(new TextEncoder().encode(`Events: ${this.state.stats.publishedEvents} published, ${this.state.stats.failedEvents} failed`))
+    const metaEventParts = []
+    if (this.state.stats.profileEvents > 0) metaEventParts.push(`${this.state.stats.profileEvents} profile`)
+    if (this.state.stats.relayListEvents > 0) metaEventParts.push(`${this.state.stats.relayListEvents} relay list`)
+    if (this.state.stats.serverListEvents > 0) metaEventParts.push(`${this.state.stats.serverListEvents} server list`)
+    if (this.state.stats.appHandlerEvents > 0) metaEventParts.push(`${this.state.stats.appHandlerEvents} app handler`)
+    
+    const eventsText = metaEventParts.length > 0 ? 
+      `Meta events: ${metaEventParts.join(', ')}` : 
+      'Meta events: none published'
+    
+    Deno.stdout.writeSync(new TextEncoder().encode(eventsText))
   }
 
   private renderProgressGrid(startRow: number, startCol: number, width: number, height: number): void {
@@ -393,8 +492,8 @@ export class UploadView implements ConsoleView {
     Deno.stdout.writeSync(new TextEncoder().encode(colors.bold('Connections')))
     
     // Get servers and relays from identity context
-    const servers = (this.config as any).servers || []
-    const relays = (this.config as any).relays || []
+    const servers = this.config.servers || []
+    const relays = this.config.relays || []
     
     let currentRow = startRow + 1
     
@@ -599,10 +698,10 @@ export class UploadView implements ConsoleView {
     // Calculate symbol column widths (like browse view)
     const servers = this.config.servers || []
     const relays = this.config.relays || []
-    const maxRelayCount = Math.max(relays.length, 3)
-    const maxServerCount = Math.max(servers.length, 3)
+    const maxRelayCount = Math.min(relays.length, 8) // Cap at 8 to save space
+    const maxServerCount = Math.min(servers.length, 8) // Cap at 8 to save space
     const symbolWidth = maxRelayCount + 3 + maxServerCount // relays + " | " + servers
-    const nameWidth = width - symbolWidth - 3 // Leave space for tree characters
+    const nameWidth = Math.max(width - symbolWidth - 5, 20) // Ensure minimum name width
     
     // Render header with pagination info
     moveCursor(startRow + 1, startCol)
@@ -760,8 +859,10 @@ export class UploadView implements ConsoleView {
     // Draw dialog box
     for (let row = 0; row < dialogHeight; row++) {
       moveCursor(startRow + row, startCol)
-      if (row === 0 || row === dialogHeight - 1) {
+      if (row === 0) {
         Deno.stdout.writeSync(new TextEncoder().encode('┌' + '─'.repeat(dialogWidth - 2) + '┐'))
+      } else if (row === dialogHeight - 1) {
+        Deno.stdout.writeSync(new TextEncoder().encode('└' + '─'.repeat(dialogWidth - 2) + '┘'))
       } else {
         Deno.stdout.writeSync(new TextEncoder().encode('│' + ' '.repeat(dialogWidth - 2) + '│'))
       }
@@ -1057,7 +1158,7 @@ export class UploadView implements ConsoleView {
     return this.state.showConfirmDialog || this.state.isEditingPath
   }
 
-  hasActiveOperations(): boolean {
+  hasActiveUploadOperations(): boolean {
     return this.state.isDeploying || this.state.isLoadingFiles
   }
 
@@ -1070,8 +1171,13 @@ export class UploadView implements ConsoleView {
     }
     
     if (this.state.isDeploying) {
+      const uploadedText = this.state.stats.uploadedFiles > 0 ? `${this.state.stats.uploadedFiles} uploaded` : ''
+      const skippedText = this.state.stats.skippedFiles > 0 ? `${this.state.stats.skippedFiles} skipped` : ''
+      const parts = [uploadedText, skippedText].filter(Boolean)
+      const progress = parts.length > 0 ? ` (${parts.join(', ')})` : ''
+      
       return {
-        text: `Deploying... ${this.state.stats.uploadedFiles}/${this.state.stats.totalFiles} files`,
+        text: `Deploying ${this.state.stats.totalFiles} files${progress}`,
         color: colors.yellow
       }
     }

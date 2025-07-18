@@ -127,8 +127,13 @@ export interface UploadStats {
   uploadedFiles: number
   uploadedSize: number
   failedFiles: number
+  skippedFiles: number
   publishedEvents: number
   failedEvents: number
+  profileEvents: number
+  relayListEvents: number
+  serverListEvents: number
+  appHandlerEvents: number
   startTime?: number
   endTime?: number
   signedEvents: number
