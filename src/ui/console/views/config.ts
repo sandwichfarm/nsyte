@@ -13,6 +13,8 @@ import {
   exitAlternateScreen,
 } from '../../browse/renderer.ts'
 
+type ConfigValue = string | number | boolean | Record<string, any> | string[]
+
 interface ConfigField {
   key: string
   value: string | number | boolean | string[] | Record<string, any>
@@ -338,7 +340,7 @@ export class ConfigView implements ConsoleView {
           const keys = arrayKey.split('.')
           
           // Navigate to array in config
-          let current = this.state.config
+          let current: any = this.state.config
           for (let i = 0; i < keys.length - 1; i++) {
             current = current[keys[i]]
           }
@@ -494,7 +496,7 @@ export class ConfigView implements ConsoleView {
       const keys = arrayKey.split('.')
       
       // Navigate to array in config
-      let current = this.state.config
+      let current: any = this.state.config
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]]
       }
@@ -546,7 +548,7 @@ export class ConfigView implements ConsoleView {
         const keys = objectKey.split('.')
         
         // Navigate to object in config
-        let current = this.state.config
+        let current: any = this.state.config
         for (let i = 0; i < keys.length - 1; i++) {
           current = current[keys[i]]
         }
@@ -602,7 +604,7 @@ export class ConfigView implements ConsoleView {
           const keys = arrayKey.split('.')
           
           // Navigate to array in config
-          let current = this.state.config
+          let current: any = this.state.config
           for (let i = 0; i < keys.length - 1; i++) {
             current = current[keys[i]]
           }
@@ -630,7 +632,7 @@ export class ConfigView implements ConsoleView {
           const propertyName = keys[keys.length - 1]
           
           // Navigate to parent object
-          let current = this.state.config
+          let current: any = this.state.config
           for (let i = 0; i < keys.length - 2; i++) {
             current = current[keys[i]]
           }
@@ -740,7 +742,7 @@ export class ConfigView implements ConsoleView {
     const keys = field.key.split('.')
     
     // Update the actual config object
-    let current = this.state.config
+    let current: any = this.state.config
     for (let i = 0; i < keys.length - 1; i++) {
       if (!current[keys[i]]) {
         current[keys[i]] = {}
@@ -869,9 +871,9 @@ export class ConfigView implements ConsoleView {
     } else if (field.type === 'boolean') {
       return String(field.value)
     } else if (field.type === 'special' && (field.key.endsWith('[+]') || field.key.endsWith('.+'))) {
-      return field.value
+      return String(field.value)
     } else {
-      return field.value || '<empty>'
+      return String(field.value || '<empty>')
     }
   }
 
