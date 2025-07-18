@@ -68,10 +68,29 @@ export class ConfigView implements ConsoleView {
   private state: ConfigViewState  // Encapsulated to maintain internal state integrity
   private projectPath: string
 
-  public getState(): ConfigViewState {
-    return this.state;
+  public getFields(): ConfigField[] {
+    return [...this.state.fields]; // Return a shallow copy to prevent mutations
   }
 
+  public getSelectedIndex(): number {
+    return this.state.selectedIndex;
+  }
+
+  public getEditingIndex(): number | null {
+    return this.state.editingIndex;
+  }
+
+  public getConfig(): ProjectConfig {
+    return structuredClone(this.state.config); // Return a deep copy to prevent mutations
+  }
+
+  public getStatus(): string {
+    return this.state.status;
+  }
+
+  public getShowHelp(): boolean {
+    return this.state.showHelp;
+  }
   constructor(projectPath: string, config: ProjectConfig) {
     this.projectPath = projectPath
     const configPath = `${projectPath}/.nsite/config.json`
