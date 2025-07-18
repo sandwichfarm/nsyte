@@ -15,7 +15,7 @@ import {
 
 interface ConfigField {
   key: string
-  value: any
+  value: string | number | boolean | string[] | Record<string, any>
   type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'special'
   description?: string
   required?: boolean
