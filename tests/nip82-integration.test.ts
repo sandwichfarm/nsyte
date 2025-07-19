@@ -1,17 +1,18 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.220.0/assert/mod.ts";
-import { join } from "https://deno.land/std@0.220.0/path/mod.ts";
-import { PrivateKeySigner } from "../src/lib/signer.ts";
+import { SimpleSigner } from "applesauce-signers";
 import {
-  createSoftwareApplicationEvent,
   createFileMetadataEvent,
   createReleaseArtifactSetEvent,
+  createSoftwareApplicationEvent,
 } from "../src/lib/nostr.ts";
 import { detectPlatformsFromFileName } from "../src/lib/archive.ts";
 
 Deno.test("NIP-82 Integration - Full release workflow with application metadata", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
   const pubkey = await signer.getPublicKey();
-  
+
   // Step 1: Create software application event
   const appId = "com.example.myapp";
   const appEvent = await createSoftwareApplicationEvent(
@@ -24,12 +25,12 @@ Deno.test("NIP-82 Integration - Full release workflow with application metadata"
       repository: "https://github.com/example/myapp",
       platforms: ["web", "linux", "windows", "macos"],
       license: "Apache-2.0",
-    }
+    },
   );
-  
+
   assertEquals(appEvent.kind, 32267);
   assertExists(appEvent.id);
-  
+
   // Step 2: Create platform-specific release artifacts
   const artifacts = [
     {
@@ -51,42 +52,45 @@ Deno.test("NIP-82 Integration - Full release workflow with application metadata"
       size: 15728640, // 15MB
     },
   ];
-  
+
   const fileEventIds: string[] = [];
-  
+
   for (const artifact of artifacts) {
     // Detect platforms from filename
     const platforms = detectPlatformsFromFileName(artifact.filename);
-    
+
     const fileEvent = await createFileMetadataEvent(
       signer,
       {
         url: artifact.url,
-        mimeType: artifact.filename.endsWith(".dmg") ? "application/x-apple-diskimage" :
-                  artifact.filename.endsWith(".zip") ? "application/zip" : "application/gzip",
+        mimeType: artifact.filename.endsWith(".dmg")
+          ? "application/x-apple-diskimage"
+          : artifact.filename.endsWith(".zip")
+          ? "application/zip"
+          : "application/gzip",
         sha256: artifact.hash,
         size: artifact.size,
         platforms,
       },
-      `Release v1.0.0 - ${artifact.filename}`
+      `Release v1.0.0 - ${artifact.filename}`,
     );
-    
+
     assertEquals(fileEvent.kind, 1063);
     assertExists(fileEvent.id);
-    
+
     // Verify platform tags
-    const platformTags = fileEvent.tags.filter(t => t[0] === "f");
+    const platformTags = fileEvent.tags.filter((t) => t[0] === "f");
     if (artifact.filename.includes("linux")) {
-      assertEquals(platformTags.some(t => t[1] === "linux"), true);
+      assertEquals(platformTags.some((t) => t[1] === "linux"), true);
     } else if (artifact.filename.includes("windows")) {
-      assertEquals(platformTags.some(t => t[1] === "windows"), true);
+      assertEquals(platformTags.some((t) => t[1] === "windows"), true);
     } else if (artifact.filename.includes("macos")) {
-      assertEquals(platformTags.some(t => t[1] === "macos"), true);
+      assertEquals(platformTags.some((t) => t[1] === "macos"), true);
     }
-    
+
     fileEventIds.push(fileEvent.id);
   }
-  
+
   // Step 3: Create release event linking to application
   const releaseEvent = await createReleaseArtifactSetEvent(
     signer,
@@ -94,32 +98,34 @@ Deno.test("NIP-82 Integration - Full release workflow with application metadata"
     "v1.0.0",
     fileEventIds,
     "First stable release with multi-platform support",
-    appId
+    appId,
   );
-  
+
   assertEquals(releaseEvent.kind, 30063);
-  
+
   // Verify application reference
-  const appRef = releaseEvent.tags.find(t => t[0] === "a");
+  const appRef = releaseEvent.tags.find((t) => t[0] === "a");
   assertEquals(appRef?.[1], `32267:${pubkey}:${appId}`);
-  
+
   // Verify all file events are referenced
-  const eventRefs = releaseEvent.tags.filter(t => t[0] === "e");
+  const eventRefs = releaseEvent.tags.filter((t) => t[0] === "e");
   assertEquals(eventRefs.length, 3);
-  assertEquals(eventRefs.map(t => t[1]).sort(), fileEventIds.sort());
-  
+  assertEquals(eventRefs.map((t) => t[1]).sort(), fileEventIds.sort());
+
   // Verify d-tag format
-  const dTag = releaseEvent.tags.find(t => t[0] === "d");
+  const dTag = releaseEvent.tags.find((t) => t[0] === "d");
   assertEquals(dTag?.[1], "myapp@v1.0.0");
 });
 
 Deno.test("NIP-82 Integration - Incremental release building", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
-  
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
+
   // Simulate multiple CI runs adding artifacts to the same release
   const version = "v2.0.0";
   const allEventIds: string[] = [];
-  
+
   // CI Run 1: Linux build
   const linuxEvent = await createFileMetadataEvent(
     signer,
@@ -130,10 +136,10 @@ Deno.test("NIP-82 Integration - Incremental release building", async () => {
       size: 10000000,
       platforms: ["linux"],
     },
-    `Release ${version} - app-linux.tar.gz`
+    `Release ${version} - app-linux.tar.gz`,
   );
   allEventIds.push(linuxEvent.id);
-  
+
   // CI Run 2: Windows build (would append to existing release)
   const windowsEvent = await createFileMetadataEvent(
     signer,
@@ -144,10 +150,10 @@ Deno.test("NIP-82 Integration - Incremental release building", async () => {
       size: 12000000,
       platforms: ["windows"],
     },
-    `Release ${version} - app-windows.zip`
+    `Release ${version} - app-windows.zip`,
   );
   allEventIds.push(windowsEvent.id);
-  
+
   // CI Run 3: macOS build (would append to existing release)
   const macosEvent = await createFileMetadataEvent(
     signer,
@@ -158,10 +164,10 @@ Deno.test("NIP-82 Integration - Incremental release building", async () => {
       size: 15000000,
       platforms: ["macos"],
     },
-    `Release ${version} - app-macos.dmg`
+    `Release ${version} - app-macos.dmg`,
   );
   allEventIds.push(macosEvent.id);
-  
+
   // Final release would contain all three artifacts
   const finalRelease = await createReleaseArtifactSetEvent(
     signer,
@@ -169,12 +175,12 @@ Deno.test("NIP-82 Integration - Incremental release building", async () => {
     version,
     allEventIds,
     "Version 2.0.0 with all platform builds",
-    "com.example.myapp"
+    "com.example.myapp",
   );
-  
-  const eventRefs = finalRelease.tags.filter(t => t[0] === "e");
+
+  const eventRefs = finalRelease.tags.filter((t) => t[0] === "e");
   assertEquals(eventRefs.length, 3);
-  assertEquals(eventRefs.map(t => t[1]).sort(), allEventIds.sort());
+  assertEquals(eventRefs.map((t) => t[1]).sort(), allEventIds.sort());
 });
 
 Deno.test("NIP-82 Integration - Platform detection edge cases", () => {
@@ -221,7 +227,7 @@ Deno.test("NIP-82 Integration - Platform detection edge cases", () => {
     assertEquals(
       detected.sort(),
       expectedPlatforms.sort(),
-      `${description}: ${filename}`
+      `${description}: ${filename}`,
     );
   }
 });

@@ -1,10 +1,9 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Secret, Select } from "@cliffy/prompt";
-import { type NostrConnectSigner, SimpleSigner } from "applesauce-signers";
+import { type Nip07Interface, type NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { defaultConfig, type ProjectConfig, readProjectFile } from "./config.ts";
 import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
-import { PrivateKeySigner, type Signer } from "./signer.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 import { importFromNbunk } from "./nip46.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
@@ -86,7 +85,7 @@ export async function resolvePubkey(
 
   // Private key provided - derive pubkey
   if (options.privatekey) {
-    const signer = new PrivateKeySigner(options.privatekey);
+    const signer = SimpleSigner.fromKey(options.privatekey);
     const pubkey = await signer.getPublicKey();
     log.debug(`Using pubkey from private key: ${pubkey.slice(0, 8)}...`);
     return pubkey;
@@ -286,7 +285,7 @@ async function interactiveKeySelection(): Promise<string | undefined> {
 export async function createSigner(
   options: ResolverOptions,
   config?: ProjectConfig | null,
-): Promise<Signer | null> {
+): Promise<Nip07Interface | null> {
   // nbunksec option (for CI)
   if (options.nbunksec) {
     log.info("Using nbunksec from command line...");
@@ -301,7 +300,7 @@ export async function createSigner(
 
   // Private key option
   if (options.privatekey) {
-    return new PrivateKeySigner(options.privatekey);
+    return SimpleSigner.fromKey(options.privatekey);
   }
 
   // Check project config for bunker
