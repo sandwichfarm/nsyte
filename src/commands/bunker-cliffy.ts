@@ -16,7 +16,7 @@ export function registerBunkerCommand(program: Command): void {
     .description("Manage NIP-46 bunker connections and nbunks")
     .action(() => {
       // This action will never be called - the direct handler intercepts first
-      console.log("This should not be reached");
+      console.error("Unexpected code path reached in bunker command. This suggests a bug in the command interception logic.");
     })
     // List subcommand
     .command("list", "List all stored bunkers in the system")
