@@ -20,15 +20,21 @@ export function registerBunkerCommand(program: Command): void {
     })
     // List subcommand
     .command("list", "List all stored bunkers in the system")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only.
+    })
     .reset()
     // Import subcommand
     .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only.
+    })
     .reset()
     // Export subcommand
     .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only.
+    })
     .reset()
     // Connect subcommand with complex URL handling
     .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
