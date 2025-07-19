@@ -19,7 +19,7 @@ nsyte run [npub] [options]
 
 ## Options
 
-- `-p, --port <port>`: Port number to run the resolver on (default: 8080)
+- `-p, --port <port>`: Port number to run the resolver on (default: 6798)
 - `-r, --relays <relays>`: Comma-separated list of nostr relays to use
 - `-k, --privatekey <nsec>`: Private key for signing operations
 - `-b, --bunker <url>`: NIP-46 bunker URL for signing
@@ -35,9 +35,9 @@ nsyte run [npub] [options]
 nsyte run
 ```
 
-Starts the resolver on `http://localhost:8080`. Accessing localhost redirects to a demo npub. You can access any nsite at:
-- `http://npub1abc123.localhost:8080`
-- `http://npub1def456.localhost:8080`
+Starts the resolver on `http://localhost:6798`. Accessing localhost redirects to a demo npub. You can access any nsite at:
+- `http://npub1abc123.localhost:6798`
+- `http://npub1def456.localhost:6798`
 
 ### Launch Specific npub
 
@@ -53,7 +53,7 @@ Starts the resolver and when you access localhost, it will redirect to the speci
 nsyte run --port 3000
 ```
 
-Serves on port 3000 instead of the default 8080.
+Serves on port 3000 instead of the default 6798.
 
 ### Custom Relays
 
@@ -82,7 +82,7 @@ npub1[bech32-encoded-pubkey].[base-domain]
 
 Examples:
 - `npub1abc123def456.localhost:3000`
-- `npub1xyz789uvw012.local.dev:8080`
+- `npub1xyz789uvw012.local.dev:6798`
 
 ## DNS Setup for Production
 

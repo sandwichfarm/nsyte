@@ -30,7 +30,7 @@ export function registerRunCommand(program: Command): void {
     .description("Run a resolver server that serves nsites via npub subdomains. Optionally specify an npub to launch instead of default.")
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
-    .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 8080 })
+    .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 6798 })
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
@@ -72,7 +72,7 @@ function extractNpubFromHost(hostname: string): string | null {
  */
 export async function runCommand(options: RunOptions, npub?: string): Promise<void> {
   try {
-    const port = options.port || 8080;
+    const port = options.port || 6798;
     
     // Validate npub parameter if provided
     let targetNpub = "npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta"; // default
