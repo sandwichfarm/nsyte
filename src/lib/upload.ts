@@ -327,89 +327,107 @@ export async function processUploads(
   }
 
   const results: UploadResponse[] = [];
+  const resultsMap = new Map<FileEntry, UploadResponse>();
   const queue = [...files];
-
   const errors: Array<{ file: string; error: string }> = [];
 
-  while (queue.length > 0) {
-    const chunk = queue.splice(0, Math.min(concurrency, queue.length));
-    progress.inProgress = chunk.length;
+  // Create a pool of workers that maintain constant concurrency
+  let queueIndex = 0;
+  let activeWorkers = 0;
+  
+  // Worker function that continuously processes files from the queue
+  const worker = async (): Promise<void> => {
+    while (true) {
+      // Atomically get next file index
+      const currentIndex = queueIndex++;
+      if (currentIndex >= queue.length) {
+        break;
+      }
+      
+      const file = queue[currentIndex];
+      activeWorkers++;
+      
+      progress.inProgress = activeWorkers;
+      if (progressCallback) {
+        progressCallback({ ...progress });
+      }
+      
+      try {
+        const result = await uploadFile(file, baseDir, servers, signer, relays);
+        resultsMap.set(file, result);
 
-    if (progressCallback) {
-      progressCallback({ ...progress });
-    }
+        if (result.success) {
+          progress.completed++;
 
-    const chunkResults = await Promise.all(
-      chunk.map(async (file) => {
-        try {
-          return await uploadFile(file, baseDir, servers, signer, relays);
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-
-          if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
-            log.warn(`Rate limiting detected while uploading ${file.path}: ${errorMessage}`);
-
-            return {
-              file,
-              success: true,
-              error: `Relay rate limited: ${errorMessage}`,
-              eventPublished: false,
-              serverResults: {},
-            };
+          if (
+            result.error &&
+            (result.error.includes("rate-limit") || result.error.includes("noting too much"))
+          ) {
+            log.warn(
+              `Upload for ${result.file.path} succeeded but event publishing was rate-limited`,
+            );
           }
+        } else {
+          progress.failed++;
+          errors.push({
+            file: result.file.path,
+            error: result.error || "Unknown error",
+          });
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
+        if (errorMessage.includes("rate-limit") || errorMessage.includes("noting too much")) {
+          log.warn(`Rate limiting detected while uploading ${file.path}: ${errorMessage}`);
+
+          resultsMap.set(file, {
+            file,
+            success: true,
+            error: `Relay rate limited: ${errorMessage}`,
+            eventPublished: false,
+            serverResults: {},
+          });
+          progress.completed++;
+        } else {
           log.error(`Failed to upload ${file.path}: ${errorMessage}`);
-          return {
+          resultsMap.set(file, {
             file,
             success: false,
             error: errorMessage,
             serverResults: {},
             eventPublished: false,
-          };
+          });
+          progress.failed++;
+          errors.push({
+            file: file.path,
+            error: errorMessage,
+          });
         }
-      }),
-    ).catch((error) => {
-      log.error(`Error processing batch: ${error.message || error}`);
-      return chunk.map((file) => ({
-        file,
-        success: false,
-        error: `Batch processing error: ${error.message || error}`,
-        serverResults: {},
-        eventPublished: false,
-      }));
-    });
-
-    for (const result of chunkResults) {
-      results.push(result);
-
-      if (result.success) {
-        progress.completed++;
-
-        if (
-          result.error &&
-          (result.error.includes("rate-limit") || result.error.includes("noting too much"))
-        ) {
-          log.warn(
-            `Upload for ${result.file.path} succeeded but event publishing was rate-limited`,
-          );
-        }
-      } else {
-        progress.failed++;
-        errors.push({
-          file: result.file.path,
-          error: result.error || "Unknown error",
-        });
       }
 
-      progress.inProgress = Math.max(0, progress.inProgress - 1);
+      activeWorkers--;
+      progress.inProgress = activeWorkers;
 
       if (progressCallback) {
         progressCallback({ ...progress });
       }
     }
+  };
 
-    if (queue.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+  // Start workers up to concurrency limit
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < Math.min(concurrency, queue.length); i++) {
+    workers.push(worker());
+  }
+
+  // Wait for all workers to complete
+  await Promise.all(workers);
+
+  // Preserve original order of results
+  for (const file of files) {
+    const result = resultsMap.get(file);
+    if (result) {
+      results.push(result);
     }
   }
 
