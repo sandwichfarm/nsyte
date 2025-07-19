@@ -43,19 +43,27 @@ export function registerBunkerCommand(program: Command): void {
     .option("--secret <secret:string>", "Connection secret")
     .option("--no-persist", "Display nbunksec without storing it")
     .option("--force-encrypted-storage", "Force use of encrypted file storage instead of OS keychain")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only
+    })
     .reset()
     // Use subcommand
     .command("use [pubkey:string]", "Configure current project to use a bunker")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only
+    })
     .reset()
     // Remove subcommand
     .command("remove [pubkey:string]", "Remove a bunker from storage")
-    .action(() => {})
+    .action(() => {
+      // No-op: This handler is for help menu display only
+    })
     .reset()
     // Migrate subcommand
     .command("migrate [...pubkeys:string]", "Rebuild index for existing keychain bunkers")
-    .action(() => {});
+    .action(() => {
+      // No-op: This handler is for help menu display only
+    });
 
   // Register the bunker command to the main program
   program.command("bunker", bunker);
