@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { assertSpyCall, assertSpyCalls, type Spy, type Stub, stub } from "jsr:@std/testing/mock";
+import { SimpleSigner } from "applesauce-signers/signers";
 import { Signer as LibSigner, UploadProgress, UploadResponse } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
 import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
 import { uploadCommand, type UploadCommandOptions } from "../../src/commands/upload.ts";
@@ -11,9 +12,10 @@ import * as config from "../../src/lib/config.ts";
 import * as files from "../../src/lib/files.ts";
 import * as nostr from "../../src/lib/nostr.ts";
 import * as nip46 from "../../src/lib/nip46.ts";
-import { PrivateKeySigner } from "../../src/lib/signer.ts";
 import { ProjectConfig, ProjectContext } from "../../src/lib/config.ts";
 import { createLogger } from "../../src/lib/logger.ts"; // To get the logger instance
+import { verifiedSymbol } from "nostr-tools";
+import { VerifiedEvent } from "nostr-tools";
 
 // MockSigner class for "Upload Module" tests (can remain as is if not used by uploadCommand tests)
 class MockSigner implements LibSigner {
@@ -53,9 +55,9 @@ let commandLoggerStubbedError:
 let consoleErrorStub: Stub<Console, Parameters<Console["error"]>, void> | undefined;
 let consoleLogStub: Stub<Console, Parameters<Console["log"]>, void> | undefined; // For specific tests needing to check output
 
-let pksGetPublicKeyStub: Stub<PrivateKeySigner, [], string> | undefined; // Stubbing prototype
+let pksGetPublicKeyStub: Stub<SimpleSigner, [], Promise<string>> | undefined; // Stubbing prototype
 let pksSignEventStub:
-  | Stub<PrivateKeySigner, Parameters<PrivateKeySigner["signEvent"]>, Promise<NostrEvent>>
+  | Stub<SimpleSigner, Parameters<SimpleSigner["signEvent"]>, Promise<NostrEvent>>
   | undefined; // Stubbing prototype
 
 let fetchStub:
@@ -87,12 +89,12 @@ describe("uploadCommand", () => {
 
     // Stub PrivateKeySigner prototype methods - these will affect any NEW PrivateKeySigner instance
     pksGetPublicKeyStub = stub(
-      PrivateKeySigner.prototype,
+      SimpleSigner.prototype,
       "getPublicKey",
-      () => "mock-privatekey-pubkey",
+      () => Promise.resolve("mock-privatekey-pubkey"),
     );
     pksSignEventStub = stub(
-      PrivateKeySigner.prototype,
+      SimpleSigner.prototype,
       "signEvent",
       (eventTemplate) =>
         Promise.resolve({
@@ -103,7 +105,7 @@ describe("uploadCommand", () => {
           kind: eventTemplate.kind || 0,
           tags: eventTemplate.tags || [],
           content: eventTemplate.content || "",
-        } as NostrEvent),
+        } as VerifiedEvent),
     );
 
     // Stub global fetch (used by processUploads, which is called by uploadCommand)

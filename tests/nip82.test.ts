@@ -1,16 +1,17 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.220.0/assert/mod.ts";
-import { PrivateKeySigner } from "../src/lib/signer.ts";
+import { SimpleSigner } from "applesauce-signers/signers";
 import {
-  createSoftwareApplicationEvent,
   createFileMetadataEvent,
   createReleaseArtifactSetEvent,
-  fetchSoftwareApplicationEvent,
+  createSoftwareApplicationEvent,
 } from "../src/lib/nostr.ts";
 import { detectPlatformsFromFileName } from "../src/lib/archive.ts";
 
 Deno.test("NIP-82 - Create software application event", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
-  
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
+
   const appEvent = await createSoftwareApplicationEvent(
     signer,
     "com.example.testapp",
@@ -25,45 +26,50 @@ Deno.test("NIP-82 - Create software application event", async () => {
       repository: "https://github.com/example/testapp",
       platforms: ["web", "linux", "windows"],
       license: "MIT",
-    }
+    },
   );
 
   assertEquals(appEvent.kind, 32267);
   assertExists(appEvent.id);
   assertExists(appEvent.sig);
-  
+
   // Check required tags
-  const dTag = appEvent.tags.find(t => t[0] === "d");
+  const dTag = appEvent.tags.find((t) => t[0] === "d");
   assertEquals(dTag?.[1], "com.example.testapp");
-  
-  const nameTag = appEvent.tags.find(t => t[0] === "name");
+
+  const nameTag = appEvent.tags.find((t) => t[0] === "name");
   assertEquals(nameTag?.[1], "Test Application");
-  
+
   // Check platform tags
-  const platformTags = appEvent.tags.filter(t => t[0] === "f");
+  const platformTags = appEvent.tags.filter((t) => t[0] === "f");
   assertEquals(platformTags.length, 3);
-  assertEquals(platformTags.map(t => t[1]).sort(), ["linux", "web", "windows"]);
-  
+  assertEquals(platformTags.map((t) => t[1]).sort(), ["linux", "web", "windows"]);
+
   // Check optional tags
-  const summaryTag = appEvent.tags.find(t => t[0] === "summary");
+  const summaryTag = appEvent.tags.find((t) => t[0] === "summary");
   assertEquals(summaryTag?.[1], "A test application");
-  
-  const iconTag = appEvent.tags.find(t => t[0] === "icon");
+
+  const iconTag = appEvent.tags.find((t) => t[0] === "icon");
   assertEquals(iconTag?.[1], "https://example.com/icon.png");
-  
-  const repoTag = appEvent.tags.find(t => t[0] === "repository");
+
+  const repoTag = appEvent.tags.find((t) => t[0] === "repository");
   assertEquals(repoTag?.[1], "https://github.com/example/testapp");
-  
-  const licenseTag = appEvent.tags.find(t => t[0] === "license");
+
+  const licenseTag = appEvent.tags.find((t) => t[0] === "license");
   assertEquals(licenseTag?.[1], "MIT");
-  
+
   // Check content
-  assertEquals(appEvent.content, "This is a longer description of the test application with **markdown** support.");
+  assertEquals(
+    appEvent.content,
+    "This is a longer description of the test application with **markdown** support.",
+  );
 });
 
 Deno.test("NIP-82 - File metadata with platform tags", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
-  
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
+
   const fileEvent = await createFileMetadataEvent(
     signer,
     {
@@ -73,47 +79,49 @@ Deno.test("NIP-82 - File metadata with platform tags", async () => {
       size: 1234567,
       platforms: ["linux", "arm64"],
     },
-    "Release v1.0.0 - app-linux-arm64.tar.gz"
+    "Release v1.0.0 - app-linux-arm64.tar.gz",
   );
 
   assertEquals(fileEvent.kind, 1063);
-  
+
   // Check platform tags
-  const platformTags = fileEvent.tags.filter(t => t[0] === "f");
+  const platformTags = fileEvent.tags.filter((t) => t[0] === "f");
   assertEquals(platformTags.length, 2);
-  assertEquals(platformTags.map(t => t[1]).sort(), ["arm64", "linux"]);
+  assertEquals(platformTags.map((t) => t[1]).sort(), ["arm64", "linux"]);
 });
 
 Deno.test("NIP-82 - Release event with application reference", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
   const pubkey = await signer.getPublicKey();
-  
+
   const releaseEvent = await createReleaseArtifactSetEvent(
     signer,
     "testapp",
     "v1.0.0",
     ["event-id-1", "event-id-2"],
     "Test release notes",
-    "com.example.testapp"
+    "com.example.testapp",
   );
 
   assertEquals(releaseEvent.kind, 30063);
-  
+
   // Check application reference
-  const appRef = releaseEvent.tags.find(t => t[0] === "a");
+  const appRef = releaseEvent.tags.find((t) => t[0] === "a");
   assertEquals(appRef?.[1], `32267:${pubkey}:com.example.testapp`);
-  
+
   // Check other tags
-  const dTag = releaseEvent.tags.find(t => t[0] === "d");
+  const dTag = releaseEvent.tags.find((t) => t[0] === "d");
   assertEquals(dTag?.[1], "testapp@v1.0.0");
-  
-  const versionTag = releaseEvent.tags.find(t => t[0] === "version");
+
+  const versionTag = releaseEvent.tags.find((t) => t[0] === "version");
   assertEquals(versionTag?.[1], "v1.0.0");
-  
+
   // Check event references
-  const eventRefs = releaseEvent.tags.filter(t => t[0] === "e");
+  const eventRefs = releaseEvent.tags.filter((t) => t[0] === "e");
   assertEquals(eventRefs.length, 2);
-  assertEquals(eventRefs.map(t => t[1]), ["event-id-1", "event-id-2"]);
+  assertEquals(eventRefs.map((t) => t[1]), ["event-id-1", "event-id-2"]);
 });
 
 Deno.test("Platform detection from file names", () => {
@@ -139,34 +147,36 @@ Deno.test("Platform detection from file names", () => {
 });
 
 Deno.test("NIP-82 - Minimal application event", async () => {
-  const signer = new PrivateKeySigner("0000000000000000000000000000000000000000000000000000000000000001");
-  
+  const signer = SimpleSigner.fromKey(
+    "0000000000000000000000000000000000000000000000000000000000000001",
+  );
+
   const appEvent = await createSoftwareApplicationEvent(
     signer,
     "com.example.minimal",
     {
       name: "Minimal App",
       platforms: ["web"],
-    }
+    },
   );
 
   assertEquals(appEvent.kind, 32267);
-  
+
   // Check only required tags are present
-  const dTag = appEvent.tags.find(t => t[0] === "d");
+  const dTag = appEvent.tags.find((t) => t[0] === "d");
   assertEquals(dTag?.[1], "com.example.minimal");
-  
-  const nameTag = appEvent.tags.find(t => t[0] === "name");
+
+  const nameTag = appEvent.tags.find((t) => t[0] === "name");
   assertEquals(nameTag?.[1], "Minimal App");
-  
-  const platformTags = appEvent.tags.filter(t => t[0] === "f");
+
+  const platformTags = appEvent.tags.filter((t) => t[0] === "f");
   assertEquals(platformTags.length, 1);
   assertEquals(platformTags[0][1], "web");
-  
+
   // Check that optional tags are not present
-  const summaryTag = appEvent.tags.find(t => t[0] === "summary");
+  const summaryTag = appEvent.tags.find((t) => t[0] === "summary");
   assertEquals(summaryTag, undefined);
-  
-  const iconTag = appEvent.tags.find(t => t[0] === "icon");
+
+  const iconTag = appEvent.tags.find((t) => t[0] === "icon");
   assertEquals(iconTag, undefined);
 });

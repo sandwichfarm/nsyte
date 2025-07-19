@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
+import { SimpleSigner } from "applesauce-signers/signers";
 import { readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
@@ -9,10 +10,8 @@ import {
   createDeleteEvent,
   createNip46ClientFromUrl,
   fetchFileEvents,
-  NSITE_KIND,
   publishEventsToRelays,
 } from "../lib/nostr.ts";
-import { PrivateKeySigner } from "../lib/signer.ts";
 import type { Signer } from "../lib/upload.ts";
 import { npubEncode } from "../lib/utils.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
@@ -29,7 +28,7 @@ async function createBlossomAuth(blobSha256s: string[], signer: Signer): Promise
     ["t", "delete"],
     ["expiration", (currentTime + 3600).toString()],
   ];
-  
+
   // Add all blob hashes
   for (const hash of blobSha256s) {
     tags.push(["x", hash]);
@@ -90,9 +89,14 @@ export function registerPurgeCommand(program: Command): void {
     .alias("prg")
     .description("Remove nsite events from relays and optionally blobs from servers")
     .option("-a, --all", "Purge ALL nsite events for this pubkey", { default: false })
-    .option("-p, --paths <paths:string>", "Path patterns to purge (supports wildcards: *, ?)", { collect: true })
+    .option("-p, --paths <paths:string>", "Path patterns to purge (supports wildcards: *, ?)", {
+      collect: true,
+    })
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated)")
-    .option("-s, --servers <servers:string>", "The blossom servers to delete blobs from (comma separated)")
+    .option(
+      "-s, --servers <servers:string>",
+      "The blossom servers to delete blobs from (comma separated)",
+    )
     .option("--include-blobs", "Also delete blobs from blossom servers", { default: false })
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
@@ -117,12 +121,16 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     }
 
     // Resolve relays
-    const relays = options.relays 
-      ? options.relays.split(",").map(r => r.trim()).filter(r => r) 
+    const relays = options.relays
+      ? options.relays.split(",").map((r) => r.trim()).filter((r) => r)
       : config.relays || [];
 
     if (relays.length === 0) {
-      console.log(colors.red("No relays configured. Please specify with --relays or configure in .nsite/config.json"));
+      console.log(
+        colors.red(
+          "No relays configured. Please specify with --relays or configure in .nsite/config.json",
+        ),
+      );
       return Deno.exit(1);
     }
 
@@ -139,12 +147,12 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     console.log(formatSectionHeader("Configuration"));
     console.log(`User: ${colors.cyan(npub)}`);
     console.log(`Relays: ${colors.cyan(relays.join(", "))}`);
-    
+
     // Resolve servers if blob deletion is requested
-    const servers = (options.includeBlobs && options.servers) 
-      ? options.servers.split(",").map(s => s.trim()).filter(s => s)
+    const servers = (options.includeBlobs && options.servers)
+      ? options.servers.split(",").map((s) => s.trim()).filter((s) => s)
       : (options.includeBlobs ? config.servers || [] : []);
-    
+
     if (options.includeBlobs && servers.length > 0) {
       console.log(`Blossom Servers: ${colors.cyan(servers.join(", "))}`);
     }
@@ -152,7 +160,7 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     // Fetch all nsite events
     console.log(colors.cyan("\nFetching nsite events..."));
     const events = await fetchFileEvents(relays, pubkey);
-    
+
     if (events.length === 0) {
       console.log(colors.yellow("No nsite events found to purge."));
       return Deno.exit(0);
@@ -162,30 +170,34 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
 
     // Filter events based on options
     let eventsToDelete = events;
-    
+
     if (!options.all && options.paths && options.paths.length > 0) {
       const patterns = options.paths;
-      eventsToDelete = events.filter(event => {
-        const path = event.tags.find(tag => tag[0] === "d")?.[1];
+      eventsToDelete = events.filter((event) => {
+        const path = event.tags.find((tag) => tag[0] === "d")?.[1];
         if (!path) return false;
-        
+
         // Check if any pattern matches this path
-        return patterns.some(pattern => {
+        return patterns.some((pattern) => {
           // Exact match
           if (pattern === path) return true;
-          
+
           // Convert glob pattern to regex
           const regexPattern = pattern
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-            .replace(/\*/g, '.*') // * matches any characters
-            .replace(/\?/g, '.'); // ? matches single character
-          
+            .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+            .replace(/\*/g, ".*") // * matches any characters
+            .replace(/\?/g, "."); // ? matches single character
+
           const regex = new RegExp(`^${regexPattern}$`);
           return regex.test(path);
         });
       });
-      
-      console.log(`Filtered to ${colors.bold(eventsToDelete.length.toString())} events matching specified patterns`);
+
+      console.log(
+        `Filtered to ${
+          colors.bold(eventsToDelete.length.toString())
+        } events matching specified patterns`,
+      );
     } else if (!options.all && !options.paths) {
       // Interactive mode - let user select what to purge
       const choice = await Select.prompt({
@@ -208,39 +220,39 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
         // Show available paths
         const paths = new Set<string>();
         for (const event of events) {
-          const path = event.tags.find(tag => tag[0] === "d")?.[1];
+          const path = event.tags.find((tag) => tag[0] === "d")?.[1];
           if (path) paths.add(path);
         }
 
         console.log(colors.cyan("\nAvailable paths:"));
         const sortedPaths = Array.from(paths).sort();
-        sortedPaths.forEach(path => console.log(`  ${path}`));
+        sortedPaths.forEach((path) => console.log(`  ${path}`));
 
         const pathInput = await Input.prompt({
           message: "Enter paths/patterns to purge (comma-separated, supports wildcards):",
           hint: "Examples: /site/*, *.html, /test.txt, /site/**/*.css",
           validate: (input) => {
-            const inputPaths = input.split(",").map(p => p.trim()).filter(p => p);
+            const inputPaths = input.split(",").map((p) => p.trim()).filter((p) => p);
             return inputPaths.length > 0 || "Please enter at least one path or pattern";
           },
         });
 
-        const patterns = pathInput.split(",").map(p => p.trim());
-        eventsToDelete = events.filter(event => {
-          const path = event.tags.find(tag => tag[0] === "d")?.[1];
+        const patterns = pathInput.split(",").map((p) => p.trim());
+        eventsToDelete = events.filter((event) => {
+          const path = event.tags.find((tag) => tag[0] === "d")?.[1];
           if (!path) return false;
-          
+
           // Check if any pattern matches this path
-          return patterns.some(pattern => {
+          return patterns.some((pattern) => {
             // Exact match
             if (pattern === path) return true;
-            
+
             // Convert glob pattern to regex
             const regexPattern = pattern
-              .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-              .replace(/\*/g, '.*') // * matches any characters
-              .replace(/\?/g, '.'); // ? matches single character
-            
+              .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+              .replace(/\*/g, ".*") // * matches any characters
+              .replace(/\?/g, "."); // ? matches single character
+
             const regex = new RegExp(`^${regexPattern}$`);
             return regex.test(path);
           });
@@ -255,14 +267,14 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
 
     // Show what will be deleted
     console.log(colors.yellow(`\n⚠️  This will delete ${eventsToDelete.length} nsite events:`));
-    
+
     // Group by path for better display
     const pathCounts = new Map<string, number>();
     for (const event of eventsToDelete) {
-      const path = event.tags.find(tag => tag[0] === "d")?.[1] || "unknown";
+      const path = event.tags.find((tag) => tag[0] === "d")?.[1] || "unknown";
       pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
     }
-    
+
     const sortedPaths = Array.from(pathCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     for (const [path, count] of sortedPaths) {
       console.log(`  ${path} ${count > 1 ? colors.dim(`(${count} events)`) : ""}`);
@@ -283,16 +295,22 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
 
     // Create and publish delete events
     console.log(colors.cyan("\nCreating delete events..."));
-    
-    const eventIds = eventsToDelete.map(e => e.id);
+
+    const eventIds = eventsToDelete.map((e) => e.id);
     const deleteEvent = await createDeleteEvent(signer, eventIds);
-    
+
     console.log(colors.cyan("Publishing delete events to relays..."));
     const success = await publishEventsToRelays(relays, [deleteEvent]);
 
     if (success) {
-      console.log(colors.green(`\n✓ Successfully purged ${eventsToDelete.length} events from relays`));
-      console.log(colors.dim("Note: Relays may take time to process deletions, and some relays may not honor delete requests."));
+      console.log(
+        colors.green(`\n✓ Successfully purged ${eventsToDelete.length} events from relays`),
+      );
+      console.log(
+        colors.dim(
+          "Note: Relays may take time to process deletions, and some relays may not honor delete requests.",
+        ),
+      );
     } else {
       console.log(colors.red("\n✗ Failed to publish delete events to some or all relays"));
     }
@@ -300,11 +318,11 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     // Delete blobs from blossom servers if requested
     if (options.includeBlobs && servers.length > 0) {
       console.log(colors.cyan("\n🌸 Deleting blobs from blossom servers..."));
-      
+
       // Extract blob hashes from events
       const blobHashes = new Set<string>();
       for (const event of eventsToDelete) {
-        const sha256 = event.tags.find(tag => tag[0] === "x")?.[1];
+        const sha256 = event.tags.find((tag) => tag[0] === "x")?.[1];
         if (sha256) {
           blobHashes.add(sha256);
         }
@@ -314,25 +332,27 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
         console.log(colors.yellow("No blob hashes found in events."));
       } else {
         console.log(`Found ${colors.bold(blobHashes.size.toString())} unique blobs to delete`);
-        
+
         let deletedCount = 0;
         let failedCount = 0;
-        
+
         // Convert Set to Array for batch auth
         const hashArray = Array.from(blobHashes);
-        
+
         for (const server of servers) {
           console.log(colors.cyan(`\nDeleting from ${server}...`));
-          
+
           // Try batch deletion first
           let useBatchAuth = true;
           const batchAuthHeader = await createBlossomAuth(hashArray, signer);
-          
+
           for (const hash of blobHashes) {
             try {
               // Use batch auth or create individual auth
-              const authHeader = useBatchAuth ? batchAuthHeader : await createSingleBlossomAuth(hash, signer);
-              
+              const authHeader = useBatchAuth
+                ? batchAuthHeader
+                : await createSingleBlossomAuth(hash, signer);
+
               const response = await fetch(`${server}/${hash}`, {
                 method: "DELETE",
                 headers: {
@@ -347,10 +367,13 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
                 console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
               } else {
                 // If batch auth failed, try individual auth
-                if (useBatchAuth && (response.status === 400 || response.status === 401 || response.status === 500)) {
+                if (
+                  useBatchAuth &&
+                  (response.status === 400 || response.status === 401 || response.status === 500)
+                ) {
                   log.debug(`Batch auth failed for ${server}, falling back to individual auth`);
                   useBatchAuth = false;
-                  
+
                   // Retry with individual auth
                   const individualAuthHeader = await createSingleBlossomAuth(hash, signer);
                   const retryResponse = await fetch(`${server}/${hash}`, {
@@ -359,21 +382,35 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
                       "Authorization": individualAuthHeader,
                     },
                   });
-                  
+
                   if (retryResponse.ok) {
                     deletedCount++;
-                    console.log(colors.green(`  ✓ Deleted ${hash.substring(0, 8)}... (individual auth)`));
+                    console.log(
+                      colors.green(`  ✓ Deleted ${hash.substring(0, 8)}... (individual auth)`),
+                    );
                   } else if (retryResponse.status === 404) {
                     console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
                   } else {
                     failedCount++;
                     const errorText = await retryResponse.text().catch(() => "");
-                    console.log(colors.red(`  ✗ Failed to delete ${hash.substring(0, 8)}... (${retryResponse.status}${errorText ? `: ${errorText}` : ""})`));
+                    console.log(
+                      colors.red(
+                        `  ✗ Failed to delete ${hash.substring(0, 8)}... (${retryResponse.status}${
+                          errorText ? `: ${errorText}` : ""
+                        })`,
+                      ),
+                    );
                   }
                 } else {
                   failedCount++;
                   const errorText = await response.text().catch(() => "");
-                  console.log(colors.red(`  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${errorText ? `: ${errorText}` : ""})`));
+                  console.log(
+                    colors.red(
+                      `  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${
+                        errorText ? `: ${errorText}` : ""
+                      })`,
+                    ),
+                  );
                 }
               }
             } catch (error) {
@@ -394,7 +431,7 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     }
 
     // Close signer if it's a bunker
-    if ('close' in signer && typeof signer.close === 'function') {
+    if ("close" in signer && typeof signer.close === "function") {
       await signer.close();
     }
 
@@ -436,7 +473,7 @@ async function initSigner(options: PurgeOptions, config: any): Promise<Signer | 
   if (options.privatekey) {
     try {
       log.info("Using private key from CLI for signing...");
-      return new PrivateKeySigner(options.privatekey);
+      return SimpleSigner.fromKey(options.privatekey);
     } catch (e) {
       log.error(`Invalid private key: ${e}`);
       return null;
@@ -453,7 +490,7 @@ async function initSigner(options: PurgeOptions, config: any): Promise<Signer | 
         log.debug("Retrieved nbunk from secrets manager, creating signer...");
         const bunkerSigner = await importFromNbunk(nbunkString);
         log.debug("Bunker signer created, getting public key...");
-        
+
         try {
           await bunkerSigner.getPublicKey();
           log.debug("Got public key from bunker signer");

@@ -4,7 +4,11 @@ import { Confirm } from "@cliffy/prompt";
 import { copy } from "@std/fs/copy";
 import { existsSync } from "@std/fs/exists";
 import { basename, join } from "@std/path";
-import { createTarGzArchive, calculateSha256, detectPlatformsFromFileName } from "../lib/archive.ts";
+import {
+  calculateSha256,
+  createTarGzArchive,
+  detectPlatformsFromFileName,
+} from "../lib/archive.ts";
 import {
   defaultConfig,
   type ProjectConfig,
@@ -12,10 +16,6 @@ import {
   readProjectFile,
   setupProject,
 } from "../lib/config.ts";
-import { resolveProjectContext, validateProjectContext } from "../lib/config/context-resolver.ts";
-import { createSigner, getAuthInfo } from "../lib/auth/signer-factory.ts";
-import { compareFiles as compareFileEntries, prepareFilesForUpload as prepareFilesForUploadUtil, calculateTotalSize } from "../lib/files/processor.ts";
-import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
@@ -36,12 +36,10 @@ import {
   fetchSoftwareApplicationEvent,
   type FileEntry,
   listRemoteFiles,
-  NSITE_KIND,
   publishEventsToRelays,
   purgeRemoteFiles,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { PrivateKeySigner } from "../lib/signer.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
 import { npubEncode } from "../lib/utils.ts";
 import {
@@ -56,6 +54,7 @@ import {
 } from "../ui/formatters.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
+import { SimpleSigner } from "applesauce-signers";
 
 // LOCAL STATE ------------------------------------------------------------------------------------------------ //
 const log = createLogger("upload");
@@ -139,19 +138,27 @@ export function registerDeployCommand(program: Command): void {
     .option("--publish-app-handler", "Publish NIP-89 app handler announcement (Kind 31990).", {
       default: false,
     })
-    .option("--handler-kinds <kinds:string>", "Event kinds this nsite can handle (comma separated).")
+    .option(
+      "--handler-kinds <kinds:string>",
+      "Event kinds this nsite can handle (comma separated).",
+    )
     .option("--publish-file-metadata", "Publish NIP-94 file metadata for release archives.", {
       default: false,
     })
     .option("--version <version:string>", "Version tag for the release (e.g., v1.0.0, latest).")
-    .option("--release-artifacts <paths:string>", "Comma-separated paths to existing archives (tar.gz, zip) to publish as release artifacts.")
+    .option(
+      "--release-artifacts <paths:string>",
+      "Comma-separated paths to existing archives (tar.gz, zip) to publish as release artifacts.",
+    )
     .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
       const cmdName = Deno.args[0];
       if (cmdName === "upload") {
-        console.log(colors.yellow("⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n"));
+        console.log(
+          colors.yellow("⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n"),
+        );
       }
       await uploadCommand(folder, options);
     });
@@ -265,8 +272,8 @@ function displayGatewayUrl(publisherPubkey: string) {
   for (const gatewayHostname of gatewayHostnames || []) {
     console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
   }
-  console.log(colors.green(`\nYou can also run`))
-  console.log(colors.blue.underline('open https://${npub}.localhost:8081/ && nsyte run'))
+  console.log(colors.green(`\nYou can also run`));
+  console.log(colors.blue.underline("open https://${npub}.localhost:8081/ && nsyte run"));
 }
 
 export function initState(options_: UploadCommandOptions) {
@@ -286,20 +293,22 @@ async function resolveContext(
   if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
     let existingProjectData: ProjectConfig | null = null;
-    
+
     try {
       existingProjectData = readProjectFile();
     } catch (error) {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
-      console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+      console.error(
+        colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+      );
       return {
         config: defaultConfig,
         authKeyHex,
         error: "Configuration validation failed",
       };
     }
-    
+
     if (!existingProjectData) {
       existingProjectData = defaultConfig;
     }
@@ -372,7 +381,9 @@ async function resolveContext(
     } catch (error) {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
-      console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+      console.error(
+        colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+      );
       return {
         config: defaultConfig,
         authKeyHex: undefined,
@@ -459,7 +470,7 @@ async function initSigner(
   } else if (authKeyHex) {
     log.info("Using private key for signing (from CLI or interactive setup)...");
     try {
-      return new PrivateKeySigner(authKeyHex);
+      return SimpleSigner.fromKey(authKeyHex);
     } catch (e: unknown) {
       return { error: `Invalid private key provided: ${getErrorMessage(e)}` };
     }
@@ -477,13 +488,13 @@ async function initSigner(
         log.debug("Found stored nbunksec for configured bunker. Importing...");
         const bunkerSigner = await importFromNbunk(nbunkString);
         log.debug("importFromNbunk completed, about to call getPublicKey()...");
-        
+
         // Add timeout to getPublicKey as it might hang too
         const getPublicKeyPromise = bunkerSigner.getPublicKey();
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error("getPublicKey timeout after 15s")), 15000);
         });
-        
+
         log.debug("Waiting for getPublicKey or timeout...");
         const pubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
         log.debug(`getPublicKey completed: ${pubkey.substring(0, 8)}...`);
@@ -635,8 +646,8 @@ export function displayConfig(publisherPubkey: string) {
       );
     }
     if (options.publishAppHandler || config.publishAppHandler) {
-      const kinds = options.handlerKinds?.split(",").map(k => k.trim()) || 
-                    config.appHandler?.kinds?.map(k => k.toString()) || [];
+      const kinds = options.handlerKinds?.split(",").map((k) => k.trim()) ||
+        config.appHandler?.kinds?.map((k) => k.toString()) || [];
       console.log(
         colors.cyan(
           `Publish App Handler: true${
@@ -653,25 +664,25 @@ export function displayConfig(publisherPubkey: string) {
  */
 async function copyFallbackFile(): Promise<void> {
   const fallbackPath = options.fallback || config.fallback;
-  
+
   if (!fallbackPath) {
     return;
   }
 
   try {
-    const fallbackSource = join(targetDir, fallbackPath.replace(/^\//, ''));
+    const fallbackSource = join(targetDir, fallbackPath.replace(/^\//, ""));
     const fallbackDest = join(targetDir, "404.html");
-    
+
     // Check if source file exists
     if (!existsSync(fallbackSource)) {
       log.warn(`Configured fallback file '${fallbackPath}' not found at ${fallbackSource}`);
       return;
     }
-    
+
     // Copy the file
     await Deno.copyFile(fallbackSource, fallbackDest);
     log.info(`Copied fallback file ${fallbackPath} to 404.html`);
-    
+
     if (!options.nonInteractive) {
       console.log(colors.cyan(`Copied fallback file ${fallbackPath} to 404.html`));
     }
@@ -706,7 +717,7 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.publishAppHandler || 
+  const shouldPublishAppHandler = options.publishAppHandler ||
     (config.publishAppHandler ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
     shouldPublishServerList || shouldPublishAppHandler;
@@ -771,8 +782,8 @@ async function handleSmartPurgeOperation(
   remoteEntries: FileEntry[],
 ): Promise<void> {
   // Find remote files that are not in the current local deployment
-  const localFilePaths = new Set(localFiles.map(f => f.path));
-  const filesToPurge = remoteEntries.filter(remote => !localFilePaths.has(remote.path));
+  const localFilePaths = new Set(localFiles.map((f) => f.path));
+  const filesToPurge = remoteEntries.filter((remote) => !localFilePaths.has(remote.path));
 
   if (filesToPurge.length === 0) {
     const noPurgeMsg = "No unused remote files to purge.";
@@ -781,10 +792,9 @@ async function handleSmartPurgeOperation(
     return;
   }
 
-  const purgeList = filesToPurge.map(f => f.path).join("\n  - ");
+  const purgeList = filesToPurge.map((f) => f.path).join("\n  - ");
   const confirmPurge = options.nonInteractive ? true : await Confirm.prompt({
-    message:
-      `Purge ${filesToPurge.length} unused remote files?\n  - ${purgeList}\n\nContinue?`,
+    message: `Purge ${filesToPurge.length} unused remote files?\n  - ${purgeList}\n\nContinue?`,
     default: false,
   });
 
@@ -838,7 +848,7 @@ async function compareAndPrepareFiles(
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.publishAppHandler || 
+  const shouldPublishAppHandler = options.publishAppHandler ||
     (config.publishAppHandler ?? false);
   const shouldPublishAny = shouldPublishProfile || shouldPublishRelayList ||
     shouldPublishServerList || shouldPublishAppHandler;
@@ -927,7 +937,7 @@ async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<File
       messageCollector.addFileError(file.path, errorMessage);
     }
   }
-  
+
   return preparedFiles;
 }
 
@@ -1179,14 +1189,14 @@ async function processFallbackFile(): Promise<void> {
 async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   log.debug("maybePublishMetadata called");
 
-  const usermeta_relays = ['wss://user.kindpag.es', 'wss://purplepag.es', 'wss://relay.nostr.band'];
+  const usermeta_relays = ["wss://user.kindpag.es", "wss://purplepag.es", "wss://relay.nostr.band"];
   // const nsite_relays = ['wss://relay.nsite.lol']
 
   // Check both command-line options AND config settings
   const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
   const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
   const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
-  const shouldPublishAppHandler = options.publishAppHandler || 
+  const shouldPublishAppHandler = options.publishAppHandler ||
     (config.publishAppHandler ?? false);
 
   log.debug(
@@ -1199,7 +1209,10 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
     `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}, appHandler=${shouldPublishAppHandler}`,
   );
 
-  if (!(shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList || shouldPublishAppHandler)) {
+  if (
+    !(shouldPublishProfile || shouldPublishRelayList || shouldPublishServerList ||
+      shouldPublishAppHandler)
+  ) {
     log.debug("No metadata events requested for publishing, returning early");
     return;
   }
@@ -1228,7 +1241,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
       try {
         const relayListEvent = await createRelayListEvent(signer, resolvedRelays);
         log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
-        const publishToRelays = Array.from(new Set([...resolvedRelays, ...usermeta_relays]))
+        const publishToRelays = Array.from(new Set([...resolvedRelays, ...usermeta_relays]));
         await publishEventsToRelays(publishToRelays, [relayListEvent]);
         statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
@@ -1261,7 +1274,9 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
         // Get event kinds from command line or config
         let kinds: number[] = [];
         if (options.handlerKinds) {
-          kinds = options.handlerKinds.split(",").map(k => parseInt(k.trim())).filter(k => !isNaN(k));
+          kinds = options.handlerKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+            !isNaN(k)
+          );
         } else if (config.appHandler?.kinds) {
           kinds = config.appHandler.kinds;
         }
@@ -1279,10 +1294,10 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           // Get metadata from config if available
           const metadata = config.appHandler?.name || config.appHandler?.description
             ? {
-                name: config.appHandler.name || config.profile?.name,
-                description: config.appHandler.description || config.profile?.about,
-                picture: config.profile?.picture,
-              }
+              name: config.appHandler.name || config.profile?.name,
+              description: config.appHandler.description || config.profile?.about,
+              picture: config.profile?.picture,
+            }
             : undefined;
 
           // Prepare handlers object
@@ -1320,42 +1335,46 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
     }
 
     // NIP-94 file metadata publishing
-    const shouldPublishFileMetadata = options.publishFileMetadata || 
+    const shouldPublishFileMetadata = options.publishFileMetadata ||
       (config.publishFileMetadata ?? false);
-    
+
     if (shouldPublishFileMetadata) {
       if (!options.version) {
         statusDisplay.error("NIP-94 file metadata requires --version flag");
         log.error("Attempting to publish file metadata without version specified");
-        console.error(colors.red("Error: When publishing file metadata (NIP-94), you must specify a version with --version"));
+        console.error(
+          colors.red(
+            "Error: When publishing file metadata (NIP-94), you must specify a version with --version",
+          ),
+        );
         Deno.exit(1);
       }
 
       try {
         const publisherPubkey = await signer.getPublicKey();
         const projectName = config.profile?.name || "nsyte-project";
-        
+
         // Prepare archives to upload
         const archivesToUpload: FileEntry[] = [];
-        
+
         if (options.releaseArtifacts) {
           // Use user-provided archives
           statusDisplay.update("Processing user-provided release artifacts...");
-          
-          const artifactPaths = options.releaseArtifacts.split(",").map(p => p.trim());
-          
+
+          const artifactPaths = options.releaseArtifacts.split(",").map((p) => p.trim());
+
           for (const artifactPath of artifactPaths) {
             try {
               const fullPath = join(Deno.cwd(), artifactPath);
               const fileInfo = await Deno.stat(fullPath);
-              
+
               if (!fileInfo.isFile) {
                 throw new Error(`${artifactPath} is not a file`);
               }
-              
+
               const data = await Deno.readFile(fullPath);
               const fileName = basename(artifactPath);
-              
+
               // Determine content type based on file extension
               let contentType = "application/octet-stream";
               if (fileName.endsWith(".tar.gz") || fileName.endsWith(".tgz")) {
@@ -1365,7 +1384,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
               } else if (fileName.endsWith(".tar")) {
                 contentType = "application/x-tar";
               }
-              
+
               archivesToUpload.push({
                 path: fileName,
                 data,
@@ -1373,7 +1392,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
                 sha256: await calculateSha256(data),
                 contentType,
               });
-              
+
               statusDisplay.success(`Loaded archive: ${fileName} (${formatFileSize(data.length)})`);
             } catch (e) {
               throw new Error(`Failed to load archive ${artifactPath}: ${e}`);
@@ -1382,18 +1401,20 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
         } else {
           // Create archive from uploaded files
           statusDisplay.update("Creating release archive...");
-          
+
           const archiveName = `${projectName}-${options.version}.tar.gz`;
           const archivePath = join(Deno.cwd(), archiveName);
-          
+
           const archive = await createTarGzArchive(
             includedFiles,
             targetDir,
-            archivePath
+            archivePath,
           );
 
-          statusDisplay.success(`Created archive: ${archiveName} (${formatFileSize(archive.size)})`);
-          
+          statusDisplay.success(
+            `Created archive: ${archiveName} (${formatFileSize(archive.size)})`,
+          );
+
           archivesToUpload.push({
             path: archiveName,
             data: archive.data,
@@ -1405,29 +1426,38 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
 
         // Check for existing release to see which artifacts already exist
         statusDisplay.update("Checking for existing release artifacts...");
-        
+
         const dTag = `${projectName}@${options.version}`;
         const existingReleases = await fetchReleaseEvents(resolvedRelays, publisherPubkey, dTag);
-        const existingArtifacts = new Map<string, { eventId: string; hash: string; fileName: string }>();
-        
+        const existingArtifacts = new Map<
+          string,
+          { eventId: string; hash: string; fileName: string }
+        >();
+
         if (existingReleases.length > 0) {
           // Get the most recent release event
-          const existingRelease = existingReleases.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
-          
+          const existingRelease = existingReleases.sort((a, b) =>
+            (b.created_at || 0) - (a.created_at || 0)
+          )[0];
+
           // Extract existing file metadata event IDs
           const existingEventIds = existingRelease.tags
-            .filter(tag => tag[0] === "e")
-            .map(tag => tag[1]);
-          
+            .filter((tag) => tag[0] === "e")
+            .map((tag) => tag[1]);
+
           // Fetch the file metadata events to get their hashes and filenames
           if (existingEventIds.length > 0) {
             statusDisplay.update("Fetching existing artifact metadata...");
-            const fileMetadataEvents = await fetchFileMetadataEvents(resolvedRelays, publisherPubkey, existingEventIds);
-            
+            const fileMetadataEvents = await fetchFileMetadataEvents(
+              resolvedRelays,
+              publisherPubkey,
+              existingEventIds,
+            );
+
             for (const event of fileMetadataEvents) {
-              const hashTag = event.tags.find(t => t[0] === "x");
-              const urlTag = event.tags.find(t => t[0] === "url");
-              
+              const hashTag = event.tags.find((t) => t[0] === "x");
+              const urlTag = event.tags.find((t) => t[0] === "url");
+
               if (hashTag && urlTag) {
                 // Extract filename from content or URL
                 let fileName = "";
@@ -1443,7 +1473,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
                   const urlParts = urlTag[1].split("/");
                   fileName = urlParts[urlParts.length - 1];
                 }
-                
+
                 existingArtifacts.set(fileName, {
                   eventId: event.id,
                   hash: hashTag[1],
@@ -1453,35 +1483,39 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             }
           }
         }
-        
+
         // Upload archives to Blossom servers
         statusDisplay.update("Processing archives...");
-        
+
         const uploadedArchives: Array<{
           archive: FileEntry;
           url: string;
           eventId?: string;
         }> = [];
-        
+
         const eventIdsToReplace = new Set<string>();
-        
+
         for (const archive of archivesToUpload) {
           const existingArtifact = existingArtifacts.get(archive.path);
-          
+
           if (existingArtifact) {
             if (existingArtifact.hash === archive.sha256!) {
               // Same file, same hash - skip
-              statusDisplay.update(`Archive ${archive.path} already exists with same hash. Skipping.`);
+              statusDisplay.update(
+                `Archive ${archive.path} already exists with same hash. Skipping.`,
+              );
               continue;
             } else {
               // Same filename, different hash - will replace
-              statusDisplay.update(`Archive ${archive.path} has different hash. Will replace existing artifact.`);
+              statusDisplay.update(
+                `Archive ${archive.path} has different hash. Will replace existing artifact.`,
+              );
               eventIdsToReplace.add(existingArtifact.eventId);
             }
           }
-          
+
           statusDisplay.update(`Uploading ${archive.path} to Blossom servers...`);
-          
+
           const archiveUploads = await processUploads(
             [archive],
             Deno.cwd(),
@@ -1493,7 +1527,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           );
 
           if (!archiveUploads[0]?.success) {
-            throw new Error(`Failed to upload archive ${archive.path}: ${archiveUploads[0]?.error || "Unknown error"}`);
+            throw new Error(
+              `Failed to upload archive ${archive.path}: ${
+                archiveUploads[0]?.error || "Unknown error"
+              }`,
+            );
           }
 
           // Find the first successful server to construct the URL
@@ -1514,13 +1552,13 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
 
           // Publish NIP-94 file metadata event for this archive
           statusDisplay.update(`Publishing file metadata event for ${archive.path}...`);
-          
+
           const description = `Release ${options.version} - ${archive.path}`;
-          
+
           // Detect platforms from file name or use configured platforms
           const detectedPlatforms = detectPlatformsFromFileName(archive.path);
           const platforms = config.application?.platforms || detectedPlatforms;
-          
+
           const fileMetadataEvent = await createFileMetadataEvent(
             signer,
             {
@@ -1530,19 +1568,23 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
               size: archive.size!,
               platforms,
             },
-            description
+            description,
           );
 
           await publishEventsToRelays(resolvedRelays, [fileMetadataEvent]);
-          statusDisplay.success(`File metadata event published for ${archive.path} (${fileMetadataEvent.id.slice(0, 8)}...)`);
-          
+          statusDisplay.success(
+            `File metadata event published for ${archive.path} (${
+              fileMetadataEvent.id.slice(0, 8)
+            }...)`,
+          );
+
           uploadedArchives.push({
             archive,
             url: archiveUrl,
             eventId: fileMetadataEvent.id,
           });
         }
-        
+
         // Skip updating release if no new artifacts were added
         if (uploadedArchives.length === 0 && existingReleases.length > 0) {
           statusDisplay.success("All artifacts already exist in the release. No updates needed.");
@@ -1551,27 +1593,31 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
 
         // Create or update NIP-51 release artifact set
         statusDisplay.update("Updating release artifact set...");
-        
+
         // Collect new file metadata event IDs
-        const newFileMetadataEventIds = uploadedArchives.map(ua => ua.eventId!);
+        const newFileMetadataEventIds = uploadedArchives.map((ua) => ua.eventId!);
         let allFileMetadataEventIds = [...newFileMetadataEventIds];
         let releaseNotes = config.profile?.about || `${projectName} release ${options.version}`;
-        
+
         // Check if we need to publish a software application event
         let applicationEventId: string | undefined;
-        
+
         if (config.application?.id) {
           const appId = config.application.id;
-          
+
           // Check if application event already exists
-          const existingAppEvent = await fetchSoftwareApplicationEvent(resolvedRelays, publisherPubkey, appId);
-          
+          const existingAppEvent = await fetchSoftwareApplicationEvent(
+            resolvedRelays,
+            publisherPubkey,
+            appId,
+          );
+
           if (!existingAppEvent) {
             statusDisplay.update("Publishing software application metadata...");
-            
+
             // Determine platforms - use configured or default to "web"
             const platforms = config.application.platforms || ["web"];
-            
+
             const appEvent = await createSoftwareApplicationEvent(
               signer,
               appId,
@@ -1586,9 +1632,9 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
                 repository: config.application.repository,
                 platforms,
                 license: config.application.license,
-              }
+              },
             );
-            
+
             await publishEventsToRelays(resolvedRelays, [appEvent]);
             applicationEventId = appEvent.id;
             statusDisplay.success(`Software application event published for ${appId}`);
@@ -1597,32 +1643,36 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             statusDisplay.update(`Using existing software application event for ${appId}`);
           }
         }
-        
+
         if (existingReleases.length > 0) {
           // Get the most recent release event
-          const existingRelease = existingReleases.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
-          
+          const existingRelease = existingReleases.sort((a, b) =>
+            (b.created_at || 0) - (a.created_at || 0)
+          )[0];
+
           // Extract existing file metadata event IDs
           const existingEventIds = existingRelease.tags
-            .filter(tag => tag[0] === "e")
-            .map(tag => tag[1]);
-          
+            .filter((tag) => tag[0] === "e")
+            .map((tag) => tag[1]);
+
           // Filter out event IDs that are being replaced
-          const keptEventIds = existingEventIds.filter(id => !eventIdsToReplace.has(id));
-          
+          const keptEventIds = existingEventIds.filter((id) => !eventIdsToReplace.has(id));
+
           // Combine kept events with new events
           allFileMetadataEventIds = [...keptEventIds, ...newFileMetadataEventIds];
-          
+
           // Keep existing release notes if they exist
           if (existingRelease.content) {
             releaseNotes = existingRelease.content;
           }
-          
+
           const replacedCount = eventIdsToReplace.size;
           const addedCount = newFileMetadataEventIds.length - replacedCount;
-          
+
           if (replacedCount > 0 && addedCount > 0) {
-            statusDisplay.update(`Replacing ${replacedCount} and adding ${addedCount} artifact(s) to release ${dTag}...`);
+            statusDisplay.update(
+              `Replacing ${replacedCount} and adding ${addedCount} artifact(s) to release ${dTag}...`,
+            );
           } else if (replacedCount > 0) {
             statusDisplay.update(`Replacing ${replacedCount} artifact(s) in release ${dTag}...`);
           } else {
@@ -1631,20 +1681,22 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
         } else {
           statusDisplay.update(`Creating new release artifact set for ${dTag}...`);
         }
-        
+
         const releaseEvent = await createReleaseArtifactSetEvent(
           signer,
           projectName,
           options.version,
           allFileMetadataEventIds,
           releaseNotes,
-          config.application?.id
+          config.application?.id,
         );
 
         await publishEventsToRelays(resolvedRelays, [releaseEvent]);
-        
+
         const action = existingReleases.length > 0 ? "updated" : "published";
-        statusDisplay.success(`Release artifact set ${action} for ${projectName}@${options.version} with ${allFileMetadataEventIds.length} total artifact(s)`);
+        statusDisplay.success(
+          `Release artifact set ${action} for ${projectName}@${options.version} with ${allFileMetadataEventIds.length} total artifact(s)`,
+        );
 
         // Clean up local archive files if we created them
         if (!options.releaseArtifacts) {
@@ -1658,7 +1710,6 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             }
           }
         }
-
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish file metadata: ${getErrorMessage(e)}`);
         log.error(`File metadata publication error: ${getErrorMessage(e)}`);
