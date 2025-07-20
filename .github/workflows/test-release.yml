@@ -2,11 +2,6 @@ name: Test Release Workflow
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/release.yml'
-      - 'src/**'
-      - 'deno.json'
 
 jobs:
   test-build-linux:
