@@ -559,7 +559,38 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           // If still no file found, return plain text error
           if (!file || !file.sha256) {
             const elapsed = Math.round(performance.now() - startTime);
-            console.log(colors.red(`  → File not found: ${requestedPath} (no 404.html) - ${elapsed}ms`));
+            console.log(colors.red(`  → File not found: ${requestedPath} (no 404.html available) - ${elapsed}ms`));
+            
+            // Generate a simple HTML 404 page if the request appears to be for HTML content
+            const wantsHtml = requestedPath === "/" || requestedPath.endsWith(".html") || requestedPath.endsWith(".htm") || 
+                             !requestedPath.includes(".") || request.headers.get("accept")?.includes("text/html");
+            
+            if (wantsHtml) {
+              const html404 = `<!DOCTYPE html>
+<html>
+<head>
+  <title>404 - Not Found</title>
+  <style>
+    body { font-family: system-ui, sans-serif; text-align: center; padding: 50px; }
+    h1 { color: #666; }
+    p { color: #999; }
+    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>404 - Not Found</h1>
+  <p>The requested file <code>${requestedPath}</code> was not found.</p>
+  <p style="font-size: 0.9em;">This nsite does not have a custom 404.html page.</p>
+</body>
+</html>`;
+              
+              return new Response(html404, {
+                status: 404,
+                headers: { "Content-Type": "text/html" },
+              });
+            }
+            
+            // Return plain text for non-HTML requests
             return new Response(`File not found: ${requestedPath}`, {
               status: 404,
               headers: { "Content-Type": "text/plain" },
@@ -633,11 +664,12 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         }
         
         // Serve the file
-        const contentType = getContentType(normalizedRequestPath); // Use original request path for content type
+        // For 404 pages, use the 404.html content type, otherwise use the requested path
+        const is404 = (file.path.endsWith("404.html") || file.path.endsWith("404.html.br") || file.path.endsWith("404.html.gz")) && 
+                      requestedPath !== "/404.html";
+        const contentTypePath = is404 ? "404.html" : normalizedRequestPath;
+        const contentType = getContentType(contentTypePath);
         const elapsed = Math.round(performance.now() - startTime);
-        
-        // Check if we're serving a 404 page
-        const is404 = file.path.endsWith("404.html") && requestedPath !== "/404.html";
         const statusCode = is404 ? 404 : 200;
         
         console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)}) - ${elapsed}ms${is404 ? ' [404]' : ''}`));
