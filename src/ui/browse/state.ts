@@ -45,75 +45,82 @@ export interface BrowseState {
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
   const directories = new Map<string, Set<string>>();
   const rootFiles = new Set<string>();
-  
+
   // Organize files into directory structure
-  files.forEach(file => {
+  files.forEach((file) => {
     const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-    const parts = path.split('/');
-    
+    const parts = path.split("/");
+
     if (parts.length === 1) {
       rootFiles.add(path);
     } else {
-      let currentPath = '';
+      let currentPath = "";
       for (let i = 0; i < parts.length - 1; i++) {
         const parentPath = currentPath;
         currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-        
+
         if (!directories.has(parentPath)) {
           directories.set(parentPath, new Set());
         }
         directories.get(parentPath)!.add(currentPath);
-        
+
         if (!directories.has(currentPath)) {
           directories.set(currentPath, new Set());
         }
       }
-      
+
       // Add file to its parent directory
-      const parentDir = parts.slice(0, -1).join('/');
+      const parentDir = parts.slice(0, -1).join("/");
       directories.get(parentDir)!.add(path);
     }
   });
-  
+
   // Build flat list of all items in tree order
   const treeItems: TreeItem[] = [];
-  
-  const buildFlatList = (path: string, depth: number, isLast: boolean, parentPrefix: string = '') => {
-    const file = files.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path);
+
+  const buildFlatList = (
+    path: string,
+    depth: number,
+    isLast: boolean,
+    parentPrefix: string = "",
+  ) => {
+    const file = files.find((f) =>
+      (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path
+    );
     const isDirectory = !file && directories.has(path);
-    
+
     treeItems.push({
       path,
       isDirectory,
       file,
       depth,
       isLast,
-      parentPrefix
+      parentPrefix,
     });
-    
+
     // Add children
     if (isDirectory && directories.has(path)) {
       const children = Array.from(directories.get(path)!).sort();
       const childPrefix = parentPrefix + (depth > 0 ? (isLast ? "   " : "│  ") : "");
-      
+
       children.forEach((child, index) => {
         // Avoid duplicates
-        if (!treeItems.some(item => item.path === child)) {
+        if (!treeItems.some((item) => item.path === child)) {
           buildFlatList(child, depth + 1, index === children.length - 1, childPrefix);
         }
       });
     }
   };
-  
+
   // Build the flat list
   const rootItems = Array.from(rootFiles).concat(
-    Array.from(directories.get('') || [])
+    Array.from(directories.get("") || []),
   ).sort();
-  
+
   rootItems.forEach((item, index) => {
     buildFlatList(item, 0, index === rootItems.length - 1);
   });
-  
+
   return treeItems;
 }
 
@@ -124,10 +131,10 @@ export function createInitialState(
   serverColorMap: Map<string, (str: string) => string>,
   ignoreRules: IgnoreRule[],
   pubkey: string,
-  signer?: any
+  signer?: any,
 ): BrowseState {
   const treeItems = buildTreeItems(files);
-  
+
   // Find first file (non-directory) index
   let initialIndex = 0;
   for (let i = 0; i < treeItems.length; i++) {
@@ -136,7 +143,7 @@ export function createInitialState(
       break;
     }
   }
-  
+
   return {
     files,
     filteredFiles: files,
@@ -166,36 +173,36 @@ export function createInitialState(
 
 export function updateFilteredFiles(state: BrowseState): void {
   let filtered = state.files;
-  
+
   // Apply selected only filter
   if (state.showSelectedOnly && state.selectedItems.size > 0) {
     const selectedPaths = Array.from(state.selectedItems);
-    filtered = filtered.filter(file => {
+    filtered = filtered.filter((file) => {
       const path = file.path.startsWith("/") ? file.path.substring(1) : file.path;
       return selectedPaths.includes(path);
     });
   }
-  
+
   // Apply text filter
   if (state.filterText) {
     const searchTerm = state.filterText.toLowerCase();
-    filtered = filtered.filter(file => {
-      const fileName = file.path.split('/').pop() || file.path;
+    filtered = filtered.filter((file) => {
+      const fileName = file.path.split("/").pop() || file.path;
       return fileName.toLowerCase().includes(searchTerm) ||
-             file.path.toLowerCase().includes(searchTerm) ||
-             file.sha256.toLowerCase().includes(searchTerm);
+        file.path.toLowerCase().includes(searchTerm) ||
+        file.sha256.toLowerCase().includes(searchTerm);
     });
   }
-  
+
   state.filteredFiles = filtered;
-  
+
   // Rebuild tree items
   state.treeItems = buildTreeItems(state.filteredFiles);
-  
+
   // Reset index and page if needed
   state.selectedIndex = Math.min(state.selectedIndex, state.treeItems.length - 1);
   state.selectedIndex = Math.max(0, state.selectedIndex);
-  
+
   // Find first file (non-directory) index
   let firstFileIndex = 0;
   for (let i = 0; i < state.treeItems.length; i++) {
@@ -205,18 +212,18 @@ export function updateFilteredFiles(state: BrowseState): void {
     }
   }
   state.selectedIndex = Math.max(firstFileIndex, state.selectedIndex);
-  
+
   state.page = 0;
 }
 
 export function navigateUp(state: BrowseState): void {
   let newIndex = state.selectedIndex - 1;
-  
+
   // Skip directories, only navigate to files
   while (newIndex >= 0 && state.treeItems[newIndex].isDirectory) {
     newIndex--;
   }
-  
+
   if (newIndex >= 0) {
     state.selectedIndex = newIndex;
     if (state.selectedIndex < state.page * state.pageSize) {
@@ -227,12 +234,12 @@ export function navigateUp(state: BrowseState): void {
 
 export function navigateDown(state: BrowseState): void {
   let newIndex = state.selectedIndex + 1;
-  
+
   // Skip directories, only navigate to files
   while (newIndex < state.treeItems.length && state.treeItems[newIndex].isDirectory) {
     newIndex++;
   }
-  
+
   if (newIndex < state.treeItems.length) {
     state.selectedIndex = newIndex;
     if (state.selectedIndex >= (state.page + 1) * state.pageSize) {
@@ -246,7 +253,7 @@ export function navigatePageLeft(state: BrowseState): void {
     state.page--;
     const startIndex = state.page * state.pageSize;
     const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
-    
+
     // Find first file on the page
     let firstFileIndex = startIndex;
     for (let i = startIndex; i < endIndex; i++) {
@@ -265,7 +272,7 @@ export function navigatePageRight(state: BrowseState): void {
     state.page++;
     const startIndex = state.page * state.pageSize;
     const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
-    
+
     // Find first file on the page
     let firstFileIndex = startIndex;
     for (let i = startIndex; i < endIndex; i++) {
@@ -297,14 +304,16 @@ export function deselectAll(state: BrowseState): void {
 export function getSelectedFiles(state: BrowseState): FileEntryWithSources[] {
   if (state.selectedItems.size > 0) {
     return Array.from(state.selectedItems)
-      .map(path => state.files.find(f => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path))
+      .map((path) =>
+        state.files.find((f) => (f.path.startsWith("/") ? f.path.substring(1) : f.path) === path)
+      )
       .filter((f): f is FileEntryWithSources => f !== undefined);
   }
-  
+
   const currentItem = state.treeItems[state.selectedIndex];
   if (currentItem && currentItem.file) {
     return [currentItem.file];
   }
-  
+
   return [];
 }

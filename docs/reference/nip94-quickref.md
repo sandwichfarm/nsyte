@@ -26,17 +26,20 @@
 ## Basic Usage
 
 ### Auto-create Archive
+
 ```bash
 nsyte deploy ./dist --publish-file-metadata --version v1.0.0
 ```
 
 ### Use Existing Archives
+
 ```bash
 nsyte deploy ./dist --publish-file-metadata --version v1.0.0 \
   --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ### Multiple Platform Builds
+
 ```bash
 # First build
 nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
@@ -53,16 +56,17 @@ nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
 
 ## Smart Behavior
 
-| Scenario | Action |
-|----------|--------|
-| Same filename, same hash | Skip (already exists) |
-| Same filename, different hash | Replace artifact |
-| New filename | Append to release |
-| No existing release | Create new release |
+| Scenario                      | Action                |
+| ----------------------------- | --------------------- |
+| Same filename, same hash      | Skip (already exists) |
+| Same filename, different hash | Replace artifact      |
+| New filename                  | Append to release     |
+| No existing release           | Create new release    |
 
 ## Event Structure
 
 ### NIP-82 Software Application (kind 32267)
+
 - `d`: Application ID (e.g., com.example.app)
 - `name`: Application name
 - `f`: Platform tags (web, linux, windows, etc.)
@@ -70,6 +74,7 @@ nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
 - `license`: SPDX license ID
 
 ### NIP-94 File Metadata (kind 1063)
+
 - `url`: Blossom server URL
 - `m`: MIME type
 - `x`: SHA-256 hash
@@ -77,6 +82,7 @@ nsyte deploy ./dist --publish-file-metadata --version v2.0.0 \
 - `f`: Platform tags (auto-detected)
 
 ### NIP-51 Release Set (kind 30063)
+
 - `d`: project-name@version
 - `e`: References to NIP-94 events
 - `a`: Reference to NIP-82 application

@@ -12,19 +12,19 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Build Linux artifact
         run: |
           npm run build
           tar -czf dist-linux.tar.gz dist/
-      
+
       - name: Publish Linux build
         run: |
           nsyte deploy dist \
@@ -39,12 +39,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Build Windows artifact
         run: |
           npm run build
           Compress-Archive -Path dist/* -DestinationPath dist-windows.zip
-      
+
       - name: Publish Windows build
         run: |
           nsyte deploy dist `
@@ -79,18 +79,18 @@ jobs:
           - os: windows-latest
             artifact: dist-windows-x64.zip
             build: Compress-Archive -Path dist/* -DestinationPath dist-windows-x64.zip
-    
+
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Build
         run: |
           npm ci
           npm run build
           ${{ matrix.build }}
-      
+
       - name: Publish artifact
         run: |
           nsyte deploy dist \
@@ -115,12 +115,12 @@ variables:
   stage: release
   script:
     - nsyte deploy dist
-        --publish-file-metadata
-        --version $VERSION
-        --release-artifacts $ARTIFACT_PATH
-        --privatekey $NOSTR_PRIVATE_KEY
-        --relays $NOSTR_RELAYS
-        --servers $BLOSSOM_SERVERS
+      --publish-file-metadata
+      --version $VERSION
+      --release-artifacts $ARTIFACT_PATH
+      --privatekey $NOSTR_PRIVATE_KEY
+      --relays $NOSTR_RELAYS
+      --servers $BLOSSOM_SERVERS
   only:
     - tags
 
@@ -324,7 +324,7 @@ strategy:
     arch: [x64, arm64]
     exclude:
       - os: windows-latest
-        arch: arm64  # Not supported
+        arch: arm64 # Not supported
 ```
 
 ### 7. Release Notes
@@ -350,6 +350,7 @@ nsyte deploy dist \
 ### Release Already Exists
 
 If you see "All artifacts already exist in the release", it means:
+
 - The exact same file (same hash) is already in the release
 - This is normal for idempotent CI/CD runs
 - No action needed
@@ -357,6 +358,7 @@ If you see "All artifacts already exist in the release", it means:
 ### Replacing Artifacts
 
 When updating a release with a fixed artifact:
+
 - nsyte automatically detects files with the same name but different content
 - The old artifact is replaced with the new one
 - Other artifacts in the release remain unchanged
@@ -374,6 +376,7 @@ nsyte deploy dist \
 ```
 
 Check the logs for:
+
 - "Archive X already exists with same hash. Skipping." - Duplicate detection
 - "Archive X has different hash. Will replace existing artifact." - Replacement
 - "Appending N artifact(s) to release" - Adding new artifacts

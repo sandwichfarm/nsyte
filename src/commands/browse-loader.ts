@@ -1,6 +1,6 @@
 import type { NostrEvent } from "nostr-tools";
-import { EventStore, simpleTimeout, mapEventsToStore, mapEventsToTimeline } from "applesauce-core";
-import { pool, getTagValue } from "../lib/nostr.ts";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { getTagValue, pool } from "../lib/nostr.ts";
 import { lastValueFrom } from "rxjs";
 import { createLogger } from "../lib/logger.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
@@ -30,7 +30,7 @@ export async function listRemoteFilesWithProgress(
     try {
       log.debug(`Connecting to relay: ${relay}`);
       const store = new EventStore();
-      
+
       // Add a race condition with manual timeout to handle EOSE issues
       const requestPromise = lastValueFrom(
         pool
@@ -41,15 +41,15 @@ export async function listRemoteFilesWithProgress(
           .pipe(
             simpleTimeout(8000),
             mapEventsToStore(store),
-            mapEventsToTimeline()
+            mapEventsToTimeline(),
           ),
-        { defaultValue: [] }
+        { defaultValue: [] },
       );
-      
+
       const timeoutPromise = new Promise<any[]>((_, reject) => {
         setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
       });
-      
+
       const events = await Promise.race([requestPromise, timeoutPromise]) as NostrEvent[];
 
       // Track which relay returned each event
@@ -73,7 +73,7 @@ export async function listRemoteFilesWithProgress(
       completedRelays++;
       renderLoadingScreen(
         "Loading files from relays...",
-        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`
+        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`,
       );
     }
   });
@@ -95,7 +95,7 @@ export async function listRemoteFilesWithProgress(
 
     if (path && sha256) {
       // Get blossom servers from the event
-      const servers = getTagValues(event, "r").filter((url: string) => 
+      const servers = getTagValues(event, "r").filter((url: string) =>
         url.startsWith("http://") || url.startsWith("https://")
       );
 

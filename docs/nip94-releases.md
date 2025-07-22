@@ -1,11 +1,14 @@
 # NIP-94/NIP-82 Release Artifacts
 
 nsyte supports publishing release artifacts using:
+
 - **NIP-94** (File Metadata) - Individual file/archive metadata
 - **NIP-51** (Lists) - Grouping releases
 - **NIP-82** (Software Applications) - Application metadata and platform information
 
-This allows you to create versioned releases of your nsite with full application metadata, platform detection, and compatibility information that can be discovered and downloaded by other tools and users.
+This allows you to create versioned releases of your nsite with full application metadata, platform
+detection, and compatibility information that can be discovered and downloaded by other tools and
+users.
 
 ## Overview
 
@@ -29,7 +32,8 @@ When enabled, nsyte will:
 
 ## Configuration
 
-Add the `publishFileMetadata` option and optional `application` metadata to your `.nsite/config.json`:
+Add the `publishFileMetadata` option and optional `application` metadata to your
+`.nsite/config.json`:
 
 ```json
 {
@@ -41,7 +45,7 @@ Add the `publishFileMetadata` option and optional `application` metadata to your
     "repository": "https://github.com/example/myapp",
     "platforms": ["web", "linux", "windows", "macos"],
     "license": "MIT"
-  },
+  }
   // ... other configuration
 }
 ```
@@ -63,8 +67,10 @@ nsyte deploy --version v2.1.0-beta
 ### Command Line Options
 
 - `--publish-file-metadata`: Enable NIP-94 file metadata publishing for this upload
-- `--version <version>`: Required when file metadata is enabled. Sets the version tag for the release
-- `--release-artifacts <paths>`: Comma-separated paths to existing archives (tar.gz, zip) to publish instead of creating one
+- `--version <version>`: Required when file metadata is enabled. Sets the version tag for the
+  release
+- `--release-artifacts <paths>`: Comma-separated paths to existing archives (tar.gz, zip) to publish
+  instead of creating one
 
 ### Examples
 
@@ -140,7 +146,7 @@ nsyte deploy --publish-file-metadata --version v1.5.0 \
     ["m", "application/gzip"],
     ["x", "<sha256-hash>"],
     ["size", "1234567"],
-    ["f", "linux"],  // Platform tags (auto-detected or configured)
+    ["f", "linux"], // Platform tags (auto-detected or configured)
     ["client", "nsyte"]
   ],
   "content": "Release v1.0.0 - app-linux.tar.gz"
@@ -156,7 +162,7 @@ nsyte deploy --publish-file-metadata --version v1.5.0 \
     ["d", "my-project@v1.0.0"],
     ["e", "<nip94-event-id>"],
     ["version", "v1.0.0"],
-    ["a", "32267:<pubkey>:com.example.myapp"],  // Reference to application
+    ["a", "32267:<pubkey>:com.example.myapp"], // Reference to application
     ["client", "nsyte"]
   ],
   "content": "My Project release v1.0.0"
@@ -177,7 +183,8 @@ nsyte intelligently manages release artifacts:
 
 - **Append Mode**: If a release already exists, new artifacts are automatically appended to it
 - **Duplicate Detection**: Artifacts with the same filename and hash are skipped
-- **Automatic Replacement**: Artifacts with the same filename but different hash replace the old version
+- **Automatic Replacement**: Artifacts with the same filename but different hash replace the old
+  version
 - **Interoperability**: Works with releases created by other NIP-94/NIP-51 compatible tools
 
 ### Example Workflow

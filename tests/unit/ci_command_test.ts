@@ -32,14 +32,14 @@ describe("CI command", () => {
   describe("registerCICommand", () => {
     it("should register CI command with correct configuration", async () => {
       const { registerCICommand } = await import("../../src/commands/ci.ts");
-      
+
       const mockCommand: any = {
         command: () => mockCommand,
         description: () => mockCommand,
         arguments: () => mockCommand,
         action: () => mockCommand,
       };
-      
+
       const commandStub = stub(mockCommand, "command", () => mockCommand);
       const descriptionStub = stub(mockCommand, "description", () => mockCommand);
       const argumentsStub = stub(mockCommand, "arguments", () => mockCommand);

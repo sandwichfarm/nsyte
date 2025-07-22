@@ -20,14 +20,14 @@ async function testKeychainApproaches() {
   const error1 = new TextDecoder().decode(result1.stderr);
 
   console.log(`Exit code: ${result1.code}`);
-  
+
   // Count matches
   const accounts1 = output1.match(/"acct"<blob>="([^"]+)"/g);
   console.log(`Found ${accounts1?.length || 0} accounts with -a flag`);
-  
+
   if (accounts1 && accounts1.length > 0) {
     console.log("\nFirst few accounts:");
-    accounts1.slice(0, 3).forEach(match => {
+    accounts1.slice(0, 3).forEach((match) => {
       const account = match.match(/"acct"<blob>="([^"]+)"/)?.[1];
       if (account) {
         console.log(`- ${account.slice(0, 8)}...${account.slice(-4)}`);
@@ -39,7 +39,7 @@ async function testKeychainApproaches() {
   console.log("\n\nApproach 2: Using -j flag (JSON output)");
   const process2 = new Deno.Command("security", {
     args: ["find-generic-password", "-s", "nsyte", "-j"],
-    stdout: "piped", 
+    stdout: "piped",
     stderr: "piped",
   });
 
@@ -47,7 +47,7 @@ async function testKeychainApproaches() {
   const output2 = new TextDecoder().decode(result2.stdout);
   console.log(`Exit code: ${result2.code}`);
   console.log(`Output length: ${output2.length} chars`);
-  
+
   // Approach 3: Iterate with specific query
   console.log("\n\nApproach 3: Use security list-keychains");
   const process3 = new Deno.Command("security", {

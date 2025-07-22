@@ -17,7 +17,7 @@ async function debugSecretsManager() {
   console.log("1. Checking keychain provider availability...");
   const keychainProvider = await getKeychainProvider();
   console.log(`Keychain provider available: ${keychainProvider !== null}`);
-  
+
   if (keychainProvider) {
     console.log("\n2. Testing keychain provider list method...");
     const keychainList = await keychainProvider.list("nsyte");
@@ -30,15 +30,15 @@ async function debugSecretsManager() {
   // Test SecretsManager
   console.log("\n3. Testing SecretsManager...");
   const secretsManager = SecretsManager.getInstance();
-  
+
   console.log("Initializing SecretsManager...");
   const initialized = await secretsManager.initialize();
   console.log(`Initialized: ${initialized}`);
-  
+
   console.log("\nCalling getAllPubkeys()...");
   const pubkeys = await secretsManager.getAllPubkeys();
   console.log(`getAllPubkeys returned ${pubkeys.length} items`);
-  
+
   pubkeys.forEach((pubkey, idx) => {
     console.log(`  ${idx + 1}. ${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`);
   });

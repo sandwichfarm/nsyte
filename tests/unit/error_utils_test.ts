@@ -136,8 +136,8 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
 
     try {
       // Test colored console output (default)
-      logError("Color test", new Error("Colored error"), { 
-        showConsole: true 
+      logError("Color test", new Error("Colored error"), {
+        showConsole: true,
       });
 
       // Find the console error call
@@ -150,9 +150,9 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       assertEquals(coloredMessage.includes("\x1b["), true);
 
       // Test uncolored console output
-      logError("No color test", new Error("Uncolored error"), { 
-        showConsole: true, 
-        color: false 
+      logError("No color test", new Error("Uncolored error"), {
+        showConsole: true,
+        color: false,
       });
 
       // Find the uncolored console error call

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v1.0.0)'
+        description: "Release tag (e.g., v1.0.0)"
         required: true
         type: string
 
@@ -12,7 +12,7 @@ jobs:
   build-and-release:
     name: Build All Binaries
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
       - name: Build all binaries
         run: |
           mkdir -p dist
-          
+
           echo "Building Linux binary..."
           deno compile \
             --no-check \
@@ -44,7 +44,7 @@ jobs:
             --target x86_64-unknown-linux-gnu \
             --output dist/nsyte-linux \
             src/cli.ts || echo "Linux build failed"
-          
+
           echo "Building macOS binary..."
           deno compile \
             --no-check \
@@ -57,7 +57,7 @@ jobs:
             --target x86_64-apple-darwin \
             --output dist/nsyte-macos \
             src/cli.ts || echo "macOS build failed"
-          
+
           echo "Building Windows binary..."
           deno compile \
             --no-check \
@@ -71,7 +71,7 @@ jobs:
             --target x86_64-pc-windows-msvc \
             --output dist/nsyte-windows.exe \
             src/cli.ts || echo "Windows build failed"
-          
+
           echo "Available binaries:"
           ls -la dist/
 
@@ -81,7 +81,7 @@ jobs:
           [ -f nsyte-linux ] && cp nsyte-linux nsyte-linux-${{ env.VERSION }}
           [ -f nsyte-macos ] && cp nsyte-macos nsyte-macos-${{ env.VERSION }}
           [ -f nsyte-windows.exe ] && cp nsyte-windows.exe nsyte-windows-${{ env.VERSION }}.exe
-          
+
           echo "Renamed binaries:"
           ls -la
 

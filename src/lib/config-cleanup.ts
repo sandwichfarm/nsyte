@@ -12,7 +12,7 @@ const log = createLogger("config-cleanup");
 export async function cleanupConfigFiles(interactive = true): Promise<boolean> {
   const cwd = Deno.cwd();
   const configDirPath = join(cwd, configDir);
-  
+
   if (!existsSync(configDirPath)) {
     return true; // No config directory, nothing to clean
   }
@@ -32,8 +32,10 @@ export async function cleanupConfigFiles(interactive = true): Promise<boolean> {
   // Check for other non-JSON config files
   try {
     for await (const entry of Deno.readDir(configDirPath)) {
-      if (entry.isFile && entry.name.startsWith("config") && 
-          !entry.name.endsWith(".json") && !entry.name.endsWith(".backup")) {
+      if (
+        entry.isFile && entry.name.startsWith("config") &&
+        !entry.name.endsWith(".json") && !entry.name.endsWith(".backup")
+      ) {
         invalidFiles.push(join(configDirPath, entry.name));
       }
     }
@@ -49,7 +51,9 @@ export async function cleanupConfigFiles(interactive = true): Promise<boolean> {
   for (const file of invalidFiles) {
     console.error(colors.yellow(`  - ${file}`));
   }
-  console.error(colors.yellow("\nnsyte uses config.json for configuration, not YAML or other formats."));
+  console.error(
+    colors.yellow("\nnsyte uses config.json for configuration, not YAML or other formats."),
+  );
 
   if (interactive) {
     const { Confirm } = await import("@cliffy/prompt");
@@ -59,7 +63,9 @@ export async function cleanupConfigFiles(interactive = true): Promise<boolean> {
     });
 
     if (!shouldClean) {
-      console.log(colors.yellow("Keeping invalid config files. Please remove them manually to avoid issues."));
+      console.log(
+        colors.yellow("Keeping invalid config files. Please remove them manually to avoid issues."),
+      );
       return false;
     }
   }
@@ -70,10 +76,10 @@ export async function cleanupConfigFiles(interactive = true): Promise<boolean> {
       // Check if it contains important data first
       const content = await Deno.readTextFile(file);
       const backupPath = `${file}.invalid-backup`;
-      
+
       // Create a backup just in case
       await Deno.writeTextFile(backupPath, content);
-      
+
       // Remove the invalid file
       await Deno.remove(file);
       log.info(`Removed invalid config file: ${file} (backup saved as ${backupPath})`);

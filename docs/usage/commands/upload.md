@@ -5,8 +5,9 @@ description: Upload files from a directory to relays and blossom servers
 
 # upload
 
-> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
-> 
+> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use
+> [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
+>
 > **[→ View the deploy documentation](deploy.md)**
 
 Upload files from a directory to configured relays and blossom servers.
@@ -37,7 +38,8 @@ nsyte upload <folder> [options]
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
 - `--publish-file-metadata` — Publish NIP-94 file metadata events for releases (default: false)
 - `--version <version>` — Version tag for the release (required when using --publish-file-metadata)
-- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release artifacts
+- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release
+  artifacts
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 

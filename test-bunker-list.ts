@@ -28,7 +28,7 @@ async function testBunkerList() {
   // Test the macOS keychain directly
   console.log("\n\nTesting macOS keychain directly...");
   console.log("Running: security find-generic-password -s nsyte");
-  
+
   const process = new Deno.Command("security", {
     args: ["find-generic-password", "-s", "nsyte"],
     stdout: "piped",
@@ -66,12 +66,12 @@ async function testBunkerList() {
   try {
     const dumpResult = await dumpProcess.output();
     const dumpOutput = new TextDecoder().decode(dumpResult.stdout);
-    
+
     // Count nsyte entries
     let nsyteCount = 0;
     const lines = dumpOutput.split("\n");
     const nsyteAccounts: string[] = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].includes('"svce"<blob>="nsyte"')) {
         nsyteCount++;
@@ -100,7 +100,9 @@ async function testBunkerList() {
   console.log("\n\nAnalysis:");
   console.log("The macOS 'security find-generic-password' command only returns the FIRST match.");
   console.log("This is why the list() method in MacOSKeychain only shows one bunker.");
-  console.log("To list all entries, we would need to use 'security dump-keychain' or iterate with specific account names.");
+  console.log(
+    "To list all entries, we would need to use 'security dump-keychain' or iterate with specific account names.",
+  );
 }
 
 if (import.meta.main) {

@@ -8,23 +8,25 @@
 A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.
 
-
 ## Key Features
 
 - 🚀 **Fast & Efficient** - Concurrent uploads with smart diffing
 - 🔐 **Secure Authentication** - Support for private keys, NIP-46 bunkers, and hardware wallets
-- 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and platform detection
+- 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and
+  platform detection
 - 🔄 **Smart Release Management** - Append, replace, or skip artifacts intelligently
 - 🤖 **CI/CD Ready** - Non-interactive mode for automated deployments
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
 - 🔍 **Metadata Publishing** - Share profile, relay lists, and server lists on nostr
 - 🛡️ **Secure Key Storage** - Platform-specific secure storage for sensitive data
 
-For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
+For more nsite related tools and services check out
+[awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
 
-> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
-> florian [github](https://github.com/flox1an) [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc).
-> nsyte has been ported to deno and rewritten in the process. 
+> nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by florian
+> [github](https://github.com/flox1an)
+> [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc). nsyte
+> has been ported to deno and rewritten in the process.
 
 ![nsyte screen demo](./static/nsyte.gif)
 
@@ -76,21 +78,21 @@ deno task compile:all
 
 ## Core Commands
 
-| Command                 | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `nsyte`                 | Interactive setup wizard                         |
-| `nsyte init`            | Initialize configuration                         |
-| `nsyte deploy <dir>`    | Deploy files                                     |
-| `nsyte ls`              | List published files                             |
-| `nsyte browse`          | Interactive TUI browser for files                |
-| `nsyte download <dir>`  | Download files                                   |
-| `nsyte run`             | Run resolver server with npub subdomains         |
-| `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default)           |
-| `nsyte debug <npub>`    | Debug an nsite by checking relays and servers    |
-| `nsyte validate`        | Validate configuration file                      |
-| `nsyte purge`           | Remove published files                           |
-| `nsyte ci`              | Generate CI/CD credentials (nbunksec)            |
-| `nsyte bunker <action>` | Manage NIP-46 bunkers                            |
+| Command                 | Description                                                     |
+| ----------------------- | --------------------------------------------------------------- |
+| `nsyte`                 | Interactive setup wizard                                        |
+| `nsyte init`            | Initialize configuration                                        |
+| `nsyte deploy <dir>`    | Deploy files                                                    |
+| `nsyte ls`              | List published files                                            |
+| `nsyte browse`          | Interactive TUI browser for files                               |
+| `nsyte download <dir>`  | Download files                                                  |
+| `nsyte run`             | Run resolver server with npub subdomains                        |
+| `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default) |
+| `nsyte debug <npub>`    | Debug an nsite by checking relays and servers                   |
+| `nsyte validate`        | Validate configuration file                                     |
+| `nsyte purge`           | Remove published files                                          |
+| `nsyte ci`              | Generate CI/CD credentials (nbunksec)                           |
+| `nsyte bunker <action>` | Manage NIP-46 bunkers                                           |
 
 ### Deploying Files
 
@@ -160,7 +162,8 @@ nsyte purge --paths "**/*.css"
 nsyte purge --paths "/index.html" --paths "/about.html"
 ```
 
-**Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests, and it may take time for deletions to propagate.
+**Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests,
+and it may take time for deletions to propagate.
 
 ### Debugging nsites
 
@@ -181,6 +184,7 @@ nsyte debug --verbose
 ```
 
 The debug command checks:
+
 - **Profile (kind 0)**: Verifies user profile exists on relays
 - **Relay list (kind 10002)**: Finds user's preferred relays
 - **Blossom server list (kind 10063)**: Discovers blob storage servers and tests availability
@@ -198,7 +202,8 @@ nsyte serve
 nsyte run
 ```
 
-The `serve` command builds and serves your local nsite files, while `run` starts a resolver server that can serve nsites via npub subdomains (e.g., `npub123.localhost`).
+The `serve` command builds and serves your local nsite files, while `run` starts a resolver server
+that can serve nsites via npub subdomains (e.g., `npub123.localhost`).
 
 ## Authentication Methods
 
@@ -237,6 +242,7 @@ nsyte bunker migrate
 #### Bunker Migration (macOS)
 
 On macOS, nsyte uses a two-tier storage system for bunkers:
+
 - **Keychain**: Stores actual credentials securely
 - **Index**: Tracks which bunkers are available (for listing)
 
@@ -356,7 +362,8 @@ jobs:
 
 ## Configuration
 
-Configuration is stored in `.nsite/config.json`. A complete [JSON Schema](src/schemas/config.schema.json) is available for validation and editor support.
+Configuration is stored in `.nsite/config.json`. A complete
+[JSON Schema](src/schemas/config.schema.json) is available for validation and editor support.
 
 ```json
 {
@@ -432,9 +439,11 @@ secrets.json
 
 ### NIP-89 App Handler
 
-nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) app handler announcements, allowing your nsite to be discovered as a viewer for specific Nostr event types.
+nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) app handler
+announcements, allowing your nsite to be discovered as a viewer for specific Nostr event types.
 
 **Configuration:**
+
 - `publishAppHandler`: Enable app handler announcements
 - `appHandler.kinds`: Array of event kind numbers this nsite can display
 - `appHandler.name`: Optional display name for your handler
@@ -442,12 +451,14 @@ nsyte supports [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md
 - `appHandler.platforms`: Platform-specific handler configurations (web, android, ios, etc.)
 
 **Command Line:**
+
 ```bash
 # Publish app handler for specific event kinds
 nsyte deploy ./dist --app-handler --handler-kinds "1,30023,30311"
 ```
 
-When enabled, other Nostr clients can suggest your nsite when users encounter the specified event types.
+When enabled, other Nostr clients can suggest your nsite when users encounter the specified event
+types.
 
 ## Advanced Usage
 
@@ -534,7 +545,7 @@ If credentials aren't persisting on Linux:
    # Using environment variable
    export NSYTE_FORCE_ENCRYPTED_STORAGE=true
    nsyte bunker connect
-   
+
    # Or using CLI argument
    nsyte bunker connect --force-encrypted-storage
    ```
@@ -542,7 +553,8 @@ If credentials aren't persisting on Linux:
 ### Common Issues
 
 - **"Bunker connection lost"**: Check relay connectivity and bunker availability
-- **"Failed to store credential"**: Ensure keyring service is running or encrypted storage is writable
+- **"Failed to store credential"**: Ensure keyring service is running or encrypted storage is
+  writable
 - **"No such interface" (Linux)**: Start GNOME Keyring or KDE Wallet service
 - **Credentials lost after reboot**: Check if system attributes (hostname, username) changed
 

@@ -5,7 +5,8 @@ description: Overview of all nsyte commands
 
 # Command Reference
 
-nsyte provides a comprehensive set of commands for managing nostr sites. Each command is documented in detail on its own page.
+nsyte provides a comprehensive set of commands for managing nostr sites. Each command is documented
+in detail on its own page.
 
 ## Core Commands
 

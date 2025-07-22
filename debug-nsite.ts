@@ -26,7 +26,7 @@ const { stdout } = await command.output();
 const output = new TextDecoder().decode(stdout);
 
 console.log("\nFiles that reference .nsite:");
-const lines = output.split("\n").filter(line => line.trim());
+const lines = output.split("\n").filter((line) => line.trim());
 for (const line of lines) {
   console.log("  " + line);
 }
@@ -52,17 +52,17 @@ for (const line of deleteLines) {
     inRelevantSection = true;
     contextLines = [];
   }
-  
+
   if (inRelevantSection) {
     contextLines.push(line);
-    
+
     if (line.includes("remove") || line.includes("delete") || line.includes("clean")) {
       console.log("\nPotential deletion code found:");
       for (const contextLine of contextLines) {
         console.log("  " + contextLine);
       }
     }
-    
+
     if (line === "--" || contextLines.length > 7) {
       inRelevantSection = false;
       contextLines = [];

@@ -1,12 +1,12 @@
 import { Command } from "@cliffy/command";
 import { colors } from "@cliffy/ansi/colors";
 import { createSigner } from "../lib/auth/signer-factory.ts";
-import { readProjectFile, ProjectConfig } from "../lib/config.ts";
+import { ProjectConfig, readProjectFile } from "../lib/config.ts";
 import {
+  publishAppHandler,
   publishProfile,
   publishRelayList,
   publishServerList,
-  publishAppHandler,
 } from "../lib/metadata/publisher.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import { createLogger } from "../lib/logger.ts";
@@ -29,7 +29,7 @@ export function registerAnnounceCommand(program: Command): void {
     .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
     .action(async (options) => {
       const status = new StatusDisplay();
-      
+
       try {
         // Read project config
         const config = readProjectFile();
@@ -47,10 +47,16 @@ export function registerAnnounceCommand(program: Command): void {
         const shouldPublishAppHandler = publishAll || options.publishAppHandler === true;
 
         // Check if anything needs to be published
-        if (!shouldPublishProfile && !shouldPublishRelayList && 
-            !shouldPublishServerList && !shouldPublishAppHandler) {
+        if (
+          !shouldPublishProfile && !shouldPublishRelayList &&
+          !shouldPublishServerList && !shouldPublishAppHandler
+        ) {
           console.error(colors.red("No publish options specified."));
-          console.error(colors.yellow("Use --publish-profile, --publish-relay-list, --publish-server-list, --publish-app-handler, or --all"));
+          console.error(
+            colors.yellow(
+              "Use --publish-profile, --publish-relay-list, --publish-server-list, --publish-app-handler, or --all",
+            ),
+          );
           Deno.exit(1);
         }
 
@@ -63,20 +69,20 @@ export function registerAnnounceCommand(program: Command): void {
           bunkerUrl: options.bunker,
           bunkerPubkey: config.bunkerPubkey,
         });
-        
+
         logger.debug("Signer creation completed");
-        
+
         if ("error" in signerResult) {
           console.error(colors.red(`Failed to create signer: ${signerResult.error}`));
           Deno.exit(1);
         }
-        
+
         const { signer, pubkey } = signerResult;
         logger.debug(`Signer initialized with pubkey: ${pubkey}`);
-        
+
         // Clear the signer initialization message
         status.update("Preparing to publish metadata...");
-        
+
         const results = {
           profile: false,
           relayList: false,
@@ -146,19 +152,16 @@ export function registerAnnounceCommand(program: Command): void {
         status.complete();
 
         // Summary
-        const successCount = Object.values(results).filter(v => v).length;
-        const totalCount = Object.values(results).filter((_, i) => 
-          (publishAll || [
-            options.publishProfile,
-            options.publishRelayList,
-            options.publishServerList,
-            options.publishAppHandler
-          ][i])
-        ).length;
+        const successCount = Object.values(results).filter((v) => v).length;
+        const totalCount = Object.values(results).filter((_, i) => (publishAll || [
+          options.publishProfile,
+          options.publishRelayList,
+          options.publishServerList,
+          options.publishAppHandler,
+        ][i])).length;
 
         console.log("\n" + colors.bold("Announcement Summary:"));
         console.log(colors.green(`Successfully published ${successCount}/${totalCount} items`));
-
       } catch (error) {
         const errorMsg = getErrorMessage(error);
         status.error(`Failed to announce: ${errorMsg}`);

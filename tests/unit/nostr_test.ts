@@ -1,4 +1,10 @@
-import { assertEquals, assertExists, assertMatch, assertRejects, assertThrows } from "std/assert/mod.ts";
+import {
+  assertEquals,
+  assertExists,
+  assertMatch,
+  assertRejects,
+  assertThrows,
+} from "std/assert/mod.ts";
 import {
   createDeleteEvent,
   createProfileEvent,

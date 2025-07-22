@@ -131,9 +131,9 @@ export async function fetchFileEvents(
         .pipe(
           simpleTimeout(5000),
           mapEventsToStore(store),
-          mapEventsToTimeline()
+          mapEventsToTimeline(),
         ),
-      { defaultValue: [] }
+      { defaultValue: [] },
     );
     return events;
   } catch (error) {
@@ -160,9 +160,9 @@ export async function fetchProfileEvent(
         .pipe(
           simpleTimeout(5000),
           mapEventsToStore(store),
-          mapEventsToTimeline()
+          mapEventsToTimeline(),
         ),
-      { defaultValue: [] }
+      { defaultValue: [] },
     );
     return events.length > 0 ? events[0] : null;
   } catch (error) {
@@ -189,9 +189,9 @@ export async function fetchRelayListEvent(
         .pipe(
           simpleTimeout(5000),
           mapEventsToStore(store),
-          mapEventsToTimeline()
+          mapEventsToTimeline(),
         ),
-      { defaultValue: [] }
+      { defaultValue: [] },
     );
     return events.length > 0 ? events[0] : null;
   } catch (error) {
@@ -553,7 +553,11 @@ export async function createAppRecommendationEvent(
 ): Promise<NostrEvent> {
   const tags: string[][] = [
     ["d", eventKind.toString()],
-    ["a", `31990:${handlerAddress.pubkey}:${handlerAddress.identifier}`, handlerAddress.relay || ""],
+    [
+      "a",
+      `31990:${handlerAddress.pubkey}:${handlerAddress.identifier}`,
+      handlerAddress.relay || "",
+    ],
     ["client", "nsyte"],
   ];
 
@@ -592,7 +596,7 @@ export async function createFileMetadataEvent(
 
   // Add platform tags if provided
   if (file.platforms) {
-    file.platforms.forEach(platform => tags.push(["f", platform]));
+    file.platforms.forEach((platform) => tags.push(["f", platform]));
   }
 
   const eventTemplate: NostrEventTemplate = {
@@ -638,10 +642,10 @@ export async function createSoftwareApplicationEvent(
     tags.push(["icon", metadata.icon]);
   }
   if (metadata.image) {
-    metadata.image.forEach(img => tags.push(["image", img]));
+    metadata.image.forEach((img) => tags.push(["image", img]));
   }
   if (metadata.tags) {
-    metadata.tags.forEach(tag => tags.push(["t", tag]));
+    metadata.tags.forEach((tag) => tags.push(["t", tag]));
   }
   if (metadata.url) {
     tags.push(["url", metadata.url]);
@@ -654,7 +658,7 @@ export async function createSoftwareApplicationEvent(
   }
 
   // Add platform tags (required)
-  metadata.platforms.forEach(platform => tags.push(["f", platform]));
+  metadata.platforms.forEach((platform) => tags.push(["f", platform]));
 
   const eventTemplate: NostrEventTemplate = {
     kind: 32267,
@@ -679,21 +683,23 @@ export async function createReleaseArtifactSetEvent(
   applicationId?: string,
 ): Promise<NostrEvent> {
   const dTag = `${projectName}@${version}`;
-  
+
   const tags: string[][] = [
     ["d", dTag],
     ["version", version],
     ["client", "nsyte"],
   ];
-  
+
   // Add reference to parent application event if provided
   if (applicationId) {
     const pubkey = await signer.getPublicKey();
     tags.push(["a", `32267:${pubkey}:${applicationId}`]);
   }
-  
+
   // Add event references - support both single ID and array of IDs
-  const eventIds = Array.isArray(fileMetadataEventIds) ? fileMetadataEventIds : [fileMetadataEventIds];
+  const eventIds = Array.isArray(fileMetadataEventIds)
+    ? fileMetadataEventIds
+    : [fileMetadataEventIds];
   for (const eventId of eventIds) {
     tags.push(["e", eventId]); // Reference to NIP-94 file metadata events
   }

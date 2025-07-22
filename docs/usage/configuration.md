@@ -87,7 +87,8 @@ Here's a basic configuration file with all available options:
 
 ### NIP-94 File Metadata
 
-- `publishFileMetadata`: Whether to publish NIP-94 file metadata events for releases (default: false)
+- `publishFileMetadata`: Whether to publish NIP-94 file metadata events for releases (default:
+  false)
 
 ## Environment Variables
 

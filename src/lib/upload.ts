@@ -116,19 +116,21 @@ async function uploadToServer(
 
       if (response.ok) {
         log.debug(`Upload request succeeded for ${file.path} to ${server}, verifying storage...`);
-        
+
         // Verify the file is actually stored and retrievable
         try {
-          await new Promise(resolve => setTimeout(resolve, 100)); // Brief delay for server processing
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Brief delay for server processing
           const verifyResponse = await fetch(`${serverUrl}${blobSha256}`, {
             method: "HEAD",
           });
-          
+
           if (verifyResponse.ok) {
             log.debug(`Upload verified: ${file.path} is retrievable from ${server}`);
             return true;
           } else {
-            log.debug(`Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`);
+            log.debug(
+              `Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`,
+            );
             return false;
           }
         } catch (e) {
@@ -334,7 +336,7 @@ export async function processUploads(
   // Create a pool of workers that maintain constant concurrency
   let queueIndex = 0;
   let activeWorkers = 0;
-  
+
   // Worker function that continuously processes files from the queue
   const worker = async (): Promise<void> => {
     while (true) {
@@ -343,15 +345,15 @@ export async function processUploads(
       if (currentIndex >= queue.length) {
         break;
       }
-      
+
       const file = queue[currentIndex];
       activeWorkers++;
-      
+
       progress.inProgress = activeWorkers;
       if (progressCallback) {
         progressCallback({ ...progress });
       }
-      
+
       try {
         const result = await uploadFile(file, baseDir, servers, signer, relays);
         resultsMap.set(file, result);

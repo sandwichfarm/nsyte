@@ -5,10 +5,10 @@ import type { ProjectConfig } from "../config.ts";
 import type { Signer } from "../upload.ts";
 import type { FileEntry } from "../nostr.ts";
 import {
+  createAppHandlerEvent,
   createProfileEvent,
   createRelayListEvent,
   createServerListEvent,
-  createAppHandlerEvent,
   publishEventsToRelays,
 } from "../nostr.ts";
 
@@ -41,7 +41,7 @@ export async function publishProfile(
   config: ProjectConfig,
   signer: Signer,
   relays: string[],
-  statusDisplay: StatusDisplay
+  statusDisplay: StatusDisplay,
 ): Promise<void> {
   if (!config.profile) {
     log.debug("No profile configuration found, skipping profile publishing");
@@ -49,7 +49,7 @@ export async function publishProfile(
   }
 
   statusDisplay.update("Publishing profile...");
-  
+
   try {
     const profileEvent = await createProfileEvent(signer, config.profile);
     log.debug(`Created profile event: ${JSON.stringify(profileEvent)}`);
@@ -68,10 +68,10 @@ export async function publishRelayList(
   config: ProjectConfig,
   signer: Signer,
   relays: string[],
-  statusDisplay: StatusDisplay
+  statusDisplay: StatusDisplay,
 ): Promise<void> {
   statusDisplay.update("Publishing relay list...");
-  
+
   try {
     const relayListEvent = await createRelayListEvent(signer, config.relays);
     log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
@@ -90,10 +90,10 @@ export async function publishServerList(
   config: ProjectConfig,
   signer: Signer,
   relays: string[],
-  statusDisplay: StatusDisplay
+  statusDisplay: StatusDisplay,
 ): Promise<void> {
   statusDisplay.update("Publishing blossom server list...");
-  
+
   try {
     const serverListEvent = await createServerListEvent(signer, config.servers);
     log.debug(`Created server list event: ${JSON.stringify(serverListEvent)}`);
@@ -113,7 +113,7 @@ export async function publishAppHandler(
   signer: Signer,
   relays: string[],
   statusDisplay: StatusDisplay,
-  options: { handlerKinds?: string } = {}
+  options: { handlerKinds?: string } = {},
 ): Promise<void> {
   statusDisplay.update("Publishing NIP-89 app handler...");
 
@@ -121,7 +121,9 @@ export async function publishAppHandler(
     // Get event kinds from command line or config
     let kinds: number[] = [];
     if (options.handlerKinds) {
-      kinds = options.handlerKinds.split(",").map(k => parseInt(k.trim())).filter(k => !isNaN(k));
+      kinds = options.handlerKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+        !isNaN(k)
+      );
     } else if (config.appHandler?.kinds) {
       kinds = config.appHandler.kinds;
     }
@@ -134,30 +136,30 @@ export async function publishAppHandler(
 
     // Get the gateway URL
     const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-    
+
     // Add timeout to prevent hanging on getPublicKey
     const getPublicKeyPromise = signer.getPublicKey();
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error("Timeout getting public key from signer")), 10000);
     });
-    
+
     let publisherPubkey: string;
     try {
       publisherPubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
     } catch (e) {
       throw new Error(`Failed to get public key from signer: ${getErrorMessage(e)}`);
     }
-    
+
     const npub = npubEncode(publisherPubkey);
     const gatewayUrl = `https://${npub}.${gatewayHostname}`;
 
     // Get metadata from config if available
     const metadata = config.appHandler?.name || config.appHandler?.description
       ? {
-          name: config.appHandler.name || config.profile?.name,
-          description: config.appHandler.description || config.profile?.about,
-          picture: config.profile?.picture,
-        }
+        name: config.appHandler.name || config.profile?.name,
+        description: config.appHandler.description || config.profile?.about,
+        picture: config.profile?.picture,
+      }
       : undefined;
 
     // Prepare handlers object
@@ -184,7 +186,7 @@ export async function publishAppHandler(
       handlers,
       metadata,
     );
-    
+
     log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
     await publishEventsToRelays(relays, [handlerEvent]);
     statusDisplay.success(`App handler published for kinds: ${kinds.join(", ")}`);
@@ -203,7 +205,7 @@ export async function publishMetadata(
   relays: string[],
   statusDisplay: StatusDisplay,
   options: PublishOptions,
-  includedFiles: FileEntry[] = []
+  includedFiles: FileEntry[] = [],
 ): Promise<void> {
   try {
     // Check both command-line options AND config settings
@@ -216,7 +218,10 @@ export async function publishMetadata(
       `Publish flags - combined: profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}, appHandler=${shouldPublishAppHandler}`,
     );
 
-    if (!shouldPublishProfile && !shouldPublishRelayList && !shouldPublishServerList && !shouldPublishAppHandler) {
+    if (
+      !shouldPublishProfile && !shouldPublishRelayList && !shouldPublishServerList &&
+      !shouldPublishAppHandler
+    ) {
       log.debug("No metadata publishing requested");
       return;
     }

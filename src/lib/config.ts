@@ -7,7 +7,8 @@ import { createLogger } from "./logger.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { validateConfigWithFeedback, formatValidationErrors } from "./config-validator.ts";
+import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
+import { npubEncode } from "./utils.ts";
 
 const log = createLogger("config");
 
@@ -138,7 +139,7 @@ function sanitizeBunkerUrl(url: string): string {
  */
 export function writeProjectFile(config: ProjectConfig): void {
   const cwd = Deno.cwd();
-  
+
   // Prevent writing config in test environments or temp directories
   if (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/")) {
     // Skip logging in test environments to avoid noise
@@ -205,10 +206,12 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
     // Check for YAML files that shouldn't exist
     const yamlPath = join(configDirPath, "config.yaml");
     const ymlPath = join(configDirPath, "config.yml");
-    
+
     if (fileExists(yamlPath) || fileExists(ymlPath)) {
       console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
-      console.error(colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."));
+      console.error(
+        colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."),
+      );
       console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
     }
   }
@@ -221,7 +224,7 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
 
     const fileContent = Deno.readTextFileSync(projectPath);
     let config: unknown;
-    
+
     try {
       config = JSON.parse(fileContent);
     } catch (e) {
@@ -230,44 +233,48 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
       console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
       throw new Error("Invalid JSON in configuration file");
     }
-    
+
     // Validate configuration if requested
     if (validateSchema) {
       const validation = validateConfigWithFeedback(config);
-      
+
       if (!validation.valid) {
         console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
         console.error(formatValidationErrors(validation.errors));
-        
+
         if (validation.suggestions.length > 0) {
           console.log(colors.yellow("\nSuggestions:"));
-          validation.suggestions.forEach(s => console.log(`  - ${s}`));
+          validation.suggestions.forEach((s) => console.log(`  - ${s}`));
         }
-        
-        console.log(colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."));
-        
+
+        console.log(
+          colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."),
+        );
+
         throw new Error("Invalid configuration format");
       }
-      
+
       if (validation.warnings.length > 0) {
         console.warn(colors.yellow("Configuration warnings:"));
-        validation.warnings.forEach(w => console.warn(`  - ${w}`));
+        validation.warnings.forEach((w) => console.warn(`  - ${w}`));
       }
     }
-    
+
     return config as ProjectConfig;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);
-    
+
     // Re-throw validation errors so they can be handled properly
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
-    
+
     return null;
   }
 }
@@ -294,15 +301,17 @@ function fileExists(filePath: string): boolean {
 export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let privateKey: string | undefined;
-  
+
   try {
     config = readProjectFile();
   } catch (error) {
     // If there's a validation error, don't proceed with setup
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
     // For other errors, continue with setup
@@ -513,8 +522,9 @@ async function selectKeySource(
   } else if (keyChoice === "existing_bunker") {
     // Present a list of existing bunkers to choose from
     const bunkerOptions = existingBunkers.map((pubkey: string) => {
+      const npub = npubEncode(pubkey);
       return {
-        name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+        name: `${npub} (${pubkey.slice(0, 8)}...${pubkey.slice(-4)})`,
         value: pubkey,
       };
     });
@@ -679,8 +689,9 @@ Generated and stored nbunksec string.`));
   } else if (keyChoice === "existing_bunker") {
     // Present a list of existing bunkers to choose from
     const bunkerOptions = existingBunkers.map((pubkey: string) => {
+      const npub = npubEncode(pubkey);
       return {
-        name: `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`,
+        name: `${npub} (${pubkey.slice(0, 8)}...${pubkey.slice(-4)})`,
         value: pubkey,
       };
     });

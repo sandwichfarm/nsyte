@@ -1,7 +1,7 @@
 import { RelayPool } from "applesauce-relay/pool";
 import { NostrEvent } from "nostr-tools";
 import { createLogger } from "./logger.ts";
-import { USER_BLOSSOM_SERVER_LIST_KIND, NSITE_KIND } from "./nostr.ts";
+import { NSITE_KIND, USER_BLOSSOM_SERVER_LIST_KIND } from "./nostr.ts";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { lastValueFrom } from "rxjs";
 
@@ -11,7 +11,7 @@ export async function fetchEventsWithTimer(
   pool: RelayPool,
   relays: string[],
   filter: any,
-  timeout: number = 5000
+  timeout: number = 5000,
 ): Promise<NostrEvent[]> {
   try {
     const store = new EventStore();
@@ -21,12 +21,14 @@ export async function fetchEventsWithTimer(
         .pipe(
           simpleTimeout(timeout),
           mapEventsToStore(store),
-          mapEventsToTimeline()
-        )
+          mapEventsToTimeline(),
+        ),
     );
     return events;
   } catch (error) {
-    logger.debug(`Timeout or error fetching events: ${error instanceof Error ? error.message : String(error)}`);
+    logger.debug(
+      `Timeout or error fetching events: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return [];
   }
 }
@@ -34,30 +36,30 @@ export async function fetchEventsWithTimer(
 export async function fetchKind0Event(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent | null> {
   logger.debug(`Fetching kind 0 for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [0],
     authors: [pubkey],
-    limit: 1
+    limit: 1,
   });
-  
+
   return events.length > 0 ? events[0] : null;
 }
 
 export async function fetchRelayListEvents(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent[]> {
   logger.debug(`Fetching kind 10002 for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [10002],
     authors: [pubkey],
-    limit: 10
+    limit: 10,
   });
-  
+
   // Sort by created_at descending
   return events.sort((a, b) => b.created_at - a.created_at);
 }
@@ -65,15 +67,15 @@ export async function fetchRelayListEvents(
 export async function fetchServerListEvents(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent[]> {
   logger.debug(`Fetching kind ${USER_BLOSSOM_SERVER_LIST_KIND} for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [USER_BLOSSOM_SERVER_LIST_KIND],
     authors: [pubkey],
-    limit: 10
+    limit: 10,
   });
-  
+
   // Sort by created_at descending
   return events.sort((a, b) => b.created_at - a.created_at);
 }
@@ -81,15 +83,15 @@ export async function fetchServerListEvents(
 export async function fetchNsiteEvents(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent[]> {
   logger.debug(`Fetching kind ${NSITE_KIND} for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [NSITE_KIND],
-    authors: [pubkey]
+    authors: [pubkey],
     // No limit - fetch all events
   }, 15000); // Longer timeout for potentially many events
-  
+
   // Sort by created_at descending
   return events.sort((a, b) => b.created_at - a.created_at);
 }
@@ -97,15 +99,15 @@ export async function fetchNsiteEvents(
 export async function fetchAppHandlerEvents(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent[]> {
   logger.debug(`Fetching kinds 31989, 31990 for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [31989, 31990],
     authors: [pubkey],
-    limit: 20
+    limit: 20,
   });
-  
+
   // Sort by created_at descending
   return events.sort((a, b) => b.created_at - a.created_at);
 }
@@ -113,15 +115,15 @@ export async function fetchAppHandlerEvents(
 export async function fetchIndexHtmlEvent(
   pool: RelayPool,
   relays: string[],
-  pubkey: string
+  pubkey: string,
 ): Promise<NostrEvent | null> {
   logger.debug(`Fetching /index.html nsite event for ${pubkey}`);
   const events = await fetchEventsWithTimer(pool, relays, {
     kinds: [NSITE_KIND],
     authors: [pubkey],
     "#d": ["/index.html"],
-    limit: 1
+    limit: 1,
   });
-  
+
   return events.length > 0 ? events[0] : null;
 }
