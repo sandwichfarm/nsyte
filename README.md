@@ -12,13 +12,16 @@ censorship-resistant website hosting.
 ## Key Features
 
 - 🚀 **Fast & Efficient** - Concurrent uploads with smart diffing
-- 🔐 **Secure Authentication** - Support for private keys, NIP-46 bunkers, and hardware wallets
-- 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and platform detection
+- 🔐 **Secure Authentication** - Support for NIP-46 bunkers and private keys
 - 🔄 **Smart Release Management** - Append, replace, or skip artifacts intelligently
-- 🤖 **CI/CD Ready** - Non-interactive mode for automated deployments
+- 🛡️ **Secure Key Storage** - Platform-specific secure storage for sensitive data
+- 🤖 **CI/CD Ready** - Revocable key support and non-interactive command line for CI.
+
+### Additional Features
+
+- 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and platform detection
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
 - 🔍 **Metadata Publishing** - Share profile, relay lists, and server lists on nostr
-- 🛡️ **Secure Key Storage** - Platform-specific secure storage for sensitive data
 
 For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
 
