@@ -12,6 +12,7 @@ censorship-resistant website hosting.
 ## Key Features
 
 - 🚀 **Fast & Efficient** - Concurrent uploads with smart diffing
+- 🔍 **Discoverable** - Publish valid profile, relay list, and server lists so your nsite is discoverable.
 - 🔐 **Secure Authentication** - Support for NIP-46 bunkers and private keys
 - 🔄 **Smart Release Management** - Append, replace, or skip artifacts intelligently
 - 🛡️ **Secure Key Storage** - Platform-specific secure storage for sensitive data
@@ -21,9 +22,8 @@ censorship-resistant website hosting.
 
 - 📦 **NIP-94/NIP-82 Release Artifacts** - Create versioned releases with application metadata and platform detection
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
-- 🔍 **Metadata Publishing** - Share profile, relay lists, and server lists on nostr
 
-For more nsite related tools and services check out [awesome-nsite](https://github.com/nostrver-se/awesome-nsite)
+[What's an nsite?](https://nsite.run)
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by
 > florian [github](https://github.com/flox1an) [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc).
