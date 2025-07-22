@@ -315,6 +315,15 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
 
         // Handle root path - look for default files
         let targetPath = requestedPath;
+        let foundFile = null;
+        let isCompressed = false;
+        let compressionType: "br" | "gz" | null = null;
+        
+        // Check for compressed versions support
+        const acceptEncoding = request.headers.get("accept-encoding") || "";
+        const supportsBrotli = acceptEncoding.includes("br");
+        const supportsGzip = acceptEncoding.includes("gzip");
+        
         if (requestedPath === "/") {
           const defaultFiles = [
             "index.html",
@@ -328,14 +337,40 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             "docs/404.html"
           ];
           
+          // Build a list of all possible files including compressed versions
+          const possibleFiles: string[] = [];
           for (const defaultFile of defaultFiles) {
+            // Add compressed versions first (preferred)
+            if (supportsBrotli) {
+              possibleFiles.push(defaultFile + ".br");
+            }
+            if (supportsGzip) {
+              possibleFiles.push(defaultFile + ".gz");
+            }
+            // Add uncompressed version
+            possibleFiles.push(defaultFile);
+          }
+          
+          for (const possibleFile of possibleFiles) {
             const file = fileListEntry.files.find(f => {
               const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-              return normalizedPath === defaultFile;
+              return normalizedPath === possibleFile;
             });
             
             if (file) {
-              targetPath = "/" + defaultFile;
+              foundFile = file;
+              // Check if this is a compressed version
+              if (possibleFile.endsWith(".br")) {
+                targetPath = "/" + possibleFile.slice(0, -3); // Remove .br extension
+                isCompressed = true;
+                compressionType = "br";
+              } else if (possibleFile.endsWith(".gz")) {
+                targetPath = "/" + possibleFile.slice(0, -3); // Remove .gz extension
+                isCompressed = true;
+                compressionType = "gz";
+              } else {
+                targetPath = "/" + possibleFile;
+              }
               break;
             }
           }
@@ -354,10 +389,45 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         
         // Find the requested file
         const normalizedRequestPath = targetPath.startsWith("/") ? targetPath.slice(1) : targetPath;
-        let file = fileListEntry.files.find(f => {
+        let file = foundFile || fileListEntry.files.find(f => {
           const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
           return normalizedFilePath === normalizedRequestPath;
         });
+        
+        
+        if (!file && (supportsBrotli || supportsGzip)) {
+          // Try .br version first if supported
+          if (supportsBrotli) {
+            const brPath = normalizedRequestPath + ".br";
+            const brFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === brPath;
+            });
+            
+            if (brFile) {
+              file = brFile;
+              isCompressed = true;
+              compressionType = "br";
+              console.log(colors.gray(`  → Using brotli compressed version: ${brPath}`));
+            }
+          }
+          
+          // Try .gz version if no .br found and gzip is supported
+          if (!file && supportsGzip) {
+            const gzPath = normalizedRequestPath + ".gz";
+            const gzFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === gzPath;
+            });
+            
+            if (gzFile) {
+              file = gzFile;
+              isCompressed = true;
+              compressionType = "gz";
+              console.log(colors.gray(`  → Using gzip compressed version: ${gzPath}`));
+            }
+          }
+        }
         
         // If path ends with / and file not found, try directory index files
         if (!file && requestedPath.endsWith("/")) {
@@ -366,32 +436,105 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           
           for (const indexFile of indexFiles) {
             const indexPath = dirPath + indexFile;
-            file = fileListEntry.files.find(f => {
-              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-              return normalizedFilePath === indexPath;
-            });
             
-            if (file) {
-              console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${indexPath}`));
-              break;
+            // Try compressed versions first
+            if (supportsBrotli || supportsGzip) {
+              if (supportsBrotli) {
+                const brPath = indexPath + ".br";
+                const brFile = fileListEntry.files.find(f => {
+                  const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+                  return normalizedFilePath === brPath;
+                });
+                
+                if (brFile) {
+                  file = brFile;
+                  isCompressed = true;
+                  compressionType = "br";
+                  console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${brPath} (brotli)`));
+                  break;
+                }
+              }
+              
+              if (!file && supportsGzip) {
+                const gzPath = indexPath + ".gz";
+                const gzFile = fileListEntry.files.find(f => {
+                  const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+                  return normalizedFilePath === gzPath;
+                });
+                
+                if (gzFile) {
+                  file = gzFile;
+                  isCompressed = true;
+                  compressionType = "gz";
+                  console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${gzPath} (gzip)`));
+                  break;
+                }
+              }
+            }
+            
+            // Try uncompressed version
+            if (!file) {
+              file = fileListEntry.files.find(f => {
+                const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+                return normalizedFilePath === indexPath;
+              });
+              
+              if (file) {
+                console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${indexPath}`));
+                break;
+              }
             }
           }
         }
         
         if (!file || !file.sha256) {
           // Try to find /404.html as fallback per nsite specification
-          const notFoundFile = fileListEntry.files.find(f => {
-            const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-            return normalizedPath === "404.html";
-          });
+          // Check for compressed versions first if supported
+          if (supportsBrotli || supportsGzip) {
+            if (supportsBrotli) {
+              const notFoundBr = fileListEntry.files.find(f => {
+                const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+                return normalizedPath === "404.html.br";
+              });
+              
+              if (notFoundBr && notFoundBr.sha256) {
+                console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html.br`));
+                file = notFoundBr;
+                isCompressed = true;
+                compressionType = "br";
+              }
+            }
+            
+            if (!file && supportsGzip) {
+              const notFoundGz = fileListEntry.files.find(f => {
+                const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+                return normalizedPath === "404.html.gz";
+              });
+              
+              if (notFoundGz && notFoundGz.sha256) {
+                console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html.gz`));
+                file = notFoundGz;
+                isCompressed = true;
+                compressionType = "gz";
+              }
+            }
+          }
           
-          if (notFoundFile && notFoundFile.sha256) {
-            // Serve the 404.html file
-            console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html`));
-            file = notFoundFile;
-            // Continue processing to serve the 404.html file
-          } else {
-            // No 404.html available, return plain text error
+          // Try uncompressed 404.html if no compressed version found
+          if (!file) {
+            const notFoundFile = fileListEntry.files.find(f => {
+              const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedPath === "404.html";
+            });
+            
+            if (notFoundFile && notFoundFile.sha256) {
+              console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html`));
+              file = notFoundFile;
+            }
+          }
+          
+          // If still no file found, return plain text error
+          if (!file || !file.sha256) {
             const elapsed = Math.round(performance.now() - startTime);
             console.log(colors.red(`  → File not found: ${requestedPath} (no 404.html) - ${elapsed}ms`));
             return new Response(`File not found: ${requestedPath}`, {
@@ -467,7 +610,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         }
         
         // Serve the file
-        const contentType = getContentType(file.path);
+        const contentType = getContentType(normalizedRequestPath); // Use original request path for content type
         const elapsed = Math.round(performance.now() - startTime);
         
         // Check if we're serving a 404 page
@@ -476,13 +619,21 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         
         console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)}) - ${elapsed}ms${is404 ? ' [404]' : ''}`));
         
+        const headers: Record<string, string> = {
+          "Content-Type": contentType,
+          "Content-Length": fileData.byteLength.toString(),
+          "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
+        };
+        
+        // Add Content-Encoding header if serving compressed version
+        if (isCompressed && compressionType) {
+          headers["Content-Encoding"] = compressionType;
+          headers["Vary"] = "Accept-Encoding"; // Important for caching
+        }
+        
         return new Response(fileData, {
           status: statusCode,
-          headers: {
-            "Content-Type": contentType,
-            "Content-Length": fileData.byteLength.toString(),
-            "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
-          },
+          headers,
         });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
