@@ -398,166 +398,158 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         
         log.debug(`Looking for file: ${normalizedRequestPath}, supportsBrotli: ${supportsBrotli}, supportsGzip: ${supportsGzip}`);
         
+        // Build a list of files to try in order of preference
+        const filesToTry: Array<{file: FileEntry | null, compressed: boolean, type: "br" | "gz" | null}> = [];
+        
         // If we haven't found a file yet (not from root path handling)
         if (!file) {
-          // Check for compressed versions first if browser supports them
-          if (supportsBrotli || supportsGzip) {
-            // Try .br version first if supported
+          // Add compressed versions first if browser supports them
+          if (supportsBrotli) {
+            const brPath = normalizedRequestPath + ".br";
+            log.debug(`Checking for brotli version: ${brPath}`);
+            
+            const brFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === brPath;
+            });
+            
+            if (brFile) {
+              filesToTry.push({file: brFile, compressed: true, type: "br"});
+              log.debug(`Found brotli version: ${brPath}`);
+            }
+          }
+          
+          if (supportsGzip) {
+            const gzPath = normalizedRequestPath + ".gz";
+            log.debug(`Checking for gzip version: ${gzPath}`);
+            
+            const gzFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === gzPath;
+            });
+            
+            if (gzFile) {
+              filesToTry.push({file: gzFile, compressed: true, type: "gz"});
+              log.debug(`Found gzip version: ${gzPath}`);
+            }
+          }
+          
+          // Always add the uncompressed version as fallback
+          const uncompressedFile = fileListEntry.files.find(f => {
+            const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+            return normalizedFilePath === normalizedRequestPath;
+          });
+          
+          if (uncompressedFile) {
+            filesToTry.push({file: uncompressedFile, compressed: false, type: null});
+            log.debug(`Found uncompressed version: ${normalizedRequestPath}`);
+          }
+        } else {
+          // We already have a file from root path handling
+          filesToTry.push({file, compressed: isCompressed, type: compressionType});
+        }
+        
+        // If path ends with / and no files found yet, try directory index files
+        if (filesToTry.length === 0 && requestedPath.endsWith("/")) {
+          const dirPath = normalizedRequestPath;
+          const indexFiles = ["index.html", "index.htm", "README.md"];
+          
+          for (const indexFile of indexFiles) {
+            const indexPath = dirPath + indexFile;
+            let foundIndexFile = false;
+            
+            // Check for compressed versions first
             if (supportsBrotli) {
-              const brPath = normalizedRequestPath + ".br";
-              log.debug(`Checking for brotli version: ${brPath}`);
-              
+              const brPath = indexPath + ".br";
               const brFile = fileListEntry.files.find(f => {
                 const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
                 return normalizedFilePath === brPath;
               });
               
               if (brFile) {
-                file = brFile;
-                isCompressed = true;
-                compressionType = "br";
-                console.log(colors.gray(`  → Using brotli compressed version: ${brPath}`));
-              } else {
-                log.debug(`Brotli version not found: ${brPath}`);
+                filesToTry.push({file: brFile, compressed: true, type: "br"});
+                foundIndexFile = true;
               }
             }
             
-            // Try .gz version if no .br found and gzip is supported
-            if (!file && supportsGzip) {
-              const gzPath = normalizedRequestPath + ".gz";
-              log.debug(`Checking for gzip version: ${gzPath}`);
-              
+            if (supportsGzip) {
+              const gzPath = indexPath + ".gz";
               const gzFile = fileListEntry.files.find(f => {
                 const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
                 return normalizedFilePath === gzPath;
               });
               
               if (gzFile) {
-                file = gzFile;
-                isCompressed = true;
-                compressionType = "gz";
-                console.log(colors.gray(`  → Using gzip compressed version: ${gzPath}`));
-              } else {
-                log.debug(`Gzip version not found: ${gzPath}`);
+                filesToTry.push({file: gzFile, compressed: true, type: "gz"});
+                foundIndexFile = true;
               }
             }
-          }
-          
-          // If no compressed version found, look for the original file
-          if (!file) {
-            file = fileListEntry.files.find(f => {
+            
+            // Always check for uncompressed version
+            const indexFileEntry = fileListEntry.files.find(f => {
               const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-              return normalizedFilePath === normalizedRequestPath;
-            }) || null;
-          }
-        }
-        
-        // If path ends with / and file not found, try directory index files
-        if (!file && requestedPath.endsWith("/")) {
-          const dirPath = normalizedRequestPath;
-          const indexFiles = ["index.html", "index.htm", "README.md"];
-          
-          for (const indexFile of indexFiles) {
-            const indexPath = dirPath + indexFile;
-            
-            // Try compressed versions first
-            if (supportsBrotli || supportsGzip) {
-              if (supportsBrotli) {
-                const brPath = indexPath + ".br";
-                const brFile = fileListEntry.files.find(f => {
-                  const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-                  return normalizedFilePath === brPath;
-                });
-                
-                if (brFile) {
-                  file = brFile;
-                  isCompressed = true;
-                  compressionType = "br";
-                  console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${brPath} (brotli)`));
-                  break;
-                }
-              }
-              
-              if (!file && supportsGzip) {
-                const gzPath = indexPath + ".gz";
-                const gzFile = fileListEntry.files.find(f => {
-                  const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-                  return normalizedFilePath === gzPath;
-                });
-                
-                if (gzFile) {
-                  file = gzFile;
-                  isCompressed = true;
-                  compressionType = "gz";
-                  console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${gzPath} (gzip)`));
-                  break;
-                }
-              }
-            }
-            
-            // Try uncompressed version
-            if (!file) {
-              file = fileListEntry.files.find(f => {
-                const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-                return normalizedFilePath === indexPath;
-              }) || null;
-              
-              if (file) {
-                console.log(colors.gray(`  → Directory ${requestedPath} resolved to ${indexPath}`));
-                break;
-              }
-            }
-          }
-        }
-        
-        if (!file || !file.sha256) {
-          // Try to find /404.html as fallback per nsite specification
-          // Check for compressed versions first if supported
-          if (supportsBrotli || supportsGzip) {
-            if (supportsBrotli) {
-              const notFoundBr = fileListEntry.files.find(f => {
-                const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-                return normalizedPath === "404.html.br";
-              });
-              
-              if (notFoundBr && notFoundBr.sha256) {
-                console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html.br`));
-                file = notFoundBr;
-                isCompressed = true;
-                compressionType = "br";
-              }
-            }
-            
-            if (!file && supportsGzip) {
-              const notFoundGz = fileListEntry.files.find(f => {
-                const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-                return normalizedPath === "404.html.gz";
-              });
-              
-              if (notFoundGz && notFoundGz.sha256) {
-                console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html.gz`));
-                file = notFoundGz;
-                isCompressed = true;
-                compressionType = "gz";
-              }
-            }
-          }
-          
-          // Try uncompressed 404.html if no compressed version found
-          if (!file) {
-            const notFoundFile = fileListEntry.files.find(f => {
-              const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-              return normalizedPath === "404.html";
+              return normalizedFilePath === indexPath;
             });
             
-            if (notFoundFile && notFoundFile.sha256) {
-              console.log(colors.yellow(`  → File not found: ${requestedPath}, serving /404.html`));
-              file = notFoundFile;
+            if (indexFileEntry) {
+              filesToTry.push({file: indexFileEntry, compressed: false, type: null});
+              foundIndexFile = true;
+            }
+            
+            // If we found any version of this index file, stop looking
+            if (foundIndexFile) {
+              log.debug(`Directory ${requestedPath} resolved to ${indexPath} (with ${filesToTry.length} variants)`);
+              break;
+            }
+          }
+        }
+        
+        // If no files found yet, try 404.html
+        if (filesToTry.length === 0) {
+          let found404 = false;
+          
+          // Try to find /404.html as fallback per nsite specification
+          // Check for compressed versions first if supported
+          if (supportsBrotli) {
+            const notFoundBr = fileListEntry.files.find(f => {
+              const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedPath === "404.html.br";
+            });
+            
+            if (notFoundBr && notFoundBr.sha256) {
+              filesToTry.push({file: notFoundBr, compressed: true, type: "br"});
+              found404 = true;
+              console.log(colors.yellow(`  → File not found: ${requestedPath}, will try /404.html.br`));
             }
           }
           
-          // If still no file found, return plain text error
-          if (!file || !file.sha256) {
+          if (supportsGzip) {
+            const notFoundGz = fileListEntry.files.find(f => {
+              const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedPath === "404.html.gz";
+            });
+            
+            if (notFoundGz && notFoundGz.sha256) {
+              filesToTry.push({file: notFoundGz, compressed: true, type: "gz"});
+              found404 = true;
+              console.log(colors.yellow(`  → File not found: ${requestedPath}, will try /404.html.gz`));
+            }
+          }
+          
+          // Always try uncompressed 404.html
+          const notFoundFile = fileListEntry.files.find(f => {
+            const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+            return normalizedPath === "404.html";
+          });
+          
+          if (notFoundFile && notFoundFile.sha256) {
+            filesToTry.push({file: notFoundFile, compressed: false, type: null});
+            found404 = true;
+            console.log(colors.yellow(`  → File not found: ${requestedPath}, will try /404.html`));
+          }
+          
+          // If still no file found, return error response
+          if (!found404) {
             const elapsed = Math.round(performance.now() - startTime);
             console.log(colors.red(`  → File not found: ${requestedPath} (no 404.html available) - ${elapsed}ms`));
             
@@ -598,54 +590,76 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           }
         }
         
-        // At this point, file is guaranteed to have sha256
-        if (!file.sha256) {
-          throw new Error("File sha256 is missing");
-        }
-        
-        // Check file cache
-        const cacheKey = `${npub}-${file.sha256}`;
+        // Try to download files in order of preference
         let fileData: Uint8Array | null = null;
-        const isStale = isCacheStale(fileListEntry, file);
+        let successfulFile: FileEntry | null = null;
+        let successfulCompression: boolean = false;
+        let successfulCompressionType: "br" | "gz" | null = null;
         
-        // Try persistent cache first if available
-        if (cacheDir && !isStale) {
-          fileData = await loadCachedFile(cacheDir, npub, file.sha256);
-          if (fileData) {
-            log.debug(`Loaded ${file.path} from disk cache`);
-          }
-        }
-        
-        // Check memory cache if no persistent cache or file not found
-        if (!fileData) {
-          const memCached = fileCache.get(cacheKey);
-          if (memCached && (!memCached.timestamp || Date.now() - memCached.timestamp < FILE_CACHE_TTL) && !isStale) {
-            fileData = memCached.data;
-            log.debug(`Loaded ${file.path} from memory cache`);
-          }
-        }
-        
-        // Download if not cached or stale
-        if (!fileData || isStale) {
-          console.log(colors.gray(`  → Downloading ${colors.cyan(file.path)}...${isStale ? ' (updated)' : ''}`));
+        for (const fileOption of filesToTry) {
+          if (!fileOption.file || !fileOption.file.sha256) continue;
           
+          const tryFile = fileOption.file;
+          const fileSha256 = tryFile.sha256!; // We already checked this is not undefined
+          const cacheKey = `${npub}-${fileSha256}`;
+          const isStale = isCacheStale(fileListEntry, tryFile);
+          
+          // Try persistent cache first if available
+          if (cacheDir && !isStale) {
+            fileData = await loadCachedFile(cacheDir, npub, fileSha256);
+            if (fileData) {
+              log.debug(`Loaded ${tryFile.path} from disk cache`);
+              successfulFile = tryFile;
+              successfulCompression = fileOption.compressed;
+              successfulCompressionType = fileOption.type;
+              if (fileOption.compressed) {
+                console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
+              }
+              break;
+            }
+          }
+          
+          // Check memory cache if no persistent cache or file not found
+          if (!fileData) {
+            const memCached = fileCache.get(cacheKey);
+            if (memCached && (!memCached.timestamp || Date.now() - memCached.timestamp < FILE_CACHE_TTL) && !isStale) {
+              fileData = memCached.data;
+              log.debug(`Loaded ${tryFile.path} from memory cache`);
+              successfulFile = tryFile;
+              successfulCompression = fileOption.compressed;
+              successfulCompressionType = fileOption.type;
+              if (fileOption.compressed) {
+                console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
+              }
+              break;
+            }
+          }
+          
+          // Try to download the file
+          console.log(colors.gray(`  → Downloading ${colors.cyan(tryFile.path)}...${isStale ? ' (updated)' : ''}`));
+          
+          let downloaded = false;
           for (const server of servers) {
             try {
               const downloadService = DownloadService.create();
-              const downloadedData = await downloadService.downloadFromServer(server, file.sha256);
+              const downloadedData = await downloadService.downloadFromServer(server, fileSha256);
               if (downloadedData) {
                 fileData = downloadedData;
                 
                 // Save to memory cache
-                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now(), sha256: file.sha256 });
+                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now(), sha256: fileSha256 });
                 
                 // Save to disk cache if available
                 if (cacheDir) {
-                  await saveCachedFile(cacheDir, npub, file.sha256, fileData);
-                  log.debug(`Saved ${file.path} to disk cache`);
+                  await saveCachedFile(cacheDir, npub, fileSha256, fileData);
+                  log.debug(`Saved ${tryFile.path} to disk cache`);
                 }
                 
                 console.log(colors.gray(`  → Downloaded from ${server}`));
+                downloaded = true;
+                successfulFile = tryFile;
+                successfulCompression = fileOption.compressed;
+                successfulCompressionType = fileOption.type;
                 break;
               }
             } catch (error) {
@@ -653,15 +667,29 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             }
           }
           
-          if (!fileData) {
-            const elapsed = Math.round(performance.now() - startTime);
-            console.log(colors.red(`  → Failed to download file - ${elapsed}ms`));
-            return new Response("Failed to download file from any server", {
-              status: 500,
-              headers: { "Content-Type": "text/plain" },
-            });
+          if (downloaded) {
+            if (fileOption.compressed) {
+              console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
+            }
+            break;
+          } else {
+            console.log(colors.yellow(`  → Failed to download ${tryFile.path}, trying next option...`));
           }
         }
+        
+        if (!fileData || !successfulFile) {
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.red(`  → Failed to download any version of the file - ${elapsed}ms`));
+          return new Response("Failed to download file from any server", {
+            status: 500,
+            headers: { "Content-Type": "text/plain" },
+          });
+        }
+        
+        // Update variables for serving
+        file = successfulFile;
+        isCompressed = successfulCompression;
+        compressionType = successfulCompressionType;
         
         // Serve the file
         // For 404 pages, use the 404.html content type, otherwise use the requested path
