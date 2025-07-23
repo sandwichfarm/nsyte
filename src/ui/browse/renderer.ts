@@ -240,7 +240,7 @@ export function renderFileList(state: BrowseState) {
   
   // Calculate column widths
   const sizeColumnWidth = 8; // "99.9 MB "
-  const typeColumnWidth = 15; // "application/..."
+  const typeColumnWidth = COLUMN_WIDTH_TYPE; // "application/..."
   
   pageItems.forEach((item, listIndex) => {
     const globalIndex = startIndex + listIndex;
