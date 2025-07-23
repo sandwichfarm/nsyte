@@ -34,6 +34,8 @@ export interface FileEntryWithSources {
   event?: NostrEvent;
   foundOnRelays: string[];
   availableOnServers: string[];
+  size?: number;
+  contentType?: string;
 }
 
 // Color palette for relays and servers
@@ -163,6 +165,13 @@ export async function listRemoteFilesWithSources(
         url.startsWith("http://") || url.startsWith("https://")
       );
 
+      // Get size from "size" tag
+      const sizeStr = getTagValue(event, "size");
+      const size = sizeStr ? parseInt(sizeStr, 10) : undefined;
+      
+      // Get content type from "m" tag
+      const contentType = getTagValue(event, "m");
+
       fileEntries.push({
         path,
         sha256,
@@ -170,6 +179,8 @@ export async function listRemoteFilesWithSources(
         event,
         foundOnRelays: Array.from(foundOnRelays),
         availableOnServers: servers,
+        size,
+        contentType,
       });
     }
   }

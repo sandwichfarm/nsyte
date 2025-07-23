@@ -5,6 +5,7 @@ import { RELAY_SYMBOL, SERVER_SYMBOL } from "../../commands/ls.ts";
 import { isIgnored } from "../../lib/files.ts";
 import { formatTimestamp } from "../time-formatter.ts";
 import { highlightJson, addLineNumbers } from "../json-highlighter.ts";
+import { formatFileSize } from "../formatters.ts";
 
 export function truncateHash(hash: string): string {
   if (hash.length <= 16) return hash;
@@ -233,6 +234,14 @@ export function renderFileList(state: BrowseState) {
   const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
   const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
   
+  // Determine if we have enough space for additional columns
+  const showSizeColumn = cols > 100;
+  const showTypeColumn = cols > 120;
+  
+  // Calculate column widths
+  const sizeColumnWidth = 8; // "99.9 MB "
+  const typeColumnWidth = 15; // "application/..."
+  
   pageItems.forEach((item, listIndex) => {
     const globalIndex = startIndex + listIndex;
     const isSelected = state.selectedItems.has(item.path);
@@ -248,7 +257,13 @@ export function renderFileList(state: BrowseState) {
       // Render directory
       const dirName = item.path.split('/').pop() || item.path;
       const emptyIndicators = " ".repeat(maxRelayCount) + ` ${colors.gray("│")} ` + " ".repeat(maxServerCount);
-      console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
+      
+      // Add empty columns for size and type if shown
+      let extraColumns = "";
+      if (showSizeColumn) extraColumns += " ".repeat(sizeColumnWidth) + " ";
+      if (showTypeColumn) extraColumns += " ".repeat(typeColumnWidth) + " ";
+      
+      console.log(`${emptyIndicators} ${extraColumns}${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
     } else if (item.file) {
       // Render file
       const fileName = item.path.split('/').pop() || item.path;
@@ -271,6 +286,37 @@ export function renderFileList(state: BrowseState) {
       serverIndicators += " ".repeat(maxServerCount - item.file.availableOnServers.length);
       
       const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
+      
+      // Format size column
+      let sizeStr = "";
+      if (showSizeColumn) {
+        if (item.file.size !== undefined) {
+          sizeStr = formatFileSize(item.file.size).padEnd(sizeColumnWidth);
+        } else {
+          sizeStr = "-".padEnd(sizeColumnWidth);
+        }
+        sizeStr += " ";
+      }
+      
+      // Format type column
+      let typeStr = "";
+      if (showTypeColumn) {
+        if (item.file.contentType) {
+          // Shorten content type for display
+          let shortType = item.file.contentType;
+          if (shortType.startsWith("application/")) {
+            shortType = shortType.substring(12);
+          } else if (shortType.startsWith("text/")) {
+            shortType = shortType.substring(5);
+          } else if (shortType.startsWith("image/")) {
+            shortType = "img/" + shortType.substring(6);
+          }
+          typeStr = shortType.substring(0, typeColumnWidth - 1).padEnd(typeColumnWidth);
+        } else {
+          typeStr = "-".padEnd(typeColumnWidth);
+        }
+        typeStr += " ";
+      }
       
       // Format file info
       const isDeleting = state.deletingItems.has(item.path);
@@ -303,7 +349,7 @@ export function renderFileList(state: BrowseState) {
       
       if (rowBackground && !isDeleting && !isDeleted) {
         // Apply background color to entire row
-        const lineContent = `${indicators} ${treePrefix}${fileName}${hashDisplay}`;
+        const lineContent = `${indicators} ${sizeStr}${typeStr}${treePrefix}${fileName}${hashDisplay}`;
         const paddingNeeded = cols - lineContent.length;
         const fullLine = lineContent + " ".repeat(Math.max(0, paddingNeeded));
         
@@ -314,8 +360,10 @@ export function renderFileList(state: BrowseState) {
         }
       } else {
         // Normal rendering without background
+        const sizeDisplay = showSizeColumn ? (isDeleting || isDeleted ? indicatorColor(sizeStr) : colors.gray(sizeStr)) : "";
+        const typeDisplay = showTypeColumn ? (isDeleting || isDeleted ? indicatorColor(typeStr) : colors.gray(typeStr)) : "";
         const fileDisplay = `${colors.gray(treePrefix)}${pathColor(fileName)}${colors.gray(hashDisplay)}`;
-        console.log(`${coloredIndicators} ${fileDisplay}`);
+        console.log(`${coloredIndicators} ${sizeDisplay}${typeDisplay}${fileDisplay}`);
       }
     }
   });
@@ -346,6 +394,16 @@ export function renderDetailView(state: BrowseState) {
   printLine(`${colors.gray("Path:")} ${file.path}`);
   printLine(`${colors.gray("SHA256:")} ${file.sha256}`);
   printLine(`${colors.gray("Event ID:")} ${file.eventId}`);
+  
+  // Add size if available
+  if (file.size !== undefined) {
+    printLine(`${colors.gray("Size:")} ${formatFileSize(file.size)}`);
+  }
+  
+  // Add content type if available
+  if (file.contentType) {
+    printLine(`${colors.gray("Type:")} ${file.contentType}`);
+  }
   
   // Add creation time if event exists
   if (file.event?.created_at) {

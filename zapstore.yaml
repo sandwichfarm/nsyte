@@ -1,0 +1,24 @@
+identifier: run.nsyte.cli
+version: 0.20.0
+name: nsyte
+summary: deploys, debugs and inspects nsites 
+description: deploys, debugs and inspects nsites 
+repository: https://github.com/sandwichfarm/nsyte
+release_repository: https://github.com/sandwichfarm/nsyte
+homepage: https://nsite.run
+# images:
+#   - test/assets/i1.jpg
+#   - test/assets/i2.jpg
+# icon: test/assets/icon.png
+# changelog: CHANGELOG.md
+tags: nsite bunker ci cli 
+license: MIT
+blossom_server: https://cdn.hzrd149.com
+remote_metadata:
+  - github
+assets: 
+  - dist/nsyte-linux
+  - dist/nsite-macos
+  - dist/nsite-windows.exe
+executables:
+  - ^nsyte.*

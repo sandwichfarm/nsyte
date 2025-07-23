@@ -99,6 +99,13 @@ export async function listRemoteFilesWithProgress(
         url.startsWith("http://") || url.startsWith("https://")
       );
 
+      // Get size from "size" tag (BUD-02)
+      const sizeStr = getTagValue(event, "size");
+      const size = sizeStr ? parseInt(sizeStr, 10) : undefined;
+      
+      // Get content type from "m" tag (MIME type)
+      const contentType = getTagValue(event, "m");
+
       fileEntries.push({
         path,
         sha256,
@@ -106,6 +113,8 @@ export async function listRemoteFilesWithProgress(
         event,
         foundOnRelays: Array.from(foundOnRelays),
         availableOnServers: servers,
+        size,
+        contentType,
       });
     }
   }
