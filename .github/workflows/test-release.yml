@@ -81,7 +81,7 @@ jobs:
         run: |
           brew install upx
           cp dist/nsyte-macos-test dist/nsyte-macos-test-compressed
-          upx --best --lzma dist/nsyte-macos-test-compressed
+          upx --best --lzma --force-macos dist/nsyte-macos-test-compressed
           echo "UPX compression successful!"
           ls -lh dist/
 
