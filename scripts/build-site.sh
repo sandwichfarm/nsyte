@@ -34,6 +34,9 @@ cp website/src/install-redirect.html dist/install.html
 echo "📚 Building documentation..."
 .venv/docs/bin/mkdocs build
 
+echo "Do brotli and gz compression"
+./scripts/compress-site-files.js
+
 echo "✅ Website built successfully!"
 echo ""
 echo "Structure:"
