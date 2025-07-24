@@ -235,7 +235,7 @@ export function renderFileList(state: BrowseState) {
   const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
   
   // Determine if we have enough space for additional columns
-  const showSizeColumn = cols > 100;
+  const showSizeColumn = cols > MIN_COLS_FOR_SIZE;
   const showTypeColumn = cols > 120;
   
   // Calculate column widths
