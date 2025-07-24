@@ -129,8 +129,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
     const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
-    const CACHE_TTL = 600000; // 10 minutes cache
-    const FILE_CACHE_TTL = usingPersistentCache ? 86400000 : 3600000; // 24 hours for persistent cache, 1 hour for memory
+    const CACHE_TTL = 600000; // 10 minutes cache for profile data only
+    // No longer using time-based intervals for file cache - check for updates on each request
 
     // Create HTTP handler
     const handler = async (request: Request): Promise<Response> => {
@@ -286,22 +286,66 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           }
         }
         
-        // Refresh file list if needed
-        if (!fileListEntry || Date.now() - fileListEntry.timestamp > CACHE_TTL) {
-          console.log(colors.gray(`  → Refreshing file list...`));
+        // Check for updates on every request (or fetch initial file list)
+        if (!fileListEntry || !fileListEntry.loading) {
+          const isInitialLoad = !fileListEntry;
+          console.log(colors.gray(`  → ${isInitialLoad ? 'Fetching file list...' : 'Checking for updates...'}`));
           const files = await listRemoteFiles(relays, pubkeyHex);
-          
+
           // Track event timestamps for cache invalidation
-          const eventTimestamps = new Map<string, number>();
+          const newEventTimestamps = new Map<string, number>();
           files.forEach(file => {
             if (file.event) {
-              eventTimestamps.set(file.path, file.event.created_at);
+              newEventTimestamps.set(file.path, file.event.created_at);
             }
           });
-          
-          fileListEntry = { files, timestamp: Date.now(), loading: false, eventTimestamps };
-          fileListCache.set(npub, fileListEntry);
-          console.log(colors.gray(`  → Found ${files.length} files`));
+
+          // Check if any files have been updated
+          let hasUpdates = false;
+          if (fileListEntry?.eventTimestamps) {
+            // Check for new or updated files
+            for (const [path, newTimestamp] of newEventTimestamps) {
+              const oldTimestamp = fileListEntry.eventTimestamps.get(path);
+              if (!oldTimestamp || newTimestamp > oldTimestamp) {
+                hasUpdates = true;
+                console.log(colors.yellow(`  → Updated: ${path}`));
+                break;
+              }
+            }
+
+            // Check for deleted files
+            if (!hasUpdates) {
+              for (const [path] of fileListEntry.eventTimestamps) {
+                if (!newEventTimestamps.has(path)) {
+                  hasUpdates = true;
+                  console.log(colors.yellow(`  → Removed: ${path}`));
+                  break;
+                }
+              }
+            }
+          } else {
+            // No previous timestamps, so this is the first load
+            hasUpdates = true;
+          }
+
+          if (hasUpdates) {
+            fileListEntry = { files, timestamp: Date.now(), loading: false, eventTimestamps: newEventTimestamps };
+            fileListCache.set(npub, fileListEntry);
+            console.log(colors.gray(`  → Found ${files.length} files (cache updated)`));
+          } else {
+            // No updates found, keep existing cache
+            console.log(colors.gray(`  → No updates found (${files.length} files)`));
+          }
+        }
+
+        // At this point, fileListEntry should be defined
+        if (!fileListEntry) {
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.red(`  → Internal error: file list entry is undefined - ${elapsed}ms`));
+          return new Response("Internal server error", {
+            status: 500,
+            headers: { "Content-Type": "text/plain" },
+          });
         }
         
         if (fileListEntry.files.length === 0) {
@@ -622,7 +666,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           // Check memory cache if no persistent cache or file not found
           if (!fileData) {
             const memCached = fileCache.get(cacheKey);
-            if (memCached && (!memCached.timestamp || Date.now() - memCached.timestamp < FILE_CACHE_TTL) && !isStale) {
+            if (memCached && !isStale) {
               fileData = memCached.data;
               log.debug(`Loaded ${tryFile.path} from memory cache`);
               successfulFile = tryFile;
@@ -646,7 +690,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               if (downloadedData) {
                 fileData = downloadedData;
                 
-                // Save to memory cache
+                // Save to memory cache (no expiration - only invalidated by new events)
                 fileCache.set(cacheKey, { data: fileData, timestamp: Date.now(), sha256: fileSha256 });
                 
                 // Save to disk cache if available
