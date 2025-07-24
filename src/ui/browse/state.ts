@@ -1,5 +1,7 @@
 import type { FileEntryWithSources } from "../../commands/ls.ts";
 import type { IgnoreRule } from "../../lib/files.ts";
+import type { PropagationStats } from "../../lib/propagation-stats.ts";
+import { calculatePropagationStats } from "../../lib/propagation-stats.ts";
 
 export interface TreeItem {
   path: string;
@@ -40,6 +42,8 @@ export interface BrowseState {
   filterText: string; // Current filter text
   switchIdentity: boolean; // Signal to switch identity
   pubkey: string; // Current pubkey being browsed
+  blossomServers: string[]; // Cached blossom server list
+  propagationStats: PropagationStats; // Propagation strength stats
 }
 
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
@@ -161,6 +165,8 @@ export function createInitialState(
     filterText: "",
     switchIdentity: false,
     pubkey,
+    blossomServers: [],
+    propagationStats: calculatePropagationStats(files, relayColorMap.size, serverColorMap.size),
   };
 }
 
@@ -207,6 +213,13 @@ export function updateFilteredFiles(state: BrowseState): void {
   state.selectedIndex = Math.max(firstFileIndex, state.selectedIndex);
   
   state.page = 0;
+  
+  // Recalculate propagation stats for filtered files
+  state.propagationStats = calculatePropagationStats(
+    state.filteredFiles, 
+    state.relayColorMap.size, 
+    state.serverColorMap.size
+  );
 }
 
 export function navigateUp(state: BrowseState): void {
@@ -307,4 +320,15 @@ export function getSelectedFiles(state: BrowseState): FileEntryWithSources[] {
   }
   
   return [];
+}
+
+/**
+ * Update propagation stats for current state
+ */
+export function updatePropagationStats(state: BrowseState): void {
+  state.propagationStats = calculatePropagationStats(
+    state.filteredFiles, 
+    state.relayColorMap.size, 
+    state.serverColorMap.size
+  );
 }

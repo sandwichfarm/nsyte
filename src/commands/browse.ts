@@ -10,7 +10,8 @@ import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
 import { Keypress } from "@cliffy/keypress";
-import { createInitialState } from "../ui/browse/state.ts";
+import { pool } from "../lib/nostr.ts";
+import { createInitialState, updatePropagationStats } from "../ui/browse/state.ts";
 import {
   enterAlternateScreen,
   exitAlternateScreen,
@@ -106,8 +107,8 @@ export async function command(options: any): Promise<void> {
         }
       }
 
-      // Fetch files with progress
-      const files = await listRemoteFilesWithProgress(relays, pubkey);
+      // Fetch files with progress (without blocking on blossom server checks)
+      const files = await listRemoteFilesWithProgress(relays, pubkey, false);
 
       if (files.length === 0) {
         exitAlternateScreen();
@@ -130,13 +131,26 @@ export async function command(options: any): Promise<void> {
         file.availableOnServers.forEach((server) => allServers.add(server));
       });
 
-      Array.from(allRelays).forEach((relay, index) => {
+      // Sort relays and servers for deterministic color/symbol assignment
+      Array.from(allRelays).sort().forEach((relay, index) => {
         relayColorMap.set(relay, RELAY_COLORS[index % RELAY_COLORS.length]);
       });
 
-      Array.from(allServers).forEach((server, index) => {
+      Array.from(allServers).sort().forEach((server, index) => {
         serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length]);
       });
+
+      // Update server color map when blossom servers are loaded
+      const updateServerColorMap = (blossomServers: string[]) => {
+        const allServersSet = new Set(Array.from(allServers));
+        blossomServers.forEach(server => allServersSet.add(server));
+        
+        // Rebuild color map with all servers (existing + blossom)
+        serverColorMap.clear();
+        Array.from(allServersSet).sort().forEach((server, index) => {
+          serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length]);
+        });
+      };
 
       renderLoadingScreen(
         "Building file tree...",
@@ -186,6 +200,55 @@ export async function command(options: any): Promise<void> {
 
       // Initial render
       render(state);
+
+      // Start initial blossom server check in background (don't await)
+      const { checkBlossomServersForFiles } = await import("./browse-loader.ts");
+      const { fetchServerListEvents } = await import("../lib/debug-helpers.ts");
+      
+      // First fetch server list asynchronously
+      state.status = "Loading server list...";
+      render(state);
+      
+      // Fire and forget - don't block
+      fetchServerListEvents(pool, relays, pubkey).then((serverListEvents) => {
+        if (serverListEvents.length > 0) {
+          const latestEvent = serverListEvents[0];
+          state.blossomServers = latestEvent.tags
+            .filter(tag => tag[0] === "server" && tag[1])
+            .map(tag => tag[1]);
+          log.debug(`Found ${state.blossomServers.length} blossom servers in user's server list`);
+          
+          // Update color map with blossom servers
+          updateServerColorMap(state.blossomServers);
+          updatePropagationStats(state);
+          render(state);
+        }
+        
+        if (state.blossomServers.length === 0) {
+          state.status = "Ready (no blossom servers)";
+          render(state);
+          return;
+        }
+        
+        // Now check blossom servers with cached list
+        state.status = "Checking blossom servers...";
+        render(state);
+        
+        return checkBlossomServersForFiles(relays, pubkey, state.files, (checked, total) => {
+          state.status = `Checking blossom servers... ${checked}/${total}`;
+          render(state);
+        }, state.blossomServers);
+      }).then(() => {
+        hasInitialBlossomCheck = true;
+        state.status = "Ready";
+        updatePropagationStats(state);
+        render(state);
+      }).catch((error) => {
+        hasInitialBlossomCheck = true;
+        state.status = "Ready";
+        log.debug(`Initial blossom check failed: ${error}`);
+        render(state);
+      });
 
       // Setup keypress handler with priority-based input queue
       const keypress = new Keypress();
@@ -246,6 +309,9 @@ export async function command(options: any): Promise<void> {
             const shouldContinue = handleListModeKey(state, key);
             if (!shouldContinue) {
               // Clean up
+              if (blossomRefreshInterval) {
+                clearInterval(blossomRefreshInterval);
+              }
               Deno.removeSignalListener("SIGWINCH", handleResize);
               keypress.dispose();
               showCursor();
@@ -279,6 +345,50 @@ export async function command(options: any): Promise<void> {
       // Track trackpad activity for debugging
       let trackpadEventCount = 0;
       let lastTrackpadTime = 0;
+
+      // Start background blossom server checking with 10-minute refresh (optional)
+      let blossomRefreshInterval: number | undefined;
+      let hasInitialBlossomCheck = false;
+      
+      const startBlossomRefresh = () => {
+        if (blossomRefreshInterval) {
+          clearInterval(blossomRefreshInterval);
+        }
+        
+        // Only set up periodic refresh if user wants it (every 10 minutes)
+        // For now, let's disable periodic refresh - blossom checking happens once per session
+        // Uncomment the following lines if periodic refresh is desired:
+        /*
+        blossomRefreshInterval = setInterval(async () => {
+          // Skip refresh if no blossom servers
+          if (state.blossomServers.length === 0) {
+            return;
+          }
+          
+          try {
+            state.status = "Refreshing blossom servers...";
+            render(state);
+            
+            const { checkBlossomServersForFiles } = await import("./browse-loader.ts");
+            await checkBlossomServersForFiles(relays, pubkey, state.files, (checked, total) => {
+              state.status = `Refreshing blossom servers... ${checked}/${total}`;
+              render(state);
+            }, state.blossomServers);
+            
+            state.status = "Ready";
+            updatePropagationStats(state);
+            render(state);
+          } catch (error) {
+            state.status = "Ready";
+            log.debug(`Background blossom refresh failed: ${error}`);
+            render(state);
+          }
+        }, 600000); // 10 minutes
+        */
+      };
+
+      // Start the refresh timer (currently disabled)
+      startBlossomRefresh();
 
       for await (const event of keypress) {
         if (shouldExitLoop) break;

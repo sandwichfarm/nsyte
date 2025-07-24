@@ -1,6 +1,6 @@
 {
   "name": "@nsyte/cli",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "description": "nsyte - publish your site to nostr and blossom servers",
   "license": "MIT",
   "exports": "./src/cli.ts",

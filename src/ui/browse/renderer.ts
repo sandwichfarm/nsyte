@@ -1,10 +1,11 @@
 import { colors } from "@cliffy/ansi/colors";
 import { nip19 } from "nostr-tools";
 import type { BrowseState } from "./state.ts";
-import { RELAY_SYMBOL, SERVER_SYMBOL } from "../../commands/ls.ts";
+import { RELAY_SYMBOL, RELAY_SYMBOL_ALT, SERVER_SYMBOL } from "../../commands/ls.ts";
 import { isIgnored } from "../../lib/files.ts";
 import { formatTimestamp } from "../time-formatter.ts";
 import { highlightJson, addLineNumbers } from "../json-highlighter.ts";
+import { getPropagationDisplay } from "../../lib/propagation-stats.ts";
 
 export function truncateHash(hash: string): string {
   if (hash.length <= 16) return hash;
@@ -85,14 +86,19 @@ export function renderHeader(state: BrowseState) {
   const legendItems: string[] = [];
   
   if (state.relayColorMap.size > 0) {
-    state.relayColorMap.forEach((colorFn, relay) => {
+    // Sort relays for deterministic symbol assignment
+    const sortedRelays = Array.from(state.relayColorMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    sortedRelays.forEach(([relay, colorFn], relayIndex) => {
       const shortRelay = relay.replace(/^wss?:\/\//, '').substring(0, 15);
-      legendItems.push(`${colorFn(RELAY_SYMBOL)} ${shortRelay}`);
+      const symbol = relayIndex % 2 === 0 ? RELAY_SYMBOL : RELAY_SYMBOL_ALT;
+      legendItems.push(`${colorFn(symbol)} ${shortRelay}`);
     });
   }
   
   if (state.serverColorMap.size > 0) {
-    state.serverColorMap.forEach((colorFn, server) => {
+    // Sort servers for deterministic display order
+    const sortedServers = Array.from(state.serverColorMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    sortedServers.forEach(([server, colorFn]) => {
       const shortServer = server.replace(/^https?:\/\//, '').substring(0, 15);
       legendItems.push(`${colorFn(SERVER_SYMBOL)} ${shortServer}`);
     });
@@ -214,11 +220,38 @@ export function renderFileList(state: BrowseState) {
       }
     }
     
+    // Build propagation stats display
+    const { cols } = getTerminalSize();
+    
+    let propagationStats = "";
+    if (state.propagationStats) {
+      const relayPropagation = getPropagationDisplay(state.propagationStats.relayStrength);
+      const serverPropagation = getPropagationDisplay(state.propagationStats.serverStrength);
+      
+      const relayDisplay = `${relayPropagation.color(relayPropagation.symbol)} ${relayPropagation.label}`;
+      const serverDisplay = `${serverPropagation.color(serverPropagation.symbol)} ${serverPropagation.label}`;
+      propagationStats = `R:${relayDisplay} S:${serverDisplay}`;
+    }
+    
     // Show filter indicator if active
+    let pathDisplay: string;
     if (state.filterText) {
-      Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}] `) + colors.cyan(`(filtered: ${state.filterText})`) + "\n"));
+      pathDisplay = colors.gray(`[${pathIndicator}] `) + colors.cyan(`(filtered: ${state.filterText})`);
     } else {
-      Deno.stdout.writeSync(new TextEncoder().encode(colors.gray(`[${pathIndicator}]`) + "\n"));
+      pathDisplay = colors.gray(`[${pathIndicator}]`);
+    }
+    
+    // Calculate padding to right-align propagation stats (if available)
+    const pathDisplayLength = pathDisplay.replace(/\x1b\[[0-9;]*m/g, '').length;
+    const propagationLength = propagationStats.replace(/\x1b\[[0-9;]*m/g, '').length;
+    
+    if (propagationStats) {
+      const padding = Math.max(1, cols - pathDisplayLength - propagationLength - 1);
+      // Render path and propagation stats
+      Deno.stdout.writeSync(new TextEncoder().encode(pathDisplay + " ".repeat(padding) + propagationStats + "\n"));
+    } else {
+      // Render just the path if no propagation stats available yet
+      Deno.stdout.writeSync(new TextEncoder().encode(pathDisplay + "\n"));
     }
   }
   
@@ -252,23 +285,39 @@ export function renderFileList(state: BrowseState) {
     } else if (item.file) {
       // Render file
       const fileName = item.path.split('/').pop() || item.path;
-      const relativePath = item.file.path.startsWith("/") ? item.file.path.substring(1) : item.file.path;
+      const relativePath = item.file ? (item.file.path.startsWith("/") ? item.file.path.substring(1) : item.file.path) : item.path;
       const shouldBeIgnored = isIgnored(relativePath, state.ignoreRules, false);
       
       // Build indicators
       let relayIndicators = "";
-      item.file.foundOnRelays.forEach(relay => {
-        const colorFn = state.relayColorMap.get(relay) || colors.white;
-        relayIndicators += colorFn(RELAY_SYMBOL);
-      });
-      relayIndicators += " ".repeat(maxRelayCount - item.file.foundOnRelays.length);
-      
       let serverIndicators = "";
-      item.file.availableOnServers.forEach(server => {
-        const colorFn = state.serverColorMap.get(server) || colors.white;
-        serverIndicators += colorFn(SERVER_SYMBOL);
-      });
-      serverIndicators += " ".repeat(maxServerCount - item.file.availableOnServers.length);
+      
+      if (item.file) {
+        // Use sorted relay order (same as legend) and check if file is found on each relay
+        const sortedRelays = Array.from(state.relayColorMap.keys()).sort();
+        sortedRelays.forEach((relay, relayIndex) => {
+          if (item.file!.foundOnRelays.includes(relay)) {
+            const colorFn = state.relayColorMap.get(relay) || colors.white;
+            const symbol = relayIndex % 2 === 0 ? RELAY_SYMBOL : RELAY_SYMBOL_ALT;
+            relayIndicators += colorFn(symbol);
+          }
+        });
+        relayIndicators += " ".repeat(maxRelayCount - item.file.foundOnRelays.length);
+        
+        // Use sorted server order (same as legend) and check if file is available on each server
+        const sortedServers = Array.from(state.serverColorMap.keys()).sort();
+        sortedServers.forEach(server => {
+          if (item.file!.availableOnServers.includes(server)) {
+            const colorFn = state.serverColorMap.get(server) || colors.white;
+            serverIndicators += colorFn(SERVER_SYMBOL);
+          }
+        });
+        serverIndicators += " ".repeat(maxServerCount - item.file.availableOnServers.length);
+      } else {
+        // Directory - show empty indicators
+        relayIndicators = " ".repeat(maxRelayCount);
+        serverIndicators = " ".repeat(maxServerCount);
+      }
       
       const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
       
@@ -357,18 +406,27 @@ export function renderDetailView(state: BrowseState) {
   
   if (file.foundOnRelays.length > 0) {
     printLine(colors.bold("Found on Relays:"));
-    file.foundOnRelays.forEach(relay => {
-      const colorFn = state.relayColorMap.get(relay) || colors.white;
-      printLine(`  ${colorFn(RELAY_SYMBOL)} ${relay}`);
+    // Use sorted relay order (same as legend) and only show relays where file is found
+    const sortedRelays = Array.from(state.relayColorMap.keys()).sort();
+    sortedRelays.forEach((relay, relayIndex) => {
+      if (file.foundOnRelays.includes(relay)) {
+        const colorFn = state.relayColorMap.get(relay) || colors.white;
+        const symbol = relayIndex % 2 === 0 ? RELAY_SYMBOL : RELAY_SYMBOL_ALT;
+        printLine(`  ${colorFn(symbol)} ${relay}`);
+      }
     });
     printLine();
   }
   
   if (file.availableOnServers.length > 0) {
     printLine(colors.bold("Available on Servers:"));
-    file.availableOnServers.forEach(server => {
-      const colorFn = state.serverColorMap.get(server) || colors.white;
-      printLine(`  ${colorFn(SERVER_SYMBOL)} ${server}`);
+    // Use sorted server order (same as legend) and only show servers where file is available
+    const sortedServers = Array.from(state.serverColorMap.keys()).sort();
+    sortedServers.forEach(server => {
+      if (file.availableOnServers.includes(server)) {
+        const colorFn = state.serverColorMap.get(server) || colors.white;
+        printLine(`  ${colorFn(SERVER_SYMBOL)} ${server}`);
+      }
     });
     printLine();
   }

@@ -59,8 +59,9 @@ export const SERVER_COLORS = [
 ];
 
 // Symbols for relays and servers
-export const RELAY_SYMBOL = "●";  // Filled circle for relays
-export const SERVER_SYMBOL = "■"; // Filled square for servers
+export const RELAY_SYMBOL = "▲";  // Triangle for relays (right-side up)
+export const RELAY_SYMBOL_ALT = "▼"; // Triangle for relays (upside down)
+export const SERVER_SYMBOL = "■"; // Filled square for blossom servers
 
 /**
  * Truncate hash to show first 8 and last 8 characters
@@ -307,12 +308,12 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         file.availableOnServers.forEach(server => allServers.add(server));
       });
 
-      // Assign colors
-      Array.from(allRelays).forEach((relay, index) => {
+      // Assign colors (sorted for deterministic assignment)
+      Array.from(allRelays).sort().forEach((relay, index) => {
         relayColorMap.set(relay, RELAY_COLORS[index % RELAY_COLORS.length]);
       });
       
-      Array.from(allServers).forEach((server, index) => {
+      Array.from(allServers).sort().forEach((server, index) => {
         serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length]);
       });
 
@@ -322,8 +323,11 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       
       if (relayColorMap.size > 0) {
         console.log(colors.bold("Relays:"));
+        let relayIndex = 0;
         relayColorMap.forEach((colorFn, relay) => {
-          console.log(`  ${colorFn(RELAY_SYMBOL)} ${relay}`);
+          const symbol = relayIndex % 2 === 0 ? RELAY_SYMBOL : RELAY_SYMBOL_ALT;
+          console.log(`  ${colorFn(symbol)} ${relay}`);
+          relayIndex++;
         });
       }
       
@@ -448,7 +452,14 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           let relayCount = 0;
           file.foundOnRelays.forEach(relay => {
             const colorFn = relayColorMap.get(relay) || colors.white;
-            relayIndicators += colorFn(RELAY_SYMBOL);
+            // Get relay index to determine which triangle to use
+            let relayIndex = 0;
+            for (const [mapRelay] of relayColorMap) {
+              if (mapRelay === relay) break;
+              relayIndex++;
+            }
+            const symbol = relayIndex % 2 === 0 ? RELAY_SYMBOL : RELAY_SYMBOL_ALT;
+            relayIndicators += colorFn(symbol);
             relayCount++;
           });
           // Pad based on actual symbol count
