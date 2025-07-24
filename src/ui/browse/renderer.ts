@@ -7,6 +7,17 @@ import { formatTimestamp } from "../time-formatter.ts";
 import { addLineNumbers, highlightJson } from "../json-highlighter.ts";
 import { formatFileSize } from "../formatters.ts";
 
+// Cache for formatted file sizes to improve performance across renders
+const fileSizeCache = new Map<number, string>();
+const cachedFormatFileSize = (size: number): string => {
+  if (fileSizeCache.has(size)) {
+    return fileSizeCache.get(size)!;
+  }
+  const formatted = formatFileSize(size);
+  fileSizeCache.set(size, formatted);
+  return formatted;
+};
+
 export function truncateHash(hash: string): string {
   if (hash.length <= 16) return hash;
   return `${hash.substring(0, 8)}...${hash.substring(hash.length - 8)}`;
@@ -184,18 +195,7 @@ export function renderFooter(state: BrowseState) {
 
 export function renderFileList(state: BrowseState) {
   const { rows, cols } = getTerminalSize();
-  const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2)
-
-  // Memoize formatFileSize calls for this render
-  const fileSizeCache = new Map<number, string>();
-  const cachedFormatFileSize = (size: number): string => {
-    if (fileSizeCache.has(size)) {
-      return fileSizeCache.get(size)!;
-    }
-    const formatted = formatFileSize(size);
-    fileSizeCache.set(size, formatted);
-    return formatted;
-  };
+  const contentRows = rows - 5; // Header (2) + Path row (1) + Footer (2);
 
   // Move cursor to start of file list area (row 3)
   moveCursor(3, 1);
