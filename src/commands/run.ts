@@ -10,6 +10,7 @@ import { listRemoteFiles, fetchProfileEvent, fetchRelayListEvent, type FileEntry
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
+import { decompress as brotliDecompress } from "https://deno.land/x/brotli@v0.1.4/mod.ts";
 import { readProjectFile } from "../lib/config.ts";
 
 const log = createLogger("run");
@@ -129,8 +130,14 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
     const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
+    
+    // Track when specific paths have been updated
+    const pathUpdateTimestamps = new Map<string, number>();
     const CACHE_TTL = 600000; // 10 minutes cache for profile data only
     // No longer using time-based intervals for file cache - check for updates on each request
+    
+    // Track ongoing background update checks to prevent duplicates
+    const backgroundUpdateChecks = new Map<string, Promise<void>>();
 
     // Create HTTP handler
     const handler = async (request: Request): Promise<Response> => {
@@ -177,6 +184,31 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
       try {
         const pubkeyHex = normalizeToPubkey(npub);
         const requestedPath = url.pathname;
+        
+        // Update check endpoint
+        if (requestedPath === "/_nsyte/check-updates") {
+          const path = url.searchParams.get("path");
+          const since = parseInt(url.searchParams.get("since") || "0");
+          
+          if (!path) {
+            return new Response(JSON.stringify({ error: "Missing path parameter" }), {
+              status: 400,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          
+          const updateKey = `${npub}:${path}`;
+          const lastUpdate = pathUpdateTimestamps.get(updateKey) || 0;
+          const hasUpdate = lastUpdate > since;
+          
+          return new Response(JSON.stringify({ hasUpdate, timestamp: lastUpdate }), {
+            status: 200,
+            headers: { 
+              "Content-Type": "application/json",
+              "Cache-Control": "no-cache"
+            },
+          });
+        }
 
         log.debug(`Request: ${hostname}${requestedPath} -> npub: ${npub}`);
         
@@ -222,9 +254,44 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         // Get or fetch file list
         let fileListEntry = fileListCache.get(npub);
         
-        // If we're loading file list for the first time, show loading page (only for HTML requests)
-        if (!fileListEntry && (requestedPath === "/" || requestedPath.endsWith(".html") || requestedPath.endsWith(".htm"))) {
-          // Start loading file list in background
+        // If we have no in-memory cache, try to load from disk first
+        if (!fileListEntry && cacheDir) {
+          console.log(colors.gray(`  → Checking disk cache for ${npub}...`));
+          const diskCache = await loadFileListFromDiskCache(cacheDir, npub);
+          if (diskCache) {
+            fileListEntry = {
+              files: diskCache.files,
+              timestamp: Date.now(),
+              loading: false,
+              eventTimestamps: diskCache.eventTimestamps
+            };
+            fileListCache.set(npub, fileListEntry);
+            console.log(colors.gray(`  → Loaded ${diskCache.files.length} files from disk cache`));
+          } else {
+            console.log(colors.gray(`  → No manifest.json found in disk cache (will fetch file list)`));
+          }
+        }
+        
+        // If we still have no cache at all, we need to load first
+        if (!fileListEntry) {
+          // For non-HTML requests when there's no cache, return 404
+          // But allow directory paths that might have index files
+          const mightBeHtml = requestedPath === "/" || 
+                             requestedPath.endsWith(".html") || 
+                             requestedPath.endsWith(".htm") ||
+                             requestedPath.endsWith("/") ||
+                             !requestedPath.includes(".");
+          
+          if (!mightBeHtml) {
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(colors.yellow(`  → File not found (no cache) - ${elapsed}ms`));
+            return new Response("File not found", {
+              status: 404,
+              headers: { "Content-Type": "text/plain" },
+            });
+          }
+          
+          // Start loading file list
           fileListCache.set(npub, { files: [], timestamp: Date.now(), loading: true });
           
           (async () => {
@@ -240,18 +307,28 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                 }
               });
               
-              fileListCache.set(npub, { files, timestamp: Date.now(), loading: false, eventTimestamps });
-              console.log(colors.gray(`  → Found ${files.length} files`));
+              // Only cache if we got files
+              if (files.length > 0) {
+                fileListCache.set(npub, { files, timestamp: Date.now(), loading: false, eventTimestamps });
+                console.log(colors.gray(`  → Found ${files.length} files`));
+                // Save to disk cache
+                await saveFileListManifest(cacheDir, npub, files, eventTimestamps);
+              } else {
+                // Remove the loading entry if we got no files
+                fileListCache.delete(npub);
+                console.log(colors.yellow(`  → No files found (removed from cache)`));
+              }
             } catch (error) {
               console.log(colors.red(`  → Failed to fetch file list: ${error}`));
-              fileListCache.set(npub, { files: [], timestamp: Date.now(), loading: false });
+              // Remove the loading entry on error
+              fileListCache.delete(npub);
             }
           })();
           
-          // Return loading page
+          // Return loading page only for first-time load
           const loadingHtml = generateLoadingPage(npub, profileData?.profile);
           const elapsed = Math.round(performance.now() - startTime);
-          console.log(colors.blue(`  → Loading page served - ${elapsed}ms`));
+          console.log(colors.blue(`  → Loading page served (first visit) - ${elapsed}ms`));
           return new Response(loadingHtml, {
             status: 200,
             headers: { 
@@ -261,80 +338,87 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           });
         }
         
-        // If still loading, show loading page (only for HTML requests)
-        if (fileListEntry?.loading) {
-          // Only serve loading page for HTML files and root path
-          if (requestedPath === "/" || requestedPath.endsWith(".html") || requestedPath.endsWith(".htm")) {
-            const loadingHtml = generateLoadingPage(npub, profileData?.profile);
-            const elapsed = Math.round(performance.now() - startTime);
-            console.log(colors.blue(`  → Loading page served (still fetching) - ${elapsed}ms`));
-            return new Response(loadingHtml, {
-              status: 200,
-              headers: { 
-                "Content-Type": "text/html",
-                "Refresh": "2"
-              },
-            });
-          } else {
-            // For non-HTML files like favicon.ico, return 404 while still loading
-            const elapsed = Math.round(performance.now() - startTime);
-            console.log(colors.yellow(`  → File not found (still loading) - ${elapsed}ms`));
-            return new Response("File not found", {
-              status: 404,
-              headers: { "Content-Type": "text/plain" },
-            });
-          }
-        }
-        
-        // Check for updates on every request (or fetch initial file list)
-        if (!fileListEntry || !fileListEntry.loading) {
-          const isInitialLoad = !fileListEntry;
-          console.log(colors.gray(`  → ${isInitialLoad ? 'Fetching file list...' : 'Checking for updates...'}`));
-          const files = await listRemoteFiles(relays, pubkeyHex);
+        // If we have cached content, serve it immediately and check for updates in the background
+        if (fileListEntry && !fileListEntry.loading && fileListEntry.files.length > 0) {
+          // Check if there's already a background update in progress for this npub
+          if (!backgroundUpdateChecks.has(npub)) {
+            // Start background update check (non-blocking)
+            const updatePromise = (async () => {
+            try {
+              console.log(colors.gray(`  → Checking for updates in background...`));
+              const files = await listRemoteFiles(relays, pubkeyHex);
 
-          // Track event timestamps for cache invalidation
-          const newEventTimestamps = new Map<string, number>();
-          files.forEach(file => {
-            if (file.event) {
-              newEventTimestamps.set(file.path, file.event.created_at);
-            }
-          });
+              // Track event timestamps for cache invalidation
+              const newEventTimestamps = new Map<string, number>();
+              files.forEach(file => {
+                if (file.event) {
+                  newEventTimestamps.set(file.path, file.event.created_at);
+                }
+              });
 
-          // Check if any files have been updated
-          let hasUpdates = false;
-          if (fileListEntry?.eventTimestamps) {
-            // Check for new or updated files
-            for (const [path, newTimestamp] of newEventTimestamps) {
-              const oldTimestamp = fileListEntry.eventTimestamps.get(path);
-              if (!oldTimestamp || newTimestamp > oldTimestamp) {
-                hasUpdates = true;
-                console.log(colors.yellow(`  → Updated: ${path}`));
-                break;
-              }
-            }
+              // Check if any files have been updated
+              let hasUpdates = false;
+              let currentPathAffected = false;
+              
+              if (fileListEntry.eventTimestamps) {
+                // Check for new or updated files
+                for (const [path, newTimestamp] of newEventTimestamps) {
+                  const oldTimestamp = fileListEntry.eventTimestamps.get(path);
+                  if (!oldTimestamp || newTimestamp > oldTimestamp) {
+                    hasUpdates = true;
+                    console.log(colors.yellow(`  → Updated: ${path}`));
+                    // Check if this affects the current request path
+                    if (requestedPath === "/" || path === requestedPath.slice(1) || 
+                        (requestedPath.endsWith("/") && path.startsWith(requestedPath.slice(1)))) {
+                      currentPathAffected = true;
+                    }
+                  }
+                }
 
-            // Check for deleted files
-            if (!hasUpdates) {
-              for (const [path] of fileListEntry.eventTimestamps) {
-                if (!newEventTimestamps.has(path)) {
-                  hasUpdates = true;
-                  console.log(colors.yellow(`  → Removed: ${path}`));
-                  break;
+                // Check for deleted files
+                if (!hasUpdates) {
+                  for (const [path] of fileListEntry.eventTimestamps) {
+                    if (!newEventTimestamps.has(path)) {
+                      hasUpdates = true;
+                      console.log(colors.yellow(`  → Removed: ${path}`));
+                      // Check if this affects the current request path
+                      if (requestedPath === "/" || path === requestedPath.slice(1) || 
+                          (requestedPath.endsWith("/") && path.startsWith(requestedPath.slice(1)))) {
+                        currentPathAffected = true;
+                      }
+                    }
+                  }
                 }
               }
-            }
-          } else {
-            // No previous timestamps, so this is the first load
-            hasUpdates = true;
-          }
 
-          if (hasUpdates) {
-            fileListEntry = { files, timestamp: Date.now(), loading: false, eventTimestamps: newEventTimestamps };
-            fileListCache.set(npub, fileListEntry);
-            console.log(colors.gray(`  → Found ${files.length} files (cache updated)`));
-          } else {
-            // No updates found, keep existing cache
-            console.log(colors.gray(`  → No updates found (${files.length} files)`));
+              // Only update cache if we got files or if we're sure the site has no files
+              // Don't overwrite cache with empty results from timeouts
+              if (hasUpdates && files.length > 0) {
+                fileListCache.set(npub, { files, timestamp: Date.now(), loading: false, eventTimestamps: newEventTimestamps });
+                console.log(colors.gray(`  → Found ${files.length} files (cache updated)`));
+                // Save to disk cache
+                await saveFileListManifest(cacheDir, npub, files, newEventTimestamps);
+                
+                if (currentPathAffected) {
+                  console.log(colors.yellow(`  → Current path affected by updates, client should refresh`));
+                  // Mark this path as updated
+                  pathUpdateTimestamps.set(`${npub}:${requestedPath}`, Date.now());
+                }
+              } else if (files.length === 0) {
+                console.log(colors.gray(`  → No files returned (keeping existing cache)`));
+              } else {
+                console.log(colors.gray(`  → No updates found (${files.length} files)`));
+              }
+            } catch (error) {
+              console.log(colors.red(`  → Background update check failed: ${error}`));
+            } finally {
+              // Remove from ongoing checks
+              backgroundUpdateChecks.delete(npub);
+            }
+            })();
+            
+            // Track this background check
+            backgroundUpdateChecks.set(npub, updatePromise);
           }
         }
 
@@ -360,8 +444,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         // Handle root path - look for default files
         let targetPath = requestedPath;
         let foundFile = null;
-        let isCompressed = false;
-        let compressionType: "br" | "gz" | null = null;
+        let rootIsCompressed = false;
+        let rootCompressionType: "br" | "gz" | null = null;
         
         // Check for compressed versions support
         const acceptEncoding = request.headers.get("accept-encoding") || "";
@@ -411,12 +495,12 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               // Check if this is a compressed version
               if (possibleFile.endsWith(".br")) {
                 targetPath = "/" + possibleFile.slice(0, -3); // Remove .br extension
-                isCompressed = true;
-                compressionType = "br";
+                rootIsCompressed = true;
+                rootCompressionType = "br";
               } else if (possibleFile.endsWith(".gz")) {
                 targetPath = "/" + possibleFile.slice(0, -3); // Remove .gz extension
-                isCompressed = true;
-                compressionType = "gz";
+                rootIsCompressed = true;
+                rootCompressionType = "gz";
               } else {
                 targetPath = "/" + possibleFile;
               }
@@ -490,12 +574,59 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           }
         } else {
           // We already have a file from root path handling
-          filesToTry.push({file, compressed: isCompressed, type: compressionType});
+          // But we should still add all available versions for fallback
+          
+          // First add the one we found
+          filesToTry.push({file, compressed: rootIsCompressed, type: rootCompressionType});
+          
+          // Then add other versions as fallbacks
+          // Extract the base path without compression extension
+          let basePath = targetPath.startsWith("/") ? targetPath.slice(1) : targetPath;
+          
+          // Add other compressed versions if they exist and weren't already added
+          if (rootCompressionType !== "br" && supportsBrotli) {
+            const brPath = basePath + ".br";
+            const brFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === brPath;
+            });
+            
+            if (brFile && brFile !== file) {
+              filesToTry.push({file: brFile, compressed: true, type: "br"});
+              log.debug(`Added alternative brotli version: ${brPath}`);
+            }
+          }
+          
+          if (rootCompressionType !== "gz" && supportsGzip) {
+            const gzPath = basePath + ".gz";
+            const gzFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === gzPath;
+            });
+            
+            if (gzFile && gzFile !== file) {
+              filesToTry.push({file: gzFile, compressed: true, type: "gz"});
+              log.debug(`Added alternative gzip version: ${gzPath}`);
+            }
+          }
+          
+          // Add uncompressed version if we started with compressed
+          if (rootIsCompressed) {
+            const uncompressedFile = fileListEntry.files.find(f => {
+              const normalizedFilePath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+              return normalizedFilePath === basePath;
+            });
+            
+            if (uncompressedFile && uncompressedFile !== file) {
+              filesToTry.push({file: uncompressedFile, compressed: false, type: null});
+              log.debug(`Added uncompressed fallback: ${basePath}`);
+            }
+          }
         }
         
-        // If path ends with / and no files found yet, try directory index files
-        if (filesToTry.length === 0 && requestedPath.endsWith("/")) {
-          const dirPath = normalizedRequestPath;
+        // If path ends with / or looks like a directory (no extension), try directory index files
+        if (filesToTry.length === 0 && (requestedPath.endsWith("/") || !requestedPath.includes("."))) {
+          const dirPath = requestedPath.endsWith("/") ? normalizedRequestPath : normalizedRequestPath + "/";
           const indexFiles = ["index.html", "index.htm", "README.md"];
           
           for (const indexFile of indexFiles) {
@@ -637,87 +768,161 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         // Try to download files in order of preference
         let fileData: Uint8Array | null = null;
         let successfulFile: FileEntry | null = null;
-        let successfulCompression: boolean = false;
-        let successfulCompressionType: "br" | "gz" | null = null;
         
         for (const fileOption of filesToTry) {
           if (!fileOption.file || !fileOption.file.sha256) continue;
           
           const tryFile = fileOption.file;
           const fileSha256 = tryFile.sha256!; // We already checked this is not undefined
-          const cacheKey = `${npub}-${fileSha256}`;
+          // Use different cache keys for compressed vs decompressed content
+          const rawCacheKey = `${npub}-${fileSha256}-raw`;
+          const decompressedCacheKey = `${npub}-${fileSha256}-decompressed`;
           const isStale = isCacheStale(fileListEntry, tryFile);
           
-          // Try persistent cache first if available
-          if (cacheDir && !isStale) {
-            fileData = await loadCachedFile(cacheDir, npub, fileSha256);
-            if (fileData) {
-              log.debug(`Loaded ${tryFile.path} from disk cache`);
-              successfulFile = tryFile;
-              successfulCompression = fileOption.compressed;
-              successfulCompressionType = fileOption.type;
-              if (fileOption.compressed) {
-                console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
+          let currentFileData: Uint8Array | null = null;
+          let isAlreadyDecompressed = false;
+          
+          // For compressed files, check if we have a decompressed version cached
+          if (fileOption.compressed && !isStale) {
+            // Try decompressed cache first (memory)
+            const memCachedDecompressed = fileCache.get(decompressedCacheKey);
+            if (memCachedDecompressed) {
+              currentFileData = memCachedDecompressed.data;
+              isAlreadyDecompressed = true;
+              log.debug(`Loaded decompressed ${tryFile.path} from memory cache`);
+            }
+            
+            // Try decompressed cache (disk)
+            if (!currentFileData && cacheDir) {
+              currentFileData = await loadCachedFile(cacheDir, npub, fileSha256 + "-decompressed");
+              if (currentFileData) {
+                isAlreadyDecompressed = true;
+                log.debug(`Loaded decompressed ${tryFile.path} from disk cache`);
               }
-              break;
             }
           }
           
-          // Check memory cache if no persistent cache or file not found
-          if (!fileData) {
-            const memCached = fileCache.get(cacheKey);
-            if (memCached && !isStale) {
-              fileData = memCached.data;
-              log.debug(`Loaded ${tryFile.path} from memory cache`);
-              successfulFile = tryFile;
-              successfulCompression = fileOption.compressed;
-              successfulCompressionType = fileOption.type;
-              if (fileOption.compressed) {
-                console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
+          // If no decompressed version, try raw cache
+          if (!currentFileData && !isStale) {
+            // Try persistent cache first if available
+            if (cacheDir) {
+              currentFileData = await loadCachedFile(cacheDir, npub, fileSha256);
+              if (currentFileData) {
+                log.debug(`Loaded raw ${tryFile.path} from disk cache`);
               }
-              break;
+            }
+            
+            // Check memory cache if no persistent cache or file not found
+            if (!currentFileData) {
+              const memCached = fileCache.get(rawCacheKey);
+              if (memCached) {
+                currentFileData = memCached.data;
+                log.debug(`Loaded raw ${tryFile.path} from memory cache`);
+              }
             }
           }
           
-          // Try to download the file
-          console.log(colors.gray(`  → Downloading ${colors.cyan(tryFile.path)}...${isStale ? ' (updated)' : ''}`));
+          // Try to download the file if not in cache
+          if (!currentFileData) {
+            console.log(colors.gray(`  → Downloading ${colors.cyan(tryFile.path)}...${isStale ? ' (updated)' : ''}`));
+            
+            for (const server of servers) {
+              try {
+                const downloadService = DownloadService.create();
+                const downloadedData = await downloadService.downloadFromServer(server, fileSha256);
+                if (downloadedData) {
+                  currentFileData = downloadedData;
+                  
+                  // Save raw file to memory cache (no expiration - only invalidated by new events)
+                  fileCache.set(rawCacheKey, { data: currentFileData, timestamp: Date.now(), sha256: fileSha256 });
+                  
+                  // Save raw file to disk cache if available
+                  if (cacheDir) {
+                    await saveCachedFile(cacheDir, npub, fileSha256, currentFileData);
+                    log.debug(`Saved raw ${tryFile.path} to disk cache`);
+                  }
+                  
+                  console.log(colors.gray(`  → Downloaded from ${server}`));
+                  break;
+                }
+              } catch (error) {
+                log.debug(`Failed to download from ${server}: ${error}`);
+              }
+            }
+            
+            if (!currentFileData) {
+              console.log(colors.gray(`  → Could not download ${tryFile.path}, trying alternative formats...`));
+              continue;
+            }
+          }
           
-          let downloaded = false;
-          for (const server of servers) {
-            try {
-              const downloadService = DownloadService.create();
-              const downloadedData = await downloadService.downloadFromServer(server, fileSha256);
-              if (downloadedData) {
-                fileData = downloadedData;
+          // Now we have the file data, try to decompress if needed
+          if (fileOption.compressed && fileOption.type && currentFileData && !isAlreadyDecompressed) {
+            if (fileOption.type === "br") {
+              // Decompress Brotli
+              try {
+                const decompressed = brotliDecompress(currentFileData);
+                console.log(colors.gray(`  → Decompressed Brotli data: ${formatFileSize(decompressed.byteLength)}`));
+                fileData = decompressed;
+                successfulFile = tryFile;
                 
-                // Save to memory cache (no expiration - only invalidated by new events)
-                fileCache.set(cacheKey, { data: fileData, timestamp: Date.now(), sha256: fileSha256 });
-                
-                // Save to disk cache if available
+                // Cache the decompressed version
+                fileCache.set(decompressedCacheKey, { data: decompressed, timestamp: Date.now(), sha256: fileSha256 });
                 if (cacheDir) {
-                  await saveCachedFile(cacheDir, npub, fileSha256, fileData);
-                  log.debug(`Saved ${tryFile.path} to disk cache`);
+                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", decompressed);
+                  log.debug(`Saved decompressed ${tryFile.path} to disk cache`);
                 }
                 
-                console.log(colors.gray(`  → Downloaded from ${server}`));
-                downloaded = true;
-                successfulFile = tryFile;
-                successfulCompression = fileOption.compressed;
-                successfulCompressionType = fileOption.type;
-                break;
+                // Successfully decompressed
+                break; // Success!
+              } catch (brError) {
+                log.debug(`Brotli decompression error: ${brError}`);
+                console.log(colors.gray(`  → Brotli version corrupted, trying alternative formats...`));
+                // Clear the failed file from cache to prevent repeated failures
+                fileCache.delete(rawCacheKey);
+                fileCache.delete(decompressedCacheKey);
+                continue; // Try next option
               }
-            } catch (error) {
-              log.debug(`Failed to download from ${server}: ${error}`);
+            } else if (fileOption.type === "gz") {
+              // Decompress Gzip
+              try {
+                const decompressed = await new Response(
+                  new Response(currentFileData).body!.pipeThrough(new DecompressionStream("gzip"))
+                ).arrayBuffer();
+                fileData = new Uint8Array(decompressed);
+                console.log(colors.gray(`  → Decompressed Gzip data: ${formatFileSize(fileData.byteLength)}`));
+                successfulFile = tryFile;
+                
+                // Cache the decompressed version
+                fileCache.set(decompressedCacheKey, { data: fileData, timestamp: Date.now(), sha256: fileSha256 });
+                if (cacheDir) {
+                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", fileData);
+                  log.debug(`Saved decompressed ${tryFile.path} to disk cache`);
+                }
+                
+                // Successfully decompressed
+                break; // Success!
+              } catch (gzError) {
+                log.debug(`Gzip decompression error: ${gzError}`);
+                console.log(colors.gray(`  → Gzip version corrupted, trying alternative formats...`));
+                // Clear the failed file from cache to prevent repeated failures
+                fileCache.delete(rawCacheKey);
+                fileCache.delete(decompressedCacheKey);
+                continue; // Try next option
+              }
             }
-          }
-          
-          if (downloaded) {
-            if (fileOption.compressed) {
-              console.log(colors.gray(`  → Using ${fileOption.type} compressed version: ${tryFile.path}`));
-            }
-            break;
+          } else if (isAlreadyDecompressed) {
+            // Already decompressed, use as-is
+            fileData = currentFileData;
+            successfulFile = tryFile;
+            log.debug(`Using cached decompressed data for ${tryFile.path}`);
+            break; // Success!
           } else {
-            console.log(colors.yellow(`  → Failed to download ${tryFile.path}, trying next option...`));
+            // Uncompressed file, use as-is
+            fileData = currentFileData;
+            successfulFile = tryFile;
+            // Uncompressed file
+            break; // Success!
           }
         }
         
@@ -732,19 +937,33 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         
         // Update variables for serving
         file = successfulFile;
-        isCompressed = successfulCompression;
-        compressionType = successfulCompressionType;
         
         // Serve the file
-        // For 404 pages, use the 404.html content type, otherwise use the requested path
+        // For 404 pages, use the 404.html content type, otherwise use the target path (without .br/.gz)
         const is404 = (file.path.endsWith("404.html") || file.path.endsWith("404.html.br") || file.path.endsWith("404.html.gz")) && 
                       requestedPath !== "/404.html";
-        const contentTypePath = is404 ? "404.html" : normalizedRequestPath;
+        // Use original path (without compression extension) for content type detection
+        let contentTypePath: string;
+        if (is404) {
+          contentTypePath = "404.html";
+        } else {
+          // Use the actual file path for content type detection
+          let originalPath = file.path.startsWith("/") ? file.path.slice(1) : file.path;
+          // Remove compression extensions if present
+          if (originalPath.endsWith(".br")) {
+            originalPath = originalPath.slice(0, -3);
+          } else if (originalPath.endsWith(".gz")) {
+            originalPath = originalPath.slice(0, -3);
+          }
+          contentTypePath = originalPath;
+        }
         const contentType = getContentType(contentTypePath);
+        console.log(colors.yellow(`  → DEBUG: file.path=${file.path}, contentTypePath=${contentTypePath}, contentType=${contentType}`));
         const elapsed = Math.round(performance.now() - startTime);
         const statusCode = is404 ? 404 : 200;
         
-        console.log(colors.gray(`  → Served ${colors.cyan(file.path)} (${formatFileSize(fileData.byteLength)}) - ${elapsed}ms${is404 ? ' [404]' : ''}`));
+        const servedPath = file.path.replace(/\.(br|gz)$/, '');
+        console.log(colors.gray(`  → Served ${colors.cyan(servedPath)} (${formatFileSize(fileData.byteLength)}) - ${elapsed}ms${is404 ? ' [404]' : ''}`));
         
         const headers: Record<string, string> = {
           "Content-Type": contentType,
@@ -752,10 +971,51 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
         };
         
-        // Add Content-Encoding header if serving compressed version
-        if (isCompressed && compressionType) {
-          headers["Content-Encoding"] = compressionType;
-          headers["Vary"] = "Accept-Encoding"; // Important for caching
+        // No need for Content-Encoding since we're serving decompressed data
+        console.log(colors.blue(`  → Headers: Content-Type: ${contentType}`));
+        
+        // For HTML responses, inject auto-refresh script
+        if (contentType === "text/html" && !is404) {
+          const decoder = new TextDecoder();
+          const encoder = new TextEncoder();
+          let html = decoder.decode(fileData);
+          
+          // Inject update checker script before closing body tag
+          const updateScript = `
+<script>
+(function() {
+  const currentPath = '${requestedPath}';
+  const npub = '${npub}';
+  const startTime = Date.now();
+  
+  function checkForUpdates() {
+    fetch('/_nsyte/check-updates?path=' + encodeURIComponent(currentPath) + '&since=' + startTime)
+      .then(r => r.json())
+      .then(data => {
+        if (data.hasUpdate) {
+          console.log('Page update detected, refreshing...');
+          location.reload();
+        }
+      })
+      .catch(err => console.error('Update check failed:', err));
+  }
+  
+  // Check for updates every 5 seconds
+  setInterval(checkForUpdates, 5000);
+})();
+</script>`;
+          
+          // Try to inject before closing body tag, or at the end if not found
+          if (html.includes('</body>')) {
+            html = html.replace('</body>', updateScript + '</body>');
+          } else if (html.includes('</html>')) {
+            html = html.replace('</html>', updateScript + '</html>');
+          } else {
+            html += updateScript;
+          }
+          
+          fileData = encoder.encode(html);
+          headers["Content-Length"] = fileData.byteLength.toString();
         }
         
         return new Response(fileData, {
@@ -775,6 +1035,18 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         });
       }
     };
+    
+    // Set up cleanup handlers
+    const cleanup = () => {
+      console.log(colors.yellow("\n🛑 Shutting down server..."));
+      // Clear all background checks
+      backgroundUpdateChecks.clear();
+      Deno.exit(0);
+    };
+    
+    // Handle graceful shutdown
+    Deno.addSignalListener("SIGINT", cleanup);
+    Deno.addSignalListener("SIGTERM", cleanup);
 
     // Start server using Deno.serve
     await Deno.serve({ port }, handler).finished;
@@ -914,7 +1186,8 @@ function generateDirectoryListing(npub: string, files: any[]): string {
  * Get content type based on file extension
  */
 function getContentType(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase();
+  const lastDotIndex = filename.lastIndexOf(".");
+  const ext = lastDotIndex !== -1 ? filename.slice(lastDotIndex + 1).toLowerCase() : "";
   const types: Record<string, string> = {
     html: "text/html",
     htm: "text/html",
@@ -978,6 +1251,25 @@ async function saveCachedFile(cacheDir: string | null, npub: string, sha256: str
 }
 
 /**
+ * Save file list manifest to disk cache
+ */
+async function saveFileListManifest(cacheDir: string | null, npub: string, files: FileEntry[], eventTimestamps?: Map<string, number>): Promise<void> {
+  if (!cacheDir) return;
+  
+  const dirPath = join(cacheDir, npub);
+  await ensureDir(dirPath);
+  const manifestPath = join(dirPath, "manifest.json");
+  
+  const manifest = {
+    files,
+    eventTimestamps: eventTimestamps ? Object.fromEntries(eventTimestamps) : {},
+    timestamp: Date.now()
+  };
+  
+  await Deno.writeTextFile(manifestPath, JSON.stringify(manifest, null, 2));
+}
+
+/**
  * Check if cached file is stale based on event timestamps
  */
 function isCacheStale(fileListEntry: any, file: FileEntry): boolean {
@@ -989,6 +1281,42 @@ function isCacheStale(fileListEntry: any, file: FileEntry): boolean {
   const currentEventTime = file.event.created_at;
   
   return cachedEventTime !== undefined && currentEventTime > cachedEventTime;
+}
+
+/**
+ * Load file list from disk cache if available
+ */
+async function loadFileListFromDiskCache(cacheDir: string | null, npub: string): Promise<{ files: FileEntry[], eventTimestamps: Map<string, number> } | null> {
+  if (!cacheDir) return null;
+  
+  try {
+    const manifestPath = join(cacheDir, npub, "manifest.json");
+    const manifestData = await Deno.readTextFile(manifestPath);
+    const manifest = JSON.parse(manifestData);
+    
+    // Convert back to FileEntry format
+    const files: FileEntry[] = manifest.files || [];
+    if (files.length === 0) return null;
+    
+    // Reconstruct event timestamps Map
+    const eventTimestamps = new Map<string, number>();
+    if (manifest.eventTimestamps) {
+      Object.entries(manifest.eventTimestamps).forEach(([path, timestamp]) => {
+        eventTimestamps.set(path, timestamp as number);
+      });
+    }
+    
+    return { files, eventTimestamps };
+  } catch {
+    // No manifest - for backward compatibility, return a minimal file list
+    // This allows old caches to still work (they just won't have proper file metadata)
+    console.log(colors.gray(`  → No manifest.json, using backward compatibility mode`));
+    
+    // We can't reconstruct the full file list from just the SHA256 files,
+    // but we can at least indicate that this npub has cached content
+    // The actual file resolution will happen when individual files are requested
+    return null;
+  }
 }
 
 /**

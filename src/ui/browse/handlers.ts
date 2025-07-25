@@ -17,6 +17,112 @@ import type { NostrEvent } from "../../lib/nostr.ts";
 
 const log = createLogger("browse-handlers");
 
+async function processAuthentication(state: BrowseState): Promise<void> {
+  const { createSigner } = await import("../../lib/auth/signer-factory.ts");
+  
+  try {
+    let signerResult;
+    
+    if (state.authChoice === "nbunksec") {
+      signerResult = await createSigner({ nbunksec: state.authInput });
+    } else if (state.authChoice === "nsec" || state.authChoice === "hex") {
+      signerResult = await createSigner({ privateKey: state.authInput });
+    }
+    
+    if (signerResult && 'error' in signerResult) {
+      state.status = `Authentication failed: ${signerResult.error}`;
+      state.statusColor = colors.red;
+      state.authMode = "select";
+      state.authInput = "";
+      return;
+    }
+    
+    if (signerResult) {
+      state.signer = signerResult.signer;
+      state.authMode = "none";
+      state.authInput = "";
+      
+      // Now proceed with deletion
+      state.confirmingDelete = true;
+      state.deleteConfirmText = "";
+    }
+  } catch (error) {
+    state.status = `Authentication error: ${error}`;
+    state.statusColor = colors.red;
+    state.authMode = "select";
+    state.authInput = "";
+  }
+}
+
+export async function handleAuthSelection(
+  state: BrowseState,
+  key: string,
+  sequence?: string
+): Promise<boolean> {
+  if (key === "escape") {
+    state.authMode = "none";
+    state.status = "Authentication cancelled";
+    state.statusColor = colors.yellow;
+    return true;
+  }
+  
+  if (key === "1") {
+    state.authChoice = "hex";
+    state.authMode = "input";
+    state.authPrompt = "Enter hex private key:";
+    state.authInput = "";
+    return true;
+  } else if (key === "2") {
+    state.authChoice = "nsec";
+    state.authMode = "input";
+    state.authPrompt = "Enter nsec:";
+    state.authInput = "";
+    return true;
+  } else if (key === "3") {
+    state.authChoice = "nbunksec";
+    state.authMode = "input";
+    state.authPrompt = "Enter nbunksec:";
+    state.authInput = "";
+    return true;
+  }
+  
+  return false;
+}
+
+export async function handleAuthInput(
+  state: BrowseState,
+  key: string,
+  sequence?: string
+): Promise<boolean> {
+  if (key === "escape") {
+    state.authMode = "select";
+    state.authInput = "";
+    return true;
+  }
+  
+  if (key === "return") {
+    if (state.authInput) {
+      // Process authentication
+      await processAuthentication(state);
+    }
+    return true;
+  }
+  
+  if (key === "backspace") {
+    if (state.authInput.length > 0) {
+      state.authInput = state.authInput.slice(0, -1);
+    }
+    return true;
+  }
+  
+  if (sequence && sequence.length === 1) {
+    state.authInput += sequence;
+    return true;
+  }
+  
+  return false;
+}
+
 export async function handleDeleteConfirmation(
   state: BrowseState,
   key: string,
@@ -106,7 +212,7 @@ export async function deleteFiles(
     const { createDeleteEvent, publishEventsToRelays } = await import("../../lib/nostr.ts");
     const { readProjectFile } = await import("../../lib/config.ts");
     const { createSigner } = await import("../../lib/auth/signer-factory.ts");
-    const { Confirm, Select, Secret } = await import("@cliffy/prompt");
+    // Auth prompts now handled by TUI
     
     // Get config to check for bunker
     const config = readProjectFile();
@@ -124,110 +230,22 @@ export async function deleteFiles(
       if ('error' in signerResult) {
         log.error(signerResult.error);
         
-        // Prompt for authentication
-        console.log(colors.yellow("\nNo signer available for deletion."));
-        const useAuth = await Confirm.prompt({
-          message: "Would you like to provide authentication?",
-          default: true
-        });
-        
-        if (!useAuth) {
-          state.status = "Delete cancelled";
-          state.statusColor = colors.yellow;
-          render(state);
-          return false;
-        }
-        
-        const authChoice = await Select.prompt({
-          message: "Choose authentication method:",
-          options: [
-            { name: "Private Key (hex)", value: "hex" },
-            { name: "Private Key (nsec)", value: "nsec" },
-            { name: "NostrBunker (nbunksec)", value: "nbunksec" }
-          ]
-        });
-        
-        let authInput;
-        if (authChoice === "nbunksec") {
-          authInput = await Secret.prompt({
-            message: "Enter nbunksec:"
-          });
-          
-          const nbunksecSigner = await createSigner({ nbunksec: authInput });
-          if ('error' in nbunksecSigner) {
-            console.error(colors.red(nbunksecSigner.error));
-            authInput = undefined; // Clear from memory
-            state.status = "Delete failed: Invalid nbunksec";
-            state.statusColor = colors.red;
-            return false;
-          }
-          signer = nbunksecSigner.signer;
-        } else {
-          authInput = await Secret.prompt({
-            message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`
-          });
-          
-          const privateKeySigner = await createSigner({ privateKey: authInput });
-          if ('error' in privateKeySigner) {
-            console.error(colors.red(privateKeySigner.error));
-            authInput = undefined; // Clear from memory
-            state.status = "Delete failed: Invalid private key";
-            state.statusColor = colors.red;
-            return false;
-          }
-          signer = privateKeySigner.signer;
-        }
-        
-        // Clear sensitive data from memory immediately
-        authInput = undefined;
+        // Use TUI-based authentication flow
+        state.status = "Authentication required for deletion";
+        state.statusColor = colors.yellow;
+        state.authMode = "select";
+        render(state);
+        return false; // Will be handled by auth flow
       } else {
         signer = signerResult.signer;
       }
     } else {
-      // No auth options provided, prompt for authentication
-      console.log(colors.yellow("\nAuthentication required for deletion."));
-      const authChoice = await Select.prompt({
-        message: "Choose authentication method:",
-        options: [
-          { name: "Private Key (hex)", value: "hex" },
-          { name: "Private Key (nsec)", value: "nsec" },
-          { name: "NostrBunker (nbunksec)", value: "nbunksec" }
-        ]
-      });
-      
-      let authInput;
-      if (authChoice === "nbunksec") {
-        authInput = await Secret.prompt({
-          message: "Enter nbunksec:"
-        });
-        
-        const nbunksecSigner = await createSigner({ nbunksec: authInput });
-        if ('error' in nbunksecSigner) {
-          console.error(colors.red(nbunksecSigner.error));
-          authInput = undefined; // Clear from memory
-          state.status = "Delete failed: Invalid nbunksec";
-          state.statusColor = colors.red;
-          return false;
-        }
-        signer = nbunksecSigner.signer;
-      } else {
-        authInput = await Secret.prompt({
-          message: `Enter ${authChoice === "hex" ? "hex private key" : "nsec"}:`
-        });
-        
-        const privateKeySigner = await createSigner({ privateKey: authInput });
-        if ('error' in privateKeySigner) {
-          console.error(colors.red(privateKeySigner.error));
-          authInput = undefined; // Clear from memory
-          state.status = "Delete failed: Invalid private key";
-          state.statusColor = colors.red;
-          return false;
-        }
-        signer = privateKeySigner.signer;
-      }
-      
-      // Clear sensitive data from memory immediately
-      authInput = undefined;
+      // No auth options provided, use TUI authentication flow
+      state.status = "Authentication required for deletion";
+      state.statusColor = colors.yellow;
+      state.authMode = "select";
+      render(state);
+      return false; // Will be handled by auth flow
     }
     
     if (!signer) {

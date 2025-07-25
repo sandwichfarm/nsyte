@@ -22,6 +22,8 @@ import {
   showCursor,
 } from "../ui/browse/renderer.ts";
 import {
+  handleAuthSelection,
+  handleAuthInput,
   handleDeleteConfirmation,
   handleDetailModeKey,
   handleFilterMode,
@@ -286,6 +288,22 @@ export async function command(options: any): Promise<void> {
               continue;
             }
 
+            if (state.authMode === "select") {
+              const shouldRender = await handleAuthSelection(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+              }
+              continue;
+            }
+            
+            if (state.authMode === "input") {
+              const shouldRender = await handleAuthInput(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+              }
+              continue;
+            }
+            
             if (state.confirmingDelete) {
               const shouldRender = await handleDeleteConfirmation(state, key, sequence);
               if (shouldRender) {

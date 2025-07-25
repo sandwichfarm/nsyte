@@ -27,6 +27,11 @@ export interface BrowseState {
   detailIndex: number | null;
   confirmingDelete: boolean;
   deleteConfirmText: string;
+  // Authentication flow states
+  authMode: "none" | "select" | "input";
+  authChoice?: "hex" | "nsec" | "nbunksec";
+  authInput: string;
+  authPrompt?: string;
   relayColorMap: Map<string, (str: string) => string>;
   serverColorMap: Map<string, (str: string) => string>;
   ignoreRules: IgnoreRule[];
@@ -156,6 +161,10 @@ export function createInitialState(
     detailIndex: null,
     confirmingDelete: false,
     deleteConfirmText: "",
+    authMode: "none",
+    authChoice: undefined,
+    authInput: "",
+    authPrompt: undefined,
     relayColorMap,
     serverColorMap,
     ignoreRules,

@@ -138,7 +138,22 @@ export function renderFooter(state: BrowseState) {
   let hotkeys: string[] = [];
   
   if (state.viewMode === "list") {
-    if (state.confirmingDelete) {
+    if (state.authMode === "select") {
+      hotkeys = [
+        `${colors.gray("1")} Private Key (hex)`,
+        `${colors.gray("2")} Private Key (nsec)`,
+        `${colors.gray("3")} NostrBunker (nbunksec)`,
+        `${colors.gray("ESC")} Cancel`
+      ];
+    } else if (state.authMode === "input") {
+      hotkeys = [
+        `${colors.yellow(state.authPrompt || "Enter authentication:")}`,
+        `${colors.gray("ESC")} Cancel`
+      ];
+      if (state.authInput) {
+        hotkeys.push(`${colors.gray(`[${state.authChoice === "nbunksec" || state.authChoice === "nsec" ? "•".repeat(state.authInput.length) : state.authInput}]`)}`);
+      }
+    } else if (state.confirmingDelete) {
       hotkeys = [
         `${colors.red("Type 'yes' to confirm")}`,
         `${colors.gray("ESC")} Cancel`
@@ -197,6 +212,18 @@ export function renderFileList(state: BrowseState) {
   // Render path indicator row or filter input
   moveCursor(3, 1);
   
+  // Calculate variables needed for both filter and normal mode
+  const startIndex = state.page * state.pageSize;
+  const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
+  const pageItems = state.treeItems.slice(startIndex, endIndex);
+  
+  // Calculate tree root column position
+  const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
+  const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
+  const treeRootCol = maxRelayCount + maxServerCount + 2; // indicators + spaces + tree starts here
+  
+  let hasConnector = false;
+  
   if (state.filterMode) {
     // Show filter input with blinking cursor
     showCursor();
@@ -205,10 +232,6 @@ export function renderFileList(state: BrowseState) {
   } else {
     // Make sure cursor is hidden
     hideCursor();
-    // Show path indicator
-    const startIndex = state.page * state.pageSize;
-    const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
-    const pageItems = state.treeItems.slice(startIndex, endIndex);
     
     // Get the parent path of the first item on the page
     let pathIndicator = "/";
@@ -233,12 +256,30 @@ export function renderFileList(state: BrowseState) {
       propagationStats = `R:${relayDisplay} S:${serverDisplay}`;
     }
     
-    // Show filter indicator if active
+    // Show filter indicator if active and calculate connector
     let pathDisplay: string;
+    
+    const pathText = state.filterText 
+      ? `[${pathIndicator}] (filtered: ${state.filterText})`
+      : `[${pathIndicator}]`;
+    
+    // Calculate path length without ANSI codes
+    const pathLength = pathText.length;
+    
+    // Only draw connector if path is shorter than tree root column and we have tree items
+    let pathConnector = "";
+    if (pathLength < treeRootCol && pageItems.some(item => item.depth >= 0)) {
+      const horizontalLength = treeRootCol - pathLength;
+      if (horizontalLength > 0) {
+        pathConnector = "─".repeat(horizontalLength) + "┐";
+        hasConnector = true;
+      }
+    }
+    
     if (state.filterText) {
-      pathDisplay = colors.gray(`[${pathIndicator}] `) + colors.cyan(`(filtered: ${state.filterText})`);
+      pathDisplay = colors.gray(`[${pathIndicator}] `) + colors.cyan(`(filtered: ${state.filterText})`) + colors.gray(pathConnector);
     } else {
-      pathDisplay = colors.gray(`[${pathIndicator}]`);
+      pathDisplay = colors.gray(`[${pathIndicator}]`) + colors.gray(pathConnector);
     }
     
     // Calculate padding to right-align propagation stats (if available)
@@ -258,13 +299,9 @@ export function renderFileList(state: BrowseState) {
   // Move to start of actual file list (row 4)
   moveCursor(4, 1);
   
-  const startIndex = state.page * state.pageSize;
-  const endIndex = Math.min(startIndex + state.pageSize, state.treeItems.length);
-  const pageItems = state.treeItems.slice(startIndex, endIndex);
-  
   // Calculate max relay/server counts for alignment (minimum 3 for visual consistency)
-  const maxRelayCount = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
-  const maxServerCount = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
+  const maxRelayCountForDisplay = Math.max(...state.files.map(f => f.foundOnRelays.length), 3);
+  const maxServerCountForDisplay = Math.max(...state.files.map(f => f.availableOnServers.length), 3);
   
   pageItems.forEach((item, listIndex) => {
     const globalIndex = startIndex + listIndex;
@@ -280,7 +317,7 @@ export function renderFileList(state: BrowseState) {
     if (item.isDirectory) {
       // Render directory
       const dirName = item.path.split('/').pop() || item.path;
-      const emptyIndicators = " ".repeat(maxRelayCount) + ` ${colors.gray("│")} ` + " ".repeat(maxServerCount);
+      const emptyIndicators = " ".repeat(maxRelayCountForDisplay) + " " + " ".repeat(maxServerCountForDisplay);
       console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
     } else if (item.file) {
       // Render file
@@ -302,7 +339,7 @@ export function renderFileList(state: BrowseState) {
             relayIndicators += colorFn(symbol);
           }
         });
-        relayIndicators += " ".repeat(maxRelayCount - item.file.foundOnRelays.length);
+        relayIndicators += " ".repeat(maxRelayCountForDisplay - item.file.foundOnRelays.length);
         
         // Use sorted server order (same as legend) and check if file is available on each server
         const sortedServers = Array.from(state.serverColorMap.keys()).sort();
@@ -312,14 +349,14 @@ export function renderFileList(state: BrowseState) {
             serverIndicators += colorFn(SERVER_SYMBOL);
           }
         });
-        serverIndicators += " ".repeat(maxServerCount - item.file.availableOnServers.length);
+        serverIndicators += " ".repeat(maxServerCountForDisplay - item.file.availableOnServers.length);
       } else {
         // Directory - show empty indicators
-        relayIndicators = " ".repeat(maxRelayCount);
-        serverIndicators = " ".repeat(maxServerCount);
+        relayIndicators = " ".repeat(maxRelayCountForDisplay);
+        serverIndicators = " ".repeat(maxServerCountForDisplay);
       }
       
-      const indicators = `${relayIndicators} ${colors.gray("│")} ${serverIndicators}`;
+      const indicators = `${relayIndicators} ${serverIndicators}`;
       
       // Format file info
       const isDeleting = state.deletingItems.has(item.path);
