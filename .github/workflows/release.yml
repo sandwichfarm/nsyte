@@ -251,6 +251,16 @@ jobs:
           # Update the version in deno.json to match the tag/input version
           sed -i 's/"version": "[^"]*"/"version": "${{ env.VERSION }}"/' deno.json
 
+      - name: Check JSR publish (dry run)
+        run: |
+          echo "Running JSR publish dry run to check for issues..."
+          deno publish --dry-run
+          if [ $? -ne 0 ]; then
+            echo "::error::JSR publish dry run failed. Please fix the issues before releasing."
+            exit 1
+          fi
+          echo "✅ JSR publish dry run successful"
+
       - name: Publish to JSR
         run: deno publish
 
