@@ -12,7 +12,7 @@ import { extractRelaysFromEvent, extractServersFromEvent } from "../lib/utils.ts
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
-import { decompress as brotliDecompress } from "https://deno.land/x/brotli@v0.1.4/mod.ts";
+import { decompress as brotliDecompress } from "jsr:@nick/brotli@0.1.0";
 import { readProjectFile } from "../lib/config.ts";
 
 const log = createLogger("run");
