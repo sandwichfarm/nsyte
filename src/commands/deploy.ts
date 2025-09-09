@@ -22,6 +22,7 @@ import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
+import { parseRelayInput, truncateString } from "../lib/utils.ts";
 import { 
   importFromNbunk, 
   initiateNostrConnect,
@@ -502,12 +503,10 @@ async function initSigner(
 
         log.debug("Waiting for getPublicKey or timeout...");
         const pubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
-        log.debug(`getPublicKey completed: ${pubkey.substring(0, 8)}...`);
+        log.debug(`getPublicKey completed: ${truncateString(pubkey)}`);
         return bunkerSigner;
       } catch (e: unknown) {
-        const baseMsg = `Failed to use stored nbunksec for configured bunker ${
-          config.bunkerPubkey.substring(0, 8)
-        }...: ${getErrorMessage(e)}`;
+        const baseMsg = `Failed to use stored nbunksec for configured bunker ${truncateString(config.bunkerPubkey)}: ${getErrorMessage(e)}`;
         if (options.nonInteractive) {
           return {
             error:
@@ -595,7 +594,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
       if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
         chosenRelays = defaultRelays;
       } else {
-        chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+        chosenRelays = parseRelayInput(relayInput);
       }
 
       if (chosenRelays.length === 0) {
@@ -633,7 +632,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
     const connectedPubkey = await signer.getPublicKey();
     if (connectedPubkey !== bunkerPubkey) {
       console.log(colors.yellow(
-        `Warning: Connected bunker pubkey (${connectedPubkey.substring(0, 8)}...) does not match configured pubkey (${bunkerPubkey.substring(0, 8)}...).`
+        `Warning: Connected bunker pubkey (${truncateString(connectedPubkey)}) does not match configured pubkey (${truncateString(bunkerPubkey)}).`
       ));
       const proceed = await Confirm.prompt({
         message: "Do you want to continue with this different bunker?",
@@ -656,7 +655,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
     await secretsManager.storeNbunk(connectedPubkey, nbunkString);
     
     console.log(colors.green("✓ Successfully reconnected to bunker and saved credentials."));
-    log.info(`Reconnected to bunker with pubkey: ${connectedPubkey.substring(0, 8)}...`);
+    log.info(`Reconnected to bunker with pubkey: ${truncateString(connectedPubkey)}`);
 
     return signer;
   } catch (error) {

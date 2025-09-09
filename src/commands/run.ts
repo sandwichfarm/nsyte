@@ -8,6 +8,7 @@ import { handleError } from "../lib/error-utils.ts";
 import { resolveRelays, resolveServers, type ResolverOptions } from "../lib/resolver-utils.ts";
 import { listRemoteFiles, fetchProfileEvent, fetchRelayListEvent, type FileEntry, pool, USER_BLOSSOM_SERVER_LIST_KIND } from "../lib/nostr.ts";
 import { fetchServerListEvents } from "../lib/debug-helpers.ts";
+import { extractRelaysFromEvent, extractServersFromEvent } from "../lib/utils.ts";
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
@@ -229,13 +230,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             ]);
             
             // Extract user's relays from relay list
-            const userRelays: string[] = [];
-            if (relayList) {
-              for (const tag of relayList.tags) {
-                if (tag[0] === 'r' && tag[1]) {
-                  userRelays.push(tag[1]);
-                }
-              }
+            const userRelays = extractRelaysFromEvent(relayList);
+            if (userRelays.length > 0) {
               log.debug(`Found ${userRelays.length} relays from user's relay list: ${userRelays.join(", ")}`);
             }
             
@@ -248,14 +244,11 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               pubkeyHex
             );
             
-            const serverList: string[] = [];
-            if (serverListEvents && serverListEvents.length > 0) {
-              const serverEvent = serverListEvents[0];
-              for (const tag of serverEvent.tags) {
-                if (tag[0] === "server" && tag[1]) {
-                  serverList.push(tag[1]);
-                }
-              }
+            const serverList = serverListEvents && serverListEvents.length > 0 
+              ? extractServersFromEvent(serverListEvents[0])
+              : [];
+            
+            if (serverList.length > 0) {
               log.debug(`Found ${serverList.length} servers from server list event`);
               console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
             } else {
