@@ -6,6 +6,7 @@ import { createLogger } from "../lib/logger.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
 import type { FileEntryWithSources } from "./ls.ts";
 import { fetchServerListEvents } from "../lib/debug-helpers.ts";
+import { extractServersFromEvent } from "../lib/utils.ts";
 
 const log = createLogger("browse-loader");
 const NSITE_KIND = 34128;
@@ -160,9 +161,7 @@ export async function listRemoteFilesWithProgress(
     if (serverListEvents.length > 0) {
       // Get the most recent server list event
       const latestEvent = serverListEvents[0];
-      userServers = latestEvent.tags
-        .filter(tag => tag[0] === "server" && tag[1])
-        .map(tag => tag[1]);
+      userServers = extractServersFromEvent(latestEvent);
       log.debug(`Found ${userServers.length} blossom servers in user's server list`);
     }
   } catch (error) {
@@ -222,9 +221,7 @@ export async function checkBlossomServersForFiles(
       if (serverListEvents.length > 0) {
         // Get the most recent server list event
         const latestEvent = serverListEvents[0];
-        servers = latestEvent.tags
-          .filter(tag => tag[0] === "server" && tag[1])
-          .map(tag => tag[1]);
+        servers = extractServersFromEvent(latestEvent);
         log.debug(`Found ${servers.length} blossom servers in user's server list`);
       }
     } catch (error) {
@@ -263,7 +260,7 @@ export async function checkBlossomServersForFiles(
 /**
  * Check which blossom servers actually have a file with retry logic
  */
-async function checkBlossomServersForFile(
+export async function checkBlossomServersForFile(
   sha256: string,
   servers: string[]
 ): Promise<string[]> {

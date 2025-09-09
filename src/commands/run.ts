@@ -6,7 +6,9 @@ import { ensureDir } from "@std/fs";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { resolveRelays, resolveServers, type ResolverOptions } from "../lib/resolver-utils.ts";
-import { listRemoteFiles, fetchProfileEvent, fetchRelayListEvent, type FileEntry } from "../lib/nostr.ts";
+import { listRemoteFiles, fetchProfileEvent, fetchRelayListEvent, type FileEntry, pool, USER_BLOSSOM_SERVER_LIST_KIND } from "../lib/nostr.ts";
+import { fetchServerListEvents } from "../lib/debug-helpers.ts";
+import { extractRelaysFromEvent, extractServersFromEvent } from "../lib/utils.ts";
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
@@ -127,7 +129,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     }
 
     // Cache for profile data and file listings
-    const profileCache = new Map<string, { profile: any; relayList: any; timestamp: number }>();
+    const profileCache = new Map<string, { profile: any; relayList: any; serverList: string[]; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
     const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
     
@@ -227,7 +229,34 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               fetchRelayListEvent(profileRelays, pubkeyHex),
             ]);
             
-            profileData = { profile, relayList, timestamp: Date.now() };
+            // Extract user's relays from relay list
+            const userRelays = extractRelaysFromEvent(relayList);
+            if (userRelays.length > 0) {
+              log.debug(`Found ${userRelays.length} relays from user's relay list: ${userRelays.join(", ")}`);
+            }
+            
+            // Fetch server list from the user's configured relays
+            const relaysToUse = userRelays.length > 0 ? userRelays : profileRelays;
+            log.debug(`Fetching server list (Kind ${USER_BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${relaysToUse.join(", ")}`);
+            const serverListEvents = await fetchServerListEvents(
+              pool,
+              relaysToUse,
+              pubkeyHex
+            );
+            
+            const serverList = serverListEvents && serverListEvents.length > 0 
+              ? extractServersFromEvent(serverListEvents[0])
+              : [];
+            
+            if (serverList.length > 0) {
+              log.debug(`Found ${serverList.length} servers from server list event`);
+              console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
+            } else {
+              log.debug("No server list event found");
+              console.log(colors.gray(`  → No server list found`));
+            }
+            
+            profileData = { profile, relayList, serverList, timestamp: Date.now() };
             profileCache.set(npub, profileData);
             
             if (profile) {
@@ -246,7 +275,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             }
           } catch (error) {
             console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
-            profileData = { profile: null, relayList: null, timestamp: Date.now() };
+            profileData = { profile: null, relayList: null, serverList: [], timestamp: Date.now() };
             profileCache.set(npub, profileData);
           }
         }
@@ -826,8 +855,16 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           if (!currentFileData) {
             console.log(colors.gray(`  → Downloading ${colors.cyan(tryFile.path)}...${isStale ? ' (updated)' : ''}`));
             
-            for (const server of servers) {
+            // Use servers from profile data if available, otherwise fall back to configured servers
+            const userServers = profileData?.serverList && profileData.serverList.length > 0 
+              ? profileData.serverList 
+              : servers;
+            
+            log.debug(`Using ${userServers.length} servers for download: ${userServers.join(", ")}`);
+            
+            for (const server of userServers) {
               try {
+                log.debug(`Attempting download from ${server} for hash ${fileSha256}`);
                 const downloadService = DownloadService.create();
                 const downloadedData = await downloadService.downloadFromServer(server, fileSha256);
                 if (downloadedData) {
@@ -844,6 +881,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                   
                   console.log(colors.gray(`  → Downloaded from ${server}`));
                   break;
+                } else {
+                  log.debug(`Server ${server} returned no data for hash ${fileSha256}`);
                 }
               } catch (error) {
                 log.debug(`Failed to download from ${server}: ${error}`);
@@ -851,7 +890,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             }
             
             if (!currentFileData) {
-              console.log(colors.gray(`  → Could not download ${tryFile.path}, trying alternative formats...`));
+              console.log(colors.gray(`  → Could not download ${tryFile.path} from ${userServers.length} servers, trying alternative formats...`));
+              log.debug(`Failed to download ${tryFile.path} from any of: ${userServers.join(", ")}`);
               continue;
             }
           }
@@ -928,8 +968,12 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         
         if (!fileData || !successfulFile) {
           const elapsed = Math.round(performance.now() - startTime);
+          const userServers = profileData?.serverList && profileData.serverList.length > 0 
+            ? profileData.serverList 
+            : servers;
           console.log(colors.red(`  → Failed to download any version of the file - ${elapsed}ms`));
-          return new Response("Failed to download file from any server", {
+          log.debug(`No servers had the requested file. Servers tried: ${userServers.join(", ")}`);
+          return new Response(`Failed to download file from any server. Tried servers: ${userServers.join(", ")}`, {
             status: 500,
             headers: { "Content-Type": "text/plain" },
           });

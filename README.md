@@ -566,6 +566,24 @@ deno task test
 
 # Build binaries
 deno task compile:all
+
+# Build website (includes docs)
+deno task site:build
+```
+
+### Building Documentation
+
+The website build includes MkDocs documentation. On first run, the build script will automatically set up the Python environment. You can also manually set it up:
+
+```bash
+# Set up documentation environment (auto-runs on first site:build)
+./scripts/setup-docs.sh
+
+# Serve docs locally for development
+./scripts/serve-docs.sh
+
+# Build docs only
+./scripts/build-docs.sh
 ```
 
 ## Resources

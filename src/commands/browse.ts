@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
+import { extractServersFromEvent } from "../lib/utils.ts";
 import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
 import { listRemoteFilesWithProgress } from "./browse-loader.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
@@ -200,63 +201,138 @@ export async function command(options: any): Promise<void> {
       // Listen for terminal resize
       Deno.addSignalListener("SIGWINCH", handleResize);
 
+      // Create throttled render function to prevent flickering
+      let renderTimer: number | null = null;
+      let lastRenderTime = 0;
+      const RENDER_THROTTLE_MS = 100; // Max 10 renders per second
+      
+      const throttledRender = (forceImmediate = false) => {
+        const now = Date.now();
+        const timeSinceLastRender = now - lastRenderTime;
+        
+        if (forceImmediate || timeSinceLastRender >= RENDER_THROTTLE_MS) {
+          // Render immediately
+          if (renderTimer) {
+            clearTimeout(renderTimer);
+            renderTimer = null;
+          }
+          render(state);
+          lastRenderTime = now;
+        } else if (!renderTimer) {
+          // Schedule a render
+          const delay = RENDER_THROTTLE_MS - timeSinceLastRender;
+          renderTimer = setTimeout(() => {
+            render(state);
+            lastRenderTime = Date.now();
+            renderTimer = null;
+          }, delay);
+        }
+      };
+
       // Initial render
       render(state);
 
       // Start initial blossom server check in background (don't await)
-      const { checkBlossomServersForFiles } = await import("./browse-loader.ts");
+      const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import("./browse-loader.ts");
       const { fetchServerListEvents } = await import("../lib/debug-helpers.ts");
+      
+      // Non-blocking function to check remaining files
+      const checkBlossomServersWithYielding = async (
+        relays: string[],
+        pubkey: string,
+        files: typeof state.files,
+        servers: string[]
+      ) => {
+        const BATCH_SIZE = 2; // Check 2 files at a time
+        const YIELD_DELAY = 100; // Yield to event loop every 100ms
+        
+        for (let i = 0; i < files.length; i += BATCH_SIZE) {
+          const batch = files.slice(i, i + BATCH_SIZE);
+          
+          // Check this batch
+          await Promise.all(batch.map(async (file) => {
+            try {
+              const availableServers = await checkBlossomServersForFile(file.sha256, servers);
+              file.availableOnServers = availableServers;
+            } catch (error) {
+              log.debug(`Failed to check blob for ${file.path}: ${error}`);
+            }
+          }));
+          
+          // Update stats after each batch
+          updatePropagationStats(state);
+          
+          // Yield to event loop to process keypresses
+          await new Promise(resolve => setTimeout(resolve, YIELD_DELAY));
+        }
+      };
       
       // First fetch server list asynchronously
       state.status = "Loading server list...";
-      render(state);
+      throttledRender();
       
       // Fire and forget - don't block
       fetchServerListEvents(pool, relays, pubkey).then((serverListEvents) => {
         if (serverListEvents.length > 0) {
           const latestEvent = serverListEvents[0];
-          state.blossomServers = latestEvent.tags
-            .filter(tag => tag[0] === "server" && tag[1])
-            .map(tag => tag[1]);
+          state.blossomServers = extractServersFromEvent(latestEvent);
           log.debug(`Found ${state.blossomServers.length} blossom servers in user's server list`);
           
           // Update color map with blossom servers
           updateServerColorMap(state.blossomServers);
           updatePropagationStats(state);
-          render(state);
+          throttledRender();
         }
         
         if (state.blossomServers.length === 0) {
           state.status = "Ready (no blossom servers)";
-          render(state);
+          throttledRender();
           return;
         }
         
-        // Now check blossom servers with cached list
+        // Now check blossom servers with cached list - but only for visible files
         state.status = "Checking blossom servers...";
-        render(state);
+        throttledRender();
         
-        return checkBlossomServersForFiles(relays, pubkey, state.files, (checked, total) => {
-          state.status = `Checking blossom servers... ${checked}/${total}`;
-          render(state);
-        }, state.blossomServers);
+        // Only check files that are currently visible
+        const visibleFiles = state.files.slice(
+          state.page * state.pageSize, 
+          (state.page + 1) * state.pageSize
+        );
+        
+        // Check visible files first for immediate feedback
+        return checkBlossomServersForFiles(relays, pubkey, visibleFiles, (checked, total) => {
+          state.status = `Checking visible files... ${checked}/${total}`;
+          throttledRender();
+        }, state.blossomServers).then(() => {
+          // Then check remaining files in background without blocking
+          const remainingFiles = [
+            ...state.files.slice(0, state.page * state.pageSize),
+            ...state.files.slice((state.page + 1) * state.pageSize)
+          ];
+          
+          if (remainingFiles.length > 0) {
+            // Check remaining files with yielding to not block the UI
+            checkBlossomServersWithYielding(relays, pubkey, remainingFiles, state.blossomServers);
+          }
+        });
       }).then(() => {
         hasInitialBlossomCheck = true;
         state.status = "Ready";
         updatePropagationStats(state);
-        render(state);
+        throttledRender(true); // Force immediate render when done
       }).catch((error) => {
         hasInitialBlossomCheck = true;
         state.status = "Ready";
         log.debug(`Initial blossom check failed: ${error}`);
-        render(state);
+        throttledRender(true); // Force immediate render on error
       });
 
       // Setup keypress handler with priority-based input queue
       const keypress = new Keypress();
 
       // Priority input queue to handle keyboard events properly
-      const inputQueue: Array<
+      let inputQueue: Array<
         { key: string; sequence?: string; timestamp: number; priority: number }
       > = [];
       let processingQueue = false;
@@ -274,10 +350,15 @@ export async function command(options: any): Promise<void> {
             return a.timestamp - b.timestamp;
           });
 
-          while (inputQueue.length > 0) {
+          // Process at most 3 events at a time to prevent blocking
+          let eventsProcessed = 0;
+          const maxEventsPerBatch = 3;
+
+          while (inputQueue.length > 0 && eventsProcessed < maxEventsPerBatch) {
             const input = inputQueue.shift()!;
             const key = input.key;
             const sequence = input.sequence;
+            eventsProcessed++;
 
             // Process the key event
             if (state.filterMode) {
@@ -357,6 +438,11 @@ export async function command(options: any): Promise<void> {
           }
         } finally {
           processingQueue = false;
+          
+          // If there are more events in the queue, schedule another processing
+          if (inputQueue.length > 0) {
+            setTimeout(() => processInputQueue(), 10);
+          }
         }
       };
 
@@ -453,21 +539,77 @@ export async function command(options: any): Promise<void> {
           trackpadEventCount = 0;
         }
 
-        // Determine priority for this key event
-        let priority = 1; // Default priority
-        if (key === "q" || key === "escape") {
-          priority = 10; // High priority for quit/escape
-        } else if (key === "up" || key === "down" || key === "left" || key === "right") {
-          priority = 5; // Medium-high priority for navigation
-        } else if (key === "return" || key === "space") {
-          priority = 3; // Medium priority for actions
+        // For navigation keys and common actions, process immediately without queueing
+        const isNavigationKey = key === "up" || key === "down" || key === "left" || key === "right" || 
+                               key === "pageup" || key === "pagedown" || key === "home" || key === "end";
+        const isActionKey = key === "return" || key === "space" || key === "q" || key === "escape";
+        
+        if (isNavigationKey || isActionKey) {
+          // Process immediately without queueing
+          if (processingQueue) {
+            // If already processing, skip navigation keys to prevent buildup
+            if (isNavigationKey) {
+              continue;
+            }
+          }
+          
+          // Process this key immediately
+          processingQueue = true;
+          try {
+            // Process the key event directly
+            if (state.filterMode) {
+              const shouldRender = handleFilterMode(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+              }
+            } else if (state.authMode === "select") {
+              const shouldRender = await handleAuthSelection(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+              }
+            } else if (state.authMode === "input") {
+              const shouldRender = await handleAuthInput(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+              }
+            } else if (state.confirmingDelete) {
+              const shouldRender = await handleDeleteConfirmation(state, key, sequence);
+              if (shouldRender) {
+                render(state);
+                if (!state.confirmingDelete) {
+                  setTimeout(() => render(state), 2000);
+                }
+              }
+            } else if (state.viewMode === "detail") {
+              const shouldContinue = handleDetailModeKey(state);
+              if (shouldContinue) {
+                render(state);
+              }
+            } else {
+              const shouldContinue = handleListModeKey(state, key);
+              if (!shouldContinue) {
+                if (blossomRefreshInterval) {
+                  clearInterval(blossomRefreshInterval);
+                }
+                shouldExitLoop = true;
+                break;
+              }
+              
+              if (key === "up" || key === "down") {
+                renderUpdate(state);
+              } else {
+                render(state);
+              }
+            }
+          } finally {
+            processingQueue = false;
+          }
+        } else {
+          // For other keys, use the queue system
+          let priority = 1;
+          inputQueue.push({ key, sequence, timestamp: now, priority });
+          await processInputQueue();
         }
-
-        // Add to priority queue
-        inputQueue.push({ key, sequence, timestamp: now, priority });
-
-        // Process queue
-        await processInputQueue();
       }
 
       // If we get here, user wants to switch identity
