@@ -32,6 +32,18 @@ cp website/src/install-redirect.html dist/install.html
 
 # Build documentation with MkDocs
 echo "📚 Building documentation..."
+
+# Check if the virtual environment exists, if not, set it up
+if [ ! -f ".venv/docs/bin/mkdocs" ]; then
+  echo "📦 Setting up documentation environment..."
+  if [ -f "scripts/setup-docs.sh" ]; then
+    bash scripts/setup-docs.sh
+  else
+    echo "❌ Error: scripts/setup-docs.sh not found"
+    exit 1
+  fi
+fi
+
 .venv/docs/bin/mkdocs build
 
 echo "Do brotli and gz compression"

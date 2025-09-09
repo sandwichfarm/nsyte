@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { Confirm } from "@cliffy/prompt";
+import { Confirm, Input, Select } from "@cliffy/prompt";
 import { copy } from "@std/fs/copy";
 import { existsSync } from "@std/fs/exists";
 import { basename, join } from "@std/path";
@@ -15,13 +15,18 @@ import {
   type ProjectContext,
   readProjectFile,
   setupProject,
+  writeProjectFile,
 } from "../lib/config.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
-import { importFromNbunk } from "../lib/nip46.ts";
+import { 
+  importFromNbunk, 
+  initiateNostrConnect,
+  getNbunkString
+} from "../lib/nip46.ts";
 import {
   createAppHandlerEvent,
   createFileMetadataEvent,
@@ -54,7 +59,7 @@ import {
 } from "../ui/formatters.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
-import { SimpleSigner } from "applesauce-signers";
+import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 
 // LOCAL STATE ------------------------------------------------------------------------------------------------ //
 const log = createLogger("upload");
@@ -519,16 +524,33 @@ async function initSigner(
       const baseMsg = `No stored secret (nbunksec) found for configured bunker: ${
         config.bunkerPubkey.substring(0, 8)
       }...`;
+      
       if (options.nonInteractive) {
         return {
           error:
             `${baseMsg} In non-interactive mode, cannot prompt for new bunker details. Please run interactively or provide key/nbunksec via CLI.`,
         };
       } else {
-        return {
-          error:
-            `${baseMsg} Please re-configure the bunker connection or provide a key/nbunksec via CLI.`,
-        };
+        // In interactive mode, attempt to reconnect to the bunker
+        log.info(`${baseMsg} Attempting to reconnect...`);
+        console.log(colors.yellow(`\n${baseMsg}`));
+        console.log(colors.cyan("Let's reconnect to your bunker:\n"));
+        
+        try {
+          // Reconnect to the bunker
+          const bunkerSigner = await reconnectToBunker(config.bunkerPubkey);
+          if (bunkerSigner) {
+            return bunkerSigner;
+          } else {
+            return {
+              error: `Failed to reconnect to bunker. Please provide a key/nbunksec via CLI or run 'nsyte init' to reconfigure.`,
+            };
+          }
+        } catch (e: unknown) {
+          return {
+            error: `Failed to reconnect to bunker: ${getErrorMessage(e)}. Please provide a key/nbunksec via CLI.`,
+          };
+        }
       }
     }
   }
@@ -536,6 +558,125 @@ async function initSigner(
     error:
       "No valid signing method could be initialized (private key, nbunksec, or bunker). Please check your configuration or CLI arguments.",
   };
+}
+
+/**
+ * Reconnect to an existing bunker that has lost its stored secret
+ */
+async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
+  const choice = await Select.prompt<string>({
+    message: "How would you like to reconnect to your bunker?",
+    options: [
+      { name: "Scan QR Code (Nostr Connect)", value: "qr" },
+      { name: "Enter Bunker URL manually", value: "url" },
+      { name: "Cancel", value: "cancel" },
+    ],
+  });
+
+  if (choice === "cancel") {
+    return null;
+  }
+
+  let signer: NostrConnectSigner | null = null;
+
+  try {
+    if (choice === "qr") {
+      const appName = "nsyte";
+      const defaultRelays = ["wss://relay.nsec.app"];
+
+      const relayInput = await Input.prompt({
+        message: `Enter relays (comma-separated), or press Enter for default (${
+          defaultRelays.join(", ")
+        }):`,
+        default: defaultRelays.join(", "),
+      });
+
+      let chosenRelays: string[];
+      if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+        chosenRelays = defaultRelays;
+      } else {
+        chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+      }
+
+      if (chosenRelays.length === 0) {
+        console.log(colors.yellow("No relays provided. Using default relays."));
+        chosenRelays = defaultRelays;
+      }
+
+      console.log(
+        colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`),
+      );
+      signer = await initiateNostrConnect(appName, chosenRelays);
+    } else {
+      const bunkerUrl = await Input.prompt({
+        message: "Enter the bunker URL (bunker://...):",
+        validate: (input: string) => {
+          return input.trim().startsWith("bunker://") ||
+            "Bunker URL must start with bunker:// (format: bunker://<pubkey>?relay=...)";
+        },
+      });
+
+      console.log(colors.cyan("Connecting to bunker via URL..."));
+      signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
+      
+      // Wait for the signer to connect
+      if (signer) {
+        await signer.waitForSigner();
+      }
+    }
+
+    if (!signer) {
+      throw new Error("Failed to establish signer connection");
+    }
+
+    // Verify the bunker pubkey matches what we expect
+    const connectedPubkey = await signer.getPublicKey();
+    if (connectedPubkey !== bunkerPubkey) {
+      console.log(colors.yellow(
+        `Warning: Connected bunker pubkey (${connectedPubkey.substring(0, 8)}...) does not match configured pubkey (${bunkerPubkey.substring(0, 8)}...).`
+      ));
+      const proceed = await Confirm.prompt({
+        message: "Do you want to continue with this different bunker?",
+        default: false,
+      });
+      
+      if (!proceed) {
+        await signer.close();
+        return null;
+      }
+      
+      // Update the configuration with the new bunker pubkey
+      config.bunkerPubkey = connectedPubkey;
+      writeProjectFile(config);
+    }
+
+    // Store the bunker info for future use
+    const secretsManager = SecretsManager.getInstance();
+    const nbunkString = getNbunkString(signer);
+    await secretsManager.storeNbunk(connectedPubkey, nbunkString);
+    
+    console.log(colors.green("✓ Successfully reconnected to bunker and saved credentials."));
+    log.info(`Reconnected to bunker with pubkey: ${connectedPubkey.substring(0, 8)}...`);
+
+    return signer;
+  } catch (error) {
+    log.error(`Failed to reconnect to bunker: ${error}`);
+    console.error(
+      colors.red(
+        `Failed to reconnect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+    );
+    
+    if (signer) {
+      try {
+        await signer.close();
+      } catch (err) {
+        log.error(`Error during disconnect: ${err}`);
+      }
+    }
+    
+    return null;
+  }
 }
 
 export function displayConfig(publisherPubkey: string) {
