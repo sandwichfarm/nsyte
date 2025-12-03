@@ -3,6 +3,7 @@ import { ensureDir } from "@std/fs/ensure-dir";
 import { createLogger } from "./logger.ts";
 import { type FileEntry, listRemoteFiles } from "./nostr.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
+import type { ByteArray } from "./types.ts";
 
 const log = createLogger("download");
 
@@ -193,7 +194,7 @@ export class DownloadService {
   /**
    * Download file data from a blossom server
    */
-  async downloadFromServer(server: string, sha256: string): Promise<Uint8Array | null> {
+  async downloadFromServer(server: string, sha256: string): Promise<ByteArray | null> {
     const serverUrl = server.endsWith("/") ? server : `${server}/`;
     const downloadUrl = `${serverUrl}${sha256}`;
 
@@ -248,7 +249,7 @@ export class DownloadService {
   /**
    * Save file data to the filesystem
    */
-  private async saveFile(outputPath: string, data: Uint8Array): Promise<void> {
+  private async saveFile(outputPath: string, data: ByteArray): Promise<void> {
     // Ensure directory exists
     await ensureDir(dirname(outputPath));
 

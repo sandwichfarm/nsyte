@@ -3,7 +3,8 @@ import { NostrEvent } from "nostr-tools";
 import { createLogger } from "./logger.ts";
 import { USER_BLOSSOM_SERVER_LIST_KIND, NSITE_KIND } from "./nostr.ts";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { lastValueFrom } from "rxjs";
+import { lastValueFrom, timer } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 
 const logger = createLogger("debug-helpers");
 
@@ -21,7 +22,8 @@ export async function fetchEventsWithTimer(
         .pipe(
           simpleTimeout(timeout),
           mapEventsToStore(store),
-          mapEventsToTimeline()
+          mapEventsToTimeline(),
+          takeUntil(timer(timeout)) // Force completion even if a relay never sends EOSE
         )
     );
     return events;

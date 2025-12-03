@@ -4,12 +4,14 @@ import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from
 import { getTagValue } from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
 import { NostrConnectSigner } from "applesauce-signers";
-import { lastValueFrom } from "rxjs";
+import { lastValueFrom, timer } from "rxjs";
 import { toArray } from "rxjs/operators";
+import { takeUntil } from "rxjs/operators";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import type { Signer } from "./upload.ts";
+import type { ByteArray } from "./types.ts";
 import type { EventTemplate, NostrEvent } from "nostr-tools";
 
 const log = createLogger("nostr");
@@ -40,7 +42,7 @@ export interface Profile {
  */
 export interface FileEntry {
   path: string;
-  data?: Uint8Array;
+  data?: ByteArray;
   size?: number;
   sha256?: string;
   contentType?: string;
@@ -118,6 +120,7 @@ export async function fetchFileEvents(
   pubkey: string,
 ): Promise<NostrEvent[]> {
   log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
+  const REQUEST_TIMEOUT_MS = 8000;
 
   try {
     // Create tmp event store to deduplicate events
@@ -132,6 +135,7 @@ export async function fetchFileEvents(
           simpleTimeout(5000),
           mapEventsToStore(store),
           mapEventsToTimeline(),
+          takeUntil(timer(REQUEST_TIMEOUT_MS)), // Force completion even if a relay never sends EOSE
         ),
       { defaultValue: [] },
     );

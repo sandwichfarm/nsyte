@@ -2,6 +2,7 @@ import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, join, relative, basename } from "@std/path";
 import { createLogger } from "./logger.ts";
 import type { FileEntry } from "./nostr.ts";
+import type { ByteArray } from "./types.ts";
 import { Tar } from "jsr:@std/archive@0.225.4/tar";
 import { Buffer } from "jsr:@std/io@0.224.9/buffer";
 import { readAll } from "jsr:@std/io@0.224.9/read-all";
@@ -19,7 +20,7 @@ export async function createTarGzArchive(
   files: FileEntry[],
   baseDir: string,
   outputPath: string,
-): Promise<{ path: string; data: Uint8Array; size: number }> {
+): Promise<{ path: string; data: ByteArray; size: number }> {
   log.debug(`Creating tar.gz archive with ${files.length} files`);
   
   // Ensure output directory exists
@@ -93,7 +94,7 @@ export async function createTarGzArchive(
  * @param data File data as Uint8Array
  * @returns Hex-encoded SHA-256 hash
  */
-export async function calculateSha256(data: Uint8Array): Promise<string> {
+export async function calculateSha256(data: ByteArray): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, "0"))

@@ -12,6 +12,7 @@
     "jsr:@cliffy/table@1.0.0-rc.7": "1.0.0-rc.7",
     "jsr:@libs/qrcode@*": "2.0.1",
     "jsr:@libs/qrcode@^2.0.1": "2.0.1",
+    "jsr:@nick/brotli@0.1.0": "0.1.0",
     "jsr:@std/archive@0.225.4": "0.225.4",
     "jsr:@std/assert@*": "1.0.13",
     "jsr:@std/assert@^1.0.13": "1.0.13",
@@ -35,8 +36,8 @@
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.4",
     "jsr:@std/path@*": "1.0.9",
-    "jsr:@std/path@1": "1.0.9",
-    "jsr:@std/path@^1.0.9": "1.0.9",
+    "jsr:@std/path@1": "1.1.0",
+    "jsr:@std/path@^1.0.9": "1.1.0",
     "jsr:@std/path@^1.1.0": "1.1.0",
     "jsr:@std/path@~1.0.6": "1.0.9",
     "jsr:@std/streams@^1.0.9": "1.0.9",
@@ -116,6 +117,9 @@
     },
     "@libs/qrcode@2.0.1": {
       "integrity": "04a90d388400892ada9cdc95b3257466f319050e8f1d747d3d629e51e39d6eaf"
+    },
+    "@nick/brotli@0.1.0": {
+      "integrity": "b76eae36f8c02ed5d4cb133ecbd32a31ddead52272d0a4c3704e8c5fedfbe660"
     },
     "@std/archive@0.225.4": {
       "integrity": "59fe5d1834cbb6a2a7913b102d41c11d51475328d5b843bea75b94a40b44a115",
