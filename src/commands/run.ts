@@ -11,8 +11,9 @@ import { fetchServerListEvents } from "../lib/debug-helpers.ts";
 import { decode } from "nostr-tools/nip19";
 import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
-import { decompress as brotliDecompress } from "https://deno.land/x/brotli@v0.1.4/mod.ts";
+import { brotliDecompressSync } from "node:zlib";
 import { readProjectFile } from "../lib/config.ts";
+import type { ByteArray } from "../lib/types.ts";
 
 const log = createLogger("run");
 
@@ -130,7 +131,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     // Cache for profile data and file listings
     const profileCache = new Map<string, { profile: any; relayList: any; serverList: string[]; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
-    const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
+    const fileCache = new Map<string, { data: ByteArray; timestamp: number; sha256: string }>();
     
     // Track when specific paths have been updated
     const pathUpdateTimestamps = new Map<string, number>();
@@ -802,7 +803,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         }
         
         // Try to download files in order of preference
-        let fileData: Uint8Array | null = null;
+        let fileData: ByteArray | null = null;
         let successfulFile: FileEntry | null = null;
         
         for (const fileOption of filesToTry) {
@@ -815,7 +816,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           const decompressedCacheKey = `${npub}-${fileSha256}-decompressed`;
           const isStale = isCacheStale(fileListEntry, tryFile);
           
-          let currentFileData: Uint8Array | null = null;
+          let currentFileData: ByteArray | null = null;
           let isAlreadyDecompressed = false;
           
           // For compressed files, check if we have a decompressed version cached
@@ -908,15 +909,16 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             if (fileOption.type === "br") {
               // Decompress Brotli
               try {
-                const decompressed = brotliDecompress(currentFileData);
-                console.log(colors.gray(`  → Decompressed Brotli data: ${formatFileSize(decompressed.byteLength)}`));
-                fileData = decompressed;
+                const decompressed = brotliDecompressSync(currentFileData);
+                const normalized = decompressed.slice() as ByteArray;
+                console.log(colors.gray(`  → Decompressed Brotli data: ${formatFileSize(normalized.byteLength)}`));
+                fileData = normalized;
                 successfulFile = tryFile;
                 
                 // Cache the decompressed version
-                fileCache.set(decompressedCacheKey, { data: decompressed, timestamp: Date.now(), sha256: fileSha256 });
+                fileCache.set(decompressedCacheKey, { data: normalized, timestamp: Date.now(), sha256: fileSha256 });
                 if (cacheDir) {
-                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", decompressed);
+                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", normalized);
                   log.debug(`Saved decompressed ${tryFile.path} to disk cache`);
                 }
                 
@@ -936,14 +938,15 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                 const decompressed = await new Response(
                   new Response(currentFileData).body!.pipeThrough(new DecompressionStream("gzip"))
                 ).arrayBuffer();
-                fileData = new Uint8Array(decompressed);
-                console.log(colors.gray(`  → Decompressed Gzip data: ${formatFileSize(fileData.byteLength)}`));
+                const normalized = new Uint8Array(decompressed) as ByteArray;
+                fileData = normalized;
+                console.log(colors.gray(`  → Decompressed Gzip data: ${formatFileSize(normalized.byteLength)}`));
                 successfulFile = tryFile;
                 
                 // Cache the decompressed version
-                fileCache.set(decompressedCacheKey, { data: fileData, timestamp: Date.now(), sha256: fileSha256 });
+                fileCache.set(decompressedCacheKey, { data: normalized, timestamp: Date.now(), sha256: fileSha256 });
                 if (cacheDir) {
-                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", fileData);
+                  await saveCachedFile(cacheDir, npub, fileSha256 + "-decompressed", normalized);
                   log.debug(`Saved decompressed ${tryFile.path} to disk cache`);
                 }
                 
@@ -1279,12 +1282,12 @@ export function formatFileSize(bytes: number): string {
 /**
  * Load cached file from disk
  */
-async function loadCachedFile(cacheDir: string | null, npub: string, sha256: string): Promise<Uint8Array | null> {
+async function loadCachedFile(cacheDir: string | null, npub: string, sha256: string): Promise<ByteArray | null> {
   if (!cacheDir) return null;
   try {
     const filePath = join(cacheDir, npub, sha256);
     const data = await Deno.readFile(filePath);
-    return data;
+    return data.slice() as ByteArray;
   } catch {
     return null;
   }
@@ -1293,7 +1296,7 @@ async function loadCachedFile(cacheDir: string | null, npub: string, sha256: str
 /**
  * Save file to disk cache
  */
-async function saveCachedFile(cacheDir: string | null, npub: string, sha256: string, data: Uint8Array): Promise<void> {
+async function saveCachedFile(cacheDir: string | null, npub: string, sha256: string, data: ByteArray): Promise<void> {
   if (!cacheDir) return;
   const dirPath = join(cacheDir, npub);
   await ensureDir(dirPath);

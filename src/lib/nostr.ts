@@ -10,6 +10,7 @@ import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import type { Signer } from "./upload.ts";
+import type { ByteArray } from "./types.ts";
 import type { EventTemplate, NostrEvent } from "nostr-tools";
 
 const log = createLogger("nostr");
@@ -40,7 +41,7 @@ export interface Profile {
  */
 export interface FileEntry {
   path: string;
-  data?: Uint8Array;
+  data?: ByteArray;
   size?: number;
   sha256?: string;
   contentType?: string;
@@ -120,22 +121,44 @@ export async function fetchFileEvents(
   log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
 
   try {
-    // Create tmp event store to deduplicate events
-    const store = new EventStore();
-    const events = await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [NSITE_KIND],
-          authors: [pubkey],
-        })
-        .pipe(
-          simpleTimeout(5000),
-          mapEventsToStore(store),
-          mapEventsToTimeline(),
-        ),
-      { defaultValue: [] },
-    );
-    return events;
+    const allEvents = new Map<string, NostrEvent>();
+    const GLOBAL_TIMEOUT_MS = 8000;
+
+    const relayPromises = relays.map(async (relay) => {
+      try {
+        const store = new EventStore();
+        const request$ = pool
+          .request([relay], {
+            kinds: [NSITE_KIND],
+            authors: [pubkey],
+          })
+          .pipe(
+            simpleTimeout(8000),
+            mapEventsToStore(store),
+            mapEventsToTimeline(),
+          );
+
+        const requestPromise = lastValueFrom(request$, { defaultValue: [] });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Relay ${relay} timeout`)), 10000)
+        );
+
+        const events = await Promise.race([requestPromise, timeoutPromise]) as NostrEvent[];
+        for (const ev of events) {
+          allEvents.set(ev.id, ev);
+        }
+        log.debug(`Fetched ${events.length} events from ${relay}`);
+      } catch (error) {
+        log.debug(`Failed to fetch from relay ${relay}: ${error}`);
+      }
+    });
+
+    await Promise.race([
+      Promise.allSettled(relayPromises),
+      new Promise((resolve) => setTimeout(resolve, GLOBAL_TIMEOUT_MS)),
+    ]);
+
+    return Array.from(allEvents.values());
   } catch (error) {
     log.error(`Error fetching events: ${getErrorMessage(error)}`);
     return [];
