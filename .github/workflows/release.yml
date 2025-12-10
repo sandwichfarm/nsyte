@@ -254,7 +254,7 @@ jobs:
       - name: Check JSR publish (dry run)
         run: |
           echo "Running JSR publish dry run to check for issues..."
-          deno publish --dry-run
+          deno publish --dry-run --allow-dirty
           if [ $? -ne 0 ]; then
             echo "::error::JSR publish dry run failed. Please fix the issues before releasing."
             exit 1
@@ -262,7 +262,7 @@ jobs:
           echo "✅ JSR publish dry run successful"
 
       - name: Publish to JSR
-        run: deno publish
+        run: deno publish --allow-dirty
 
   release:
     name: Create Release
