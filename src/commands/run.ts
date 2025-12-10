@@ -14,6 +14,7 @@ import { normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "../lib/download.ts";
 import { decompress as brotliDecompress } from "jsr:@nick/brotli@0.1.0";
 import { readProjectFile } from "../lib/config.ts";
+import type { ByteArray } from "../lib/types.ts";
 
 const log = createLogger("run");
 
@@ -131,7 +132,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     // Cache for profile data and file listings
     const profileCache = new Map<string, { profile: any; relayList: any; serverList: string[]; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
-    const fileCache = new Map<string, { data: Uint8Array; timestamp: number; sha256: string }>();
+    const fileCache = new Map<string, { data: ByteArray; timestamp: number; sha256: string }>();
     
     // Track when specific paths have been updated
     const pathUpdateTimestamps = new Map<string, number>();
@@ -795,7 +796,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         }
         
         // Try to download files in order of preference
-        let fileData: Uint8Array | null = null;
+        let fileData: ByteArray | null = null;
         let successfulFile: FileEntry | null = null;
         
         for (const fileOption of filesToTry) {
@@ -808,7 +809,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           const decompressedCacheKey = `${npub}-${fileSha256}-decompressed`;
           const isStale = isCacheStale(fileListEntry, tryFile);
           
-          let currentFileData: Uint8Array | null = null;
+          let currentFileData: ByteArray | null = null;
           let isAlreadyDecompressed = false;
           
           // For compressed files, check if we have a decompressed version cached
@@ -901,7 +902,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             if (fileOption.type === "br") {
               // Decompress Brotli
               try {
-                const decompressed = brotliDecompress(currentFileData);
+                const decompressed = brotliDecompress(currentFileData) as ByteArray;
                 console.log(colors.gray(`  → Decompressed Brotli data: ${formatFileSize(decompressed.byteLength)}`));
                 fileData = decompressed;
                 successfulFile = tryFile;
@@ -1272,7 +1273,7 @@ export function formatFileSize(bytes: number): string {
 /**
  * Load cached file from disk
  */
-async function loadCachedFile(cacheDir: string | null, npub: string, sha256: string): Promise<Uint8Array | null> {
+async function loadCachedFile(cacheDir: string | null, npub: string, sha256: string): Promise<ByteArray | null> {
   if (!cacheDir) return null;
   try {
     const filePath = join(cacheDir, npub, sha256);
@@ -1286,7 +1287,7 @@ async function loadCachedFile(cacheDir: string | null, npub: string, sha256: str
 /**
  * Save file to disk cache
  */
-async function saveCachedFile(cacheDir: string | null, npub: string, sha256: string, data: Uint8Array): Promise<void> {
+async function saveCachedFile(cacheDir: string | null, npub: string, sha256: string, data: ByteArray): Promise<void> {
   if (!cacheDir) return;
   const dirPath = join(cacheDir, npub);
   await ensureDir(dirPath);
