@@ -102,13 +102,15 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     
     // Use specific relays for profile/relay list resolution
     const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
+    // Default relays that actually host nsite file events
+    const defaultFileRelays = ["wss://relay.nsite.lol", "wss://relay.nosto.re"];
     
     // Ensure relays are connected
     log.debug(`Connecting to profile relays: ${profileRelays.join(", ")}`);
     
-    // Use configured relays for file events, or fall back to profile relays
+    // Use configured relays for file events, or fall back to nsite-focused relays
     const fileRelays = resolveRelays(options, readProjectFile(), false);
-    const relays = fileRelays.length > 0 ? fileRelays : profileRelays;
+    const relays = fileRelays.length > 0 ? fileRelays : defaultFileRelays;
     
     // Get blossom servers
     const servers = resolveServers(options, readProjectFile());
@@ -237,7 +239,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             }
             
             // Fetch server list from the user's configured relays
-            const relaysToUse = userRelays.length > 0 ? userRelays : profileRelays;
+            const relaysToUse = userRelays.length > 0 ? userRelays : relays;
             log.debug(`Fetching server list (Kind ${USER_BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${relaysToUse.join(", ")}`);
             const serverListEvents = await fetchServerListEvents(
               pool,

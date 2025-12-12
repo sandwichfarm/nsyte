@@ -42,12 +42,13 @@ import {
   fetchSoftwareApplicationEvent,
   type FileEntry,
   listRemoteFiles,
+  fetchRelayListEvent,
   publishEventsToRelays,
   purgeRemoteFiles,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
-import { npubEncode } from "../lib/utils.ts";
+import { npubEncode, extractRelaysFromEvent } from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -1359,6 +1360,22 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
 
   console.log(formatSectionHeader("Metadata Events Publish Results"));
 
+  // Determine where to publish profile metadata: profile relays + relays from the user's 10002 list if present
+  const publisherPubkey = await signer.getPublicKey();
+  let discoveredRelayList: string[] = [];
+  try {
+    const relayListEvent = await fetchRelayListEvent(usermeta_relays, publisherPubkey);
+    if (relayListEvent) {
+      discoveredRelayList = extractRelaysFromEvent(relayListEvent);
+      log.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
+    } else {
+      log.debug("No relay list event found when preparing profile publish relays");
+    }
+  } catch (e) {
+    log.debug(`Failed to fetch relay list for profile publishing: ${getErrorMessage(e)}`);
+  }
+  const profilePublishRelays = Array.from(new Set([...usermeta_relays, ...discoveredRelayList]));
+
   try {
     if (shouldPublishProfile && config.profile) {
       statusDisplay.update("Publishing profile...");
@@ -1366,7 +1383,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
       try {
         const profileEvent = await createProfileEvent(signer, config.profile);
         log.debug(`Created profile event for publishing: ${JSON.stringify(profileEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [profileEvent]);
+        await publishEventsToRelays(profilePublishRelays, [profileEvent]);
         statusDisplay.success(
           `Profile published for ${config.profile.name || await signer.getPublicKey()}`,
         );
@@ -1381,7 +1398,9 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
       try {
         const relayListEvent = await createRelayListEvent(signer, resolvedRelays);
         log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
-        const publishToRelays = Array.from(new Set([...resolvedRelays, ...usermeta_relays]));
+        const publishToRelays = Array.from(
+          new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
+        );
         await publishEventsToRelays(publishToRelays, [relayListEvent]);
         statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
       } catch (e: unknown) {
