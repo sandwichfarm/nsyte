@@ -7,6 +7,7 @@ import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
 import { listRemoteFilesWithProgress } from "./browse-loader.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { readProjectFile } from "../lib/config.ts";
+import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
@@ -23,8 +24,8 @@ import {
   showCursor,
 } from "../ui/browse/renderer.ts";
 import {
-  handleAuthSelection,
   handleAuthInput,
+  handleAuthSelection,
   handleDeleteConfirmation,
   handleDetailModeKey,
   handleFilterMode,
@@ -43,6 +44,11 @@ export function registerBrowseCommand(program: Command): void {
       "-p, --pubkey <npub:string>",
       "The public key to list files for (if not using private key).",
     )
+    .option(
+      "--use-fallback-relays",
+      "Include default nsyte relays in addition to configured/user relays.",
+    )
+    .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
     .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
     .action(command);
@@ -87,9 +93,33 @@ export async function command(options: any): Promise<void> {
       renderLoadingScreen("Initializing...");
 
       // Use discovery relays if identity was switched or no project
+      const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       const relays = useDiscoveryRelays || (!hasExplicitAuth && !hasProjectAuth)
-        ? resolveRelays({}, null, true) // Force discovery relays
-        : resolveRelays(options);
+        ? resolveRelays({}, null, true) // Force discovery relays for discovery mode
+        : (() => {
+          const configuredRelays = options.relays !== undefined
+            ? resolveRelays(options, projectConfig, false)
+            : (projectConfig?.relays || []);
+          let selected = [...configuredRelays];
+
+          if (allowFallbackRelays) {
+            selected = Array.from(new Set([...selected, ...NSYTE_BROADCAST_RELAYS]));
+          }
+
+          if (selected.length === 0) {
+            if (allowFallbackRelays) {
+              selected = NSYTE_BROADCAST_RELAYS;
+              console.log(
+                colors.yellow("⚠️  Using default relays because none were configured."),
+              );
+            } else {
+              console.log(colors.red("✗ No relays configured and fallbacks disabled."));
+              Deno.exit(1);
+            }
+          }
+
+          return selected;
+        })();
 
       renderLoadingScreen("Loading configuration...");
 
@@ -146,8 +176,8 @@ export async function command(options: any): Promise<void> {
       // Update server color map when blossom servers are loaded
       const updateServerColorMap = (blossomServers: string[]) => {
         const allServersSet = new Set(Array.from(allServers));
-        blossomServers.forEach(server => allServersSet.add(server));
-        
+        blossomServers.forEach((server) => allServersSet.add(server));
+
         // Rebuild color map with all servers (existing + blossom)
         serverColorMap.clear();
         Array.from(allServersSet).sort().forEach((server, index) => {
@@ -205,11 +235,11 @@ export async function command(options: any): Promise<void> {
       let renderTimer: number | null = null;
       let lastRenderTime = 0;
       const RENDER_THROTTLE_MS = 100; // Max 10 renders per second
-      
+
       const throttledRender = (forceImmediate = false) => {
         const now = Date.now();
         const timeSinceLastRender = now - lastRenderTime;
-        
+
         if (forceImmediate || timeSinceLastRender >= RENDER_THROTTLE_MS) {
           // Render immediately
           if (renderTimer) {
@@ -233,22 +263,24 @@ export async function command(options: any): Promise<void> {
       render(state);
 
       // Start initial blossom server check in background (don't await)
-      const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import("./browse-loader.ts");
+      const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import(
+        "./browse-loader.ts"
+      );
       const { fetchServerListEvents } = await import("../lib/debug-helpers.ts");
-      
+
       // Non-blocking function to check remaining files
       const checkBlossomServersWithYielding = async (
         relays: string[],
         pubkey: string,
         files: typeof state.files,
-        servers: string[]
+        servers: string[],
       ) => {
         const BATCH_SIZE = 2; // Check 2 files at a time
         const YIELD_DELAY = 100; // Yield to event loop every 100ms
-        
+
         for (let i = 0; i < files.length; i += BATCH_SIZE) {
           const batch = files.slice(i, i + BATCH_SIZE);
-          
+
           // Check this batch
           await Promise.all(batch.map(async (file) => {
             try {
@@ -258,48 +290,48 @@ export async function command(options: any): Promise<void> {
               log.debug(`Failed to check blob for ${file.path}: ${error}`);
             }
           }));
-          
+
           // Update stats after each batch
           updatePropagationStats(state);
-          
+
           // Yield to event loop to process keypresses
-          await new Promise(resolve => setTimeout(resolve, YIELD_DELAY));
+          await new Promise((resolve) => setTimeout(resolve, YIELD_DELAY));
         }
       };
-      
+
       // First fetch server list asynchronously
       state.status = "Loading server list...";
       throttledRender();
-      
+
       // Fire and forget - don't block
       fetchServerListEvents(pool, relays, pubkey).then((serverListEvents) => {
         if (serverListEvents.length > 0) {
           const latestEvent = serverListEvents[0];
           state.blossomServers = extractServersFromEvent(latestEvent);
           log.debug(`Found ${state.blossomServers.length} blossom servers in user's server list`);
-          
+
           // Update color map with blossom servers
           updateServerColorMap(state.blossomServers);
           updatePropagationStats(state);
           throttledRender();
         }
-        
+
         if (state.blossomServers.length === 0) {
           state.status = "Ready (no blossom servers)";
           throttledRender();
           return;
         }
-        
+
         // Now check blossom servers with cached list - but only for visible files
         state.status = "Checking blossom servers...";
         throttledRender();
-        
+
         // Only check files that are currently visible
         const visibleFiles = state.files.slice(
-          state.page * state.pageSize, 
-          (state.page + 1) * state.pageSize
+          state.page * state.pageSize,
+          (state.page + 1) * state.pageSize,
         );
-        
+
         // Check visible files first for immediate feedback
         return checkBlossomServersForFiles(relays, pubkey, visibleFiles, (checked, total) => {
           state.status = `Checking visible files... ${checked}/${total}`;
@@ -308,9 +340,9 @@ export async function command(options: any): Promise<void> {
           // Then check remaining files in background without blocking
           const remainingFiles = [
             ...state.files.slice(0, state.page * state.pageSize),
-            ...state.files.slice((state.page + 1) * state.pageSize)
+            ...state.files.slice((state.page + 1) * state.pageSize),
           ];
-          
+
           if (remainingFiles.length > 0) {
             // Check remaining files with yielding to not block the UI
             checkBlossomServersWithYielding(relays, pubkey, remainingFiles, state.blossomServers);
@@ -376,7 +408,7 @@ export async function command(options: any): Promise<void> {
               }
               continue;
             }
-            
+
             if (state.authMode === "input") {
               const shouldRender = await handleAuthInput(state, key, sequence);
               if (shouldRender) {
@@ -384,7 +416,7 @@ export async function command(options: any): Promise<void> {
               }
               continue;
             }
-            
+
             if (state.confirmingDelete) {
               const shouldRender = await handleDeleteConfirmation(state, key, sequence);
               if (shouldRender) {
@@ -438,7 +470,7 @@ export async function command(options: any): Promise<void> {
           }
         } finally {
           processingQueue = false;
-          
+
           // If there are more events in the queue, schedule another processing
           if (inputQueue.length > 0) {
             setTimeout(() => processInputQueue(), 10);
@@ -453,12 +485,12 @@ export async function command(options: any): Promise<void> {
       // Start background blossom server checking with 10-minute refresh (optional)
       let blossomRefreshInterval: number | undefined;
       let hasInitialBlossomCheck = false;
-      
+
       const startBlossomRefresh = () => {
         if (blossomRefreshInterval) {
           clearInterval(blossomRefreshInterval);
         }
-        
+
         // Only set up periodic refresh if user wants it (every 10 minutes)
         // For now, let's disable periodic refresh - blossom checking happens once per session
         // Uncomment the following lines if periodic refresh is desired:
@@ -468,17 +500,17 @@ export async function command(options: any): Promise<void> {
           if (state.blossomServers.length === 0) {
             return;
           }
-          
+
           try {
             state.status = "Refreshing blossom servers...";
             render(state);
-            
+
             const { checkBlossomServersForFiles } = await import("./browse-loader.ts");
             await checkBlossomServersForFiles(relays, pubkey, state.files, (checked, total) => {
               state.status = `Refreshing blossom servers... ${checked}/${total}`;
               render(state);
             }, state.blossomServers);
-            
+
             state.status = "Ready";
             updatePropagationStats(state);
             render(state);
@@ -540,10 +572,11 @@ export async function command(options: any): Promise<void> {
         }
 
         // For navigation keys and common actions, process immediately without queueing
-        const isNavigationKey = key === "up" || key === "down" || key === "left" || key === "right" || 
-                               key === "pageup" || key === "pagedown" || key === "home" || key === "end";
+        const isNavigationKey = key === "up" || key === "down" || key === "left" ||
+          key === "right" ||
+          key === "pageup" || key === "pagedown" || key === "home" || key === "end";
         const isActionKey = key === "return" || key === "space" || key === "q" || key === "escape";
-        
+
         if (isNavigationKey || isActionKey) {
           // Process immediately without queueing
           if (processingQueue) {
@@ -552,7 +585,7 @@ export async function command(options: any): Promise<void> {
               continue;
             }
           }
-          
+
           // Process this key immediately
           processingQueue = true;
           try {
@@ -594,7 +627,7 @@ export async function command(options: any): Promise<void> {
                 shouldExitLoop = true;
                 break;
               }
-              
+
               if (key === "up" || key === "down") {
                 renderUpdate(state);
               } else {

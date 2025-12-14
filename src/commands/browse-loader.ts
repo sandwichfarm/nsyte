@@ -1,6 +1,6 @@
 import type { NostrEvent } from "nostr-tools";
-import { EventStore, simpleTimeout, mapEventsToStore, mapEventsToTimeline } from "applesauce-core";
-import { pool, getTagValue } from "../lib/nostr.ts";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { getTagValue, pool } from "../lib/nostr.ts";
 import { lastValueFrom } from "rxjs";
 import { createLogger } from "../lib/logger.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
@@ -52,7 +52,7 @@ export async function listRemoteFilesWithProgress(
     try {
       log.debug(`Connecting to relay: ${relay}`);
       const store = new EventStore();
-      
+
       // Add a race condition with manual timeout to handle EOSE issues
       const requestPromise = lastValueFrom(
         pool
@@ -63,15 +63,15 @@ export async function listRemoteFilesWithProgress(
           .pipe(
             simpleTimeout(8000),
             mapEventsToStore(store),
-            mapEventsToTimeline()
+            mapEventsToTimeline(),
           ),
-        { defaultValue: [] }
+        { defaultValue: [] },
       );
-      
+
       const timeoutPromise = new Promise<any[]>((_, reject) => {
         setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
       });
-      
+
       const events = await Promise.race([requestPromise, timeoutPromise]) as NostrEvent[];
 
       // Track which relay returned each event
@@ -95,7 +95,7 @@ export async function listRemoteFilesWithProgress(
       completedRelays++;
       renderLoadingScreen(
         "Loading files from relays...",
-        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`
+        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`,
       );
     }
   });
@@ -110,6 +110,7 @@ export async function listRemoteFilesWithProgress(
   renderLoadingScreen("Processing files...", `${eventMap.size} events`);
 
   const fileEntries: FileEntryWithSources[] = [];
+  const now = Math.floor(Date.now() / 1000);
 
   for (const [eventId, { event, foundOnRelays }] of eventMap) {
     const path = getTagValue(event, "d");
@@ -132,13 +133,16 @@ export async function listRemoteFilesWithProgress(
   // Deduplicate by path, keeping the newest event
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex((file) => file.path === current.path);
+    const currentTs = Math.min(current.event?.created_at ?? 0, now);
 
     if (existingIndex === -1) {
       return [...acc, current];
     } else {
       const existing = acc[existingIndex];
 
-      if ((existing.event?.created_at || 0) < (current.event?.created_at || 0)) {
+      const existingTs = Math.min(existing.event?.created_at ?? 0, now);
+
+      if (existingTs < currentTs) {
         acc[existingIndex] = current;
       } else {
         // Merge relay sources
@@ -155,7 +159,7 @@ export async function listRemoteFilesWithProgress(
   // Fetch user's blossom server list
   renderLoadingScreen("Fetching server list...", "Loading user preferences");
   let userServers: string[] = [];
-  
+
   try {
     const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
     if (serverListEvents.length > 0) {
@@ -171,26 +175,29 @@ export async function listRemoteFilesWithProgress(
   // Check blossom server availability if requested
   if (checkBlossomServers && uniqueFiles.length > 0 && userServers.length > 0) {
     renderLoadingScreen("Checking blossom servers...", `0 / ${uniqueFiles.length} files`);
-    
+
     let filesChecked = 0;
     const checkPromises = uniqueFiles.map(async (file) => {
       const availableServers = await checkBlossomServersForFile(file.sha256, userServers);
       file.availableOnServers = availableServers;
-      
+
       filesChecked++;
       if (filesChecked % 10 === 0 || filesChecked === uniqueFiles.length) {
-        renderLoadingScreen("Checking blossom servers...", `${filesChecked} / ${uniqueFiles.length} files`);
+        renderLoadingScreen(
+          "Checking blossom servers...",
+          `${filesChecked} / ${uniqueFiles.length} files`,
+        );
       }
     });
-    
+
     // Process in smaller batches to avoid overwhelming servers
     const batchSize = 5; // Reduced from 20 to 5 for better server friendliness
     for (let i = 0; i < checkPromises.length; i += batchSize) {
       await Promise.all(checkPromises.slice(i, i + batchSize));
-      
+
       // Add a small delay between batches to be extra server-friendly
       if (i + batchSize < checkPromises.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
   } else if (checkBlossomServers && userServers.length === 0) {
@@ -210,11 +217,11 @@ export async function checkBlossomServersForFiles(
   pubkey: string,
   files: FileEntryWithSources[],
   onProgress?: (checkedCount: number, totalCount: number) => void,
-  userServers?: string[]
+  userServers?: string[],
 ): Promise<void> {
   // Use provided server list or fetch it
   let servers: string[] = userServers || [];
-  
+
   if (!userServers) {
     try {
       const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
@@ -238,21 +245,21 @@ export async function checkBlossomServersForFiles(
   const checkPromises = files.map(async (file) => {
     const availableServers = await checkBlossomServersForFile(file.sha256, servers);
     file.availableOnServers = availableServers;
-    
+
     filesChecked++;
     if (onProgress) {
       onProgress(filesChecked, files.length);
     }
   });
-  
+
   // Process in smaller batches to avoid overwhelming servers
   const batchSize = 5; // Reduced from 20 to 5 for better server friendliness
   for (let i = 0; i < checkPromises.length; i += batchSize) {
     await Promise.all(checkPromises.slice(i, i + batchSize));
-    
+
     // Add a small delay between batches to be extra server-friendly
     if (i + batchSize < checkPromises.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 }
@@ -262,12 +269,12 @@ export async function checkBlossomServersForFiles(
  */
 export async function checkBlossomServersForFile(
   sha256: string,
-  servers: string[]
+  servers: string[],
 ): Promise<string[]> {
   if (servers.length === 0) return [];
-  
+
   const availableServers: string[] = [];
-  
+
   // Process servers with limited concurrency to avoid overwhelming them
   const concurrencyLimit = 3; // Max 3 concurrent checks per file
   const checkPromises = servers.map(async (server) => {
@@ -276,12 +283,12 @@ export async function checkBlossomServersForFile(
       availableServers.push(server);
     }
   });
-  
+
   // Process in smaller batches to control concurrency
   for (let i = 0; i < checkPromises.length; i += concurrencyLimit) {
     await Promise.all(checkPromises.slice(i, i + concurrencyLimit));
   }
-  
+
   return availableServers;
 }
 
@@ -291,7 +298,7 @@ export async function checkBlossomServersForFile(
 async function checkSingleServer(
   server: string,
   sha256: string,
-  maxRetries: number = 2
+  maxRetries: number = 2,
 ): Promise<boolean> {
   // Skip servers that have failed too many times
   if (shouldSkipServer(server)) {
@@ -299,8 +306,8 @@ async function checkSingleServer(
     return false;
   }
 
-  const url = server.endsWith('/') ? server.slice(0, -1) : server;
-  
+  const url = server.endsWith("/") ? server.slice(0, -1) : server;
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const timeoutMs = 5000 + (attempt * 2000); // 5s, 7s, 9s timeouts
@@ -308,11 +315,11 @@ async function checkSingleServer(
         method: "HEAD",
         signal: AbortSignal.timeout(timeoutMs),
         headers: {
-          'Cache-Control': 'no-cache',
-          'User-Agent': 'nsyte-browser/1.0',
+          "Cache-Control": "no-cache",
+          "User-Agent": "nsyte-browser/1.0",
         },
       });
-      
+
       if (response.status === 200) {
         recordServerSuccess(server);
         return true;
@@ -323,8 +330,12 @@ async function checkSingleServer(
       } else if (response.status >= 500 && attempt < maxRetries) {
         // Server error, might be temporary - retry with backoff
         const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        log.debug(`Server ${server} returned ${response.status}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        log.debug(
+          `Server ${server} returned ${response.status}, retrying in ${backoffMs}ms (attempt ${
+            attempt + 1
+          }/${maxRetries + 1})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       } else {
         // Other status codes (rate limiting, etc) - don't retry
@@ -338,8 +349,12 @@ async function checkSingleServer(
       if (attempt < maxRetries) {
         // Network error, timeout, etc - retry with exponential backoff
         const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        log.debug(`Failed to check ${server}/${sha256} (attempt ${attempt + 1}/${maxRetries + 1}): ${error}. Retrying in ${backoffMs}ms`);
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        log.debug(
+          `Failed to check ${server}/${sha256} (attempt ${attempt + 1}/${
+            maxRetries + 1
+          }): ${error}. Retrying in ${backoffMs}ms`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         continue;
       } else {
         // Final attempt failed
@@ -349,6 +364,6 @@ async function checkSingleServer(
       }
     }
   }
-  
+
   return false;
 }

@@ -4,6 +4,7 @@ import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
 import { getTagValue, NSITE_KIND, pool } from "../lib/nostr.ts";
+import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import {
   DEFAULT_IGNORE_PATTERNS,
   type IgnoreRule,
@@ -11,10 +12,11 @@ import {
   parseIgnorePatterns,
 } from "../lib/files.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { readProjectFile } from "../lib/config.ts";
 import { handleError } from "../lib/error-utils.ts";
 import type { NostrEvent } from "nostr-tools";
 import { lastValueFrom } from "rxjs";
-import { simpleTimeout, mapEventsToStore, mapEventsToTimeline } from "applesauce-core";
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { EventStore } from "applesauce-core";
 
 const log = createLogger("ls");
@@ -59,7 +61,7 @@ export const SERVER_COLORS = [
 ];
 
 // Symbols for relays and servers
-export const RELAY_SYMBOL = "▲";  // Triangle for relays (right-side up)
+export const RELAY_SYMBOL = "▲"; // Triangle for relays (right-side up)
 export const RELAY_SYMBOL_ALT = "▼"; // Triangle for relays (upside down)
 export const SERVER_SYMBOL = "■"; // Filled square for blossom servers
 
@@ -88,7 +90,7 @@ async function fetchFileEventsWithSourceTracking(
       try {
         log.debug(`Connecting to relay: ${relay}`);
         const store = new EventStore();
-        
+
         // Add a race condition with manual timeout to handle EOSE issues
         const requestPromise = lastValueFrom(
           pool
@@ -99,15 +101,15 @@ async function fetchFileEventsWithSourceTracking(
             .pipe(
               simpleTimeout(8000), // Increased timeout
               mapEventsToStore(store),
-              mapEventsToTimeline()
+              mapEventsToTimeline(),
             ),
-          { defaultValue: [] }
+          { defaultValue: [] },
         );
-        
+
         const timeoutPromise = new Promise<any[]>((_, reject) => {
           setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
         });
-        
+
         const events = await Promise.race([requestPromise, timeoutPromise]);
 
         // Track which relay returned each event
@@ -153,6 +155,7 @@ export async function listRemoteFilesWithSources(
   }
 
   const fileEntries: FileEntryWithSources[] = [];
+  const now = Math.floor(Date.now() / 1000);
 
   for (const [eventId, { event, foundOnRelays }] of eventMap) {
     const path = getTagValue(event, "d");
@@ -160,7 +163,7 @@ export async function listRemoteFilesWithSources(
 
     if (path && sha256) {
       // Get blossom servers from the event
-      const servers = getTagValues(event, "r").filter(url => 
+      const servers = getTagValues(event, "r").filter((url) =>
         url.startsWith("http://") || url.startsWith("https://")
       );
 
@@ -178,13 +181,16 @@ export async function listRemoteFilesWithSources(
   // Deduplicate by path, keeping the newest event
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex((file) => file.path === current.path);
+    const currentTs = Math.min(current.event?.created_at ?? 0, now);
 
     if (existingIndex === -1) {
       return [...acc, current];
     } else {
       const existing = acc[existingIndex];
 
-      if ((existing.event?.created_at || 0) < (current.event?.created_at || 0)) {
+      const existingTs = Math.min(existing.event?.created_at ?? 0, now);
+
+      if (existingTs < currentTs) {
         acc[existingIndex] = current;
       } else {
         // Merge relay sources
@@ -208,7 +214,9 @@ export function registerLsCommand(program: Command): void {
   program
     .command("list")
     .alias("ls")
-    .description("List files available on the nostr network with source information. Optionally filter by path (e.g., 'docs/' or 'docs/index.html')")
+    .description(
+      "List files available on the nostr network with source information. Optionally filter by path (e.g., 'docs/' or 'docs/index.html')",
+    )
     .arguments("[path:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
@@ -216,6 +224,11 @@ export function registerLsCommand(program: Command): void {
       "-p, --pubkey <npub:string>",
       "The public key to list files for (if not using private key).",
     )
+    .option(
+      "--use-fallback-relays",
+      "Include default nsyte relays in addition to configured/user relays.",
+    )
+    .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
     .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
     .action(command);
@@ -227,7 +240,26 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
     const ignoreFilePath = join(cwd, ".nsite-ignore");
 
     const pubkey = await resolvePubkey(options);
-    const relays = resolveRelays(options);
+    const projectConfig = readProjectFile();
+    const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
+    const configuredRelays = options.relays !== undefined
+      ? resolveRelays(options, projectConfig, false)
+      : (projectConfig?.relays || []);
+    let relays = [...configuredRelays];
+
+    if (allowFallbackRelays) {
+      relays = Array.from(new Set([...relays, ...NSYTE_BROADCAST_RELAYS]));
+    }
+
+    if (relays.length === 0) {
+      if (allowFallbackRelays) {
+        relays = NSYTE_BROADCAST_RELAYS;
+        console.log(colors.yellow("⚠️  Using default relays because none were configured."));
+      } else {
+        console.log(colors.red("✗ No relays configured and fallbacks disabled."));
+        Deno.exit(1);
+      }
+    }
 
     let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
     let ignoredFileCount = 0;
@@ -236,17 +268,19 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
     let normalizedPathFilter: string | undefined;
     if (pathFilter) {
       // Remove leading slash if present
-      normalizedPathFilter = pathFilter.startsWith('/') ? pathFilter.substring(1) : pathFilter;
+      normalizedPathFilter = pathFilter.startsWith("/") ? pathFilter.substring(1) : pathFilter;
       // For directory filters, ensure trailing slash
-      if (!normalizedPathFilter.includes('.') && !normalizedPathFilter.endsWith('/')) {
-        normalizedPathFilter += '/';
+      if (!normalizedPathFilter.includes(".") && !normalizedPathFilter.endsWith("/")) {
+        normalizedPathFilter += "/";
       }
     }
 
     console.log(
-      colors.cyan(`Listing files for ${colors.bold(truncateHash(pubkey))} using relays: ${relays.join(", ")}`),
+      colors.cyan(
+        `Listing files for ${colors.bold(truncateHash(pubkey))} using relays: ${relays.join(", ")}`,
+      ),
     );
-    
+
     if (normalizedPathFilter) {
       console.log(colors.cyan(`Filtering by path: ${normalizedPathFilter}`));
     }
@@ -267,21 +301,21 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
     }
 
     let files = await listRemoteFilesWithSources(relays, pubkey);
-    
+
     // Filter files by path if specified
     if (normalizedPathFilter) {
-      files = files.filter(file => {
-        const filePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
-        
+      files = files.filter((file) => {
+        const filePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+
         // If filter ends with /, match directory prefix
-        if (normalizedPathFilter.endsWith('/')) {
+        if (normalizedPathFilter.endsWith("/")) {
           return filePath.startsWith(normalizedPathFilter);
         }
-        
+
         // Otherwise, match exact file, file with extension, or directory prefix
-        return filePath === normalizedPathFilter || 
-               filePath.startsWith(normalizedPathFilter + '.') || 
-               filePath.startsWith(normalizedPathFilter + '/');
+        return filePath === normalizedPathFilter ||
+          filePath.startsWith(normalizedPathFilter + ".") ||
+          filePath.startsWith(normalizedPathFilter + "/");
       });
     }
 
@@ -298,21 +332,21 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       // Create color mappings
       const relayColorMap = new Map<string, (str: string) => string>();
       const serverColorMap = new Map<string, (str: string) => string>();
-      
+
       // Collect all unique relays and servers
       const allRelays = new Set<string>();
       const allServers = new Set<string>();
-      
-      files.forEach(file => {
-        file.foundOnRelays.forEach(relay => allRelays.add(relay));
-        file.availableOnServers.forEach(server => allServers.add(server));
+
+      files.forEach((file) => {
+        file.foundOnRelays.forEach((relay) => allRelays.add(relay));
+        file.availableOnServers.forEach((server) => allServers.add(server));
       });
 
       // Assign colors (sorted for deterministic assignment)
       Array.from(allRelays).sort().forEach((relay, index) => {
         relayColorMap.set(relay, RELAY_COLORS[index % RELAY_COLORS.length]);
       });
-      
+
       Array.from(allServers).sort().forEach((server, index) => {
         serverColorMap.set(server, SERVER_COLORS[index % SERVER_COLORS.length]);
       });
@@ -320,7 +354,7 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       // Display legend
       console.log("\n" + colors.bold("Legend:"));
       console.log(colors.gray("─".repeat(60)));
-      
+
       if (relayColorMap.size > 0) {
         console.log(colors.bold("Relays:"));
         let relayIndex = 0;
@@ -330,20 +364,20 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           relayIndex++;
         });
       }
-      
+
       if (serverColorMap.size > 0) {
         console.log(colors.bold("\nBlossom Servers:"));
         serverColorMap.forEach((colorFn, server) => {
           console.log(`  ${colorFn(SERVER_SYMBOL)} ${server}`);
         });
       }
-      
+
       console.log(colors.gray("─".repeat(60)));
 
       // Calculate fixed column widths for better alignment
-      const maxRelayCount = Math.max(...files.map(file => file.foundOnRelays.length), 0);
-      const maxServerCount = Math.max(...files.map(file => file.availableOnServers.length), 0);
-      
+      const maxRelayCount = Math.max(...files.map((file) => file.foundOnRelays.length), 0);
+      const maxServerCount = Math.max(...files.map((file) => file.availableOnServers.length), 0);
+
       // Fixed width for relay and server sections (with separator)
       const relayColumnWidth = Math.max(maxRelayCount, 1); // At least 1 space
       const serverColumnWidth = Math.max(maxServerCount, 1); // At least 1 space
@@ -351,11 +385,11 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
       // Derive directories from file paths
       const directories = new Set<string>();
-      files.forEach(file => {
-        const pathParts = file.path.split('/').filter(p => p);
-        let currentPath = '';
+      files.forEach((file) => {
+        const pathParts = file.path.split("/").filter((p) => p);
+        let currentPath = "";
         for (let i = 0; i < pathParts.length - 1; i++) {
-          currentPath += (currentPath ? '/' : '') + pathParts[i];
+          currentPath += (currentPath ? "/" : "") + pathParts[i];
           directories.add(currentPath);
         }
       });
@@ -371,12 +405,12 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
       const allItems: ListItem[] = [
         // Add directories
-        ...Array.from(directories).map(dir => ({
-          path: '/' + dir,
+        ...Array.from(directories).map((dir) => ({
+          path: "/" + dir,
           isDirectory: true,
         })),
         // Add files
-        ...files.map(file => ({
+        ...files.map((file) => ({
           path: file.path,
           isDirectory: false,
           file,
@@ -385,21 +419,21 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
       // Sort files to create a tree-like structure
       const sortedItems = [...allItems].sort((a, b) => {
-        const aDepth = a.path.split('/').filter(p => p).length;
-        const bDepth = b.path.split('/').filter(p => p).length;
-        
+        const aDepth = a.path.split("/").filter((p) => p).length;
+        const bDepth = b.path.split("/").filter((p) => p).length;
+
         // If same depth, directories come before files
         if (aDepth === bDepth) {
           if (a.isDirectory && !b.isDirectory) return -1;
           if (!a.isDirectory && b.isDirectory) return 1;
         }
-        
+
         return a.path.localeCompare(b.path);
       });
 
       // Count ignored files first
       let ignoredFileCount = 0;
-      files.forEach(file => {
+      files.forEach((file) => {
         const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
         if (isIgnored(relativePath, ignoreRules, false)) {
           ignoredFileCount++;
@@ -409,22 +443,28 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       // Display files in tree-like format
       console.log("\n" + colors.bold("Files:"));
       if (ignoredFileCount > 0) {
-        console.log(colors.yellow(`${ignoredFileCount} file${ignoredFileCount > 1 ? 's' : ''} will be skipped during upload (shown in red below)`));
+        console.log(
+          colors.yellow(
+            `${ignoredFileCount} file${
+              ignoredFileCount > 1 ? "s" : ""
+            } will be skipped during upload (shown in red below)`,
+          ),
+        );
       }
       console.log(colors.gray("─".repeat(100)));
 
       sortedItems.forEach((item, index) => {
         if (item.isDirectory) {
           // Display directory
-          const pathParts = item.path.split('/').filter(p => p);
+          const pathParts = item.path.split("/").filter((p) => p);
           const depth = Math.max(0, pathParts.length - 1);
           const dirName = pathParts[pathParts.length - 1] || item.path;
-          
+
           // Determine if this is the last item at this depth level
-          const isLast = index === sortedItems.length - 1 || 
-                         (index < sortedItems.length - 1 && 
-                          sortedItems[index + 1].path.split('/').filter(p => p).length <= pathParts.length);
-          
+          const isLast = index === sortedItems.length - 1 ||
+            (index < sortedItems.length - 1 &&
+              sortedItems[index + 1].path.split("/").filter((p) => p).length <= pathParts.length);
+
           // Build tree structure
           let treePrefix = "";
           if (depth > 0) {
@@ -438,9 +478,9 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
           // Empty indicators for directories (no relay/server info)
           const emptyIndicators = " ".repeat(totalIndicatorWidth);
-          
+
           // Display directory in gray
-          console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + '/')}`);
+          console.log(`${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + "/")}`);
         } else {
           // Display file
           const file = item.file!;
@@ -450,7 +490,7 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           // Build relay indicators (fixed width based on count, not string length)
           let relayIndicators = "";
           let relayCount = 0;
-          file.foundOnRelays.forEach(relay => {
+          file.foundOnRelays.forEach((relay) => {
             const colorFn = relayColorMap.get(relay) || colors.white;
             // Get relay index to determine which triangle to use
             let relayIndex = 0;
@@ -465,14 +505,14 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           // Pad based on actual symbol count
           const relayPadding = " ".repeat(relayColumnWidth - relayCount);
           relayIndicators += relayPadding;
-          
+
           // Add separator
           const separator = colors.gray(" │ ");
-          
+
           // Build server indicators (fixed width based on count, not string length)
           let serverIndicators = "";
           let serverCount = 0;
-          file.availableOnServers.forEach(server => {
+          file.availableOnServers.forEach((server) => {
             const colorFn = serverColorMap.get(server) || colors.white;
             serverIndicators += colorFn(SERVER_SYMBOL);
             serverCount++;
@@ -483,17 +523,17 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
           // Combine indicators with fixed total width
           const indicators = relayIndicators + separator + serverIndicators;
-          
+
           // Calculate tree indentation based on path depth
-          const pathParts = file.path.split('/').filter(p => p);
+          const pathParts = file.path.split("/").filter((p) => p);
           const depth = Math.max(0, pathParts.length - 1);
           const fileName = pathParts[pathParts.length - 1] || file.path;
-          
+
           // Determine if this is the last item at this depth level
-          const isLast = index === sortedItems.length - 1 || 
-                         (index < sortedItems.length - 1 && 
-                          sortedItems[index + 1].path.split('/').filter(p => p).length <= pathParts.length);
-          
+          const isLast = index === sortedItems.length - 1 ||
+            (index < sortedItems.length - 1 &&
+              sortedItems[index + 1].path.split("/").filter((p) => p).length <= pathParts.length);
+
           // Build tree structure
           let treePrefix = "";
           if (depth > 0) {
@@ -511,7 +551,11 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           const eventIdDisplay = colors.gray(` {${truncateHash(file.eventId)}}`);
 
           // Fixed width for indicators column, then tree and file info
-          console.log(`${indicators} ${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}${eventIdDisplay}`);
+          console.log(
+            `${indicators} ${colors.gray(treePrefix)}${
+              pathColor(fileName)
+            }${hashDisplay}${eventIdDisplay}`,
+          );
         }
       });
 

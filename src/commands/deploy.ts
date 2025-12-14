@@ -9,6 +9,7 @@ import {
   createTarGzArchive,
   detectPlatformsFromFileName,
 } from "../lib/archive.ts";
+import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import {
   defaultConfig,
   type ProjectConfig,
@@ -23,11 +24,7 @@ import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { parseRelayInput, truncateString } from "../lib/utils.ts";
-import { 
-  importFromNbunk, 
-  initiateNostrConnect,
-  getNbunkString
-} from "../lib/nip46.ts";
+import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
   createAppHandlerEvent,
   createFileMetadataEvent,
@@ -38,17 +35,17 @@ import {
   createServerListEvent,
   createSoftwareApplicationEvent,
   fetchFileMetadataEvents,
+  fetchRelayListEvent,
   fetchReleaseEvents,
   fetchSoftwareApplicationEvent,
   type FileEntry,
   listRemoteFiles,
-  fetchRelayListEvent,
   publishEventsToRelays,
   purgeRemoteFiles,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
-import { npubEncode, extractRelaysFromEvent } from "../lib/utils.ts";
+import { extractRelaysFromEvent, npubEncode } from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -88,6 +85,9 @@ export interface UploadCommandOptions {
   force: boolean;
   verbose: boolean;
   purge: boolean;
+  useFallbackRelays?: boolean;
+  useFallbackServers?: boolean;
+  useFallbacks?: boolean;
   servers?: string;
   relays?: string;
   privatekey?: string;
@@ -131,6 +131,21 @@ export function registerDeployCommand(program: Command): void {
     .option("-p, --purge", "After upload, delete remote file events not in current deployment.", {
       default: false,
     })
+    .option(
+      "--use-fallback-relays",
+      "Include default nsyte relays in addition to configured relays when fetching/publishing.",
+      { default: false },
+    )
+    .option(
+      "--use-fallback-servers",
+      "Include default blossom servers in addition to configured servers.",
+      { default: false },
+    )
+    .option(
+      "--use-fallbacks",
+      "Enable both fallback relays and servers (same as enabling both fallback flags).",
+      { default: false },
+    )
     .option("-v, --verbose", "Verbose output.", { default: false })
     .option("-c, --concurrency <number:number>", "Number of parallel uploads.", { default: 4 })
     .option("--publish-server-list", "Publish the list of blossom servers (Kind 10063).", {
@@ -507,7 +522,9 @@ async function initSigner(
         log.debug(`getPublicKey completed: ${truncateString(pubkey)}`);
         return bunkerSigner;
       } catch (e: unknown) {
-        const baseMsg = `Failed to use stored nbunksec for configured bunker ${truncateString(config.bunkerPubkey)}: ${getErrorMessage(e)}`;
+        const baseMsg = `Failed to use stored nbunksec for configured bunker ${
+          truncateString(config.bunkerPubkey)
+        }: ${getErrorMessage(e)}`;
         if (options.nonInteractive) {
           return {
             error:
@@ -524,7 +541,7 @@ async function initSigner(
       const baseMsg = `No stored secret (nbunksec) found for configured bunker: ${
         config.bunkerPubkey.substring(0, 8)
       }...`;
-      
+
       if (options.nonInteractive) {
         return {
           error:
@@ -535,7 +552,7 @@ async function initSigner(
         log.info(`${baseMsg} Attempting to reconnect...`);
         console.log(colors.yellow(`\n${baseMsg}`));
         console.log(colors.cyan("Let's reconnect to your bunker:\n"));
-        
+
         try {
           // Reconnect to the bunker
           const bunkerSigner = await reconnectToBunker(config.bunkerPubkey);
@@ -543,12 +560,15 @@ async function initSigner(
             return bunkerSigner;
           } else {
             return {
-              error: `Failed to reconnect to bunker. Please provide a key/nbunksec via CLI or run 'nsyte init' to reconfigure.`,
+              error:
+                `Failed to reconnect to bunker. Please provide a key/nbunksec via CLI or run 'nsyte init' to reconfigure.`,
             };
           }
         } catch (e: unknown) {
           return {
-            error: `Failed to reconnect to bunker: ${getErrorMessage(e)}. Please provide a key/nbunksec via CLI.`,
+            error: `Failed to reconnect to bunker: ${
+              getErrorMessage(e)
+            }. Please provide a key/nbunksec via CLI.`,
           };
         }
       }
@@ -604,7 +624,9 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
       }
 
       console.log(
-        colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`),
+        colors.cyan(
+          `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+        ),
       );
       signer = await initiateNostrConnect(appName, chosenRelays);
     } else {
@@ -618,7 +640,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
 
       console.log(colors.cyan("Connecting to bunker via URL..."));
       signer = await NostrConnectSigner.fromBunkerURI(bunkerUrl);
-      
+
       // Wait for the signer to connect
       if (signer) {
         await signer.waitForSigner();
@@ -633,18 +655,20 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
     const connectedPubkey = await signer.getPublicKey();
     if (connectedPubkey !== bunkerPubkey) {
       console.log(colors.yellow(
-        `Warning: Connected bunker pubkey (${truncateString(connectedPubkey)}) does not match configured pubkey (${truncateString(bunkerPubkey)}).`
+        `Warning: Connected bunker pubkey (${
+          truncateString(connectedPubkey)
+        }) does not match configured pubkey (${truncateString(bunkerPubkey)}).`,
       ));
       const proceed = await Confirm.prompt({
         message: "Do you want to continue with this different bunker?",
         default: false,
       });
-      
+
       if (!proceed) {
         await signer.close();
         return null;
       }
-      
+
       // Update the configuration with the new bunker pubkey
       config.bunkerPubkey = connectedPubkey;
       writeProjectFile(config);
@@ -654,7 +678,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
     const secretsManager = SecretsManager.getInstance();
     const nbunkString = getNbunkString(signer);
     await secretsManager.storeNbunk(connectedPubkey, nbunkString);
-    
+
     console.log(colors.green("✓ Successfully reconnected to bunker and saved credentials."));
     log.info(`Reconnected to bunker with pubkey: ${truncateString(connectedPubkey)}`);
 
@@ -666,7 +690,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
         `Failed to reconnect to bunker: ${error instanceof Error ? error.message : String(error)}`,
       ),
     );
-    
+
     if (signer) {
       try {
         await signer.close();
@@ -674,7 +698,7 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
         log.error(`Error during disconnect: ${err}`);
       }
     }
-    
+
     return null;
   }
 }
@@ -889,14 +913,46 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
 async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
   let remoteFileEntries: FileEntry[] = [];
 
-  if (!options.force) {
-    if (resolvedRelays.length > 0) {
-      statusDisplay.update("Checking for existing files on remote relays...");
+  // We still need remote file info when purging, even if we're forcing uploads
+  const shouldFetchRemote = !options.force || options.purge;
+  const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
+
+  if (shouldFetchRemote) {
+    // Prefer configured relays but fall back to broadcast relays for reliability
+    const primaryRelays = resolvedRelays.length > 0
+      ? resolvedRelays
+      : (allowFallbackRelays ? NSYTE_BROADCAST_RELAYS : []);
+
+    if (primaryRelays.length > 0) {
+      const reason = options.force && options.purge ? " (required for purge)" : "";
+      statusDisplay.update(`Checking for existing files on remote relays${reason}...`);
       try {
-        remoteFileEntries = await listRemoteFiles(resolvedRelays, publisherPubkey);
-        const remoteFoundMsg = `Found ${remoteFileEntries.length} existing remote file entries.`;
-        if (displayManager.isInteractive()) statusDisplay.success(remoteFoundMsg);
-        else console.log(colors.green(remoteFoundMsg));
+        remoteFileEntries = await listRemoteFiles(primaryRelays, publisherPubkey);
+
+        // If nothing found on the configured relays, retry with a broader relay set
+        if (remoteFileEntries.length === 0 && resolvedRelays.length > 0 && allowFallbackRelays) {
+          const fallbackRelays = Array.from(
+            new Set([...resolvedRelays, ...NSYTE_BROADCAST_RELAYS]),
+          );
+          statusDisplay.update(
+            `No files found on configured relays, retrying with default broadcast relays...`,
+          );
+          remoteFileEntries = await listRemoteFiles(fallbackRelays, publisherPubkey);
+        }
+
+        const remoteFoundMsg = remoteFileEntries.length > 0
+          ? `Found ${remoteFileEntries.length} existing remote file entries.`
+          : "No existing remote file entries found (could be relay availability).";
+
+        if (displayManager.isInteractive()) {
+          remoteFileEntries.length > 0
+            ? statusDisplay.success(remoteFoundMsg)
+            : statusDisplay.update(colors.yellow(remoteFoundMsg));
+        } else {
+          remoteFileEntries.length > 0
+            ? console.log(colors.green(remoteFoundMsg))
+            : console.log(colors.yellow(remoteFoundMsg));
+        }
       } catch (e: unknown) {
         const errMsg = `Could not fetch remote file list: ${
           getErrorMessage(e)
@@ -911,6 +967,8 @@ async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
       if (displayManager.isInteractive()) statusDisplay.update(colors.yellow(noRelayWarn));
       else console.log(colors.yellow(noRelayWarn));
     }
+  } else {
+    log.debug("Skipping remote file check because --force was provided without --purge");
   }
   return remoteFileEntries;
 }
@@ -934,10 +992,14 @@ async function handleSmartPurgeOperation(
   }
 
   const purgeList = filesToPurge.map((f) => f.path).join("\n  - ");
-  const confirmPurge = options.nonInteractive ? true : await Confirm.prompt({
-    message: `Purge ${filesToPurge.length} unused remote files?\n  - ${purgeList}\n\nContinue?`,
-    default: false,
-  });
+  // If --purge flag is provided, skip confirmation. Otherwise, ask interactively.
+  let confirmPurge = true;
+  if (!options.purge && !options.nonInteractive) {
+    confirmPurge = await Confirm.prompt({
+      message: `Purge ${filesToPurge.length} unused remote files?\n  - ${purgeList}\n\nContinue?`,
+      default: false,
+    });
+  }
 
   if (!confirmPurge) {
     log.info("Purge cancelled.");
@@ -972,8 +1034,22 @@ async function compareAndPrepareFiles(
   remoteFiles: FileEntry[],
 ): Promise<FilePreparationResult> {
   statusDisplay.update("Comparing local and remote files...");
-  const { toTransfer, existing, toDelete } = compareFiles(localFiles, remoteFiles);
-  const compareMsg = formatFileSummary(toTransfer.length, existing.length, toDelete.length);
+  const { toTransfer: initialToTransfer, existing, toDelete } = compareFiles(
+    localFiles,
+    remoteFiles,
+  );
+
+  // When forcing uploads, re-upload unchanged files too
+  const toTransfer = [...initialToTransfer];
+  let unchanged = existing;
+
+  if (options.force && existing.length > 0) {
+    log.info(`--force enabled: re-uploading ${existing.length} unchanged files.`);
+    toTransfer.push(...existing);
+    unchanged = [];
+  }
+
+  const compareMsg = formatFileSummary(toTransfer.length, unchanged.length, toDelete.length);
 
   if (displayManager.isInteractive()) {
     statusDisplay.success(compareMsg);
@@ -1029,7 +1105,7 @@ async function compareAndPrepareFiles(
     }
   }
 
-  return { toTransfer, existing, toDelete };
+  return { toTransfer, existing: unchanged, toDelete };
 }
 
 /**
@@ -1402,7 +1478,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
         );
         await publishEventsToRelays(publishToRelays, [relayListEvent]);
-        statusDisplay.success(`Relay list published to ${publishToRelays.length} relays: ${formatRelayList(publishToRelays)}`);
+        statusDisplay.success(
+          `Relay list published to ${publishToRelays.length} relays: ${
+            formatRelayList(publishToRelays)
+          }`,
+        );
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);
         log.error(`Relay list publication error: ${getErrorMessage(e)}`);
@@ -1422,7 +1502,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
         );
         await publishEventsToRelays(serverListPublishRelays, [serverListEvent]);
-        statusDisplay.success(`Server list published to ${serverListPublishRelays.length} relays: ${formatRelayList(serverListPublishRelays)}`);
+        statusDisplay.success(
+          `Server list published to ${serverListPublishRelays.length} relays: ${
+            formatRelayList(serverListPublishRelays)
+          }`,
+        );
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish server list: ${getErrorMessage(e)}`);
         log.error(`Server list publication error: ${getErrorMessage(e)}`);
@@ -1491,7 +1575,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
           );
           await publishEventsToRelays(appHandlerPublishRelays, [handlerEvent]);
-          statusDisplay.success(`App handler published for kinds: ${kinds.join(", ")} to ${appHandlerPublishRelays.length} relays`);
+          statusDisplay.success(
+            `App handler published for kinds: ${
+              kinds.join(", ")
+            } to ${appHandlerPublishRelays.length} relays`,
+          );
         }
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);

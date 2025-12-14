@@ -120,7 +120,8 @@ export async function fetchFileEvents(
   pubkey: string,
 ): Promise<NostrEvent[]> {
   log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
-  const REQUEST_TIMEOUT_MS = 8000;
+  // Keep timeouts reasonable to avoid long waits
+  const REQUEST_TIMEOUT_MS = 12000;
 
   try {
     // Create tmp event store to deduplicate events
@@ -132,7 +133,7 @@ export async function fetchFileEvents(
           authors: [pubkey],
         })
         .pipe(
-          simpleTimeout(5000),
+          simpleTimeout(7000),
           mapEventsToStore(store),
           mapEventsToTimeline(),
           takeUntil(timer(REQUEST_TIMEOUT_MS)), // Force completion even if a relay never sends EOSE
@@ -293,6 +294,7 @@ export async function listRemoteFiles(
   pubkey: string,
 ): Promise<FileEntry[]> {
   const events = await fetchFileEvents(relays, pubkey);
+  const now = Math.floor(Date.now() / 1000);
 
   if (events.length === 0) {
     log.warn(`No file events found for user ${pubkey} from any relays`);
@@ -324,15 +326,15 @@ export async function listRemoteFiles(
 
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex((file) => file.path === current.path);
+    const currentTs = Math.min(current.event?.created_at ?? 0, now);
 
     if (existingIndex === -1) {
       return [...acc, current];
     } else {
       const existing = acc[existingIndex];
+      const existingTs = Math.min(existing.event?.created_at ?? 0, now);
 
-      if (
-        (existing.event?.created_at || 0) < (current.event?.created_at || 0)
-      ) {
+      if (existingTs < currentTs) {
         acc[existingIndex] = current;
       }
 

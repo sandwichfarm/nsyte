@@ -1,6 +1,6 @@
 import type { Nip07Interface } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import { createNsiteEvent } from "./nostr.ts";
+import { createNsiteEvent, publishEventsToRelays } from "./nostr.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
 
 const log = createLogger("upload");
@@ -116,19 +116,21 @@ async function uploadToServer(
 
       if (response.ok) {
         log.debug(`Upload request succeeded for ${file.path} to ${server}, verifying storage...`);
-        
+
         // Verify the file is actually stored and retrievable
         try {
-          await new Promise(resolve => setTimeout(resolve, 100)); // Brief delay for server processing
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Brief delay for server processing
           const verifyResponse = await fetch(`${serverUrl}${blobSha256}`, {
             method: "HEAD",
           });
-          
+
           if (verifyResponse.ok) {
             log.debug(`Upload verified: ${file.path} is retrievable from ${server}`);
             return true;
           } else {
-            log.debug(`Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`);
+            log.debug(
+              `Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`,
+            );
             return false;
           }
         } catch (e) {
@@ -181,116 +183,21 @@ async function publishEventToRelays(
   event: NostrEvent,
   relays: string[],
 ): Promise<boolean> {
-  log.debug(`Publishing event to ${relays.length} relays`);
+  log.debug(`Publishing event to ${relays.length} relays via pool`);
 
-  let successCount = 0;
-  const eventJson = JSON.stringify(["EVENT", event]);
-  const relayErrors = new Map<string, string>();
-
-  await Promise.all(
-    relays.map(async (relay) => {
-      try {
-        const socket = new WebSocket(relay);
-
-        const connectPromise = new Promise<boolean>((resolve) => {
-          socket.onopen = () => {
-            log.debug(`Connected to relay: ${relay}`);
-            socket.send(eventJson);
-
-            socket.onmessage = (msg) => {
-              try {
-                const data = JSON.parse(msg.data);
-
-                if (
-                  Array.isArray(data) &&
-                  data.length >= 3 &&
-                  data[0] === "OK" &&
-                  data[2] === true
-                ) {
-                  log.debug(`Event published to relay: ${relay}`);
-                  resolve(true);
-                  socket.close();
-                  return;
-                }
-
-                if (
-                  Array.isArray(data) &&
-                  data.length >= 4 &&
-                  data[0] === "OK" &&
-                  data[2] === false
-                ) {
-                  const errorMessage = data[3] || "Unknown relay error";
-
-                  if (
-                    errorMessage.includes("rate-limit") ||
-                    errorMessage.includes("noting too much")
-                  ) {
-                    log.warn(
-                      `Relay ${relay} rate-limited this publish: ${errorMessage}`,
-                    );
-                    relayErrors.set(relay, `Rate limited: ${errorMessage}`);
-                  } else {
-                    log.warn(`Relay ${relay} rejected event: ${errorMessage}`);
-                    relayErrors.set(relay, errorMessage);
-                  }
-
-                  resolve(false);
-                  socket.close();
-                }
-              } catch (e) {
-                log.debug(`Error parsing message from relay ${relay}: ${e}`);
-              }
-            };
-
-            setTimeout(() => {
-              relayErrors.set(relay, "Timeout waiting for response");
-              resolve(false);
-              socket.close();
-            }, 5000);
-          };
-
-          socket.onerror = (e) => {
-            log.debug(`WebSocket error with relay ${relay}: ${e}`);
-            relayErrors.set(relay, `WebSocket error: ${e}`);
-            resolve(false);
-          };
-
-          socket.onclose = () => {
-            resolve(false);
-          };
-        });
-
-        const success = await connectPromise;
-        if (success) {
-          successCount++;
-        }
-      } catch (e) {
-        log.debug(`Failed to connect to relay ${relay}: ${e}`);
-        relayErrors.set(relay, `Connection failed: ${e}`);
-      }
-    }),
-  );
-
-  const success = successCount > 0;
-
-  if (success) {
-    log.info(`Published event to ${successCount}/${relays.length} relays`);
-
-    if (successCount < relays.length) {
-      log.debug("Some relays failed to accept the event:");
-      for (const [relay, error] of relayErrors.entries()) {
-        log.debug(`  - ${relay}: ${error}`);
-      }
+  try {
+    const success = await publishEventsToRelays(relays, [event]);
+    if (!success) {
+      log.warn(
+        `Failed to publish event to any relay (tried ${relays.join(", ")})`,
+      );
     }
-  } else {
-    log.warn("Failed to publish event to any relay");
-    log.debug("Relay errors:");
-    for (const [relay, error] of relayErrors.entries()) {
-      log.debug(`  - ${relay}: ${error}`);
-    }
+    return success;
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    log.error(`Error publishing event: ${errorMessage}`);
+    return false;
   }
-
-  return success;
 }
 
 /**
