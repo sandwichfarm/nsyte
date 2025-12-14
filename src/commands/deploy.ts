@@ -1402,7 +1402,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
         );
         await publishEventsToRelays(publishToRelays, [relayListEvent]);
-        statusDisplay.success(`Relay list published: ${formatRelayList(resolvedRelays)}`);
+        statusDisplay.success(`Relay list published to ${publishToRelays.length} relays: ${formatRelayList(publishToRelays)}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);
         log.error(`Relay list publication error: ${getErrorMessage(e)}`);
@@ -1418,8 +1418,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
           options.servers?.split(",") || config.servers || [],
         );
         log.debug(`Created server list event: ${JSON.stringify(serverListEvent)}`);
-        await publishEventsToRelays(resolvedRelays, [serverListEvent]);
-        statusDisplay.success(`Server list published`);
+        const serverListPublishRelays = Array.from(
+          new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
+        );
+        await publishEventsToRelays(serverListPublishRelays, [serverListEvent]);
+        statusDisplay.success(`Server list published to ${serverListPublishRelays.length} relays: ${formatRelayList(serverListPublishRelays)}`);
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish server list: ${getErrorMessage(e)}`);
         log.error(`Server list publication error: ${getErrorMessage(e)}`);
@@ -1484,8 +1487,11 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             metadata,
           );
           log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
-          await publishEventsToRelays(resolvedRelays, [handlerEvent]);
-          statusDisplay.success(`App handler published for kinds: ${kinds.join(", ")}`);
+          const appHandlerPublishRelays = Array.from(
+            new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
+          );
+          await publishEventsToRelays(appHandlerPublishRelays, [handlerEvent]);
+          statusDisplay.success(`App handler published for kinds: ${kinds.join(", ")} to ${appHandlerPublishRelays.length} relays`);
         }
       } catch (e: unknown) {
         statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);

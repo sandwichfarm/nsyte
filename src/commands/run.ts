@@ -21,6 +21,7 @@ const log = createLogger("run");
 interface RunOptions extends ResolverOptions {
   port?: number;
   cacheDir?: string;
+  noCache?: boolean;
   noOpen?: boolean;
 }
 
@@ -38,7 +39,8 @@ export function registerRunCommand(program: Command): void {
     .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
     .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
     .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
-    .option("-c, --cache-dir <dir:string>", "Directory to cache downloaded files (uses temp dir if not specified)")
+    .option("-c, --cache-dir <dir:string>", "Directory to cache downloaded files (default: /tmp/nsyte)")
+    .option("--no-cache", "Disable file caching entirely")
     .option("--no-open", "Don't automatically open the browser")
     .action(async (options: RunOptions, npub?: string) => {
       await runCommand(options, npub);
@@ -90,14 +92,21 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     
     // Set up cache directory
     let cacheDir: string | null = null;
-    let usingPersistentCache = false;
-    
-    if (options.cacheDir) {
+
+    if (options.noCache) {
+      // Caching disabled
+      console.log(colors.yellow(`⚠️  Caching disabled (--no-cache)`));
+    } else if (options.cacheDir) {
       // Use specified cache directory
       cacheDir = options.cacheDir;
-      usingPersistentCache = true;
       await ensureDir(cacheDir);
       console.log(colors.cyan(`📂 Using cache directory: ${cacheDir}`));
+    } else {
+      // Use default temp directory
+      const tempDir = Deno.build.os === "windows" ? Deno.env.get("TEMP") || "C:\\Temp" : "/tmp";
+      cacheDir = join(tempDir, "nsyte");
+      await ensureDir(cacheDir);
+      console.log(colors.cyan(`📂 Using default cache directory: ${cacheDir}`));
     }
     
     // Use specific relays for profile/relay list resolution
@@ -132,7 +141,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     }
 
     // Cache for profile data and file listings
-    const profileCache = new Map<string, { profile: any; relayList: any; serverList: string[]; timestamp: number }>();
+    const profileCache = new Map<string, { profile: any; relayList: any; serverList: string[]; userRelays: string[]; timestamp: number }>();
     const fileListCache = new Map<string, { files: FileEntry[]; timestamp: number; loading?: boolean; eventTimestamps?: Map<string, number> }>();
     const fileCache = new Map<string, { data: ByteArray; timestamp: number; sha256: string }>();
     
@@ -238,16 +247,18 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               log.debug(`Found ${userRelays.length} relays from user's relay list: ${userRelays.join(", ")}`);
             }
             
-            // Fetch server list from the user's configured relays
-            const relaysToUse = userRelays.length > 0 ? userRelays : relays;
-            log.debug(`Fetching server list (Kind ${USER_BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${relaysToUse.join(", ")}`);
+            // Fetch server list from BOTH user's relays AND usermeta relays, use most recent
+            const userRelaysToUse = userRelays.length > 0 ? userRelays : relays;
+            const allServerListRelays = Array.from(new Set([...userRelaysToUse, ...profileRelays]));
+            log.debug(`Fetching server list (Kind ${USER_BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${allServerListRelays.join(", ")}`);
             const serverListEvents = await fetchServerListEvents(
               pool,
-              relaysToUse,
+              allServerListRelays,
               pubkeyHex
             );
-            
-            const serverList = serverListEvents && serverListEvents.length > 0 
+
+            // fetchServerListEvents already sorts by created_at descending, so [0] is most recent
+            const serverList = serverListEvents && serverListEvents.length > 0
               ? extractServersFromEvent(serverListEvents[0])
               : [];
             
@@ -259,7 +270,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               console.log(colors.gray(`  → No server list found`));
             }
             
-            profileData = { profile, relayList, serverList, timestamp: Date.now() };
+            profileData = { profile, relayList, serverList, userRelays, timestamp: Date.now() };
             profileCache.set(npub, profileData);
             
             if (profile) {
@@ -278,10 +289,15 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             }
           } catch (error) {
             console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
-            profileData = { profile: null, relayList: null, serverList: [], timestamp: Date.now() };
+            profileData = { profile: null, relayList: null, serverList: [], userRelays: [], timestamp: Date.now() };
             profileCache.set(npub, profileData);
           }
         }
+
+        // Determine which relays to use for file events - prefer user's relays from kind 10002
+        const fileEventRelays = profileData?.userRelays && profileData.userRelays.length > 0
+          ? profileData.userRelays
+          : relays;
         
         // Get or fetch file list
         let fileListEntry = fileListCache.get(npub);
@@ -328,8 +344,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           
           (async () => {
             try {
-              console.log(colors.gray(`  → Fetching file list...`));
-              const files = await listRemoteFiles(relays, pubkeyHex);
+              console.log(colors.gray(`  → Fetching file list from ${fileEventRelays.length} relays...`));
+              const files = await listRemoteFiles(fileEventRelays, pubkeyHex);
               
               // Track event timestamps for cache invalidation
               const eventTimestamps = new Map<string, number>();
@@ -377,8 +393,8 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             // Start background update check (non-blocking)
             const updatePromise = (async () => {
             try {
-              console.log(colors.gray(`  → Checking for updates in background...`));
-              const files = await listRemoteFiles(relays, pubkeyHex);
+              console.log(colors.gray(`  → Checking for updates in background from ${fileEventRelays.length} relays...`));
+              const files = await listRemoteFiles(fileEventRelays, pubkeyHex);
 
               // Track event timestamps for cache invalidation
               const newEventTimestamps = new Map<string, number>();
@@ -464,6 +480,20 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           });
         }
         
+        // If still loading, show loading page
+        if (fileListEntry.loading) {
+          const loadingHtml = generateLoadingPage(npub, profileData?.profile);
+          const elapsed = Math.round(performance.now() - startTime);
+          console.log(colors.blue(`  → Loading page served (still loading) - ${elapsed}ms`));
+          return new Response(loadingHtml, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html",
+              "Refresh": "2" // Auto-refresh every 2 seconds
+            },
+          });
+        }
+
         if (fileListEntry.files.length === 0) {
           const elapsed = Math.round(performance.now() - startTime);
           console.log(colors.yellow(`  → No files found - ${elapsed}ms`));

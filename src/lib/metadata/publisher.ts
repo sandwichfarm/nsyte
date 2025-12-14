@@ -71,12 +71,12 @@ export async function publishRelayList(
   statusDisplay: StatusDisplay
 ): Promise<void> {
   statusDisplay.update("Publishing relay list...");
-  
+
   try {
     const relayListEvent = await createRelayListEvent(signer, config.relays);
     log.debug(`Created relay list event: ${JSON.stringify(relayListEvent)}`);
     await publishEventsToRelays(relays, [relayListEvent]);
-    statusDisplay.success("Relay list published");
+    statusDisplay.success(`Relay list published to ${relays.length} relays: ${relays.join(", ")}`);
   } catch (e: unknown) {
     statusDisplay.error(`Failed to publish relay list: ${getErrorMessage(e)}`);
     log.error(`Relay list publication error: ${getErrorMessage(e)}`);

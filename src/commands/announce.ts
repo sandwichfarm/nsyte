@@ -8,6 +8,9 @@ import {
   publishServerList,
   publishAppHandler,
 } from "../lib/metadata/publisher.ts";
+import { fetchRelayListEvent } from "../lib/nostr.ts";
+import { extractRelaysFromEvent } from "../lib/utils.ts";
+import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import { createLogger } from "../lib/logger.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
@@ -84,14 +87,31 @@ export function registerAnnounceCommand(program: Command): void {
           appHandler: false,
         };
 
+        // Discover user's existing relay list for broader publishing
+        let discoveredRelayList: string[] = [];
+        try {
+          status.update("Discovering user relays...");
+          const relayListEvent = await fetchRelayListEvent(RELAY_DISCOVERY_RELAYS, pubkey);
+          if (relayListEvent) {
+            discoveredRelayList = extractRelaysFromEvent(relayListEvent);
+            logger.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
+          }
+        } catch (e) {
+          logger.debug(`Failed to fetch relay list for discovery: ${getErrorMessage(e)}`);
+        }
+
+        // Combine all relays for publishing: config relays + discovery relays + user's relay list
+        const configRelays = config.relays || [];
+        const publishToRelays = Array.from(new Set([...configRelays, ...RELAY_DISCOVERY_RELAYS, ...discoveredRelayList]));
+
         // Publish profile
         if (shouldPublishProfile) {
           status.update("Publishing profile...");
           try {
             logger.debug("Starting profile publish...");
-            await publishProfile(config, signer, config.relays || [], status);
+            await publishProfile(config, signer, publishToRelays, status);
             results.profile = true;
-            status.addMessage(colors.green("✓ Profile published"));
+            status.addMessage(colors.green(`✓ Profile published to ${publishToRelays.length} relays`));
             logger.debug("Profile publish completed");
           } catch (error) {
             const errorMsg = getErrorMessage(error);
@@ -104,9 +124,9 @@ export function registerAnnounceCommand(program: Command): void {
         if (shouldPublishRelayList) {
           status.update("Publishing relay list...");
           try {
-            await publishRelayList(config, signer, config.relays || [], status);
+            await publishRelayList(config, signer, publishToRelays, status);
             results.relayList = true;
-            status.addMessage(colors.green("✓ Relay list published"));
+            status.addMessage(colors.green(`✓ Relay list published to ${publishToRelays.length} relays`));
           } catch (error) {
             const errorMsg = getErrorMessage(error);
             status.addMessage(colors.red(`✗ Failed to publish relay list: ${errorMsg}`));
@@ -118,9 +138,9 @@ export function registerAnnounceCommand(program: Command): void {
         if (shouldPublishServerList) {
           status.update("Publishing server list...");
           try {
-            await publishServerList(config, signer, config.relays || [], status);
+            await publishServerList(config, signer, publishToRelays, status);
             results.serverList = true;
-            status.addMessage(colors.green("✓ Server list published"));
+            status.addMessage(colors.green(`✓ Server list published to ${publishToRelays.length} relays`));
           } catch (error) {
             const errorMsg = getErrorMessage(error);
             status.addMessage(colors.red(`✗ Failed to publish server list: ${errorMsg}`));
@@ -132,9 +152,9 @@ export function registerAnnounceCommand(program: Command): void {
         if (shouldPublishAppHandler) {
           status.update("Publishing app handler...");
           try {
-            await publishAppHandler(config, signer, config.relays || [], status);
+            await publishAppHandler(config, signer, publishToRelays, status);
             results.appHandler = true;
-            status.addMessage(colors.green("✓ App handler published"));
+            status.addMessage(colors.green(`✓ App handler published to ${publishToRelays.length} relays`));
           } catch (error) {
             const errorMsg = getErrorMessage(error);
             status.addMessage(colors.red(`✗ Failed to publish app handler: ${errorMsg}`));
