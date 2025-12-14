@@ -46,6 +46,9 @@ jobs:
           NORMALIZED_VERSION="${RAW_VERSION#v}"
           echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
+      - name: Sync version files for build
+        run: deno run --allow-read --allow-write scripts/sync-version.ts "${{ env.VERSION }}"
+
       - name: Build Linux binary
         run: |
           mkdir -p dist
@@ -108,10 +111,15 @@ jobs:
         id: get_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            RAW_VERSION="${{ github.event.inputs.version }}"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+            RAW_VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          NORMALIZED_VERSION="${RAW_VERSION#v}"
+          echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
+
+      - name: Sync version files for build
+        run: deno run --allow-read --allow-write scripts/sync-version.ts "${{ env.VERSION }}"
 
       - name: Build macOS Intel binary
         run: |
@@ -173,10 +181,15 @@ jobs:
         id: get_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            RAW_VERSION="${{ github.event.inputs.version }}"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+            RAW_VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          NORMALIZED_VERSION="${RAW_VERSION#v}"
+          echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
+
+      - name: Sync version files for build
+        run: deno run --allow-read --allow-write scripts/sync-version.ts "${{ env.VERSION }}"
 
       - name: Build macOS Apple Silicon binary
         run: |
@@ -241,10 +254,16 @@ jobs:
         id: get_version
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            echo "VERSION=${{ github.event.inputs.version }}" >> $env:GITHUB_ENV
+            $RAW_VERSION = "${{ github.event.inputs.version }}"
           } else {
-            echo "VERSION=$($env:GITHUB_REF -replace 'refs/tags/v', '')" >> $env:GITHUB_ENV
+            $RAW_VERSION = "$($env:GITHUB_REF -replace 'refs/tags/', '')"
           }
+          $NORMALIZED_VERSION = $RAW_VERSION -replace '^v', ''
+          echo "VERSION=$NORMALIZED_VERSION" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Sync version files for build
+        run: deno run --allow-read --allow-write scripts/sync-version.ts "${{ env.VERSION }}"
         shell: pwsh
 
       - name: Build Windows binary
@@ -325,10 +344,8 @@ jobs:
           NORMALIZED_VERSION="${RAW_VERSION#v}"
           echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
-      - name: Update version in deno.json
-        run: |
-          # Update the version in deno.json to match the tag/input version
-          sed -i 's/"version": "[^"]*"/"version": "${{ env.VERSION }}"/' deno.json
+      - name: Sync version files for publish
+        run: deno run --allow-read --allow-write scripts/sync-version.ts "${{ env.VERSION }}"
 
       - name: Check JSR publish (dry run)
         run: |
@@ -355,10 +372,12 @@ jobs:
         id: get_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            RAW_VERSION="${{ github.event.inputs.version }}"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+            RAW_VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          NORMALIZED_VERSION="${RAW_VERSION#v}"
+          echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
       - name: Remove existing release if requested
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.replace_release == 'true' }}
@@ -366,7 +385,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            TAG_NAME="v${{ github.event.inputs.version }}"
+            TAG_NAME="v${{ env.VERSION }}"
           else
             TAG_NAME="${GITHUB_REF#refs/tags/}"
           fi
@@ -415,7 +434,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', env.VERSION) || github.ref_name }}
           name: nsyte v${{ env.VERSION }}
           draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: false
