@@ -151,7 +151,7 @@ jobs:
 
   build-macos-arm:
     name: Build macOS Apple Silicon Binary
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
