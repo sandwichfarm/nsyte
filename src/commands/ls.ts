@@ -3,7 +3,7 @@ import type { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
-import { getTagValue, NSITE_KIND, pool } from "../lib/nostr.ts";
+import { listRemoteFiles } from "../lib/nostr.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import {
   DEFAULT_IGNORE_PATTERNS,
@@ -15,18 +15,8 @@ import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { handleError } from "../lib/error-utils.ts";
 import type { NostrEvent } from "nostr-tools";
-import { lastValueFrom } from "rxjs";
-import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { EventStore } from "applesauce-core";
 
 const log = createLogger("ls");
-
-// Helper function to get all values for a specific tag
-function getTagValues(event: NostrEvent, tagName: string): string[] {
-  return event.tags
-    .filter((tag: string[]) => tag[0] === tagName && tag.length > 1)
-    .map((tag: string[]) => tag[1]);
-}
 
 // Enhanced FileEntry with source tracking
 export interface FileEntryWithSources {
@@ -76,69 +66,7 @@ function truncateHash(hash: string): string {
 /**
  * Fetch file events with source relay tracking
  */
-async function fetchFileEventsWithSourceTracking(
-  relays: string[],
-  pubkey: string,
-): Promise<Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>> {
-  log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
-
-  const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
-
-  try {
-    // Subscribe to each relay individually to track sources
-    const promises = relays.map(async (relay) => {
-      try {
-        log.debug(`Connecting to relay: ${relay}`);
-        const store = new EventStore();
-
-        // Add a race condition with manual timeout to handle EOSE issues
-        const requestPromise = lastValueFrom(
-          pool
-            .request([relay], {
-              kinds: [NSITE_KIND],
-              authors: [pubkey],
-            })
-            .pipe(
-              simpleTimeout(8000), // Increased timeout
-              mapEventsToStore(store),
-              mapEventsToTimeline(),
-            ),
-          { defaultValue: [] },
-        );
-
-        const timeoutPromise = new Promise<any[]>((_, reject) => {
-          setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
-        });
-
-        const events = await Promise.race([requestPromise, timeoutPromise]);
-
-        // Track which relay returned each event
-        for (const event of events) {
-          const existing = eventMap.get(event.id);
-          if (existing) {
-            existing.foundOnRelays.add(relay);
-          } else {
-            eventMap.set(event.id, {
-              event,
-              foundOnRelays: new Set([relay]),
-            });
-          }
-        }
-
-        log.debug(`Found ${events.length} events from relay ${relay}`);
-      } catch (error) {
-        log.debug(`Failed to fetch from relay ${relay}: ${error}`);
-        // Don't throw - just log and continue with other relays
-      }
-    });
-
-    await Promise.all(promises);
-  } catch (error) {
-    log.error(`Error fetching file events: ${error}`);
-  }
-
-  return eventMap;
-}
+// (Removed old per-relay fetch; we now reuse listRemoteFiles for consistency with run)
 
 /**
  * List remote files with enhanced source information
@@ -147,64 +75,22 @@ export async function listRemoteFilesWithSources(
   relays: string[],
   pubkey: string,
 ): Promise<FileEntryWithSources[]> {
-  const eventMap = await fetchFileEventsWithSourceTracking(relays, pubkey);
+  const files = await listRemoteFiles(relays, pubkey);
 
-  if (eventMap.size === 0) {
+  if (files.length === 0) {
     log.warn(`No file events found for user ${pubkey} from any relays`);
     return [];
   }
 
-  const fileEntries: FileEntryWithSources[] = [];
-  const now = Math.floor(Date.now() / 1000);
-
-  for (const [eventId, { event, foundOnRelays }] of eventMap) {
-    const path = getTagValue(event, "d");
-    const sha256 = getTagValue(event, "x");
-
-    if (path && sha256) {
-      // Get blossom servers from the event
-      const servers = getTagValues(event, "r").filter((url) =>
-        url.startsWith("http://") || url.startsWith("https://")
-      );
-
-      fileEntries.push({
-        path,
-        sha256,
-        eventId,
-        event,
-        foundOnRelays: Array.from(foundOnRelays),
-        availableOnServers: servers,
-      });
-    }
-  }
-
-  // Deduplicate by path, keeping the newest event
-  const uniqueFiles = fileEntries.reduce((acc, current) => {
-    const existingIndex = acc.findIndex((file) => file.path === current.path);
-    const currentTs = Math.min(current.event?.created_at ?? 0, now);
-
-    if (existingIndex === -1) {
-      return [...acc, current];
-    } else {
-      const existing = acc[existingIndex];
-
-      const existingTs = Math.min(existing.event?.created_at ?? 0, now);
-
-      if (existingTs < currentTs) {
-        acc[existingIndex] = current;
-      } else {
-        // Merge relay sources
-        const mergedRelays = new Set([...existing.foundOnRelays, ...current.foundOnRelays]);
-        existing.foundOnRelays = Array.from(mergedRelays);
-      }
-
-      return acc;
-    }
-  }, [] as FileEntryWithSources[]);
-
-  log.info(`Found ${uniqueFiles.length} unique remote files for user ${pubkey}`);
-
-  return uniqueFiles.sort((a, b) => a.path.localeCompare(b.path));
+  const relaySet = new Set(relays);
+  return files.map((file) => ({
+    path: file.path,
+    sha256: file.sha256 || "",
+    eventId: file.event?.id || "",
+    event: file.event,
+    foundOnRelays: Array.from(relaySet),
+    availableOnServers: [],
+  })).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /**

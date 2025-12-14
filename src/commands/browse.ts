@@ -4,7 +4,7 @@ import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { extractServersFromEvent } from "../lib/utils.ts";
 import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
-import { listRemoteFilesWithProgress } from "./browse-loader.ts";
+import { listRemoteFilesWithProgress } from "../lib/browse-loader.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
@@ -160,8 +160,8 @@ export async function command(options: any): Promise<void> {
       const allServers = new Set<string>();
 
       files.forEach((file) => {
-        file.foundOnRelays.forEach((relay) => allRelays.add(relay));
-        file.availableOnServers.forEach((server) => allServers.add(server));
+        file.foundOnRelays.forEach((relay: string) => allRelays.add(relay));
+        file.availableOnServers.forEach((server: string) => allServers.add(server));
       });
 
       // Sort relays and servers for deterministic color/symbol assignment
@@ -264,7 +264,7 @@ export async function command(options: any): Promise<void> {
 
       // Start initial blossom server check in background (don't await)
       const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import(
-        "./browse-loader.ts"
+        "../lib/browse-loader.ts"
       );
       const { fetchServerListEvents } = await import("../lib/debug-helpers.ts");
 
@@ -505,7 +505,7 @@ export async function command(options: any): Promise<void> {
             state.status = "Refreshing blossom servers...";
             render(state);
 
-            const { checkBlossomServersForFiles } = await import("./browse-loader.ts");
+            const { checkBlossomServersForFiles } = await import("../lib/browse-loader.ts");
             await checkBlossomServersForFiles(relays, pubkey, state.files, (checked, total) => {
               state.status = `Refreshing blossom servers... ${checked}/${total}`;
               render(state);
