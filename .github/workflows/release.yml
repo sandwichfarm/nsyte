@@ -481,7 +481,7 @@ jobs:
             - Trigger antivirus warnings on Windows (false positives)
             - Not work with macOS Gatekeeper without additional steps
 
-          **If you experience any issues, please use the standard binaries.**
+            **If you experience any issues, please use the standard binaries.**
           files: |
             release/nsyte-linux
             release/nsyte-macos-x64
