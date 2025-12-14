@@ -43,9 +43,9 @@ jobs:
         run: |
           ./dist/nsyte-linux-test --version
 
-  test-build-macos:
-    name: Test macOS Build
-    runs-on: macos-latest
+  test-build-macos-intel:
+    name: Test macOS Intel Build
+    runs-on: macos-13
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
             --allow-env \
             --allow-sys \
             --target x86_64-apple-darwin \
-            --output dist/nsyte-macos-test \
+            --output dist/nsyte-macos-x64-test \
             src/cli.ts
           
           echo "Build successful!"
@@ -75,14 +75,58 @@ jobs:
 
       - name: Test binary
         run: |
-          ./dist/nsyte-macos-test --version
+          ./dist/nsyte-macos-x64-test --version
 
       - name: Test UPX
         run: |
           brew install upx
-          cp dist/nsyte-macos-test dist/nsyte-macos-test-compressed
-          upx --best --lzma --force-macos dist/nsyte-macos-test-compressed
+          cp dist/nsyte-macos-x64-test dist/nsyte-macos-x64-test-compressed
+          upx --best --lzma --force-macos dist/nsyte-macos-x64-test-compressed
           echo "UPX compression successful!"
+          ls -lh dist/
+
+  test-build-macos-arm:
+    name: Test macOS Apple Silicon Build
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Test build
+        run: |
+          mkdir -p dist
+          deno compile \
+            --no-check \
+            --allow-run \
+            --allow-read \
+            --allow-write \
+            --allow-net \
+            --allow-env \
+            --allow-sys \
+            --target aarch64-apple-darwin \
+            --output dist/nsyte-macos-arm64-test \
+            src/cli.ts
+          
+          echo "Build successful!"
+          ls -lh dist/
+
+      - name: Test binary
+        run: |
+          ./dist/nsyte-macos-arm64-test --version
+
+      - name: Test UPX (best-effort)
+        run: |
+          brew install upx
+          cp dist/nsyte-macos-arm64-test dist/nsyte-macos-arm64-test-compressed
+          if ! upx --best --lzma --force-macos dist/nsyte-macos-arm64-test-compressed; then
+            echo "UPX compression not available for macOS arm64; keeping uncompressed copy."
+            cp dist/nsyte-macos-arm64-test dist/nsyte-macos-arm64-test-compressed
+          fi
           ls -lh dist/
 
   test-build-windows:

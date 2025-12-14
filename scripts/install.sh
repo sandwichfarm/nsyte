@@ -52,6 +52,24 @@ detect_os() {
     print_info "Detected OS: $OS"
 }
 
+# Detect CPU architecture (used for macOS binaries)
+detect_arch() {
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+        arm64|aarch64)
+            ARCH="arm64"
+            ;;
+        x86_64|amd64)
+            ARCH="x64"
+            ;;
+        *)
+            print_warning "Unknown architecture: $ARCH"
+            ;;
+    esac
+    
+    print_info "Detected architecture: $ARCH"
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -189,14 +207,32 @@ get_latest_release() {
 install_binary() {
     local is_upgrade=false
     local backup_path=""
+    local legacy_url=""
     
     # Determine binary name and install directory based on OS
     case "$OS" in
         macos)
+            local macos_arch="$ARCH"
+            local macos_suffix=""
+            case "$macos_arch" in
+                arm64)
+                    macos_suffix="macos-arm64"
+                    ;;
+                x64|x86_64)
+                    macos_suffix="macos-x64"
+                    ;;
+                *)
+                    print_warning "Unknown macOS architecture '$macos_arch', defaulting to Intel binary (Rosetta required)"
+                    macos_suffix="macos-x64"
+                    ;;
+            esac
+
             if [ "$USE_COMPRESSED" = true ]; then
-                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos-compressed-${VERSION#v}"
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-${macos_suffix}-compressed-${VERSION#v}"
+                legacy_url="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos-compressed-${VERSION#v}"
             else
-                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos"
+                BINARY_URL="https://github.com/$REPO/releases/download/$VERSION/nsyte-${macos_suffix}"
+                legacy_url="https://github.com/$REPO/releases/download/$VERSION/nsyte-macos"
             fi
             INSTALL_DIR="/usr/local/bin"
             ;;
@@ -237,9 +273,23 @@ install_binary() {
     
     # Download binary
     if command_exists curl; then
-        curl -L -o "$TEMP_FILE" "$BINARY_URL" || print_error "Download failed"
+        if ! curl -fL -o "$TEMP_FILE" "$BINARY_URL"; then
+            if [ -n "$legacy_url" ]; then
+                print_warning "Primary download failed, trying legacy macOS binary..."
+                curl -fL -o "$TEMP_FILE" "$legacy_url" || print_error "Download failed"
+            else
+                print_error "Download failed"
+            fi
+        fi
     elif command_exists wget; then
-        wget -O "$TEMP_FILE" "$BINARY_URL" || print_error "Download failed"
+        if ! wget -O "$TEMP_FILE" "$BINARY_URL"; then
+            if [ -n "$legacy_url" ]; then
+                print_warning "Primary download failed, trying legacy macOS binary..."
+                wget -O "$TEMP_FILE" "$legacy_url" || print_error "Download failed"
+            else
+                print_error "Download failed"
+            fi
+        fi
     fi
     
     # Make executable
@@ -356,6 +406,7 @@ main() {
     parse_args "$@"
     
     detect_os
+    detect_arch
     
     # Determine expected install directory based on OS
     case "$OS" in

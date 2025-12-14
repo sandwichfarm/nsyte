@@ -84,9 +84,9 @@ jobs:
             dist/nsyte-linux-${{ env.VERSION }}
             dist/nsyte-linux-compressed-${{ env.VERSION }}
 
-  build-macos:
-    name: Build macOS Binary
-    runs-on: macos-latest
+  build-macos-intel:
+    name: Build macOS Intel Binary
+    runs-on: macos-13
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -105,7 +105,7 @@ jobs:
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
           fi
 
-      - name: Build macOS binary
+      - name: Build macOS Intel binary
         run: |
           mkdir -p dist
           deno compile \
@@ -117,7 +117,7 @@ jobs:
             --allow-env \
             --allow-sys \
             --target x86_64-apple-darwin \
-            --output dist/nsyte-macos \
+            --output dist/nsyte-macos-x64 \
             src/cli.ts
 
       - name: Install UPX
@@ -126,28 +126,96 @@ jobs:
 
       - name: Create compressed version
         run: |
-          cp dist/nsyte-macos dist/nsyte-macos-compressed
-          upx --best --lzma --force-macos dist/nsyte-macos-compressed
+          cp dist/nsyte-macos-x64 dist/nsyte-macos-x64-compressed
+          upx --best --lzma --force-macos dist/nsyte-macos-x64-compressed
 
       - name: Rename binaries
         run: |
           cd dist
-          cp nsyte-macos nsyte-macos-${{ env.VERSION }}
-          mv nsyte-macos-compressed nsyte-macos-compressed-${{ env.VERSION }}
+          cp nsyte-macos-x64 nsyte-macos-x64-${{ env.VERSION }}
+          mv nsyte-macos-x64-compressed nsyte-macos-x64-compressed-${{ env.VERSION }}
 
       - name: Display sizes
         run: |
-          echo "macOS binary sizes:"
-          ls -lh dist/nsyte-macos*
+          echo "macOS Intel binary sizes:"
+          ls -lh dist/nsyte-macos-x64*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-binaries
+          name: macos-intel-binaries
           path: |
-            dist/nsyte-macos
-            dist/nsyte-macos-${{ env.VERSION }}
-            dist/nsyte-macos-compressed-${{ env.VERSION }}
+            dist/nsyte-macos-x64
+            dist/nsyte-macos-x64-${{ env.VERSION }}
+            dist/nsyte-macos-x64-compressed-${{ env.VERSION }}
+
+  build-macos-arm:
+    name: Build macOS Apple Silicon Binary
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          fi
+
+      - name: Build macOS Apple Silicon binary
+        run: |
+          mkdir -p dist
+          deno compile \
+            --no-check \
+            --allow-run \
+            --allow-read \
+            --allow-write \
+            --allow-net \
+            --allow-env \
+            --allow-sys \
+            --target aarch64-apple-darwin \
+            --output dist/nsyte-macos-arm64 \
+            src/cli.ts
+
+      - name: Install UPX
+        run: |
+          brew install upx
+
+      - name: Create compressed version
+        run: |
+          cp dist/nsyte-macos-arm64 dist/nsyte-macos-arm64-compressed
+          if ! upx --best --lzma --force-macos dist/nsyte-macos-arm64-compressed; then
+            echo "UPX compression failed on arm64; shipping uncompressed copy as the compressed artifact."
+            cp dist/nsyte-macos-arm64 dist/nsyte-macos-arm64-compressed
+          fi
+
+      - name: Rename binaries
+        run: |
+          cd dist
+          cp nsyte-macos-arm64 nsyte-macos-arm64-${{ env.VERSION }}
+          mv nsyte-macos-arm64-compressed nsyte-macos-arm64-compressed-${{ env.VERSION }}
+
+      - name: Display sizes
+        run: |
+          echo "macOS Apple Silicon binary sizes:"
+          ls -lh dist/nsyte-macos-arm64*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm-binaries
+          path: |
+            dist/nsyte-macos-arm64
+            dist/nsyte-macos-arm64-${{ env.VERSION }}
+            dist/nsyte-macos-arm64-compressed-${{ env.VERSION }}
 
   build-windows:
     name: Build Windows Binary
@@ -266,7 +334,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build-linux, build-macos, build-windows, publish-jsr]
+    needs: [build-linux, build-macos-intel, build-macos-arm, build-windows, publish-jsr]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -290,7 +358,8 @@ jobs:
         run: |
           mkdir -p release
           cp artifacts/linux-binaries/* release/
-          cp artifacts/macos-binaries/* release/
+          cp artifacts/macos-intel-binaries/* release/
+          cp artifacts/macos-arm-binaries/* release/
           cp artifacts/windows-binaries/* release/
           ls -la release/
 
@@ -301,12 +370,14 @@ jobs:
           
           ## Standard Binaries
           - Linux: $(ls -lh release/nsyte-linux 2>/dev/null | awk '{print $5}' || echo "N/A")
-          - macOS: $(ls -lh release/nsyte-macos 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS (Intel): $(ls -lh release/nsyte-macos-x64 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS (Apple Silicon): $(ls -lh release/nsyte-macos-arm64 2>/dev/null | awk '{print $5}' || echo "N/A")
           - Windows: $(ls -lh release/nsyte-windows.exe 2>/dev/null | awk '{print $5}' || echo "N/A")
           
           ## Compressed Binaries (UPX --best --lzma)
           - Linux: $(ls -lh release/nsyte-linux-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
-          - macOS: $(ls -lh release/nsyte-macos-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS (Intel): $(ls -lh release/nsyte-macos-x64-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
+          - macOS (Apple Silicon): $(ls -lh release/nsyte-macos-arm64-compressed-${{ env.VERSION }} 2>/dev/null | awk '{print $5}' || echo "N/A")
           - Windows: $(ls -lh release/nsyte-windows-compressed-${{ env.VERSION }}.exe 2>/dev/null | awk '{print $5}' || echo "N/A")
           
           ## Compression Savings
@@ -347,15 +418,28 @@ jobs:
             # See https://jsr.io/@nsyte/cli for more options
             ```
 
-            #### macOS
+            #### macOS (Apple Silicon)
             ```bash
             # Download and make executable
-            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-${{ env.VERSION }} -o nsyte
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-arm64-${{ env.VERSION }} -o nsyte
             chmod +x nsyte
             sudo mv nsyte /usr/local/bin/
 
             # Or compressed version (smaller download)
-            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-compressed-${{ env.VERSION }} -o nsyte
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-arm64-compressed-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
+            ```
+
+            #### macOS (Intel / Rosetta)
+            ```bash
+            # Download and make executable
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-x64-${{ env.VERSION }} -o nsyte
+            chmod +x nsyte
+            sudo mv nsyte /usr/local/bin/
+
+            # Or compressed version (smaller download)
+            curl -L https://github.com/${{ github.repository }}/releases/download/v${{ env.VERSION }}/nsyte-macos-x64-compressed-${{ env.VERSION }} -o nsyte
             chmod +x nsyte
             sudo mv nsyte /usr/local/bin/
             ```
@@ -397,16 +481,19 @@ jobs:
             - Trigger antivirus warnings on Windows (false positives)
             - Not work with macOS Gatekeeper without additional steps
 
-            **If you experience any issues, please use the standard binaries.**
+          **If you experience any issues, please use the standard binaries.**
           files: |
             release/nsyte-linux
-            release/nsyte-macos
+            release/nsyte-macos-x64
+            release/nsyte-macos-arm64
             release/nsyte-windows.exe
             release/nsyte-linux-${{ env.VERSION }}
-            release/nsyte-macos-${{ env.VERSION }}
+            release/nsyte-macos-x64-${{ env.VERSION }}
+            release/nsyte-macos-arm64-${{ env.VERSION }}
             release/nsyte-windows-${{ env.VERSION }}.exe
             release/nsyte-linux-compressed-${{ env.VERSION }}
-            release/nsyte-macos-compressed-${{ env.VERSION }}
+            release/nsyte-macos-x64-compressed-${{ env.VERSION }}
+            release/nsyte-macos-arm64-compressed-${{ env.VERSION }}
             release/nsyte-windows-compressed-${{ env.VERSION }}.exe
             release/size-report.md
           fail_on_unmatched_files: false
