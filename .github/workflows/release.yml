@@ -33,10 +33,13 @@ jobs:
         id: get_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            RAW_VERSION="${{ github.event.inputs.version }}"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+            RAW_VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          # JSR requires normalized semver (no leading v)
+          NORMALIZED_VERSION="${RAW_VERSION#v}"
+          echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
       - name: Build Linux binary
         run: |
