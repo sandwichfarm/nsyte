@@ -141,42 +141,49 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
     // Default relays that actually host nsite file events (optional fallback)
     const defaultFileRelays = ["wss://relay.nsite.lol", "wss://relay.nosto.re"];
-    const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
-    const allowFallbackServers = options.useFallbacks || options.useFallbackServers || false;
+    const projectConfig = readProjectFile();
+    let allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
+    let allowFallbackServers = options.useFallbacks || options.useFallbackServers || false;
 
     // Ensure relays are connected
     log.debug(`Connecting to profile relays: ${profileRelays.join(", ")}`);
 
-    const projectConfig = readProjectFile();
-
     // Use configured relays for file events; optionally merge with defaults
-    const resolvedRelays = options.relays !== undefined
-      ? resolveRelays(options, projectConfig, false)
-      : (projectConfig?.relays || []);
-    const fileRelays = resolvedRelays;
-    let relays = [...fileRelays];
+    const resolvedRelays = resolveRelays(options, projectConfig, false);
+    let relays = [...resolvedRelays];
+
+    if (relays.length === 0) {
+      allowFallbackRelays = true;
+      console.log(colors.yellow("⚠️  No relays configured; using default nsyte relays."));
+    }
+
     if (allowFallbackRelays && defaultFileRelays.length > 0) {
       relays = Array.from(new Set([...relays, ...defaultFileRelays]));
     }
+
     if (relays.length === 0) {
-      if (allowFallbackRelays) {
-        relays = defaultFileRelays;
-        console.log(colors.yellow("⚠️  Using default file relays because none were configured."));
-      } else {
-        console.log(colors.red("✗ No file relays configured and fallbacks disabled."));
-        Deno.exit(1);
-      }
+      console.log(colors.red("✗ No file relays available. Please configure relays or enable fallbacks."));
+      Deno.exit(1);
     }
 
     // Get blossom servers
     const configuredServers = resolveServers(options, projectConfig);
     let servers = [...configuredServers];
+
+    if (servers.length === 0) {
+      allowFallbackServers = true;
+      console.log(colors.yellow("⚠️  No blossom servers configured; using defaults."));
+    }
+
     if (allowFallbackServers) {
       const { DEFAULT_BLOSSOM_SERVERS } = await import("../lib/constants.ts");
       servers = Array.from(new Set([...servers, ...DEFAULT_BLOSSOM_SERVERS]));
     }
+
     if (servers.length === 0) {
-      console.log(colors.red("✗ No blossom servers configured and fallbacks disabled."));
+      console.log(
+        colors.red("✗ No blossom servers available. Please configure servers or enable fallbacks."),
+      );
       Deno.exit(1);
     }
 

@@ -214,6 +214,30 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
   let resolveRelaysStub: any;
   let listRemoteFilesStub: any;
 
+  await t.step("should default to fallback relays and servers when none configured", async () => {
+    setupMocks();
+
+    resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => []);
+    const resolveServersStub = stub(resolverUtils, "resolveServers", () => []);
+    const serveStub = stub(Deno, "serve", (..._args) =>
+      ({ finished: Promise.resolve() } as unknown as Deno.HttpServer)
+    );
+    const addSignalListenerStub = stub(Deno, "addSignalListener", (..._args) => {});
+
+    try {
+      await runCommand({ noOpen: true });
+
+      assertEquals(denoExitSpy.calls.length, 0);
+      assertEquals(serveStub.calls.length, 1);
+    } finally {
+      resolveRelaysStub?.restore();
+      resolveServersStub.restore();
+      serveStub.restore();
+      addSignalListenerStub.restore();
+      teardownMocks();
+    }
+  });
+
   await t.step("should attempt to resolve pubkey from config when no npub provided", async () => {
     setupMocks();
 
