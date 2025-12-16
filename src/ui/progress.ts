@@ -53,6 +53,7 @@ interface ProgressData {
   completed: number;
   failed: number;
   inProgress: number;
+   skipped?: number;
   serverStats?: {
     [filename: string]: {
       successCount: number;
@@ -157,7 +158,8 @@ export class ProgressRenderer {
   private renderProgress(data: ProgressData): void {
     Deno.stdout.writeSync(new TextEncoder().encode("\r\x1b[K"));
 
-    const percent = data.total === 0 ? 0 : Math.floor((data.completed / data.total) * 100);
+    const done = data.completed + data.failed;
+    const percent = data.total === 0 ? 0 : Math.floor((done / data.total) * 100);
 
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
 
@@ -184,8 +186,9 @@ export class ProgressRenderer {
       }
     }
 
+    const skipped = data.skipped ?? 0;
     const progressText =
-      `[${bar}] ${percent}% | ${data.completed}/${data.total} files | ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
+      `[${bar}] ${percent}% | ${done}/${data.total} files | ${data.completed} succeeded, ${skipped} skipped, ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
 
     Deno.stdout.writeSync(new TextEncoder().encode(progressText));
 

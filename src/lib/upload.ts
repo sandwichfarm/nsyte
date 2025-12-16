@@ -7,8 +7,139 @@ const log = createLogger("upload");
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
+const FETCH_TIMEOUT_MS = 10_000;
+const SIGN_TIMEOUT_MS = 15_000;
+const PUBLISH_TIMEOUT_MS = 15_000;
+const RETRY_BASE_DELAY_MS = 500;
+const VERIFY_RETRY_DELAY_MS = 300;
 
 const DEFAULT_CONCURRENCY = 4;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: number | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`));
+    }, ms) as unknown as number;
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+async function runWithRetry<T>(
+  label: string,
+  attempts: number,
+  backoffMs: number,
+  fn: (attempt: number) => Promise<T>,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn(attempt);
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts - 1) break;
+
+      const wait = backoffMs * Math.pow(2, attempt);
+      log.warn(
+        `${label} attempt ${attempt + 1}/${attempts} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }. Retrying in ${wait}ms...`,
+      );
+      await delay(wait);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+  label: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`${label} timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function headWithRetry(
+  url: string,
+  label: string,
+  attempts = MAX_RETRIES,
+  timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<boolean> {
+  return await runWithRetry<boolean>(
+    label,
+    attempts,
+    RETRY_BASE_DELAY_MS,
+    async () => {
+      const response = await fetchWithTimeout(url, { method: "HEAD" }, timeoutMs, label);
+
+      if (response.ok) return true;
+      if (response.status === 404) return false;
+      if (shouldRetryStatus(response.status)) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return false;
+    },
+  );
+}
+
+async function getPublicKeyWithRetry(signer: Signer): Promise<string> {
+  return await runWithRetry<string>(
+    "getPublicKey",
+    MAX_RETRIES,
+    RETRY_BASE_DELAY_MS,
+    async () => {
+      return await withTimeout(
+        Promise.resolve(signer.getPublicKey()),
+        SIGN_TIMEOUT_MS,
+        "getPublicKey",
+      );
+    },
+  );
+}
+
+async function signEventWithRetry(
+  label: string,
+  signFn: () => NostrEvent | Promise<NostrEvent>,
+): Promise<NostrEvent> {
+  return await runWithRetry<NostrEvent>(
+    label,
+    MAX_RETRIES,
+    RETRY_BASE_DELAY_MS,
+    async () => {
+      return await withTimeout(Promise.resolve(signFn()), SIGN_TIMEOUT_MS, label);
+    },
+  );
+}
 
 /** @deprecated use Nip07Interface from applesauce-signers */
 export interface Signer extends Nip07Interface {}
@@ -18,6 +149,7 @@ export interface UploadProgress {
   completed: number;
   failed: number;
   inProgress: number;
+  skipped: number;
 }
 
 export type UploadResponse = {
@@ -26,6 +158,7 @@ export type UploadResponse = {
   error?: string;
   eventId?: string;
   eventPublished?: boolean;
+  skipped?: boolean;
   serverResults: {
     [server: string]: {
       success: boolean;
@@ -53,7 +186,10 @@ async function createUploadAuth(signer: Signer, blobSha256: string): Promise<str
     content: "Upload blob via nsyte",
   };
 
-  const signedEvent = await signer.signEvent(authTemplate);
+  const signedEvent = await signEventWithRetry(
+    `sign upload auth for ${blobSha256.substring(0, 8)}...`,
+    () => signer.signEvent(authTemplate),
+  );
 
   return JSON.stringify(signedEvent);
 }
@@ -65,7 +201,7 @@ async function uploadToServer(
   server: string,
   file: FileEntry,
   signer: Signer,
-): Promise<boolean> {
+): Promise<{ success: boolean; alreadyExists: boolean; error?: string }> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
   }
@@ -74,18 +210,15 @@ async function uploadToServer(
     const blobSha256 = file.sha256;
     const fileName = file.path.split("/").pop() || "file";
     const contentType = file.contentType || "application/octet-stream";
+    const serverUrl = server.endsWith("/") ? server : `${server}/`;
 
     try {
-      const serverUrl = server.endsWith("/") ? server : `${server}/`;
-
+      const preflightLabel = `HEAD preflight ${file.path} on ${server}`;
       log.debug(`Checking if ${file.path} (${blobSha256}) already exists on ${server}`);
-      const response = await fetch(`${serverUrl}${blobSha256}`, {
-        method: "HEAD",
-      });
-
-      if (response.ok) {
+      const exists = await headWithRetry(`${serverUrl}${blobSha256}`, preflightLabel);
+      if (exists) {
         log.debug(`File ${file.path} (${blobSha256}) already exists on ${server}`);
-        return true;
+        return { success: true, alreadyExists: true };
       }
     } catch (e) {
       log.debug(`Error checking if file exists on ${server}: ${e}`);
@@ -98,44 +231,85 @@ async function uploadToServer(
 
     const auth = await createUploadAuth(signer, blobSha256);
 
-    const serverUrl = server.endsWith("/") ? server : `${server}/`;
-
     const base64Auth = btoa(auth);
     const authHeader = { Authorization: `Nostr ${base64Auth}` };
 
-    const formData = new FormData();
-    formData.append("file", fileObj);
-
     try {
+      const uploadLabel = `PUT upload ${file.path} to ${server}`;
       log.debug(`Trying PUT to ${serverUrl}upload with auth header`);
-      const response = await fetch(`${serverUrl}upload`, {
-        method: "PUT",
-        headers: authHeader,
-        body: fileObj,
-      });
+      const response = await runWithRetry<Response>(
+        uploadLabel,
+        MAX_RETRIES,
+        RETRY_BASE_DELAY_MS,
+        async () => {
+          const res = await fetchWithTimeout(
+            `${serverUrl}upload`,
+            {
+              method: "PUT",
+              headers: authHeader,
+              body: fileObj,
+            },
+            FETCH_TIMEOUT_MS,
+            uploadLabel,
+          );
+
+          if (res.ok) {
+            return res;
+          }
+
+          if (shouldRetryStatus(res.status)) {
+            const text = await res.text().catch(() => "");
+            throw new Error(
+              `HTTP ${res.status}${text ? `: ${text}` : ""}`,
+            );
+          }
+
+          return res;
+        },
+      );
 
       if (response.ok) {
         log.debug(`Upload request succeeded for ${file.path} to ${server}, verifying storage...`);
 
         // Verify the file is actually stored and retrievable
         try {
-          await new Promise((resolve) => setTimeout(resolve, 100)); // Brief delay for server processing
-          const verifyResponse = await fetch(`${serverUrl}${blobSha256}`, {
-            method: "HEAD",
-          });
+          const verifyLabel = `verify HEAD ${file.path} on ${server}`;
+          const verified = await runWithRetry<boolean>(
+            verifyLabel,
+            MAX_RETRIES,
+            VERIFY_RETRY_DELAY_MS,
+            async (attempt) => {
+              if (attempt > 0) {
+                await delay(VERIFY_RETRY_DELAY_MS * attempt);
+              }
+              const res = await fetchWithTimeout(
+                `${serverUrl}${blobSha256}`,
+                { method: "HEAD" },
+                FETCH_TIMEOUT_MS,
+                verifyLabel,
+              );
 
-          if (verifyResponse.ok) {
+              if (res.ok) return true;
+              if (res.status === 404) return false;
+              if (shouldRetryStatus(res.status)) {
+                throw new Error(`HTTP ${res.status}`);
+              }
+              return false;
+            },
+          );
+
+          if (verified) {
             log.debug(`Upload verified: ${file.path} is retrievable from ${server}`);
-            return true;
+            return { success: true, alreadyExists: false };
           } else {
             log.debug(
-              `Upload verification failed: ${file.path} not retrievable from ${server} (status: ${verifyResponse.status})`,
+              `Upload verification failed: ${file.path} not retrievable from ${server}`,
             );
-            return false;
+            return { success: false, alreadyExists: false, error: "Verification failed" };
           }
         } catch (e) {
           log.debug(`Upload verification failed for ${file.path} on ${server}: ${e}`);
-          return false;
+          return { success: false, alreadyExists: false, error: String(e) };
         }
       }
 
@@ -147,7 +321,7 @@ async function uploadToServer(
   } catch (e) {
     log.debug(`PUT to /upload with auth header failed: ${e}`);
   }
-  return false;
+  return { success: false, alreadyExists: false, error: "Upload failed" };
 }
 
 /**
@@ -186,12 +360,24 @@ async function publishEventToRelays(
   log.debug(`Publishing event to ${relays.length} relays via pool`);
 
   try {
-    const success = await publishEventsToRelays(relays, [event]);
-    if (!success) {
-      log.warn(
-        `Failed to publish event to any relay (tried ${relays.join(", ")})`,
-      );
-    }
+    const publishLabel = `publish event ${event.id?.substring(0, 8) ?? ""}`;
+    const success = await runWithRetry<boolean>(
+      publishLabel,
+      MAX_RETRIES,
+      RETRY_BASE_DELAY_MS,
+      async () => {
+        const result = await withTimeout(
+          publishEventsToRelays(relays, [event]),
+          PUBLISH_TIMEOUT_MS,
+          publishLabel,
+        );
+        if (!result) {
+          throw new Error("Publish returned false");
+        }
+        return true;
+      },
+    );
+
     return success;
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
@@ -227,11 +413,14 @@ export async function processUploads(
     completed: 0,
     failed: 0,
     inProgress: 0,
+    skipped: 0,
   };
 
   if (progressCallback) {
     progressCallback({ ...progress });
   }
+
+  const userPubkey = await getPublicKeyWithRetry(signer);
 
   const results: UploadResponse[] = [];
   const queue = [...files];
@@ -249,7 +438,7 @@ export async function processUploads(
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
         try {
-          return await uploadFile(file, baseDir, servers, signer, relays);
+          return await uploadFile(file, baseDir, servers, signer, relays, userPubkey);
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -258,10 +447,11 @@ export async function processUploads(
 
             return {
               file,
-              success: true,
+              success: false,
               error: `Relay rate limited: ${errorMessage}`,
               eventPublished: false,
               serverResults: {},
+              skipped: false,
             };
           }
 
@@ -272,6 +462,7 @@ export async function processUploads(
             error: errorMessage,
             serverResults: {},
             eventPublished: false,
+            skipped: false,
           };
         }
       }),
@@ -283,6 +474,7 @@ export async function processUploads(
         error: `Batch processing error: ${error.message || error}`,
         serverResults: {},
         eventPublished: false,
+        skipped: false,
       }));
     });
 
@@ -291,6 +483,9 @@ export async function processUploads(
 
       if (result.success) {
         progress.completed++;
+        if (result.skipped) {
+          progress.skipped++;
+        }
 
         if (
           result.error &&
@@ -340,93 +535,82 @@ async function uploadFile(
   servers: string[],
   signer: Signer,
   relays: string[],
+  userPubkey: string,
   retryCount = 0,
 ): Promise<UploadResponse> {
+  // Ensure serverResults is visible in catch blocks
+  const serverResults: {
+    [server: string]: {
+      success: boolean;
+      error?: string;
+      alreadyExists?: boolean;
+    };
+  } = {};
+  let allAlready = false;
+
   try {
     log.debug(
       `Uploading file ${file.path}${retryCount > 0 ? ` (retry ${retryCount})` : ""}`,
     );
 
-    const userPubkey = await signer.getPublicKey();
-
     if (!file.data || !file.sha256) {
       throw new Error("File data or SHA-256 hash missing");
     }
 
-    const serverResults: {
-      [server: string]: {
-        success: boolean;
-        error?: string;
-        alreadyExists?: boolean;
-      };
-    } = {};
-
     const uploadResults = await Promise.all(
       servers.map(async (server) => {
         try {
-          const success = await uploadToServer(server, file, signer);
-
-          const serverUrl = server.endsWith("/") ? server : `${server}/`;
-          let alreadyExists = false;
-
-          try {
-            const response = await fetch(`${serverUrl}${file.sha256}`, {
-              method: "HEAD",
-            });
-            alreadyExists = response.ok;
-          } catch (e) {}
+          const outcome = await uploadToServer(server, file, signer);
 
           serverResults[server] = {
-            success,
-            alreadyExists: alreadyExists && success,
+            success: outcome.success || outcome.alreadyExists,
+            alreadyExists: outcome.alreadyExists,
+            error: outcome.error,
           };
 
-          return success;
+          return outcome;
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           serverResults[server] = { success: false, error: errorMessage };
-          return false;
+          return { success: false, alreadyExists: false, error: errorMessage };
         }
       }),
     );
 
-    const anyServerSuccess = uploadResults.some((result) => result);
+    const anyServerSuccess = uploadResults.some((result) =>
+      result.success || result.alreadyExists
+    );
 
     if (!anyServerSuccess) {
-      const allServersHaveFile = servers.every((server) => {
-        const result = serverResults[server];
-        return result && (result.success || result.alreadyExists);
-      });
+      const serverErrors = Object.entries(serverResults)
+        .map(([server, result]) => `${server}: ${result.error || "Unknown error"}`)
+        .join("; ");
 
-      if (allServersHaveFile) {
-        log.info(
-          `File ${file.path} already exists on all servers, skipping upload but publishing events`,
-        );
-        for (const server of servers) {
-          serverResults[server] = { success: true, alreadyExists: true };
-        }
-      } else {
-        const serverErrors = Object.entries(serverResults)
-          .map(([server, result]) => `${server}: ${result.error || "Unknown error"}`)
-          .join("; ");
-
-        throw new Error(`Failed to upload to any server: ${serverErrors}`);
-      }
+      throw new Error(`Failed to upload to any server: ${serverErrors}`);
     }
 
-    const successfulServers = Object.values(serverResults).filter(
-      (r) => r.success,
-    ).length;
+    const serverHasBlob = Object.values(serverResults).some(
+      (r) => r.success || r.alreadyExists,
+    );
+
+    if (!serverHasBlob) {
+      throw new Error("No server stored the blob after upload attempts");
+    }
+
+    allAlready = uploadResults.every((r) => r.alreadyExists);
 
     let signedEvent: NostrEvent | null = null;
     let eventPublished = false;
 
     try {
-      signedEvent = await createNsiteEvent(
-        signer,
-        userPubkey,
-        file.path,
-        file.sha256,
+      signedEvent = await signEventWithRetry(
+        `sign nsite event for ${file.path}`,
+        () => createNsiteEvent(
+          signer,
+          userPubkey,
+          file.path,
+          file.sha256!,
+        ),
       );
 
       if (!relays || relays.length === 0) {
@@ -453,7 +637,8 @@ async function uploadFile(
           );
           return {
             file,
-            success: true,
+            success: false,
+            skipped: allAlready,
             eventId: signedEvent.id,
             serverResults,
             eventPublished: false,
@@ -477,7 +662,8 @@ async function uploadFile(
         );
         return {
           file,
-          success: true,
+          success: false,
+          skipped: allAlready,
           serverResults,
           eventPublished: false,
           error: `Rate limited during signing: ${errorMessage}`,
@@ -489,10 +675,12 @@ async function uploadFile(
 
     return {
       file,
-      success: true,
+      success: eventPublished,
+      skipped: allAlready,
       eventId: signedEvent?.id,
       serverResults,
       eventPublished: eventPublished,
+      error: eventPublished ? undefined : "Event not published",
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -505,9 +693,10 @@ async function uploadFile(
 
       return {
         file,
-        success: true,
+        success: false,
+        skipped: allAlready,
         error: `Rate limited: ${errorMessage}`,
-        serverResults: {},
+        serverResults,
         eventPublished: false,
       };
     }
@@ -519,14 +708,14 @@ async function uploadFile(
         `Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`,
       );
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      return uploadFile(file, baseDir, servers, signer, relays, retryCount + 1);
+      return uploadFile(file, baseDir, servers, signer, relays, userPubkey, retryCount + 1);
     }
 
     return {
       file,
       success: false,
       error: errorMessage,
-      serverResults: {},
+      serverResults,
       eventPublished: false,
     };
   }
