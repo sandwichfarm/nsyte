@@ -7,7 +7,7 @@ import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { decodePointer, kinds, normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "./download.ts";
 import { createLogger } from "./logger.ts";
-import { getManifestServers } from "./manifest.ts";
+import { getManifestFiles, getManifestServers } from "./manifest.ts";
 import {
   type FileEntry,
   getSiteManifestEvent,
@@ -317,11 +317,24 @@ export class NsiteGatewayServer {
           );
 
           if (manifestEvent) {
+            const manifestId = manifestEvent.id || "unknown";
             const manifestServers = getManifestServers(manifestEvent);
             serverList = manifestServers.map((url) => url.toString());
             if (serverList.length > 0) {
-              log.debug(`Found ${serverList.length} servers from manifest event`);
-              console.log(colors.gray(`  → Found ${serverList.length} servers in manifest`));
+              log.debug(`Found ${serverList.length} servers from manifest event ${manifestId}`);
+              console.log(
+                colors.gray(
+                  `  → Found ${serverList.length} servers in manifest (id: ${
+                    manifestId.slice(0, 16)
+                  }...)`,
+                ),
+              );
+            } else {
+              console.log(
+                colors.gray(
+                  `  → Found manifest (id: ${manifestId.slice(0, 16)}...) but no servers listed`,
+                ),
+              );
             }
           }
 
@@ -477,6 +490,9 @@ export class NsiteGatewayServer {
 
             // Only cache if we got files
             if (files.length > 0) {
+              // Extract the manifest event from the first file (all files share the same event)
+              const manifestEvent = files[0]?.event;
+
               this.fileListCache.set(siteCacheKey, {
                 files,
                 timestamp: Date.now(),
@@ -484,14 +500,26 @@ export class NsiteGatewayServer {
                 eventTimestamps,
               });
               console.log(colors.gray(`  → Found ${files.length} files`));
-              // Save to disk cache
-              await this.saveFileListManifest(
-                this.options.cacheDir,
-                npub,
-                identifier,
-                files,
-                eventTimestamps,
-              );
+
+              // Save to disk cache if we have the manifest event
+              if (manifestEvent) {
+                const manifestId = manifestEvent.id || "unknown";
+                console.log(
+                  colors.gray(
+                    `  → Manifest id: ${manifestId.slice(0, 16)}... (kind ${manifestEvent.kind})`,
+                  ),
+                );
+                await this.saveFileListManifest(
+                  this.options.cacheDir,
+                  npub,
+                  identifier,
+                  manifestEvent,
+                );
+              } else {
+                console.log(
+                  colors.yellow(`  → Files missing manifest event, skipping disk cache save`),
+                );
+              }
             } else {
               // Remove the loading entry if we got no files
               this.fileListCache.delete(siteCacheKey);
@@ -603,6 +631,9 @@ export class NsiteGatewayServer {
 
               // Only update cache if we got files or if we're sure the site has no files
               if (hasUpdates) {
+                // Extract the manifest event from the first file (all files share the same event)
+                const manifestEvent = files[0]?.event;
+
                 this.fileListCache.set(siteCacheKey, {
                   files,
                   timestamp: Date.now(),
@@ -610,14 +641,26 @@ export class NsiteGatewayServer {
                   eventTimestamps: newEventTimestamps,
                 });
                 console.log(colors.gray(`  → Found ${files.length} files (cache updated)`));
-                // Save to disk cache
-                await this.saveFileListManifest(
-                  this.options.cacheDir,
-                  npub,
-                  identifier,
-                  files,
-                  newEventTimestamps,
-                );
+
+                // Save to disk cache if we have the manifest event
+                if (manifestEvent) {
+                  const manifestId = manifestEvent.id || "unknown";
+                  console.log(
+                    colors.gray(
+                      `  → Manifest id: ${manifestId.slice(0, 16)}... (kind ${manifestEvent.kind})`,
+                    ),
+                  );
+                  await this.saveFileListManifest(
+                    this.options.cacheDir,
+                    npub,
+                    identifier,
+                    manifestEvent,
+                  );
+                } else {
+                  console.log(
+                    colors.yellow(`  → Files missing manifest event, skipping disk cache save`),
+                  );
+                }
 
                 if (currentPathAffected) {
                   console.log(
@@ -1636,8 +1679,7 @@ export class NsiteGatewayServer {
     cacheDir: string | null,
     npub: string,
     identifier: string | undefined,
-    files: FileEntry[],
-    eventTimestamps?: Map<string, number>,
+    manifestEvent: NostrEvent,
   ): Promise<void> {
     if (!cacheDir) return;
 
@@ -1646,13 +1688,8 @@ export class NsiteGatewayServer {
     await ensureDir(dirPath);
     const manifestPath = join(dirPath, "manifest.json");
 
-    const manifest = {
-      files,
-      eventTimestamps: eventTimestamps ? Object.fromEntries(eventTimestamps) : {},
-      timestamp: Date.now(),
-    };
-
-    await Deno.writeTextFile(manifestPath, JSON.stringify(manifest, null, 2));
+    // Save the raw Nostr event
+    await Deno.writeTextFile(manifestPath, JSON.stringify(manifestEvent, null, 2));
   }
 
   /**
@@ -1691,29 +1728,47 @@ export class NsiteGatewayServer {
       const siteDir = identifier || "root";
       const manifestPath = join(cacheDir, npub, siteDir, "manifest.json");
       const manifestData = await Deno.readTextFile(manifestPath);
-      const manifest = JSON.parse(manifestData);
+      const parsed = JSON.parse(manifestData);
 
-      // Convert back to FileEntry format
-      const files: FileEntry[] = manifest.files || [];
-      if (files.length === 0) return null;
-
-      // Reconstruct event timestamps Map
-      const eventTimestamps = new Map<string, number>();
-      if (manifest.eventTimestamps) {
-        Object.entries(manifest.eventTimestamps).forEach(([path, timestamp]) => {
-          eventTimestamps.set(path, timestamp as number);
-        });
+      // Check if this is the old format (has 'files' property)
+      if (parsed.files && Array.isArray(parsed.files)) {
+        // Old format - return null to force refresh
+        console.log(colors.gray(`  → Old cache format detected, will refresh`));
+        return null;
       }
+
+      // New format: it's a Nostr event
+      const manifestEvent = parsed as NostrEvent;
+
+      // Validate it's a proper Nostr event
+      if (!manifestEvent.kind || !manifestEvent.tags || !manifestEvent.created_at) {
+        console.log(colors.gray(`  → Invalid manifest event format, will refresh`));
+        return null;
+      }
+
+      // Use getManifestFiles() to extract files from the manifest event
+      const fileMappings = getManifestFiles(manifestEvent);
+      if (fileMappings.length === 0) return null;
+
+      // Reconstruct FileEntry[] from the parsed files
+      const files: FileEntry[] = fileMappings.map((mapping) => ({
+        path: mapping.path,
+        sha256: mapping.sha256,
+        event: manifestEvent,
+        size: 0,
+      }));
+
+      // Create eventTimestamps Map using the manifest event's created_at for all files
+      // (since all files come from the same manifest event)
+      const eventTimestamps = new Map<string, number>();
+      files.forEach((file) => {
+        eventTimestamps.set(file.path, manifestEvent.created_at);
+      });
 
       return { files, eventTimestamps };
     } catch {
-      // No manifest - for backward compatibility, return a minimal file list
-      // This allows old caches to still work (they just won't have proper file metadata)
-      console.log(colors.gray(`  → No manifest.json, using backward compatibility mode`));
-
-      // We can't reconstruct the full file list from just the SHA256 files,
-      // but we can at least indicate that this npub has cached content
-      // The actual file resolution will happen when individual files are requested
+      // No manifest - for backward compatibility, return null
+      console.log(colors.gray(`  → No manifest.json or error reading cache`));
       return null;
     }
   }

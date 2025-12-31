@@ -250,7 +250,7 @@ export async function uploadCommand(
       remoteFileEntries,
     );
 
-    await maybeProcessFiles(toTransfer, toDelete);
+    await maybeProcessFiles(toTransfer, toDelete, includedFiles, remoteFileEntries);
     await maybePublishMetadata(includedFiles);
 
     // Handle smart purge AFTER upload
@@ -1072,6 +1072,8 @@ async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<File
 export async function maybeProcessFiles(
   toTransfer: FileEntry[],
   toDelete: FileEntry[],
+  includedFiles: FileEntry[],
+  remoteFileEntries: FileEntry[],
 ) {
   if (toTransfer.length > 0) {
     log.info("Processing files for upload...");
@@ -1079,11 +1081,17 @@ export async function maybeProcessFiles(
     try {
       const preparedFiles = await prepareFilesForUpload(toTransfer);
 
-      await uploadFiles(preparedFiles);
+      await uploadFiles(preparedFiles, includedFiles, remoteFileEntries);
     } catch (e: unknown) {
       const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
       log.error(errMsg);
+    }
+  } else {
+    // Even if no files to upload, we may need to publish manifest with existing files
+    // (e.g., when files were deleted or metadata changed)
+    if (includedFiles.length > 0 && resolvedRelays.length > 0) {
+      await publishSiteManifest(includedFiles, remoteFileEntries, []);
     }
   }
 
@@ -1093,10 +1101,67 @@ export async function maybeProcessFiles(
 }
 
 /**
- * Publish site manifest event with all uploaded files
+ * Publish site manifest event with all files in the site
+ * According to NIP-XX, the manifest MUST include ALL path mappings, not just changed files
  */
-async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise<void> {
-  if (successfulUploads.length === 0) {
+async function publishSiteManifest(
+  includedFiles: FileEntry[],
+  remoteFileEntries: FileEntry[],
+  uploadResponses: UploadResponse[],
+): Promise<void> {
+  // Build a complete file mapping from all local files
+  // This ensures the manifest includes ALL files, not just newly uploaded ones
+  const fileMappingsMap = new Map<string, { path: string; sha256: string }>();
+
+  // First, add all files from upload responses (newly uploaded or re-uploaded files)
+  for (const response of uploadResponses) {
+    if (response.success && response.file.sha256) {
+      fileMappingsMap.set(response.file.path, {
+        path: response.file.path,
+        sha256: response.file.sha256,
+      });
+    }
+  }
+
+  // Then, add unchanged files from remote entries (files that weren't uploaded)
+  // Use the sha256 from remote entries for files that exist locally but weren't uploaded
+  // Normalize paths for comparison (same logic as compareFiles)
+  const normalizePath = (path: string) => path.replace(/^\/+/, "/").toLowerCase();
+
+  for (const localFile of includedFiles) {
+    const normalizedLocalPath = normalizePath(localFile.path);
+
+    // Check if this file was already added from upload responses
+    const alreadyInMap = Array.from(fileMappingsMap.keys()).some(
+      (mappedPath) => normalizePath(mappedPath) === normalizedLocalPath,
+    );
+
+    if (!alreadyInMap) {
+      // Find the corresponding remote file entry to get its sha256
+      const remoteFile = remoteFileEntries.find(
+        (r) => normalizePath(r.path) === normalizedLocalPath,
+      );
+
+      if (remoteFile?.sha256) {
+        fileMappingsMap.set(localFile.path, {
+          path: localFile.path,
+          sha256: remoteFile.sha256,
+        });
+      } else if (localFile.sha256) {
+        // Fallback: use local file's sha256 if available
+        // This can happen for new files that weren't uploaded yet (shouldn't happen in normal flow)
+        fileMappingsMap.set(localFile.path, {
+          path: localFile.path,
+          sha256: localFile.sha256,
+        });
+      }
+    }
+  }
+
+  const fileMappings = Array.from(fileMappingsMap.values());
+
+  if (fileMappings.length === 0) {
+    log.warn("No files with hashes to include in manifest");
     return;
   }
 
@@ -1104,19 +1169,6 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
 
   try {
     const publisherPubkey = await signer.getPublicKey();
-
-    // Collect all file path mappings
-    const fileMappings = successfulUploads
-      .filter((r) => r.file.sha256)
-      .map((r) => ({
-        path: r.file.path,
-        sha256: r.file.sha256!,
-      }));
-
-    if (fileMappings.length === 0) {
-      log.warn("No files with hashes to include in manifest");
-      return;
-    }
 
     // Get site identifier from config (for named sites)
     // Use id from config, or empty string/null for root site
@@ -1136,6 +1188,14 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
       relays: manifestRelays, // Use config values for metadata (recommendations)
     };
 
+    // Display manifest event information before creating
+    console.log(formatSectionHeader("Site Manifest Event (nostr)"));
+    console.log(colors.cyan(`Creating site manifest event with:`));
+    console.log(colors.cyan(`  Files: ${fileMappings.length}`));
+    console.log(colors.cyan(`  Relays: ${manifestRelays.length}`));
+    console.log(colors.cyan(`  Servers: ${manifestServers.length}`));
+    console.log("");
+
     // Create manifest event
     const manifestEvent = await createSiteManifestEvent(
       signer,
@@ -1145,16 +1205,17 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
       metadata,
     );
 
+    // Display event ID after signing
+    console.log(colors.green(`✓ Site manifest event signed`));
+    console.log(colors.cyan(`  Event ID: ${manifestEvent.id}`));
+    console.log("");
+
     // Publish manifest event using discovered relays (from kind 10002)
     statusDisplay.update("Publishing site manifest event...");
     const success = await publishEventsToRelays(resolvedRelays, [manifestEvent]);
 
     if (success) {
-      statusDisplay.success(`Site manifest event published (${fileMappings.length} files)`);
-      console.log(formatSectionHeader("Site Manifest Event (nostr)"));
       console.log(colors.green(`✓ Site manifest event successfully published to relays`));
-      console.log(colors.cyan(`  Event ID: ${manifestEvent.id.substring(0, 16)}...`));
-      console.log(colors.cyan(`  Files: ${fileMappings.length}`));
       if (siteId) {
         console.log(colors.cyan(`  Site: ${siteId} (named site)`));
       } else {
@@ -1166,7 +1227,6 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
       messageCollector.addEventSuccess("site manifest", manifestEvent.id);
     } else {
       statusDisplay.error("Failed to publish site manifest event");
-      console.log(formatSectionHeader("Site Manifest Event (nostr)"));
       console.log(colors.red(`✗ Failed to publish site manifest event to relays`));
       console.log(
         colors.yellow("Files are uploaded but may not be immediately visible in the nsite."),
@@ -1180,7 +1240,6 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
     const errorMessage = getErrorMessage(error);
     statusDisplay.error(`Failed to create/publish manifest: ${errorMessage}`);
     log.error(`Error creating/publishing site manifest: ${errorMessage}`);
-    console.log(formatSectionHeader("Site Manifest Event (𓅦 nostr)"));
     console.log(colors.red(`✗ Error: ${errorMessage}`));
     console.log("");
   }
@@ -1189,7 +1248,11 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
 /**
  * Upload prepared files to servers and publish to relays
  */
-async function uploadFiles(preparedFiles: FileEntry[]): Promise<UploadResponse[]> {
+async function uploadFiles(
+  preparedFiles: FileEntry[],
+  includedFiles: FileEntry[],
+  remoteFileEntries: FileEntry[],
+): Promise<UploadResponse[]> {
   if (preparedFiles.length === 0) {
     statusDisplay.error("No files could be loaded for upload.");
     return [];
@@ -1304,8 +1367,14 @@ async function uploadFiles(preparedFiles: FileEntry[]): Promise<UploadResponse[]
     console.log("");
 
     // Create and publish site manifest event after all files are uploaded
-    if (uploadedCount > 0 && resolvedRelays.length > 0) {
-      await publishSiteManifest(uploadResponses.filter((r) => r.success));
+    // Always publish manifest if there are any files, even if no uploads occurred
+    // (e.g., when only metadata needs updating or files were deleted)
+    if (includedFiles.length > 0 && resolvedRelays.length > 0) {
+      await publishSiteManifest(
+        includedFiles,
+        remoteFileEntries,
+        uploadResponses.filter((r) => r.success),
+      );
     }
   } else {
     progressRenderer.stop();
