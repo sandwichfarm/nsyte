@@ -25,7 +25,7 @@ nsyte run [npub] [options]
 - `-r, --relays <relays>`: Comma-separated list of nostr relays to use
 - `-k, --privatekey <nsec>`: Private key for signing operations
 - `-b, --bunker <url>`: NIP-46 bunker URL for signing
-- `--nbunksec <nbunksec>`: nbunksec string for authentication
+- `--sec <nbunksec>`: nbunksec string for authentication
 - `-c, --cache-dir <dir>`: Directory to cache downloaded files
 - `--no-open`: Don't automatically open browser
 

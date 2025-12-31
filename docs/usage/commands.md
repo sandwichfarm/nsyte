@@ -53,7 +53,7 @@ Many commands support these authentication options:
 
 - `-k, --privatekey <nsec>` — Private key (nsec/hex) for signing
 - `-b, --bunker <url>` — NIP-46 bunker URL for signing
-- `--nbunksec <nbunksec>` — NIP-46 bunker encoded as nbunksec
+- `--sec <nbunksec>` — NIP-46 bunker encoded as nbunksec
 
 ## Configuration
 
@@ -135,7 +135,7 @@ nsyte purge --paths "*.old" --include-blobs
 nsyte ci
 
 # Use in CI pipeline
-nsyte deploy ./dist --nbunksec $NSYTE_NBUNKSEC
+nsyte deploy ./dist --sec $NSYTE_NBUNKSEC
 ```
 
 ## See Also

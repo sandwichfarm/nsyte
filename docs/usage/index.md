@@ -179,7 +179,7 @@ nsyte ci
 3. Use in your pipeline:
 
 ```bash
-nsyte deploy ./dist --nbunksec $NBUNK_SECRET
+nsyte deploy ./dist --sec $NBUNK_SECRET
 ```
 
 ## Next Steps

@@ -22,7 +22,7 @@ nsyte purge [options]
 - `--yes`: Skip confirmation prompts (non-interactive mode)
 - `--relays <relays>`: Override relays to use (comma-separated)
 - `--servers <servers>`: Override blossom servers to use (comma-separated)
-- `--nbunksec <string>`: nbunksec string for authentication
+- `--sec <string>`: nbunksec string for authentication
 - `--help`: Show help information
 
 ## Examples
@@ -149,7 +149,7 @@ The purge command requires authentication to:
 
 Authentication options (in order of precedence):
 
-1. `--nbunksec` command line option
+1. `--sec` command line option
 2. Configured bunker in project
 3. Private key in project configuration
 

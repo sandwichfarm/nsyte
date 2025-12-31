@@ -21,7 +21,7 @@ nsyte browse [options]
 - `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing delete operations
 - `-p, --pubkey <npub>` — The public key to browse files for (if not using private key)
 - `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--nbunksec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
 
 ## Examples
 
@@ -90,7 +90,7 @@ Delete operations require authentication. The browse command supports:
 
 1. **Private key** — Use `--privatekey` with an nsec or hex key
 2. **Bunker** — Use `--bunker` with a bunker URL
-3. **nbunksec** — Use `--nbunksec` with an encoded bunker secret
+3. **nbunksec** — Use `--sec` with an encoded bunker secret
 4. **Project config** — Uses authentication from `.nsite/config.json`
 5. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to
    delete

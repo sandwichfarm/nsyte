@@ -22,7 +22,7 @@ nsyte deploy <folder> [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
 - `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
 - `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--nbunksec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
 - `-p, --purge` — Delete online file events that are not used anymore (default: false)
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
@@ -83,7 +83,7 @@ through:
 
 1. **Private key**: Use `--privatekey` with an nsec or hex key
 2. **Bunker**: Use `--bunker` with a bunker URL
-3. **nbunksec**: Use `--nbunksec` with an encoded bunker secret
+3. **nbunksec**: Use `--sec` with an encoded bunker secret
 4. **Project config**: If configured during `nsyte init`
 
 ## Performance

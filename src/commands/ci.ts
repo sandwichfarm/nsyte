@@ -33,7 +33,7 @@ export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
     // The connectBunker function with noPersist=true will display the nbunksec
     // and additional usage instructions
     console.log(colors.cyan("\nUsage in CI/CD:"));
-    console.log("  nsyte upload ./dist --nbunksec ${NBUNK_SECRET}");
+    console.log("  nsyte upload ./dist --sec ${NBUNK_SECRET}");
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Error creating nbunksec: ${errorMessage}`);
