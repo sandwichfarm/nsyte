@@ -1,6 +1,11 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Secret, Select } from "@cliffy/prompt";
-import { type Nip07Interface, type NostrConnectSigner, SimpleSigner } from "applesauce-signers";
+import {
+  type Nip07Interface,
+  type NostrConnectSigner,
+  PrivateKeySigner,
+  SimpleSigner,
+} from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { defaultConfig, type ProjectConfig, readProjectFile } from "./config.ts";
 import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
@@ -187,7 +192,7 @@ async function interactiveKeySelection(): Promise<string | undefined> {
   });
 
   let pubkey: string | undefined;
-  let signer: SimpleSigner | NostrConnectSigner | undefined;
+  let signer: PrivateKeySigner | NostrConnectSigner | undefined;
 
   switch (keyChoice) {
     case "generate": {

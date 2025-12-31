@@ -7,16 +7,13 @@ import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { bech32 } from "@scure/base";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
+import { pool } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, pool } from "./nostr.ts";
-import { BLOSSOM_SERVER_LIST_KIND, kinds } from "applesauce-core/helpers";
 
 const log = createLogger("nip46");
 
 export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
-  kinds.Metadata,
-  kinds.RelayList,
-  BLOSSOM_SERVER_LIST_KIND,
   24242, // Blossom authorization kind
   31990, // NIP-89 handler announcement
   NSITE_ROOT_SITE_KIND, // NIP-XX root site manifest

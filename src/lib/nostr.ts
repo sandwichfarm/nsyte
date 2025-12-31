@@ -1,16 +1,20 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { encodeHex } from "@std/encoding/hex";
-import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { BLOSSOM_SERVER_LIST_KIND, getBlossomServersFromList } from "applesauce-common/helpers";
+import { EventStore, mapEventsToStore, simpleTimeout } from "applesauce-core";
+import { buildEvent } from "applesauce-core/event-factory";
 import {
-  BLOSSOM_SERVER_LIST_KIND,
   type EventTemplate,
   type Filter,
-  getBlossomServersFromList,
+  getOutboxes,
+  getSeenRelays,
   getTagValue,
   kinds,
-  mergeBlossomServers,
   type NostrEvent,
+  relaySet,
+  unixNow,
 } from "applesauce-core/helpers";
+import { setDeleteEvents } from "applesauce-core/operations/delete";
 import { RelayPool } from "applesauce-relay/pool";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { lastValueFrom, timer } from "rxjs";
@@ -18,14 +22,10 @@ import { takeUntil } from "rxjs/operators";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
+import { type FilePathMapping, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
 import type { ByteArray } from "./types.ts";
-import { extractRelaysFromEvent } from "./utils.ts";
 
 const log = createLogger("nostr");
-
-// Constants for nsite nsite manifest kinds
-export const NSITE_ROOT_SITE_KIND = 15128;
-export const NSITE_NAME_SITE_KIND = 35128;
 
 // Create a global relay pool for connections
 export const pool = new RelayPool();
@@ -34,20 +34,6 @@ export const pool = new RelayPool();
 export const store = new EventStore();
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
-
-/**
- * Profile interface for nostr profiles
- */
-export interface Profile {
-  name?: string;
-  about?: string;
-  picture?: string;
-  display_name?: string;
-  website?: string;
-  nip05?: string;
-  lud16?: string;
-  banner?: string;
-}
 
 /**
  * File entry interface
@@ -81,14 +67,6 @@ export interface SiteManifestMetadata {
   description?: string;
   servers?: string[];
   relays?: string[];
-}
-
-/**
- * File path mapping for site manifest
- */
-export interface FilePathMapping {
-  path: string;
-  sha256: string;
 }
 
 /**
@@ -143,70 +121,111 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
 export { getTagValue };
 
 /**
- * Fetch site manifest events from nostr relays
+ * Fetches the latest site manifest event for the given pubkey and identifier
  * @param relays - Relays to query (will be merged with kind 10002 discovered relays)
  * @param pubkey - Public key of the site owner
- * @param siteIdentifier - Optional site identifier for named sites. If not provided, fetches root site (kind 15128) and all named sites (kind 35128)
+ * @param identifier - Optional site identifier for named sites. If not provided, fetches root site (kind 15128) and all named sites (kind 35128)
  */
-export async function fetchSiteManifestEvents(
+export async function fetchSiteManifestEvent(
   relays: string[],
   pubkey: string,
-  siteIdentifier?: string,
-): Promise<NostrEvent[]> {
+  identifier?: string,
+): Promise<NostrEvent | null> {
   // First, fetch kind 10002 to get user's preferred relays
-  const mergedRelays = await resolveRelaysWithKind10002(pubkey, relays);
+  relays = relaySet(relays, await getUserOutboxes(pubkey));
 
   log.debug(
-    `Fetching site manifest events for ${pubkey} from ${mergedRelays.join(", ")}${
-      siteIdentifier ? ` (site: ${siteIdentifier})` : ""
+    `Fetching site manifest events for ${pubkey} from ${relays.join(", ")}${
+      identifier ? ` (site: ${identifier})` : ""
     }`,
   );
+
   // Keep timeouts reasonable to avoid long waits
   const REQUEST_TIMEOUT_MS = 12000;
 
-  try {
-    // Create tmp event store to deduplicate events
-    const store = new EventStore();
-
-    // Build filter based on whether we're fetching a specific named site or all sites
-    const filter: Filter = {
-      kinds: siteIdentifier ? [NSITE_NAME_SITE_KIND] : [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+  // Build filter based on whether we're fetching a specific named site or all sites
+  const filter: Filter = identifier
+    ? {
+      // Search for named site manifest event
+      kinds: [NSITE_NAME_SITE_KIND],
+      authors: [pubkey],
+      "#d": [identifier],
+    }
+    : {
+      // Search for root site manifest event
+      kinds: [NSITE_ROOT_SITE_KIND],
       authors: [pubkey],
     };
 
-    // Add d tag filter for named sites
-    if (siteIdentifier) {
-      filter["#d"] = [siteIdentifier];
-    }
-
-    const events = await lastValueFrom(
+  try {
+    // Fetch the site manifest event from relays
+    await lastValueFrom(
       pool
-        .request(mergedRelays, filter)
+        .request(relays, filter)
         .pipe(
           simpleTimeout(7000),
           mapEventsToStore(store),
-          mapEventsToTimeline(),
           takeUntil(timer(REQUEST_TIMEOUT_MS)), // Force completion even if a relay never sends EOSE
         ),
-      { defaultValue: [] },
+      { defaultValue: null },
     );
-    return events;
+
+    const event = store.getReplaceable(
+      identifier ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
+      pubkey,
+      identifier,
+    );
+
+    if (!event) {
+      log.warn(
+        `No site manifest event found for ${pubkey} from ${relays.join(", ")}${
+          identifier ? ` (site: ${identifier})` : ""
+        }`,
+      );
+    }
+
+    return event ?? null;
   } catch (error) {
     log.error(`Error fetching manifest events: ${getErrorMessage(error)}`);
-    return [];
+    return null;
   }
 }
 
+/** Get the site manifest event from the store or fetch it from the relays */
+export async function getSiteManifestEvent(
+  relays: string[],
+  pubkey: string,
+  identifier?: string,
+): Promise<NostrEvent | null> {
+  const existing = store.getReplaceable(
+    identifier ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
+    pubkey,
+    identifier,
+  );
+  if (existing) return existing;
+
+  return await fetchSiteManifestEvent(relays, pubkey, identifier);
+}
+
 /** Fetch profile event (kind 0) from nostr relays */
-export async function fetchProfileEvent(
+export async function getUserProfile(
   relays: string[],
   pubkey: string,
 ): Promise<NostrEvent | null> {
-  log.debug(`Fetching profile for ${pubkey} from ${relays.join(", ")}`);
-
   try {
-    const store = new EventStore();
-    const events = await lastValueFrom(
+    const existing = store.getReplaceable(kinds.Metadata, pubkey);
+    if (existing) return existing;
+
+    log.debug(`Fetching profile for ${pubkey} from ${relays.join(", ")}`);
+
+    // Always check the lookup relays
+    relays = relaySet(relays, RELAY_DISCOVERY_RELAYS);
+
+    // Fetch from the users outboxes
+    relays = relaySet(relays, await getUserOutboxes(pubkey));
+
+    // Fetch profile event from relays
+    await lastValueFrom(
       pool
         .request(relays, {
           kinds: [0],
@@ -215,11 +234,12 @@ export async function fetchProfileEvent(
         .pipe(
           simpleTimeout(5000),
           mapEventsToStore(store),
-          mapEventsToTimeline(),
         ),
-      { defaultValue: [] },
+      { defaultValue: null },
     );
-    return events.length > 0 ? events[0] : null;
+
+    const event = store.getReplaceable(kinds.Metadata, pubkey);
+    return event ?? null;
   } catch (error) {
     log.error(`Error fetching profile: ${getErrorMessage(error)}`);
     return null;
@@ -227,7 +247,7 @@ export async function fetchProfileEvent(
 }
 
 /** Fetch relay list event (kind 10002) from nostr relays */
-export async function fetchRelayListEvent(
+export async function fetchUserRelayList(
   relays: string[],
   pubkey: string,
 ): Promise<NostrEvent | null> {
@@ -264,30 +284,22 @@ export async function fetchRelayListEvent(
  * @param providedRelays - Relays provided by user/config
  * @returns Merged list of discovered and provided relays (deduplicated)
  */
-export async function resolveRelaysWithKind10002(
+export async function getUserOutboxes(
   pubkey: string,
-  providedRelays: string[],
 ): Promise<string[]> {
-  log.debug(`Resolving relays with kind 10002 for ${pubkey}`);
+  const existing = store.getReplaceable(kinds.RelayList, pubkey);
+  if (existing) return getOutboxes(existing);
 
   // Fetch kind 10002 using discovery relays
-  const relayListEvent = await fetchRelayListEvent(RELAY_DISCOVERY_RELAYS, pubkey);
-  const discoveredRelays = extractRelaysFromEvent(relayListEvent);
-
-  if (discoveredRelays.length > 0) {
-    log.debug(`Discovered ${discoveredRelays.length} relays from kind 10002`);
+  const mailboxes = await fetchUserRelayList(RELAY_DISCOVERY_RELAYS, pubkey);
+  if (!mailboxes) {
+    log.warn(`No mailboxes found for ${pubkey}`);
+    return [];
   }
 
-  // Merge discovered relays with provided relays (deduplicated)
-  const mergedRelays = Array.from(new Set([...discoveredRelays, ...providedRelays]));
-
-  if (mergedRelays.length > providedRelays.length) {
-    log.debug(
-      `Merged ${mergedRelays.length} total relays (${discoveredRelays.length} discovered + ${providedRelays.length} provided)`,
-    );
-  }
-
-  return mergedRelays;
+  const outboxes = getOutboxes(mailboxes);
+  log.debug(`Found ${outboxes.length} outboxes for ${pubkey}`);
+  return outboxes;
 }
 
 /**
@@ -297,13 +309,13 @@ export async function resolveRelaysWithKind10002(
  * @param discoveryRelays - Relays to use for fetching kind 10063 (defaults to RELAY_DISCOVERY_RELAYS)
  * @returns Merged list of discovered and provided servers (deduplicated)
  */
-export async function resolveServersWithKind10063(
+export async function fetchUserServers(
   pubkey: string,
-  providedServers: string[],
   discoveryRelays: string[] = RELAY_DISCOVERY_RELAYS,
 ): Promise<string[]> {
+  log.debug(`Fetching server list for ${pubkey}`);
+
   try {
-    log.debug(`Fetching server list for ${pubkey}`);
     await lastValueFrom(
       pool
         .request(discoveryRelays, {
@@ -321,30 +333,29 @@ export async function resolveServersWithKind10063(
 
     // Get the latest server list
     const list = store.getReplaceable(BLOSSOM_SERVER_LIST_KIND, pubkey);
-    const discoveredServers = list ? getBlossomServersFromList(list) : [];
+    if (!list) log.warn(`No server list found for ${pubkey}`);
 
-    if (discoveredServers.length > 0) {
-      log.debug(`Found ${discoveredServers.length} servers in user's server list`);
-    }
-
-    // Merge discovered servers with provided servers (deduplicated)
-    const servers = mergeBlossomServers(
-      discoveredServers,
-      providedServers.map((url) => new URL(url)),
-    );
-
-    if (servers.length > providedServers.length) {
-      log.debug(
-        `Merged ${servers.length} total servers (${discoveredServers.length} discovered + ${providedServers.length} provided)`,
-      );
+    const servers = list ? getBlossomServersFromList(list) : [];
+    if (servers.length > 0) {
+      log.debug(`Found ${servers.length} servers in user's server list`);
     }
 
     return servers.map((server) => server.toString());
   } catch (error) {
     log.error(`Error fetching server list: ${getErrorMessage(error)}`);
     // Return provided servers if fetch fails
-    return providedServers;
+    return [];
   }
+}
+
+/** Get the user's servers from the store or fetch them from the relays */
+export async function getUserServers(
+  pubkey: string,
+): Promise<string[]> {
+  const existing = store.getReplaceable(BLOSSOM_SERVER_LIST_KIND, pubkey);
+  if (existing) return getBlossomServersFromList(existing).map((server) => server.toString());
+
+  return await fetchUserServers(pubkey);
 }
 
 /** Get a list of remote files for a user from site manifest events */
@@ -353,10 +364,10 @@ export async function listRemoteFiles(
   pubkey: string,
   siteIdentifier?: string,
 ): Promise<FileEntry[]> {
-  const manifestEvents = await fetchSiteManifestEvents(relays, pubkey, siteIdentifier);
-  const now = Math.floor(Date.now() / 1000);
+  const manifestEvent = await fetchSiteManifestEvent(relays, pubkey, siteIdentifier);
+  const now = unixNow();
 
-  if (manifestEvents.length === 0) {
+  if (!manifestEvent) {
     log.warn(`No site manifest events found for user ${pubkey} from any relays`);
     log.info("This could mean one of these things:");
     log.info("1. This is the first time you're uploading files for this user");
@@ -370,25 +381,22 @@ export async function listRemoteFiles(
 
   const fileEntries: FileEntry[] = [];
 
-  // Parse path tags from each manifest event
-  for (const manifestEvent of manifestEvents) {
-    // Extract all path tags from the manifest
-    const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+  // Extract all path tags from the manifest
+  const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
 
-    for (const pathTag of pathTags) {
-      // Path tag format: ["path", "/absolute/path", "sha256hash"]
-      if (pathTag.length >= 3) {
-        const path = pathTag[1];
-        const sha256 = pathTag[2];
+  for (const pathTag of pathTags) {
+    // Path tag format: ["path", "/absolute/path", "sha256hash"]
+    if (pathTag.length >= 3) {
+      const path = pathTag[1];
+      const sha256 = pathTag[2];
 
-        if (path && sha256) {
-          fileEntries.push({
-            path,
-            sha256,
-            event: manifestEvent,
-            size: 0,
-          });
-        }
+      if (path && sha256) {
+        fileEntries.push({
+          path,
+          sha256,
+          event: manifestEvent,
+          size: 0,
+        });
       }
     }
   }
@@ -416,7 +424,7 @@ export async function listRemoteFiles(
   }, [] as FileEntry[]);
 
   log.info(
-    `Found ${uniqueFiles.length} unique remote files for user ${pubkey} from ${manifestEvents.length} manifest event(s)`,
+    `Found ${uniqueFiles.length} unique remote files for user ${pubkey}`,
   );
 
   if (uniqueFiles.length > 0) {
@@ -445,30 +453,20 @@ export async function listRemoteFilesWithSources(
   pubkey: string,
 ): Promise<FileEntryWithSources[]> {
   // Fetch manifest events from all relays (including discovered ones via kind 10002)
-  const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
+  const manifest = await fetchSiteManifestEvent(relays, pubkey);
 
-  if (manifestEvents.length === 0) {
+  if (!manifest) {
     log.warn(`No manifest events found for user ${pubkey} from any relays`);
-    return [];
-  }
-
-  // Find the latest manifest event by created_at timestamp
-  const sortedEvents = [...manifestEvents].sort((a, b) => b.created_at - a.created_at);
-  const latestManifestEvent = sortedEvents[0];
-
-  if (!latestManifestEvent) {
-    log.warn(`No valid manifest event found for user ${pubkey}`);
     return [];
   }
 
   // Get all relays that were used to fetch the manifest events
   // fetchSiteManifestEvents already merges discovered relays via resolveRelaysWithKind10002
-  const mergedRelays = await resolveRelaysWithKind10002(pubkey, relays);
-  const relaySet = new Set(mergedRelays);
+  relays = relaySet(relays, await getUserOutboxes(pubkey));
 
   // Extract files only from the latest manifest event
   const fileEntries: FileEntryWithSources[] = [];
-  const pathTags = latestManifestEvent.tags.filter((tag) => tag[0] === "path");
+  const pathTags = manifest.tags.filter((tag) => tag[0] === "path");
 
   for (const pathTag of pathTags) {
     // Path tag format: ["path", "/absolute/path", "sha256hash"]
@@ -480,9 +478,9 @@ export async function listRemoteFilesWithSources(
         fileEntries.push({
           path,
           sha256,
-          eventId: latestManifestEvent.id,
-          event: latestManifestEvent,
-          foundOnRelays: Array.from(relaySet),
+          eventId: manifest.id,
+          event: manifest,
+          foundOnRelays: Array.from(getSeenRelays(manifest) ?? []),
           availableOnServers: [],
         });
       }
@@ -550,26 +548,9 @@ export async function createSiteManifestEvent(
   const eventTemplate = {
     kind,
     pubkey: pubkey,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: unixNow(),
     tags,
     content: "",
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
-/**
- * Create a profile event (NIP-01)
- */
-export async function createProfileEvent(
-  signer: ISigner,
-  profile: Profile,
-): Promise<NostrEvent> {
-  const eventTemplate = {
-    kind: 0,
-    created_at: Math.floor(Date.now() / 1000),
-    tags: [["client", "nsyte"]],
-    content: JSON.stringify(profile),
   };
 
   return await signer.signEvent(eventTemplate);
@@ -580,17 +561,13 @@ export async function createDeleteEvent(
   signer: ISigner,
   eventIds: string[],
 ): Promise<NostrEvent> {
-  const tags = eventIds.map((id) => ["e", id]);
-  tags.push(["client", "nsyte"]);
+  const draft = await buildEvent(
+    { kind: kinds.EventDeletion },
+    { client: { name: "nsyte" } },
+    setDeleteEvents(eventIds),
+  );
 
-  const eventTemplate: NostrEventTemplate = {
-    kind: 5,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: "Deleted by nsyte-cli",
-  };
-
-  return await signer.signEvent(eventTemplate);
+  return await signer.signEvent(draft);
 }
 
 /**
@@ -667,7 +644,7 @@ export async function createAppHandlerEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31990,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: unixNow(),
     tags,
     content,
   };
@@ -700,7 +677,7 @@ export async function createAppRecommendationEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31989,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: unixNow(),
     tags,
     content: "",
   };

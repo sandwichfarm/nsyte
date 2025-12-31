@@ -5,7 +5,8 @@ description: Validate nsyte configuration file against the JSON schema
 
 # `nsyte validate`
 
-Validate the nsyte configuration file against the official JSON schema to ensure it's properly formatted and contains valid values.
+Validate the nsyte configuration file against the official JSON schema to ensure it's properly
+formatted and contains valid values.
 
 ## Usage
 
@@ -48,21 +49,25 @@ This displays the URL of the JSON schema used for validation.
 The validate command checks your configuration against the official JSON schema, ensuring:
 
 ### Required Fields
+
 - All required configuration properties are present
 - Field types match the expected types (string, number, boolean, array, object)
 
 ### Field Formats
+
 - **URLs**: Relay and server URLs are properly formatted
 - **Event Kinds**: App handler kinds are valid integers (0-65535)
 - **File Paths**: Fallback paths are valid
 - **Email Addresses**: Profile email fields are valid (if present)
 
 ### Value Constraints
+
 - **Arrays**: Have appropriate minimum/maximum lengths
 - **Strings**: Meet length requirements and format patterns
 - **Numbers**: Are within valid ranges
 
 ### Optional Fields
+
 - Profile information (name, about, picture, etc.)
 - App handler configuration
 - Publication settings (publishServerList, publishRelayList, etc.)
@@ -71,6 +76,7 @@ The validate command checks your configuration against the official JSON schema,
 ## Configuration Schema
 
 The configuration uses the JSON schema available at:
+
 ```
 https://nsyte.run/schemas/config.schema.json
 ```
@@ -123,6 +129,7 @@ You can add this to your configuration file for editor support:
 ## Common Validation Errors
 
 ### Invalid URL Format
+
 ```
 Error: "relays[0]" must be a valid WebSocket URL
 ```
@@ -130,6 +137,7 @@ Error: "relays[0]" must be a valid WebSocket URL
 **Fix**: Ensure relay URLs start with `wss://` or `ws://`
 
 ### Invalid Event Kind
+
 ```
 Error: "appHandler.kinds[0]" must be between 0 and 65535
 ```
@@ -137,6 +145,7 @@ Error: "appHandler.kinds[0]" must be between 0 and 65535
 **Fix**: Use valid event kind numbers within the allowed range
 
 ### Missing Required Field
+
 ```
 Error: "bunkerPubkey" is required when using bunker authentication
 ```
@@ -144,6 +153,7 @@ Error: "bunkerPubkey" is required when using bunker authentication
 **Fix**: Add the required field or use a different authentication method
 
 ### Invalid Type
+
 ```
 Error: "publishServerList" must be a boolean
 ```

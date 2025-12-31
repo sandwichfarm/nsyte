@@ -1,11 +1,11 @@
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import type { NostrEvent } from "applesauce-core/helpers";
+import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom } from "rxjs";
 import type { FileEntryWithSources } from "./nostr.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
 import { fetchServerListEvents } from "./debug-helpers.ts";
 import { createLogger } from "./logger.ts";
-import { pool, resolveRelaysWithKind10002 } from "./nostr.ts";
+import { getUserOutboxes, pool } from "./nostr.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 
 const log = createLogger("browse-loader");
@@ -38,7 +38,7 @@ export async function listRemoteFilesWithProgress(
 ): Promise<FileEntryWithSources[]> {
   // First, fetch kind 10002 to get user's preferred relays
   renderLoadingScreen("Discovering user relays...", "Fetching kind 10002");
-  const mergedRelays = await resolveRelaysWithKind10002(pubkey, relays);
+  const mergedRelays = relaySet(relays, await getUserOutboxes(pubkey));
 
   const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
   let completedRelays = 0;

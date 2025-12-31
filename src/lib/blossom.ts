@@ -25,7 +25,7 @@ async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<str
   log.debug(`Signing delete auth event for blob ${blobSha256}`);
   const authEvent = await signer.signEvent(authTemplate);
   log.debug(`Delete auth event signed successfully for blob ${blobSha256}`);
-  
+
   const encodedEvent = encodeBase64(JSON.stringify(authEvent));
   return `Nostr ${encodedEvent}`;
 }
@@ -37,12 +37,12 @@ async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<str
 export async function deleteBlob(
   server: string,
   blobSha256: string,
-  signer: Signer
+  signer: Signer,
 ): Promise<boolean> {
   try {
     log.debug(`Starting delete operation for blob ${blobSha256} on server ${server}`);
     const authHeader = await createDeleteAuth(blobSha256, signer);
-    
+
     log.debug(`Sending DELETE request to ${server}/${blobSha256}`);
     const response = await fetch(`${server}/${blobSha256}`, {
       method: "DELETE",
@@ -52,7 +52,7 @@ export async function deleteBlob(
     });
 
     log.debug(`DELETE request completed with status ${response.status}`);
-    
+
     if (response.ok) {
       log.info(`Successfully deleted ${blobSha256} from ${server}`);
       return true;

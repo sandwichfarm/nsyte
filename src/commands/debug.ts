@@ -13,7 +13,7 @@ import {
   fetchServerListEvents,
 } from "../lib/debug-helpers.ts";
 import { createLogger } from "../lib/logger.ts";
-import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/nostr.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 
 const logger = createLogger("debug");
 

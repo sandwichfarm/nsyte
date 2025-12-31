@@ -37,7 +37,7 @@ async function checkSecretService(): Promise<boolean> {
       stderr: "piped",
     });
     const result = await process.output();
-    
+
     if (result.code === 0 || result.code === 1) {
       console.log("✓ Secret Service is accessible");
       return true;
@@ -180,27 +180,27 @@ async function testSecretOperations(): Promise<void> {
 
 async function checkNsyteIntegration(): Promise<void> {
   console.log("\nChecking nsyte keychain integration:");
-  
+
   try {
     const { getKeychainProvider } = await import("../src/lib/secrets/keychain.ts");
     const provider = await getKeychainProvider();
-    
+
     if (provider) {
       console.log("✓ nsyte keychain provider initialized");
-      
+
       const testCred = {
         service: "nsyte",
         account: "npub-test",
         password: "nbunksec-test",
       };
-      
+
       console.log("Testing nsyte keychain operations:");
       const stored = await provider.store(testCred);
       console.log(`  Store: ${stored ? "✓" : "✗"}`);
-      
+
       const retrieved = await provider.retrieve(testCred.service, testCred.account);
       console.log(`  Retrieve: ${retrieved === testCred.password ? "✓" : "✗"}`);
-      
+
       const deleted = await provider.delete(testCred.service, testCred.account);
       console.log(`  Delete: ${deleted ? "✓" : "✗"}`);
     } else {
@@ -222,7 +222,7 @@ async function main() {
   console.log(`  Session: ${Deno.env.get("XDG_SESSION_TYPE") || "Unknown"}`);
 
   console.log("\nChecking prerequisites:");
-  
+
   const hasSecretTool = await checkCommand("secret-tool");
   if (!hasSecretTool) {
     console.log("\nInstall secret-tool with:");

@@ -1,10 +1,11 @@
+import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import type { NostrEvent } from "applesauce-core/helpers";
 import type { RelayPool } from "applesauce-relay/pool";
 import { lastValueFrom, timer } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { createLogger } from "./logger.ts";
-import { BLOSSOM_SERVER_LIST_KIND, type NostrEvent } from "applesauce-core/helpers";
-import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./nostr.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
 
 const logger = createLogger("debug-helpers");
 

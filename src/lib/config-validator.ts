@@ -27,10 +27,10 @@ function createValidator() {
     strictSchema: true,
     addUsedSchema: false,
   });
-  
+
   // Add format validators for uri, hostname, etc.
   addFormatsFunction(ajv);
-  
+
   return ajv;
 }
 
@@ -40,18 +40,18 @@ function createValidator() {
 export function validateConfig(config: unknown): ValidationResult {
   const ajv = createValidator();
   const validate = ajv.compile(configSchema);
-  
+
   const valid = validate(config);
-  
+
   if (!valid && validate.errors) {
     const errors: ValidationError[] = validate.errors.map((err: any) => ({
       path: err.instancePath || "/",
       message: err.message || "Unknown validation error",
     }));
-    
+
     return { valid: false, errors };
   }
-  
+
   return { valid: true, errors: [] };
 }
 
@@ -60,7 +60,7 @@ export function validateConfig(config: unknown): ValidationResult {
  */
 export function formatValidationErrors(errors: ValidationError[]): string {
   return errors
-    .map(err => `  - ${err.path}: ${err.message}`)
+    .map((err) => `  - ${err.path}: ${err.message}`)
     .join("\n");
 }
 
@@ -69,13 +69,13 @@ export function formatValidationErrors(errors: ValidationError[]): string {
  */
 export function checkDeprecatedFields(config: any): string[] {
   const warnings: string[] = [];
-  
+
   // Add deprecation checks here as needed in the future
   // Example:
   // if (config.oldFieldName) {
   //   warnings.push("'oldFieldName' is deprecated, use 'newFieldName' instead");
   // }
-  
+
   return warnings;
 }
 
@@ -84,23 +84,23 @@ export function checkDeprecatedFields(config: any): string[] {
  */
 export function suggestConfigFixes(errors: ValidationError[]): string[] {
   const suggestions: string[] = [];
-  
+
   for (const error of errors) {
     // Relay URL format
     if (error.path.includes("/relays/") && error.message.includes("pattern")) {
       suggestions.push("Relay URLs must start with 'wss://' or 'ws://'");
     }
-    
+
     // Server URL format
     if (error.path.includes("/servers/") && error.message.includes("pattern")) {
       suggestions.push("Server URLs must start with 'https://' or 'http://'");
     }
-    
+
     // Bunker pubkey format
     if (error.path === "/bunkerPubkey" && error.message.includes("pattern")) {
       suggestions.push("Bunker public key must be a 64-character hex string");
     }
-    
+
     // Missing required fields
     if (error.message.includes("must have required property")) {
       const field = error.message.match(/'([^']+)'/)?.[1];
@@ -110,18 +110,21 @@ export function suggestConfigFixes(errors: ValidationError[]): string[] {
         suggestions.push("Add at least one Blossom server URL to the 'servers' array");
       }
     }
-    
+
     // Platform enum values
     if (error.path.includes("/platforms/") && error.message.includes("must be equal to one of")) {
       suggestions.push("Valid platforms are: web, linux, windows, macos, android, ios");
     }
-    
+
     // Event kinds range
-    if (error.path.includes("/kinds/") && (error.message.includes("must be <=") || error.message.includes("must be >="))) {
+    if (
+      error.path.includes("/kinds/") &&
+      (error.message.includes("must be <=") || error.message.includes("must be >="))
+    ) {
       suggestions.push("Event kinds must be between 0 and 65535");
     }
   }
-  
+
   return [...new Set(suggestions)]; // Remove duplicates
 }
 
@@ -137,7 +140,7 @@ export function validateConfigWithFeedback(config: unknown): {
   const result = validateConfig(config);
   const warnings = checkDeprecatedFields(config);
   const suggestions = result.valid ? [] : suggestConfigFixes(result.errors);
-  
+
   return {
     valid: result.valid,
     errors: result.errors,

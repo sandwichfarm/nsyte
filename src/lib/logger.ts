@@ -14,7 +14,7 @@ let logFileHandle: Deno.FsFile | null = null;
 if (FILE_LOGGING_ENABLED) {
   const tempDir = Deno.env.get("TMPDIR") || Deno.env.get("TMP") || Deno.env.get("TEMP") || "/tmp";
   logFile = join(tempDir, "nsyte.log");
-  
+
   try {
     // Create or truncate the log file
     logFileHandle = await Deno.open(logFile, {
@@ -22,10 +22,11 @@ if (FILE_LOGGING_ENABLED) {
       write: true,
       truncate: true,
     });
-    
+
     // Write initial log entry
     const timestamp = new Date().toISOString();
-    const initialMessage = `${timestamp} [INFO] logger: Debug logging enabled - writing to ${logFile}\n`;
+    const initialMessage =
+      `${timestamp} [INFO] logger: Debug logging enabled - writing to ${logFile}\n`;
     await logFileHandle.write(new TextEncoder().encode(initialMessage));
     console.log(colors.gray(`Debug logging enabled - writing to ${logFile}`));
   } catch (error) {
@@ -40,7 +41,7 @@ if (FILE_LOGGING_ENABLED) {
  */
 async function writeToLogFile(level: string, namespace: string, message: string): Promise<void> {
   if (!logFileHandle || !logFile) return;
-  
+
   try {
     const timestamp = new Date().toISOString();
     const logEntry = `${timestamp} [${level.toUpperCase()}] ${namespace}: ${message}\n`;
@@ -141,7 +142,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("debug")) {
         // Always write debug messages to file if file logging is enabled
         writeToLogFile("debug", namespace, message);
-        
+
         if (shouldShowLog("debug")) {
           console.log(formatLogMessage("debug", namespace, message));
         }
@@ -152,7 +153,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("info")) {
         // Always write to file if file logging is enabled
         writeToLogFile("info", namespace, message);
-        
+
         if (inProgressMode) {
           queuedLogs.push({ level: "info", namespace, message });
         } else if (shouldShowLog("info")) {
@@ -165,7 +166,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("warn")) {
         // Always write to file if file logging is enabled
         writeToLogFile("warn", namespace, message);
-        
+
         if (inProgressMode) {
           queuedLogs.push({ level: "warn", namespace, message });
         } else if (shouldShowLog("warn")) {
@@ -178,7 +179,7 @@ export function createLogger(namespace: string) {
       if (shouldLog("error")) {
         // Always write to file if file logging is enabled
         writeToLogFile("error", namespace, message);
-        
+
         if (inProgressMode) {
           queuedLogs.push({ level: "error", namespace, message });
         } else if (shouldShowLog("error")) {
@@ -190,7 +191,7 @@ export function createLogger(namespace: string) {
     success(message: string): void {
       // Always write to file if file logging is enabled
       writeToLogFile("success", namespace, message);
-      
+
       if (shouldShowLog("success")) {
         console.log(formatLogMessage("success", namespace, message));
       }

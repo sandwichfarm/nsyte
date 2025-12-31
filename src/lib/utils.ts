@@ -22,22 +22,6 @@ export function createGroupedCommand(
 }
 
 /**
- * Extract relay URLs from a nostr event's tags
- * @param event - The nostr event containing relay tags
- * @returns Array of relay URLs
- */
-export function extractRelaysFromEvent(event: NostrEvent | null): string[] {
-  if (!event) return [];
-  const relays: string[] = [];
-  for (const tag of event.tags) {
-    if (tag[0] === "r" && tag[1]) {
-      relays.push(tag[1]);
-    }
-  }
-  return relays;
-}
-
-/**
  * Extract server URLs from a nostr event's tags (for blossom server lists)
  * @param event - The nostr event containing server tags
  * @returns Array of server URLs

@@ -2,26 +2,25 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
-import { SimpleSigner } from "applesauce-signers/signers";
+import { npubEncode } from "applesauce-core/helpers";
+import { PrivateKeySigner } from "applesauce-signers/signers";
 import { readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
 import {
   createDeleteEvent,
   createNip46ClientFromUrl,
-  fetchSiteManifestEvents,
+  fetchSiteManifestEvent,
   publishEventsToRelays,
 } from "../lib/nostr.ts";
-import type { Signer } from "../lib/upload.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
-import { npubEncode } from "applesauce-core/helpers";
 
 const log = createLogger("purge");
 
 /**
  * Create a Blossom delete authorization for multiple blobs
  */
-async function createBlossomAuth(blobSha256s: string[], signer: Signer): Promise<string> {
+async function createBlossomAuth(blobSha256s: string[], signer: ISigner): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
 
   const tags: string[][] = [
@@ -49,7 +48,7 @@ async function createBlossomAuth(blobSha256s: string[], signer: Signer): Promise
 /**
  * Create a Blossom delete authorization for a single blob
  */
-async function createSingleBlossomAuth(blobSha256: string, signer: Signer): Promise<string> {
+async function createSingleBlossomAuth(blobSha256: string, signer: ISigner): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
 
   const authTemplate = {
@@ -159,7 +158,7 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
 
     // Fetch all site manifest events
     console.log(colors.cyan("\nFetching site manifest events..."));
-    const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
+    const manifestEvents = await fetchSiteManifestEvent(relays, pubkey);
 
     if (manifestEvents.length === 0) {
       console.log(colors.yellow("No site manifest events found to purge."));
@@ -507,7 +506,7 @@ async function initSigner(options: PurgeOptions, config: any): Promise<Signer | 
   if (options.privatekey) {
     try {
       log.info("Using private key from CLI for signing...");
-      return SimpleSigner.fromKey(options.privatekey);
+      return PrivateKeySigner.fromKey(options.privatekey);
     } catch (e) {
       log.error(`Invalid private key: ${e}`);
       return null;

@@ -6,9 +6,9 @@ import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { publishAppHandler } from "../lib/metadata/publisher.ts";
-import { fetchRelayListEvent } from "../lib/nostr.ts";
-import { extractRelaysFromEvent } from "../lib/utils.ts";
+import { fetchUserRelayList } from "../lib/nostr.ts";
 import { StatusDisplay } from "../ui/status.ts";
+import { getOutboxes } from "applesauce-core/helpers";
 
 const logger = createLogger("announce");
 
@@ -80,9 +80,9 @@ export function registerAnnounceCommand(program: Command): void {
         let discoveredRelayList: string[] = [];
         try {
           status.update("Discovering user relays...");
-          const relayListEvent = await fetchRelayListEvent(RELAY_DISCOVERY_RELAYS, pubkey);
+          const relayListEvent = await fetchUserRelayList(RELAY_DISCOVERY_RELAYS, pubkey);
           if (relayListEvent) {
-            discoveredRelayList = extractRelaysFromEvent(relayListEvent);
+            discoveredRelayList = getOutboxes(relayListEvent);
             logger.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
           }
         } catch (e) {

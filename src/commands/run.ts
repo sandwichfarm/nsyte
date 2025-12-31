@@ -3,32 +3,24 @@ import type { Command } from "@cliffy/command";
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 // Using Deno.serve instead of importing serve
-import {
-  BLOSSOM_SERVER_LIST_KIND,
-  decodePointer,
-  normalizeToPubkey,
-} from "applesauce-core/helpers";
-import { decompress as brotliDecompress } from "jsr:@nick/brotli@0.1.0";
+import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
+import { decodePointer, getOutboxes, normalizeToPubkey } from "applesauce-core/helpers";
+import { decompress as brotliDecompress } from "@nick/brotli";
 import { readProjectFile } from "../lib/config.ts";
-import { fetchServerListEvents } from "../lib/debug-helpers.ts";
 import { DownloadService } from "../lib/download.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
+import { getManifestServers } from "../lib/manifest.ts";
 import {
-  fetchProfileEvent,
-  fetchRelayListEvent,
-  fetchSiteManifestEvents,
+  fetchSiteManifestEvent,
+  fetchUserRelayList,
+  fetchUserServers,
   type FileEntry,
+  getUserProfile,
   listRemoteFiles,
-  pool,
 } from "../lib/nostr.ts";
 import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
 import type { ByteArray } from "../lib/types.ts";
-import {
-  extractRelaysFromEvent,
-  extractServersFromEvent,
-  extractServersFromManifestEvents,
-} from "../lib/utils.ts";
 
 const log = createLogger("run");
 
@@ -286,6 +278,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
 
       try {
         const pubkeyHex = normalizeToPubkey(npub);
+        if (!pubkeyHex) throw new Error(`Invalid npub format: ${npub}`);
         const requestedPath = url.pathname;
 
         // Update check endpoint
@@ -328,12 +321,12 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
 
           try {
             const [profile, relayList] = await Promise.all([
-              fetchProfileEvent(profileRelays, pubkeyHex),
-              fetchRelayListEvent(profileRelays, pubkeyHex),
+              getUserProfile(profileRelays, pubkeyHex),
+              fetchUserRelayList(profileRelays, pubkeyHex),
             ]);
 
             // Extract user's relays from relay list
-            const userRelays = extractRelaysFromEvent(relayList);
+            const userRelays = relayList ? getOutboxes(relayList) : [];
             if (userRelays.length > 0) {
               log.debug(
                 `Found ${userRelays.length} relays from user's relay list: ${
@@ -350,23 +343,20 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
 
             // First, try to get servers from manifest events (prioritized per NIP-XX)
             log.debug(
-              `Fetching site manifest events for ${pubkeyHex} from relays: ${
+              `Fetching site manifest event for ${pubkeyHex} from relays: ${
                 allServerListRelays.join(", ")
               }`,
             );
-            const manifestEvents = await fetchSiteManifestEvents(
+            const manifestEvent = await fetchSiteManifestEvent(
               allServerListRelays,
               pubkeyHex,
             );
 
-            if (manifestEvents.length > 0) {
-              // Sort by created_at descending (most recent first)
-              const sortedManifestEvents = [...manifestEvents].sort((a, b) =>
-                b.created_at - a.created_at
-              );
-              serverList = extractServersFromManifestEvents(sortedManifestEvents);
+            if (manifestEvent) {
+              const manifestServers = getManifestServers(manifestEvent);
+              serverList = manifestServers.map((url) => url.toString());
               if (serverList.length > 0) {
-                log.debug(`Found ${serverList.length} servers from manifest event(s)`);
+                log.debug(`Found ${serverList.length} servers from manifest event`);
                 console.log(colors.gray(`  → Found ${serverList.length} servers in manifest`));
               }
             }
@@ -378,16 +368,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                   allServerListRelays.join(", ")
                 }`,
               );
-              const serverListEvents = await fetchServerListEvents(
-                pool,
-                allServerListRelays,
-                pubkeyHex,
-              );
-
-              // fetchServerListEvents already sorts by created_at descending, so [0] is most recent
-              serverList = serverListEvents && serverListEvents.length > 0
-                ? extractServersFromEvent(serverListEvents[0])
-                : [];
+              serverList = await fetchUserServers(pubkeyHex, allServerListRelays);
 
               if (serverList.length > 0) {
                 log.debug(`Found ${serverList.length} servers from server list event (kind 10063)`);

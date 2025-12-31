@@ -9,7 +9,7 @@ import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
 import { createLogger } from "../lib/logger.ts";
-import { fetchSiteManifestEvents, pool } from "../lib/nostr.ts";
+import { fetchSiteManifestEvent, pool } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "../lib/utils.ts";
 import {
@@ -306,7 +306,7 @@ export async function command(options: any): Promise<void> {
       // Fire and forget - don't block
       (async () => {
         // First, try to get servers from manifest events (prioritized per NIP-XX)
-        const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
+        const manifestEvents = await fetchSiteManifestEvent(relays, pubkey);
         if (manifestEvents.length > 0) {
           // Sort by created_at descending (most recent first)
           const sortedManifestEvents = [...manifestEvents].sort((a, b) =>

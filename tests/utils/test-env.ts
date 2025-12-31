@@ -18,18 +18,18 @@ export interface TestEnvironment {
  */
 export async function createTestEnvironment(): Promise<TestEnvironment> {
   const originalCwd = Deno.cwd();
-  
+
   // Create a temporary directory for this test
   const tempDir = await Deno.makeTempDir({ prefix: "nsyte-test-" });
   const configDir = join(tempDir, ".nsite");
   const configFile = join(configDir, "config.json");
-  
+
   // Ensure the config directory exists
   await ensureDir(configDir);
-  
+
   // Change to the temp directory so config operations work correctly
   Deno.chdir(tempDir);
-  
+
   return {
     tempDir,
     configDir,
@@ -48,7 +48,7 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
           console.warn("Failed to change back to original directory");
         }
       }
-      
+
       // Clean up temporary directory
       try {
         await Deno.remove(tempDir, { recursive: true });
@@ -56,7 +56,7 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
         // Ignore cleanup errors in tests, but log them for debugging
         console.warn(`Failed to cleanup test directory ${tempDir}:`, error);
       }
-    }
+    },
   };
 }
 
@@ -64,7 +64,7 @@ export async function createTestEnvironment(): Promise<TestEnvironment> {
  * Test decorator that automatically sets up and tears down test environment
  */
 export function withTestEnvironment<T extends unknown[]>(
-  testFn: (env: TestEnvironment, ...args: T) => Promise<void> | void
+  testFn: (env: TestEnvironment, ...args: T) => Promise<void> | void,
 ) {
   return async (...args: T) => {
     const env = await createTestEnvironment();
@@ -95,9 +95,9 @@ export async function testFileExists(env: TestEnvironment, relativePath: string)
  * Create a test file in the test environment
  */
 export async function createTestFile(
-  env: TestEnvironment, 
-  relativePath: string, 
-  content: string
+  env: TestEnvironment,
+  relativePath: string,
+  content: string,
 ): Promise<void> {
   const fullPath = join(env.tempDir, relativePath);
   const dir = join(fullPath, "..");

@@ -1,6 +1,6 @@
 /**
  * Cliffy-based bunker command registration for help menu
- * 
+ *
  * This registers the bunker command with cliffy ONLY for help menu display.
  * The actual command execution is still handled by the direct implementation
  * in bunker.ts to preserve the complex async control flow.
@@ -16,7 +16,9 @@ export function registerBunkerCommand(program: Command): void {
     .description("Manage NIP-46 bunker connections and nbunks")
     .action(() => {
       // This action will never be called - the direct handler intercepts first
-      console.error("Unexpected code path reached in bunker command. This suggests a bug in the command interception logic.");
+      console.error(
+        "Unexpected code path reached in bunker command. This suggests a bug in the command interception logic.",
+      );
     })
     // List subcommand
     .command("list", "List all stored bunkers in the system")
@@ -42,7 +44,10 @@ export function registerBunkerCommand(program: Command): void {
     .option("--relay <relay:string>", "Relay URL")
     .option("--secret <secret:string>", "Connection secret")
     .option("--no-persist", "Display nbunksec without storing it")
-    .option("--force-encrypted-storage", "Force use of encrypted file storage instead of OS keychain")
+    .option(
+      "--force-encrypted-storage",
+      "Force use of encrypted file storage instead of OS keychain",
+    )
     .action(() => {
       // No-op: This handler is for help menu display only
     })

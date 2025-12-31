@@ -4,6 +4,8 @@ import { Confirm, Input, Select } from "@cliffy/prompt";
 import { copy } from "@std/fs/copy";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
+import { mergeBlossomServers } from "applesauce-common/helpers";
+import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
 import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import {
   defaultConfig,
@@ -24,17 +26,17 @@ import {
   createAppHandlerEvent,
   createNip46ClientFromUrl,
   createSiteManifestEvent,
-  fetchRelayListEvent,
+  fetchUserRelayList,
   type FileEntry,
+  getUserOutboxes,
+  getUserServers,
   listRemoteFiles,
   publishEventsToRelays,
   purgeRemoteFiles,
-  resolveRelaysWithKind10002,
-  resolveServersWithKind10063,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
-import { extractRelaysFromEvent, parseRelayInput, truncateString } from "../lib/utils.ts";
+import { parseRelayInput, truncateString } from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -47,7 +49,6 @@ import {
 } from "../ui/formatters.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
-import { npubEncode } from "applesauce-core/helpers";
 
 // LOCAL STATE ------------------------------------------------------------------------------------------------ //
 const log = createLogger("upload");
@@ -218,8 +219,8 @@ export async function uploadCommand(
 
     // Fetch kind 10002 and 10063 to get user's preferred relays/servers for operations
     statusDisplay.update("Discovering user preferences...");
-    resolvedRelays = await resolveRelaysWithKind10002(publisherPubkey, manifestRelays);
-    resolvedServers = await resolveServersWithKind10063(publisherPubkey, manifestServers);
+    resolvedRelays = relaySet(await getUserOutboxes(publisherPubkey), manifestRelays);
+    resolvedServers = mergeBlossomServers(await getUserServers(publisherPubkey), manifestServers);
 
     // If no servers discovered, fall back to config/options
     if (resolvedServers.length === 0) {
@@ -1433,9 +1434,9 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   const publisherPubkey = await signer.getPublicKey();
   let discoveredRelayList: string[] = [];
   try {
-    const relayListEvent = await fetchRelayListEvent(usermeta_relays, publisherPubkey);
+    const relayListEvent = await fetchUserRelayList(usermeta_relays, publisherPubkey);
     if (relayListEvent) {
-      discoveredRelayList = extractRelaysFromEvent(relayListEvent);
+      discoveredRelayList = getOutboxes(relayListEvent);
       log.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
     }
   } catch (e) {

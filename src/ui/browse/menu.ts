@@ -11,7 +11,13 @@ import {
   moveCursor,
   showCursor,
 } from "./renderer.ts";
-import { decodePointer, npubEncode, nsecEncode } from "applesauce-core/helpers";
+import {
+  decodePointer,
+  generateSecretKey,
+  getPublicKey,
+  npubEncode,
+  nsecEncode,
+} from "applesauce-core/helpers";
 
 interface MenuItem {
   label: string;

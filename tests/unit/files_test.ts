@@ -1,16 +1,16 @@
 import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
 import { join } from "std/path/mod.ts";
 import { restore, stub } from "std/testing/mock.ts";
-import { 
+import {
   calculateFileHash,
   compareFiles,
-  DEFAULT_IGNORE_PATTERNS, 
-  type FileEntry, 
+  DEFAULT_IGNORE_PATTERNS,
+  type FileEntry,
   getLocalFiles,
   type IgnoreRule,
   isIgnored,
   loadFileData,
-  parseIgnorePatterns
+  parseIgnorePatterns,
 } from "../../src/lib/files.ts";
 
 Deno.test("files constants", async (t) => {

@@ -5,7 +5,8 @@ description: Remove published files from relays and optionally from blossom serv
 
 # `nsyte purge`
 
-Remove published files from nostr relays and optionally delete blobs from blossom servers. This command creates NIP-09 delete events to remove your published nsite files.
+Remove published files from nostr relays and optionally delete blobs from blossom servers. This
+command creates NIP-09 delete events to remove your published nsite files.
 
 ## Usage
 
@@ -77,6 +78,7 @@ nsyte purge --all --relays wss://relay1.com,wss://relay2.com
 The `--paths` option supports glob patterns:
 
 ### Wildcard Patterns
+
 - `*` matches any characters within a directory
 - `?` matches a single character
 - `**` matches directories recursively
@@ -101,6 +103,7 @@ nsyte purge --paths "**/js/*.js"
 ```
 
 ### Path Matching Rules
+
 - Paths are matched against the file paths as stored in your nsite events
 - Patterns are case-sensitive
 - Leading slashes are optional but recommended for clarity
@@ -110,7 +113,8 @@ nsyte purge --paths "**/js/*.js"
 
 The purge command:
 
-1. **Fetches Events**: Retrieves your published site manifest events (kinds 15128, 35128) from relays
+1. **Fetches Events**: Retrieves your published site manifest events (kinds 15128, 35128) from
+   relays
 2. **Filters Files**: Applies pattern matching to select files for deletion
 3. **Confirms Action**: Shows what will be deleted and asks for confirmation (unless `--yes`)
 4. **Creates Delete Events**: Publishes NIP-09 delete events to relays
@@ -118,7 +122,8 @@ The purge command:
 
 ## NIP-09 Delete Events
 
-The purge command creates [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete events:
+The purge command creates [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete
+events:
 
 - Each delete event references the original nsite event
 - Relays may or may not honor delete requests
@@ -138,10 +143,12 @@ When using `--include-blobs`:
 ## Authentication
 
 The purge command requires authentication to:
+
 - Sign delete events
 - Authenticate blob deletion requests
 
 Authentication options (in order of precedence):
+
 1. `--nbunksec` command line option
 2. Configured bunker in project
 3. Private key in project configuration
@@ -149,13 +156,16 @@ Authentication options (in order of precedence):
 ## Safety Features
 
 ### Confirmation Prompts
+
 By default, the command shows:
+
 - List of files to be deleted
 - Number of files affected
 - Whether blobs will be deleted
 - Confirmation prompt before proceeding
 
 ### Dry Run Information
+
 The command shows what would be deleted before actually doing it:
 
 ```
@@ -175,16 +185,19 @@ Are you sure? (y/N)
 ## Error Handling
 
 ### Relay Errors
+
 - If some relays fail, the command continues with available relays
 - Shows warnings for failed relay operations
 - At least one successful relay publish is required
 
 ### Blossom Server Errors
+
 - Continues if some servers fail blob deletion
 - Shows warnings for failed deletions
 - Non-fatal (delete events are still published)
 
 ### Network Issues
+
 - Retries failed operations
 - Shows progress and error details
 - Graceful handling of timeouts
@@ -192,16 +205,19 @@ Are you sure? (y/N)
 ## Limitations
 
 ### Not Truly Permanent
+
 - Relays may not honor delete requests
 - Data might be cached or archived elsewhere
 - Consider this "request for deletion" rather than guaranteed deletion
 
 ### No Undo
+
 - Once delete events are published, they cannot be undone
 - You would need to re-upload files to restore them
 - Always double-check your patterns before confirming
 
 ### Server Dependencies
+
 - Depends on relay and blossom server cooperation
 - Some servers might not implement deletion
 - Results may vary across different servers
@@ -209,6 +225,7 @@ Are you sure? (y/N)
 ## Best Practices
 
 ### Test Patterns First
+
 Use a specific pattern to test before purging everything:
 
 ```bash
@@ -220,6 +237,7 @@ nsyte purge --all
 ```
 
 ### Backup Before Purging
+
 Keep local copies of important files:
 
 ```bash
@@ -231,6 +249,7 @@ nsyte purge --all
 ```
 
 ### Use Specific Patterns
+
 Be as specific as possible with patterns:
 
 ```bash

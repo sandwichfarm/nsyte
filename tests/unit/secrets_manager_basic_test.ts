@@ -121,7 +121,7 @@ describe("Secrets Manager - Basic Operations", () => {
       // Verify getAllPubkeys returns all
       const pubkeys = await manager.getAllPubkeys();
       assertEquals(pubkeys.length, 3);
-      assertEquals(pubkeys.sort(), entries.map(e => e.pubkey).sort());
+      assertEquals(pubkeys.sort(), entries.map((e) => e.pubkey).sort());
     });
 
     it("should handle non-existent pubkeys", async () => {
