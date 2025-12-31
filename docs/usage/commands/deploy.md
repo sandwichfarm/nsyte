@@ -31,9 +31,6 @@ nsyte deploy <folder> [options]
 - `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
 - `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
-- `--publish-file-metadata` — Publish NIP-94 file metadata events for releases (default: false)
-- `--version <version>` — Version tag for the release (required when using --publish-file-metadata)
-- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release artifacts
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -69,16 +66,6 @@ Deploy with app handler announcement:
 nsyte deploy dist --app-handler --handler-kinds "1,30023,30311"
 ```
 
-### Deploying Releases
-
-Deploy with release artifacts:
-
-```bash
-nsyte deploy dist --publish-file-metadata --version v1.0.0
-
-nsyte deploy dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
-```
-
 ## How it Works
 
 The deploy command:
@@ -91,7 +78,8 @@ The deploy command:
 
 ## Authentication
 
-The deploy command requires authentication to sign nostr events. You can provide authentication through:
+The deploy command requires authentication to sign nostr events. You can provide authentication
+through:
 
 1. **Private key**: Use `--privatekey` with an nsec or hex key
 2. **Bunker**: Use `--bunker` with a bunker URL
@@ -107,19 +95,23 @@ The deploy command requires authentication to sign nostr events. You can provide
 ## Metadata Publishing
 
 ### Profile (Kind 0)
+
 Use `--publish-profile` to publish a nostr profile for your npub. This helps with discovery.
 
 ### Relay List (Kind 10002)
-Use `--publish-relay-list` to publish your preferred relays. This helps clients know where to find your content.
+
+Use `--publish-relay-list` to publish your preferred relays. This helps clients know where to find
+your content.
 
 ### Server List (Kind 10063)
-Use `--publish-server-list` to publish your Blossom servers. This helps clients know where to download files.
+
+Use `--publish-server-list` to publish your Blossom servers. This helps clients know where to
+download files.
 
 ### App Handler (Kind 31990)
-Use `--app-handler` to announce your nsite as a NIP-89 application handler. Specify which event kinds your app can handle with `--handler-kinds`.
 
-### File Metadata (Kind 1063)
-Use `--publish-file-metadata` with `--version` to publish release metadata. This is useful for distributing software releases.
+Use `--app-handler` to announce your nsite as a NIP-89 application handler. Specify which event
+kinds your app can handle with `--handler-kinds`.
 
 ## Error Handling
 

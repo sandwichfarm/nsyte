@@ -1,24 +1,30 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { encodeHex } from "@std/encoding/hex";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { getTagValue } from "applesauce-core/helpers";
+import {
+  BLOSSOM_SERVER_LIST_KIND,
+  type EventTemplate,
+  type Filter,
+  getTagValue,
+  type NostrEvent,
+} from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
-import { NostrConnectSigner } from "applesauce-signers";
+import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { lastValueFrom, timer } from "rxjs";
-import { toArray } from "rxjs/operators";
 import { takeUntil } from "rxjs/operators";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
-import type { Signer } from "./upload.ts";
 import type { ByteArray } from "./types.ts";
-import type { EventTemplate, NostrEvent } from "nostr-tools";
+import { extractRelaysFromEvent, extractServersFromEvent } from "./utils.ts";
 
 const log = createLogger("nostr");
 
-export const NSITE_KIND = 34128;
-export const USER_BLOSSOM_SERVER_LIST_KIND = 10063;
+// Constants for nsite nsite manifest kinds
+export const NSITE_ROOT_SITE_KIND = 15128;
+export const NSITE_NAME_SITE_KIND = 35128;
 
+// Create a global relay pool for connections
 export const pool = new RelayPool();
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
@@ -46,7 +52,37 @@ export interface FileEntry {
   size?: number;
   sha256?: string;
   contentType?: string;
+  event?: NostrEvent; // Reference to the manifest event this file comes from
+}
+
+/**
+ * Enhanced FileEntry with source tracking
+ */
+export interface FileEntryWithSources {
+  path: string;
+  sha256: string;
+  eventId: string;
   event?: NostrEvent;
+  foundOnRelays: string[];
+  availableOnServers: string[];
+}
+
+/**
+ * Site manifest event metadata
+ */
+export interface SiteManifestMetadata {
+  title?: string;
+  description?: string;
+  servers?: string[];
+  relays?: string[];
+}
+
+/**
+ * File path mapping for site manifest
+ */
+export interface FilePathMapping {
+  path: string;
+  sha256: string;
 }
 
 /**
@@ -91,7 +127,7 @@ export type NostrEventTemplate = EventTemplate & { pubkey?: string };
  * Create a NIP-46 client from a bunker URL
  */
 export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
-  client: Signer;
+  client: ISigner;
   userPubkey: string;
 }> {
   try {
@@ -114,24 +150,46 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
 /** Extract a tag value from an event */
 export { getTagValue };
 
-/** Fetch file events from nostr relays */
-export async function fetchFileEvents(
+/**
+ * Fetch site manifest events from nostr relays
+ * @param relays - Relays to query (will be merged with kind 10002 discovered relays)
+ * @param pubkey - Public key of the site owner
+ * @param siteIdentifier - Optional site identifier for named sites. If not provided, fetches root site (kind 15128) and all named sites (kind 35128)
+ */
+export async function fetchSiteManifestEvents(
   relays: string[],
   pubkey: string,
+  siteIdentifier?: string,
 ): Promise<NostrEvent[]> {
-  log.debug(`Fetching file events for ${pubkey} from ${relays.join(", ")}`);
+  // First, fetch kind 10002 to get user's preferred relays
+  const mergedRelays = await resolveRelaysWithKind10002(pubkey, relays);
+
+  log.debug(
+    `Fetching site manifest events for ${pubkey} from ${mergedRelays.join(", ")}${
+      siteIdentifier ? ` (site: ${siteIdentifier})` : ""
+    }`,
+  );
   // Keep timeouts reasonable to avoid long waits
   const REQUEST_TIMEOUT_MS = 12000;
 
   try {
     // Create tmp event store to deduplicate events
     const store = new EventStore();
+
+    // Build filter based on whether we're fetching a specific named site or all sites
+    const filter: Filter = {
+      kinds: siteIdentifier ? [NSITE_NAME_SITE_KIND] : [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+      authors: [pubkey],
+    };
+
+    // Add d tag filter for named sites
+    if (siteIdentifier) {
+      filter["#d"] = [siteIdentifier];
+    }
+
     const events = await lastValueFrom(
       pool
-        .request(relays, {
-          kinds: [NSITE_KIND],
-          authors: [pubkey],
-        })
+        .request(mergedRelays, filter)
         .pipe(
           simpleTimeout(7000),
           mapEventsToStore(store),
@@ -142,7 +200,7 @@ export async function fetchFileEvents(
     );
     return events;
   } catch (error) {
-    log.error(`Error fetching events: ${getErrorMessage(error)}`);
+    log.error(`Error fetching manifest events: ${getErrorMessage(error)}`);
     return [];
   }
 }
@@ -205,99 +263,105 @@ export async function fetchRelayListEvent(
   }
 }
 
-/** Fetch release events from nostr relays */
-export async function fetchReleaseEvents(
-  relays: string[],
+/**
+ * Resolve relays by fetching kind 10002 (relay list) and merging with provided relays
+ * @param pubkey - Public key to fetch relay list for
+ * @param providedRelays - Relays provided by user/config
+ * @returns Merged list of discovered and provided relays (deduplicated)
+ */
+export async function resolveRelaysWithKind10002(
   pubkey: string,
-  dTag: string,
-): Promise<NostrEvent[]> {
-  log.debug(`Fetching release events for ${pubkey} with d-tag ${dTag} from ${relays.join(", ")}`);
+  providedRelays: string[],
+): Promise<string[]> {
+  log.debug(`Resolving relays with kind 10002 for ${pubkey}`);
 
-  try {
-    // Create tmp event store to deduplicate events
-    const store = new EventStore();
-    return await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [30063],
-          authors: [pubkey],
-          "#d": [dTag],
-        })
-        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
-    );
-  } catch (error) {
-    log.error(`Error fetching release events: ${getErrorMessage(error)}`);
-    return [];
+  // Fetch kind 10002 using discovery relays
+  const relayListEvent = await fetchRelayListEvent(RELAY_DISCOVERY_RELAYS, pubkey);
+  const discoveredRelays = extractRelaysFromEvent(relayListEvent);
+
+  if (discoveredRelays.length > 0) {
+    log.debug(`Discovered ${discoveredRelays.length} relays from kind 10002`);
   }
-}
 
-/** Fetch file metadata events from nostr relays */
-export async function fetchFileMetadataEvents(
-  relays: string[],
-  pubkey: string,
-  eventIds: string[],
-): Promise<NostrEvent[]> {
-  log.debug(`Fetching file metadata events for ${eventIds.length} IDs from ${relays.join(", ")}`);
+  // Merge discovered relays with provided relays (deduplicated)
+  const mergedRelays = Array.from(new Set([...discoveredRelays, ...providedRelays]));
 
-  try {
-    // Create tmp event store to deduplicate events
-    const store = new EventStore();
-    return await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [1063],
-          authors: [pubkey],
-          ids: eventIds,
-        })
-        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+  if (mergedRelays.length > providedRelays.length) {
+    log.debug(
+      `Merged ${mergedRelays.length} total relays (${discoveredRelays.length} discovered + ${providedRelays.length} provided)`,
     );
-  } catch (error) {
-    log.error(`Error fetching file metadata events: ${getErrorMessage(error)}`);
-    return [];
   }
+
+  return mergedRelays;
 }
 
 /**
- * Fetch NIP-82 software application events
+ * Resolve servers by fetching kind 10063 (server list) and merging with provided servers
+ * @param pubkey - Public key to fetch server list for
+ * @param providedServers - Servers provided by user/config
+ * @param discoveryRelays - Relays to use for fetching kind 10063 (defaults to RELAY_DISCOVERY_RELAYS)
+ * @returns Merged list of discovered and provided servers (deduplicated)
  */
-export async function fetchSoftwareApplicationEvent(
-  relays: string[],
+export async function resolveServersWithKind10063(
   pubkey: string,
-  appId: string,
-): Promise<NostrEvent | null> {
-  log.debug(`Fetching software application event for ${appId} from ${relays.join(", ")}`);
+  providedServers: string[],
+  discoveryRelays: string[] = RELAY_DISCOVERY_RELAYS,
+): Promise<string[]> {
+  log.debug(`Resolving servers with kind 10063 for ${pubkey}`);
 
   try {
-    // Create tmp event store to deduplicate events
     const store = new EventStore();
     const events = await lastValueFrom(
       pool
-        .request(relays, {
-          kinds: [32267],
+        .request(discoveryRelays, {
+          kinds: [BLOSSOM_SERVER_LIST_KIND],
           authors: [pubkey],
-          "#d": [appId],
         })
-        .pipe(mapEventsToStore(store), mapEventsToTimeline()),
+        .pipe(
+          simpleTimeout(5000),
+          mapEventsToStore(store),
+          mapEventsToTimeline(),
+        ),
+      { defaultValue: [] },
     );
 
-    // Return the most recent event
-    return events.length > 0 ? events[0] : null;
+    // Sort by created_at descending and get the most recent
+    const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
+    const latestEvent = sortedEvents.length > 0 ? sortedEvents[0] : null;
+    const discoveredServers = extractServersFromEvent(latestEvent);
+
+    if (discoveredServers.length > 0) {
+      log.debug(`Discovered ${discoveredServers.length} servers from kind 10063`);
+    }
+
+    // Merge discovered servers with provided servers (deduplicated)
+    const mergedServers = Array.from(new Set([...discoveredServers, ...providedServers]));
+
+    if (mergedServers.length > providedServers.length) {
+      log.debug(
+        `Merged ${mergedServers.length} total servers (${discoveredServers.length} discovered + ${providedServers.length} provided)`,
+      );
+    }
+
+    return mergedServers;
   } catch (error) {
-    log.error(`Error fetching software application event: ${getErrorMessage(error)}`);
-    return null;
+    log.error(`Error fetching server list: ${getErrorMessage(error)}`);
+    // Return provided servers if fetch fails
+    return providedServers;
   }
 }
 
-/** Get a list of remote files for a user */
+/** Get a list of remote files for a user from site manifest events */
 export async function listRemoteFiles(
   relays: string[],
   pubkey: string,
+  siteIdentifier?: string,
 ): Promise<FileEntry[]> {
-  const events = await fetchFileEvents(relays, pubkey);
+  const manifestEvents = await fetchSiteManifestEvents(relays, pubkey, siteIdentifier);
   const now = Math.floor(Date.now() / 1000);
 
-  if (events.length === 0) {
-    log.warn(`No file events found for user ${pubkey} from any relays`);
+  if (manifestEvents.length === 0) {
+    log.warn(`No site manifest events found for user ${pubkey} from any relays`);
     log.info("This could mean one of these things:");
     log.info("1. This is the first time you're uploading files for this user");
     log.info("2. The relays are not responding or are unreachable");
@@ -310,20 +374,32 @@ export async function listRemoteFiles(
 
   const fileEntries: FileEntry[] = [];
 
-  for (const event of events) {
-    const path = getTagValue(event, "d");
-    const sha256 = getTagValue(event, "x");
+  // Parse path tags from each manifest event
+  for (const manifestEvent of manifestEvents) {
+    // Extract all path tags from the manifest
+    const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
 
-    if (path && sha256) {
-      fileEntries.push({
-        path,
-        sha256,
-        event,
-        size: 0,
-      });
+    for (const pathTag of pathTags) {
+      // Path tag format: ["path", "/absolute/path", "sha256hash"]
+      if (pathTag.length >= 3) {
+        const path = pathTag[1];
+        const sha256 = pathTag[2];
+
+        if (path && sha256) {
+          fileEntries.push({
+            path,
+            sha256,
+            event: manifestEvent,
+            size: 0,
+          });
+        }
+      }
     }
   }
 
+  // Deduplicate files by path, keeping the most recent manifest version
+  // For replaceable events (root site), the most recent one wins
+  // For addressable events (named sites), we already filtered by identifier
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex((file) => file.path === current.path);
     const currentTs = Math.min(current.event?.created_at ?? 0, now);
@@ -334,6 +410,7 @@ export async function listRemoteFiles(
       const existing = acc[existingIndex];
       const existingTs = Math.min(existing.event?.created_at ?? 0, now);
 
+      // Keep the most recent version
       if (existingTs < currentTs) {
         acc[existingIndex] = current;
       }
@@ -343,7 +420,7 @@ export async function listRemoteFiles(
   }, [] as FileEntry[]);
 
   log.info(
-    `Found ${uniqueFiles.length} unique remote files for user ${pubkey}`,
+    `Found ${uniqueFiles.length} unique remote files for user ${pubkey} from ${manifestEvents.length} manifest event(s)`,
   );
 
   if (uniqueFiles.length > 0) {
@@ -363,24 +440,122 @@ export async function listRemoteFiles(
   });
 }
 
-/** Publish an nsite event to nostr */
-export async function createNsiteEvent(
-  signer: Signer,
+/**
+ * List remote files with enhanced source information
+ * Only uses the latest manifest event (by created_at timestamp)
+ */
+export async function listRemoteFilesWithSources(
+  relays: string[],
   pubkey: string,
-  path: string,
-  sha256: string,
+): Promise<FileEntryWithSources[]> {
+  // Fetch manifest events from all relays (including discovered ones via kind 10002)
+  const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
+
+  if (manifestEvents.length === 0) {
+    log.warn(`No manifest events found for user ${pubkey} from any relays`);
+    return [];
+  }
+
+  // Find the latest manifest event by created_at timestamp
+  const sortedEvents = [...manifestEvents].sort((a, b) => b.created_at - a.created_at);
+  const latestManifestEvent = sortedEvents[0];
+
+  if (!latestManifestEvent) {
+    log.warn(`No valid manifest event found for user ${pubkey}`);
+    return [];
+  }
+
+  // Get all relays that were used to fetch the manifest events
+  // fetchSiteManifestEvents already merges discovered relays via resolveRelaysWithKind10002
+  const mergedRelays = await resolveRelaysWithKind10002(pubkey, relays);
+  const relaySet = new Set(mergedRelays);
+
+  // Extract files only from the latest manifest event
+  const fileEntries: FileEntryWithSources[] = [];
+  const pathTags = latestManifestEvent.tags.filter((tag) => tag[0] === "path");
+
+  for (const pathTag of pathTags) {
+    // Path tag format: ["path", "/absolute/path", "sha256hash"]
+    if (pathTag.length >= 3) {
+      const path = pathTag[1];
+      const sha256 = pathTag[2];
+
+      if (path && sha256) {
+        fileEntries.push({
+          path,
+          sha256,
+          eventId: latestManifestEvent.id,
+          event: latestManifestEvent,
+          foundOnRelays: Array.from(relaySet),
+          availableOnServers: [],
+        });
+      }
+    }
+  }
+
+  return fileEntries.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Create a site manifest event (NIP-XX)
+ * @param signer - Signer for the event
+ * @param pubkey - Public key of the site owner
+ * @param files - Array of file path mappings (path -> sha256)
+ * @param id - Optional site identifier for named sites (kind 35128). If not provided, creates root site (kind 15128)
+ * @param metadata - Optional metadata (title, description, servers, relays)
+ */
+export async function createSiteManifestEvent(
+  signer: ISigner,
+  pubkey: string,
+  files: FilePathMapping[],
+  id?: string,
+  metadata?: SiteManifestMetadata,
 ): Promise<NostrEvent> {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const tags: string[][] = [];
+
+  // Add d tag for named sites (kind 35128)
+  if (id) {
+    tags.push(["d", id]);
+  }
+
+  // Add path tags for all files
+  for (const file of files) {
+    const normalizedPath = file.path.startsWith("/") ? file.path : `/${file.path}`;
+    tags.push(["path", normalizedPath, file.sha256]);
+  }
+
+  // Add optional server tags
+  if (metadata?.servers && metadata.servers.length > 0) {
+    for (const server of metadata.servers) {
+      tags.push(["server", server]);
+    }
+  }
+
+  // Add optional relay tags
+  if (metadata?.relays && metadata.relays.length > 0) {
+    for (const relay of metadata.relays) {
+      tags.push(["relay", relay]);
+    }
+  }
+
+  // Add optional title and description
+  if (metadata?.title) {
+    tags.push(["title", metadata.title]);
+  }
+  if (metadata?.description) {
+    tags.push(["description", metadata.description]);
+  }
+
+  tags.push(["client", "nsyte"]);
+
+  // Use kind 35128 for named sites, 15128 for root site
+  const kind = id ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND;
 
   const eventTemplate = {
-    kind: NSITE_KIND,
+    kind,
     pubkey: pubkey,
     created_at: Math.floor(Date.now() / 1000),
-    tags: [
-      ["d", normalizedPath],
-      ["x", sha256],
-      ["client", "nsyte"],
-    ],
+    tags,
     content: "",
   };
 
@@ -391,7 +566,7 @@ export async function createNsiteEvent(
  * Create a profile event (NIP-01)
  */
 export async function createProfileEvent(
-  signer: Signer,
+  signer: ISigner,
   profile: Profile,
 ): Promise<NostrEvent> {
   const eventTemplate = {
@@ -404,49 +579,9 @@ export async function createProfileEvent(
   return await signer.signEvent(eventTemplate);
 }
 
-/**
- * Create a relay list event (NIP-01, NIP-65)
- */
-export async function createRelayListEvent(
-  signer: Signer,
-  relays: string[],
-): Promise<NostrEvent> {
-  const tags = relays.map((relay) => ["r", relay, "read", "write"]);
-  tags.push(["client", "nsyte"]);
-
-  const eventTemplate = {
-    kind: 10002,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: "",
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
-/**
- * Create a server list event
- */
-export async function createServerListEvent(
-  signer: Signer,
-  servers: string[],
-): Promise<NostrEvent> {
-  const tags = servers.map((server) => ["server", server]);
-  tags.push(["client", "nsyte"]);
-
-  const eventTemplate = {
-    kind: USER_BLOSSOM_SERVER_LIST_KIND,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: "",
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
 /** Create a delete event (NIP-09) */
 export async function createDeleteEvent(
-  signer: Signer,
+  signer: ISigner,
   eventIds: string[],
 ): Promise<NostrEvent> {
   const tags = eventIds.map((id) => ["e", id]);
@@ -467,7 +602,7 @@ export async function createDeleteEvent(
  * This announces that this nsite can handle/display specific event kinds
  */
 export async function createAppHandlerEvent(
-  signer: Signer,
+  signer: ISigner,
   kinds: number[],
   handlers: {
     web?: {
@@ -549,7 +684,7 @@ export async function createAppHandlerEvent(
  * This is published by users to recommend an app for handling specific event kinds
  */
 export async function createAppRecommendationEvent(
-  signer: Signer,
+  signer: ISigner,
   eventKind: number,
   handlerAddress: {
     pubkey: string;
@@ -577,149 +712,6 @@ export async function createAppRecommendationEvent(
   return await signer.signEvent(eventTemplate);
 }
 
-/**
- * Create a NIP-94 file metadata event (kind 1063)
- * This announces file metadata for a release archive
- */
-export async function createFileMetadataEvent(
-  signer: Signer,
-  file: {
-    url: string;
-    mimeType: string;
-    sha256: string;
-    size: number;
-    platforms?: string[];
-  },
-  description: string,
-): Promise<NostrEvent> {
-  const tags: string[][] = [
-    ["url", file.url],
-    ["m", file.mimeType],
-    ["x", file.sha256],
-    ["size", file.size.toString()],
-    ["client", "nsyte"],
-  ];
-
-  // Add platform tags if provided
-  if (file.platforms) {
-    file.platforms.forEach((platform) => tags.push(["f", platform]));
-  }
-
-  const eventTemplate: NostrEventTemplate = {
-    kind: 1063,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: description,
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
-/**
- * Create a NIP-82 software application event (kind 32267)
- * This describes the software application metadata
- */
-export async function createSoftwareApplicationEvent(
-  signer: Signer,
-  appId: string,
-  metadata: {
-    name: string;
-    summary?: string;
-    content?: string;
-    icon?: string;
-    image?: string[];
-    tags?: string[];
-    url?: string;
-    repository?: string;
-    platforms: string[];
-    license?: string;
-  },
-): Promise<NostrEvent> {
-  const tags: string[][] = [
-    ["d", appId],
-    ["name", metadata.name],
-    ["client", "nsyte"],
-  ];
-
-  if (metadata.summary) {
-    tags.push(["summary", metadata.summary]);
-  }
-  if (metadata.icon) {
-    tags.push(["icon", metadata.icon]);
-  }
-  if (metadata.image) {
-    metadata.image.forEach((img) => tags.push(["image", img]));
-  }
-  if (metadata.tags) {
-    metadata.tags.forEach((tag) => tags.push(["t", tag]));
-  }
-  if (metadata.url) {
-    tags.push(["url", metadata.url]);
-  }
-  if (metadata.repository) {
-    tags.push(["repository", metadata.repository]);
-  }
-  if (metadata.license) {
-    tags.push(["license", metadata.license]);
-  }
-
-  // Add platform tags (required)
-  metadata.platforms.forEach((platform) => tags.push(["f", platform]));
-
-  const eventTemplate: NostrEventTemplate = {
-    kind: 32267,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: metadata.content || "",
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
-/**
- * Create a NIP-51 release artifact set event (kind 30063)
- * This groups file metadata events for a specific release version
- */
-export async function createReleaseArtifactSetEvent(
-  signer: Signer,
-  projectName: string,
-  version: string,
-  fileMetadataEventIds: string | string[],
-  releaseNotes: string,
-  applicationId?: string,
-): Promise<NostrEvent> {
-  const dTag = `${projectName}@${version}`;
-
-  const tags: string[][] = [
-    ["d", dTag],
-    ["version", version],
-    ["client", "nsyte"],
-  ];
-
-  // Add reference to parent application event if provided
-  if (applicationId) {
-    const pubkey = await signer.getPublicKey();
-    tags.push(["a", `32267:${pubkey}:${applicationId}`]);
-  }
-
-  // Add event references - support both single ID and array of IDs
-  const eventIds = Array.isArray(fileMetadataEventIds)
-    ? fileMetadataEventIds
-    : [fileMetadataEventIds];
-  for (const eventId of eventIds) {
-    tags.push(["e", eventId]); // Reference to NIP-94 file metadata events
-  }
-
-  const eventTemplate: NostrEventTemplate = {
-    kind: 30063,
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
-    content: releaseNotes,
-  };
-
-  return await signer.signEvent(eventTemplate);
-}
-
 /** Publish events to relays */
 export async function publishEventsToRelays(
   relays: string[],
@@ -742,12 +734,8 @@ export async function publishEventsToRelays(
 
     for (const event of events) {
       try {
-        const results = await lastValueFrom(
-          pool
-            .publish(relays, event, { retries: 1 })
-            // Add a 15s timeout to the publish
-            .pipe(simpleTimeout(15000), toArray()),
-        );
+        const results = await pool
+          .publish(relays, event, { retries: 1, timeout: 15 * 1000 });
         log.debug(
           `Published event ${event.id.substring(0, 8)}... to ${
             relays.join(
@@ -784,37 +772,40 @@ export async function publishEventsToRelays(
 
 /**
  * Delete remote files by creating and publishing delete events
+ * Note: Since files come from manifest events, this deletes the entire manifest events
+ * that contain the specified files
  */
 export async function purgeRemoteFiles(
   relays: string[],
   files: FileEntry[],
-  signer: Signer,
+  signer: ISigner,
 ): Promise<number> {
   if (files.length === 0) {
     return 0;
   }
 
-  const eventsToDelete: string[] = [];
+  // Collect unique manifest event IDs (multiple files can come from same manifest)
+  const eventsToDelete = new Set<string>();
 
   for (const file of files) {
     if (file.event?.id) {
-      eventsToDelete.push(file.event.id);
+      eventsToDelete.add(file.event.id);
     }
   }
 
-  if (eventsToDelete.length === 0) {
+  if (eventsToDelete.size === 0) {
     return 0;
   }
 
   try {
-    const deleteEvent = await createDeleteEvent(signer, eventsToDelete);
+    const deleteEvent = await createDeleteEvent(signer, Array.from(eventsToDelete));
     const success = await publishEventsToRelays(
       [...relays],
       [deleteEvent],
     );
 
     if (success) {
-      return eventsToDelete.length;
+      return eventsToDelete.size;
     } else {
       return 0;
     }

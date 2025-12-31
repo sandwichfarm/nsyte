@@ -2,31 +2,20 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
-import { createLogger } from "../lib/logger.ts";
-import { listRemoteFiles } from "../lib/nostr.ts";
+import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
+import { handleError } from "../lib/error-utils.ts";
 import {
   DEFAULT_IGNORE_PATTERNS,
   type IgnoreRule,
   isIgnored,
   parseIgnorePatterns,
 } from "../lib/files.ts";
+import { createLogger } from "../lib/logger.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
-import { readProjectFile } from "../lib/config.ts";
-import { handleError } from "../lib/error-utils.ts";
-import type { NostrEvent } from "nostr-tools";
+import { FileEntryWithSources, listRemoteFilesWithSources } from "../lib/nostr.ts";
 
 const log = createLogger("ls");
-
-// Enhanced FileEntry with source tracking
-export interface FileEntryWithSources {
-  path: string;
-  sha256: string;
-  eventId: string;
-  event?: NostrEvent;
-  foundOnRelays: string[];
-  availableOnServers: string[];
-}
 
 // Color palette for relays and servers
 export const RELAY_COLORS = [
@@ -67,31 +56,6 @@ function truncateHash(hash: string): string {
  * Fetch file events with source relay tracking
  */
 // (Removed old per-relay fetch; we now reuse listRemoteFiles for consistency with run)
-
-/**
- * List remote files with enhanced source information
- */
-export async function listRemoteFilesWithSources(
-  relays: string[],
-  pubkey: string,
-): Promise<FileEntryWithSources[]> {
-  const files = await listRemoteFiles(relays, pubkey);
-
-  if (files.length === 0) {
-    log.warn(`No file events found for user ${pubkey} from any relays`);
-    return [];
-  }
-
-  const relaySet = new Set(relays);
-  return files.map((file) => ({
-    path: file.path,
-    sha256: file.sha256 || "",
-    eventId: file.event?.id || "",
-    event: file.event,
-    foundOnRelays: Array.from(relaySet),
-    availableOnServers: [],
-  })).sort((a, b) => a.path.localeCompare(b.path));
-}
 
 /**
  * Register the ls command
@@ -148,7 +112,6 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
     }
 
     let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
-    let ignoredFileCount = 0;
 
     // Normalize path filter
     let normalizedPathFilter: string | undefined;
@@ -187,6 +150,9 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
     }
 
     let files = await listRemoteFilesWithSources(relays, pubkey);
+
+    // Get the manifest event ID (all files come from the same latest manifest event)
+    const latestManifestEventId = files.length > 0 ? files[0].eventId : undefined;
 
     // Filter files by path if specified
     if (normalizedPathFilter) {
@@ -240,6 +206,12 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       // Display legend
       console.log("\n" + colors.bold("Legend:"));
       console.log(colors.gray("─".repeat(60)));
+
+      // Display latest manifest event ID
+      if (latestManifestEventId) {
+        console.log("\n" + colors.bold("Manifest Event:"));
+        console.log(colors.cyan(latestManifestEventId));
+      }
 
       if (relayColorMap.size > 0) {
         console.log(colors.bold("Relays:"));
@@ -434,13 +406,10 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           // Format file info
           const pathColor = shouldBeIgnored ? colors.red : colors.white;
           const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
-          const eventIdDisplay = colors.gray(` {${truncateHash(file.eventId)}}`);
 
           // Fixed width for indicators column, then tree and file info
           console.log(
-            `${indicators} ${colors.gray(treePrefix)}${
-              pathColor(fileName)
-            }${hashDisplay}${eventIdDisplay}`,
+            `${indicators} ${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`,
           );
         }
       });

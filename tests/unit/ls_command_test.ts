@@ -1,7 +1,7 @@
 import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { restore, stub } from "jsr:@std/testing/mock";
-import { command, registerLsCommand } from "../../src/commands/ls.ts";
+import { command, registerLsCommand } from "../../src/commands/list.ts";
 import { Command } from "@cliffy/command";
 
 describe("LS command - comprehensive branch coverage", () => {

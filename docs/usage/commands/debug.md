@@ -77,7 +77,7 @@ The debug command performs comprehensive checks on various components of an nsit
 - Downloads one random file to verify hash integrity
 - Reports server response times and error details
 
-### 5. nsite Events (kind 34128)
+### 5. Site Manifest Events (kinds 15128, 35128)
 - Finds all uploaded file events for the npub
 - Shows total count of uploaded files
 - Lists recent files in verbose mode

@@ -1,11 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-// Using Deno.serve instead of importing serve
-import { serveDir } from "@std/http/file-server";
-import { createLogger } from "../lib/logger.ts";
-import { handleError } from "../lib/error-utils.ts";
 import { existsSync } from "@std/fs/exists";
+import { serveDir } from "@std/http/file-server";
 import { join } from "@std/path";
+import { handleError } from "../lib/error-utils.ts";
+import { createLogger } from "../lib/logger.ts";
 
 const log = createLogger("serve");
 

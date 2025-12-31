@@ -1,8 +1,8 @@
-import { dirname, join } from "@std/path";
 import { ensureDir } from "@std/fs/ensure-dir";
+import { dirname, join } from "@std/path";
+import { ProgressRenderer } from "../ui/progress.ts";
 import { createLogger } from "./logger.ts";
 import { type FileEntry, listRemoteFiles } from "./nostr.ts";
-import { ProgressRenderer } from "../ui/progress.ts";
 import type { ByteArray } from "./types.ts";
 
 const log = createLogger("download");

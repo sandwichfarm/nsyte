@@ -110,7 +110,7 @@ nsyte purge --paths "**/js/*.js"
 
 The purge command:
 
-1. **Fetches Events**: Retrieves your published nsite events (kind 34128) from relays
+1. **Fetches Events**: Retrieves your published site manifest events (kinds 15128, 35128) from relays
 2. **Filters Files**: Applies pattern matching to select files for deletion
 3. **Confirms Action**: Shows what will be deleted and asks for confirmation (unless `--yes`)
 4. **Creates Delete Events**: Publishes NIP-09 delete events to relays

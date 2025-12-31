@@ -1,10 +1,10 @@
+import type { ISigner } from "applesauce-signers";
+import { PrivateKeySigner } from "applesauce-signers/signers";
+import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
 import { importFromNbunk } from "../nip46.ts";
 import { createNip46ClientFromUrl } from "../nostr.ts";
 import { SecretsManager } from "../secrets/mod.ts";
-import { getErrorMessage } from "../error-utils.ts";
-import type { Signer } from "../upload.ts";
-import { SimpleSigner } from "applesauce-signers/signers";
 
 const log = createLogger("auth");
 
@@ -26,7 +26,7 @@ export interface SignerOptions {
  * Result of signer creation
  */
 export interface SignerResult {
-  signer: Signer;
+  signer: ISigner;
   pubkey: string;
 }
 
@@ -72,7 +72,7 @@ export async function createSigner(
   if (options.privateKey) {
     try {
       log.info("Using private key from CLI for signing...");
-      const privateKeySigner = SimpleSigner.fromKey(options.privateKey);
+      const privateKeySigner = PrivateKeySigner.fromKey(options.privateKey);
       const pubkey = await privateKeySigner.getPublicKey();
       return { signer: privateKeySigner, pubkey };
     } catch (e: unknown) {

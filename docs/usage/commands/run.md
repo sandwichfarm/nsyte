@@ -68,7 +68,7 @@ Uses specific relays for discovering nsite events.
 The resolver server:
 
 1. **Subdomain Parsing**: Extracts npub from subdomain (e.g., `npub1abc123.local.dev`)
-2. **Event Discovery**: Fetches nsite events (kind 34128) from configured relays
+2. **Event Discovery**: Fetches site manifest events (kinds 15128, 35128) from configured relays
 3. **File Resolution**: Maps requested paths to file hashes from events
 4. **Blob Serving**: Retrieves and serves files from blossom servers
 5. **Fallback Handling**: Serves fallback content for client-side routing
@@ -123,7 +123,7 @@ Configure which blossom servers to use for file retrieval:
 # Use default servers
 nsyte run
 
-# Use specific servers  
+# Use specific servers
 nsyte run --servers https://cdn.hzrd149.com,https://cdn.sovbit.host
 ```
 
@@ -206,7 +206,7 @@ WantedBy=multi-user.target
 ```nginx
 server {
     server_name *.nsites.example.com;
-    
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_set_header Host $host;

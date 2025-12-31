@@ -1,10 +1,5 @@
 import { Command } from "@cliffy/command";
-import { getTagValue } from "applesauce-core/helpers";
-import type { NostrEvent } from "nostr-tools";
-
-/** Extract a tag value from a nostr event */
-export { getTagValue as extractTagValue };
-export { npubEncode } from "nostr-tools/nip19";
+import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 
 /**
  * Creates a properly grouped subcommand structure
@@ -35,7 +30,7 @@ export function extractRelaysFromEvent(event: NostrEvent | null): string[] {
   if (!event) return [];
   const relays: string[] = [];
   for (const tag of event.tags) {
-    if (tag[0] === 'r' && tag[1]) {
+    if (tag[0] === "r" && tag[1]) {
       relays.push(tag[1]);
     }
   }
@@ -51,10 +46,33 @@ export function extractServersFromEvent(event: NostrEvent | null): string[] {
   if (!event) return [];
   const servers: string[] = [];
   for (const tag of event.tags) {
-    if (tag[0] === 'server' && tag[1]) {
+    if (tag[0] === "server" && tag[1]) {
       servers.push(tag[1]);
     }
   }
+  return servers;
+}
+
+/**
+ * Extract server URLs from site manifest events, prioritizing the most recent events.
+ * According to NIP-XX, server tags from manifest events should be prioritized over kind 10063 server list events.
+ * @param manifestEvents - Array of site manifest events (should be sorted by created_at descending)
+ * @returns Array of unique server URLs, with servers from more recent events appearing first
+ */
+export function extractServersFromManifestEvents(manifestEvents: NostrEvent[]): string[] {
+  const serverSet = new Set<string>();
+  const servers: string[] = [];
+
+  // Process events from most recent to oldest (assuming they're already sorted)
+  for (const event of manifestEvents) {
+    for (const tag of event.tags) {
+      if (tag[0] === "server" && tag[1] && !serverSet.has(tag[1])) {
+        serverSet.add(tag[1]);
+        servers.push(tag[1]);
+      }
+    }
+  }
+
   return servers;
 }
 
@@ -64,10 +82,12 @@ export function extractServersFromEvent(event: NostrEvent | null): string[] {
  * @returns Array of trimmed relay URLs
  */
 export function parseRelayInput(relayInput: string): string[] {
-  return relayInput
-    .split(',')
-    .map(r => r.trim())
-    .filter(r => r.length > 0);
+  return relaySet(
+    relayInput
+      .split(",")
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0),
+  );
 }
 
 /**
@@ -78,9 +98,9 @@ export function parseRelayInput(relayInput: string): string[] {
  * @returns Truncated string with ellipsis
  */
 export function truncateString(str: string, prefixLength = 8, suffixLength = 0): string {
-  if (!str) return '';
+  if (!str) return "";
   if (str.length <= prefixLength + suffixLength + 3) return str;
-  
+
   if (suffixLength > 0) {
     return `${str.substring(0, prefixLength)}...${str.substring(str.length - suffixLength)}`;
   }

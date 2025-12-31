@@ -9,12 +9,12 @@ import { importFromNbunk } from "../lib/nip46.ts";
 import {
   createDeleteEvent,
   createNip46ClientFromUrl,
-  fetchFileEvents,
+  fetchSiteManifestEvents,
   publishEventsToRelays,
 } from "../lib/nostr.ts";
 import type { Signer } from "../lib/upload.ts";
-import { npubEncode } from "../lib/utils.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
+import { npubEncode } from "applesauce-core/helpers";
 
 const log = createLogger("purge");
 
@@ -157,90 +157,30 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
       console.log(`Blossom Servers: ${colors.cyan(servers.join(", "))}`);
     }
 
-    // Fetch all nsite events
-    console.log(colors.cyan("\nFetching nsite events..."));
-    const events = await fetchFileEvents(relays, pubkey);
+    // Fetch all site manifest events
+    console.log(colors.cyan("\nFetching site manifest events..."));
+    const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
 
-    if (events.length === 0) {
-      console.log(colors.yellow("No nsite events found to purge."));
+    if (manifestEvents.length === 0) {
+      console.log(colors.yellow("No site manifest events found to purge."));
       return Deno.exit(0);
     }
 
-    console.log(`Found ${colors.bold(events.length.toString())} nsite events`);
+    console.log(`Found ${colors.bold(manifestEvents.length.toString())} site manifest event(s)`);
 
-    // Filter events based on options
-    let eventsToDelete = events;
+    // Filter manifest events based on options
+    let manifestsToDelete = manifestEvents;
 
     if (!options.all && options.paths && options.paths.length > 0) {
       const patterns = options.paths;
-      eventsToDelete = events.filter((event) => {
-        const path = event.tags.find((tag) => tag[0] === "d")?.[1];
-        if (!path) return false;
+      manifestsToDelete = manifestEvents.filter((manifestEvent) => {
+        // Extract all path tags from the manifest
+        const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
 
-        // Check if any pattern matches this path
-        return patterns.some((pattern) => {
-          // Exact match
-          if (pattern === path) return true;
-
-          // Convert glob pattern to regex
-          const regexPattern = pattern
-            .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
-            .replace(/\*/g, ".*") // * matches any characters
-            .replace(/\?/g, "."); // ? matches single character
-
-          const regex = new RegExp(`^${regexPattern}$`);
-          return regex.test(path);
-        });
-      });
-
-      console.log(
-        `Filtered to ${
-          colors.bold(eventsToDelete.length.toString())
-        } events matching specified patterns`,
-      );
-    } else if (!options.all && !options.paths) {
-      // Interactive mode - let user select what to purge
-      const choice = await Select.prompt({
-        message: "What would you like to purge?",
-        options: [
-          { name: "All nsite events", value: "all" },
-          { name: "Select specific paths", value: "paths" },
-          { name: "Cancel", value: "cancel" },
-        ],
-      });
-
-      if (choice === "cancel") {
-        console.log(colors.yellow("Purge cancelled."));
-        return Deno.exit(0);
-      }
-
-      if (choice === "all") {
-        options.all = true;
-      } else if (choice === "paths") {
-        // Show available paths
-        const paths = new Set<string>();
-        for (const event of events) {
-          const path = event.tags.find((tag) => tag[0] === "d")?.[1];
-          if (path) paths.add(path);
-        }
-
-        console.log(colors.cyan("\nAvailable paths:"));
-        const sortedPaths = Array.from(paths).sort();
-        sortedPaths.forEach((path) => console.log(`  ${path}`));
-
-        const pathInput = await Input.prompt({
-          message: "Enter paths/patterns to purge (comma-separated, supports wildcards):",
-          hint: "Examples: /site/*, *.html, /test.txt, /site/**/*.css",
-          validate: (input) => {
-            const inputPaths = input.split(",").map((p) => p.trim()).filter((p) => p);
-            return inputPaths.length > 0 || "Please enter at least one path or pattern";
-          },
-        });
-
-        const patterns = pathInput.split(",").map((p) => p.trim());
-        eventsToDelete = events.filter((event) => {
-          const path = event.tags.find((tag) => tag[0] === "d")?.[1];
-          if (!path) return false;
+        // Check if any path in this manifest matches any pattern
+        return pathTags.some((pathTag) => {
+          if (pathTag.length < 2) return false;
+          const path = pathTag[1];
 
           // Check if any pattern matches this path
           return patterns.some((pattern) => {
@@ -257,27 +197,113 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
             return regex.test(path);
           });
         });
+      });
+
+      console.log(
+        `Filtered to ${
+          colors.bold(manifestsToDelete.length.toString())
+        } manifest event(s) matching specified patterns`,
+      );
+    } else if (!options.all && !options.paths) {
+      // Interactive mode - let user select what to purge
+      const choice = await Select.prompt({
+        message: "What would you like to purge?",
+        options: [
+          { name: "All site manifest events", value: "all" },
+          { name: "Select specific paths", value: "paths" },
+          { name: "Cancel", value: "cancel" },
+        ],
+      });
+
+      if (choice === "cancel") {
+        console.log(colors.yellow("Purge cancelled."));
+        return Deno.exit(0);
+      }
+
+      if (choice === "all") {
+        options.all = true;
+      } else if (choice === "paths") {
+        // Show available paths from all manifests
+        const paths = new Set<string>();
+        for (const manifestEvent of manifestEvents) {
+          const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+          for (const pathTag of pathTags) {
+            if (pathTag.length >= 2) {
+              paths.add(pathTag[1]);
+            }
+          }
+        }
+
+        console.log(colors.cyan("\nAvailable paths:"));
+        const sortedPaths = Array.from(paths).sort();
+        sortedPaths.forEach((path) => console.log(`  ${path}`));
+
+        const pathInput = await Input.prompt({
+          message: "Enter paths/patterns to purge (comma-separated, supports wildcards):",
+          hint: "Examples: /site/*, *.html, /test.txt, /site/**/*.css",
+          validate: (input) => {
+            const inputPaths = input.split(",").map((p) => p.trim()).filter((p) => p);
+            return inputPaths.length > 0 || "Please enter at least one path or pattern";
+          },
+        });
+
+        const patterns = pathInput.split(",").map((p) => p.trim());
+        manifestsToDelete = manifestEvents.filter((manifestEvent) => {
+          // Extract all path tags from the manifest
+          const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+
+          // Check if any path in this manifest matches any pattern
+          return pathTags.some((pathTag) => {
+            if (pathTag.length < 2) return false;
+            const path = pathTag[1];
+
+            // Check if any pattern matches this path
+            return patterns.some((pattern) => {
+              // Exact match
+              if (pattern === path) return true;
+
+              // Convert glob pattern to regex
+              const regexPattern = pattern
+                .replace(/[.+^${}()|[\]\\]/g, "\\$&") // Escape special regex chars
+                .replace(/\*/g, ".*") // * matches any characters
+                .replace(/\?/g, "."); // ? matches single character
+
+              const regex = new RegExp(`^${regexPattern}$`);
+              return regex.test(path);
+            });
+          });
+        });
       }
     }
 
-    if (eventsToDelete.length === 0) {
-      console.log(colors.yellow("No events match the criteria."));
+    if (manifestsToDelete.length === 0) {
+      console.log(colors.yellow("No manifest events match the criteria."));
       return Deno.exit(0);
     }
 
     // Show what will be deleted
-    console.log(colors.yellow(`\n⚠️  This will delete ${eventsToDelete.length} nsite events:`));
+    console.log(
+      colors.yellow(`\n⚠️  This will delete ${manifestsToDelete.length} site manifest event(s):`),
+    );
 
-    // Group by path for better display
-    const pathCounts = new Map<string, number>();
-    for (const event of eventsToDelete) {
-      const path = event.tags.find((tag) => tag[0] === "d")?.[1] || "unknown";
-      pathCounts.set(path, (pathCounts.get(path) || 0) + 1);
-    }
+    // Show files in each manifest that will be deleted
+    for (const manifestEvent of manifestsToDelete) {
+      const siteIdentifier = manifestEvent.tags.find((tag) => tag[0] === "d")?.[1];
+      const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+      const fileCount = pathTags.length;
 
-    const sortedPaths = Array.from(pathCounts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    for (const [path, count] of sortedPaths) {
-      console.log(`  ${path} ${count > 1 ? colors.dim(`(${count} events)`) : ""}`);
+      if (siteIdentifier) {
+        console.log(`  Named site "${siteIdentifier}" (${fileCount} files)`);
+      } else {
+        console.log(`  Root site (${fileCount} files)`);
+      }
+
+      // Show first few paths
+      const paths = pathTags.slice(0, 5).map((tag) => tag[1]);
+      paths.forEach((path) => console.log(`    - ${path}`));
+      if (fileCount > 5) {
+        console.log(`    ... and ${fileCount - 5} more files`);
+      }
     }
 
     // Confirm deletion
@@ -296,7 +322,7 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     // Create and publish delete events
     console.log(colors.cyan("\nCreating delete events..."));
 
-    const eventIds = eventsToDelete.map((e) => e.id);
+    const eventIds = manifestsToDelete.map((e) => e.id);
     const deleteEvent = await createDeleteEvent(signer, eventIds);
 
     console.log(colors.cyan("Publishing delete events to relays..."));
@@ -304,7 +330,9 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
 
     if (success) {
       console.log(
-        colors.green(`\n✓ Successfully purged ${eventsToDelete.length} events from relays`),
+        colors.green(
+          `\n✓ Successfully purged ${manifestsToDelete.length} manifest event(s) from relays`,
+        ),
       );
       console.log(
         colors.dim(
@@ -319,12 +347,18 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     if (options.includeBlobs && servers.length > 0) {
       console.log(colors.cyan("\n🌸 Deleting blobs from blossom servers..."));
 
-      // Extract blob hashes from events
+      // Extract blob hashes from manifest path tags
       const blobHashes = new Set<string>();
-      for (const event of eventsToDelete) {
-        const sha256 = event.tags.find((tag) => tag[0] === "x")?.[1];
-        if (sha256) {
-          blobHashes.add(sha256);
+      for (const manifestEvent of manifestsToDelete) {
+        const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+        for (const pathTag of pathTags) {
+          // Path tag format: ["path", "/path", "sha256hash"]
+          if (pathTag.length >= 3) {
+            const sha256 = pathTag[2];
+            if (sha256) {
+              blobHashes.add(sha256);
+            }
+          }
         }
       }
 

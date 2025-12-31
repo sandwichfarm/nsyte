@@ -110,7 +110,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         fallback: "index.html",
         publishRelayList: true,
         publishServerList: false,
-        publishProfile: true,
       };
 
       const result = displayUploadConfigTable(config);
@@ -136,7 +135,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         concurrency: 4,
         publishRelayList: false,
         publishServerList: false,
-        publishProfile: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -158,7 +156,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         concurrency: 4,
         publishRelayList: false,
         publishServerList: false,
-        publishProfile: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -183,7 +180,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           servers: ["https://server.com"],
           concurrency: 4,
           publishServerList: false,
-          publishProfile: false,
           ...booleans,
         };
 
@@ -210,7 +206,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           purge: false,
           publishRelayList: false,
           publishServerList: false,
-          publishProfile: false,
           ...concurrencyConfig,
         };
 
@@ -522,7 +517,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           concurrency: 4,
           publishRelayList: false,
           publishServerList: false,
-          publishProfile: false,
         })),
         true,
       );

@@ -1,38 +1,26 @@
 import { colors } from "@cliffy/ansi/colors";
-import { Confirm, Input, Secret, Select } from "@cliffy/prompt";
+import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, join } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
+import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { validateConfigWithFeedback, formatValidationErrors } from "./config-validator.ts";
 
 const log = createLogger("config");
-
-export interface Profile {
-  name?: string;
-  about?: string;
-  picture?: string;
-  display_name?: string;
-  website?: string;
-  nip05?: string;
-  lud16?: string;
-  banner?: string;
-}
 
 export type ProjectConfig = {
   bunkerPubkey?: string; // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
-  profile?: Profile;
-  publishServerList: boolean;
-  publishRelayList: boolean;
-  publishProfile?: boolean;
   publishAppHandler?: boolean;
   fallback?: string;
   gatewayHostnames?: string[];
+  id?: string | "" | null; // Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)
+  title?: string; // Optional site title for manifest
+  description?: string; // Optional site description for manifest
   appHandler?: {
     kinds: number[]; // Event kinds this nsite can handle/display
     name?: string; // Optional app name for the handler
@@ -50,18 +38,6 @@ export type ProjectConfig = {
       windows?: string;
       linux?: string;
     };
-  };
-  publishFileMetadata?: boolean; // NIP-94 file metadata events
-  application?: {
-    // NIP-82 Software Application metadata
-    id?: string; // Reverse-domain identifier (e.g., "com.example.app")
-    summary?: string; // Short description
-    icon?: string; // Icon URL
-    images?: string[]; // Additional image URLs
-    tags?: string[]; // Descriptive tags
-    repository?: string; // Source code repository URL
-    platforms?: string[]; // Platform identifiers (e.g., "web", "android", "ios")
-    license?: string; // SPDX license ID
   };
 };
 
@@ -95,8 +71,6 @@ export const popularBlossomServers = [
 export const defaultConfig: ProjectConfig = {
   relays: [],
   servers: [],
-  publishServerList: false,
-  publishRelayList: false,
   gatewayHostnames: [
     "nsite.lol",
   ],
@@ -138,7 +112,7 @@ function sanitizeBunkerUrl(url: string): string {
  */
 export function writeProjectFile(config: ProjectConfig): void {
   const cwd = Deno.cwd();
-  
+
   // Prevent writing config in test environments or temp directories
   if (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/")) {
     // Skip logging in test environments to avoid noise
@@ -205,10 +179,12 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
     // Check for YAML files that shouldn't exist
     const yamlPath = join(configDirPath, "config.yaml");
     const ymlPath = join(configDirPath, "config.yml");
-    
+
     if (fileExists(yamlPath) || fileExists(ymlPath)) {
       console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
-      console.error(colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."));
+      console.error(
+        colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."),
+      );
       console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
     }
   }
@@ -221,7 +197,7 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
 
     const fileContent = Deno.readTextFileSync(projectPath);
     let config: unknown;
-    
+
     try {
       config = JSON.parse(fileContent);
     } catch (e) {
@@ -230,44 +206,48 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
       console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
       throw new Error("Invalid JSON in configuration file");
     }
-    
+
     // Validate configuration if requested
     if (validateSchema) {
       const validation = validateConfigWithFeedback(config);
-      
+
       if (!validation.valid) {
         console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
         console.error(formatValidationErrors(validation.errors));
-        
+
         if (validation.suggestions.length > 0) {
           console.log(colors.yellow("\nSuggestions:"));
-          validation.suggestions.forEach(s => console.log(`  - ${s}`));
+          validation.suggestions.forEach((s) => console.log(`  - ${s}`));
         }
-        
-        console.log(colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."));
-        
+
+        console.log(
+          colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."),
+        );
+
         throw new Error("Invalid configuration format");
       }
-      
+
       if (validation.warnings.length > 0) {
         console.warn(colors.yellow("Configuration warnings:"));
-        validation.warnings.forEach(w => console.warn(`  - ${w}`));
+        validation.warnings.forEach((w) => console.warn(`  - ${w}`));
       }
     }
-    
+
     return config as ProjectConfig;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);
-    
+
     // Re-throw validation errors so they can be handled properly
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
-    
+
     return null;
   }
 }
@@ -294,15 +274,17 @@ function fileExists(filePath: string): boolean {
 export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let privateKey: string | undefined;
-  
+
   try {
     config = readProjectFile();
   } catch (error) {
     // If there's a validation error, don't proceed with setup
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
     // For other errors, continue with setup
@@ -315,8 +297,6 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
       config = {
         relays: [],
         servers: [],
-        publishRelayList: false,
-        publishServerList: false,
       };
       log.debug("Running in non-interactive mode with no existing configuration");
       return { config, privateKey: undefined };
@@ -696,12 +676,12 @@ Generated and stored nbunksec string.`));
     );
   }
 
-  const projectName = await Input.prompt({
-    message: "Enter website or project name:",
+  const siteTitle = await Input.prompt({
+    message: "Enter site title (optional):",
   });
 
-  const projectAbout = await Input.prompt({
-    message: "Enter website or project description:",
+  const siteDescription = await Input.prompt({
+    message: "Enter site description (optional):",
   });
 
   console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
@@ -710,33 +690,12 @@ Generated and stored nbunksec string.`));
   console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
 
-  const publishProfile = await Confirm.prompt({
-    message: "Publish profile information to nostr?",
-    default: true,
-  });
-
-  const publishRelayList = await Confirm.prompt({
-    message: "Publish relay list to nostr?",
-    default: true,
-  });
-
-  const publishServerList = await Confirm.prompt({
-    message: "Publish blossom server list to nostr?",
-    default: true,
-  });
-
   const config: ProjectConfig = {
     bunkerPubkey,
     relays,
     servers,
-    profile: {
-      name: projectName,
-      display_name: projectName,
-      about: projectAbout,
-    },
-    publishProfile,
-    publishRelayList,
-    publishServerList,
+    title: siteTitle || undefined,
+    description: siteDescription || undefined,
   };
 
   return { config, privateKey };

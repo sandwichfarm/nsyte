@@ -1,19 +1,25 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { createLogger } from "../lib/logger.ts";
-import { handleError } from "../lib/error-utils.ts";
-import { extractServersFromEvent } from "../lib/utils.ts";
-import { RELAY_COLORS, SERVER_COLORS } from "./ls.ts";
-import { listRemoteFilesWithProgress } from "../lib/browse-loader.ts";
-import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
-import { readProjectFile } from "../lib/config.ts";
-import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
+import { Keypress } from "@cliffy/keypress";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
+import { listRemoteFilesWithProgress } from "../lib/browse-loader.ts";
+import { readProjectFile } from "../lib/config.ts";
+import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
+import { handleError } from "../lib/error-utils.ts";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
-import { Keypress } from "@cliffy/keypress";
-import { pool } from "../lib/nostr.ts";
-import { createInitialState, updatePropagationStats } from "../ui/browse/state.ts";
+import { createLogger } from "../lib/logger.ts";
+import { fetchSiteManifestEvents, pool } from "../lib/nostr.ts";
+import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { extractServersFromEvent, extractServersFromManifestEvents } from "../lib/utils.ts";
+import {
+  handleAuthInput,
+  handleAuthSelection,
+  handleDeleteConfirmation,
+  handleDetailModeKey,
+  handleFilterMode,
+  handleListModeKey,
+} from "../ui/browse/handlers.ts";
 import {
   enterAlternateScreen,
   exitAlternateScreen,
@@ -23,14 +29,8 @@ import {
   renderUpdate,
   showCursor,
 } from "../ui/browse/renderer.ts";
-import {
-  handleAuthInput,
-  handleAuthSelection,
-  handleDeleteConfirmation,
-  handleDetailModeKey,
-  handleFilterMode,
-  handleListModeKey,
-} from "../ui/browse/handlers.ts";
+import { createInitialState, updatePropagationStats } from "../ui/browse/state.ts";
+import { RELAY_COLORS, SERVER_COLORS } from "./list.ts";
 
 const log = createLogger("browse");
 
@@ -299,21 +299,44 @@ export async function command(options: any): Promise<void> {
         }
       };
 
-      // First fetch server list asynchronously
+      // First fetch server list asynchronously (prioritize manifest events per NIP-XX)
       state.status = "Loading server list...";
       throttledRender();
 
       // Fire and forget - don't block
-      fetchServerListEvents(pool, relays, pubkey).then((serverListEvents) => {
-        if (serverListEvents.length > 0) {
-          const latestEvent = serverListEvents[0];
-          state.blossomServers = extractServersFromEvent(latestEvent);
-          log.debug(`Found ${state.blossomServers.length} blossom servers in user's server list`);
+      (async () => {
+        // First, try to get servers from manifest events (prioritized per NIP-XX)
+        const manifestEvents = await fetchSiteManifestEvents(relays, pubkey);
+        if (manifestEvents.length > 0) {
+          // Sort by created_at descending (most recent first)
+          const sortedManifestEvents = [...manifestEvents].sort((a, b) =>
+            b.created_at - a.created_at
+          );
+          state.blossomServers = extractServersFromManifestEvents(sortedManifestEvents);
+          if (state.blossomServers.length > 0) {
+            log.debug(`Found ${state.blossomServers.length} blossom servers in manifest event(s)`);
+            // Update color map with blossom servers
+            updateServerColorMap(state.blossomServers);
+            updatePropagationStats(state);
+            throttledRender();
+          }
+        }
 
-          // Update color map with blossom servers
-          updateServerColorMap(state.blossomServers);
-          updatePropagationStats(state);
-          throttledRender();
+        // Fall back to kind 10063 server list event if no servers found in manifests
+        if (state.blossomServers.length === 0) {
+          const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
+          if (serverListEvents.length > 0) {
+            const latestEvent = serverListEvents[0];
+            state.blossomServers = extractServersFromEvent(latestEvent);
+            log.debug(
+              `Found ${state.blossomServers.length} blossom servers in user's server list (kind 10063)`,
+            );
+
+            // Update color map with blossom servers
+            updateServerColorMap(state.blossomServers);
+            updatePropagationStats(state);
+            throttledRender();
+          }
         }
 
         if (state.blossomServers.length === 0) {
@@ -333,27 +356,34 @@ export async function command(options: any): Promise<void> {
         );
 
         // Check visible files first for immediate feedback
-        return checkBlossomServersForFiles(relays, pubkey, visibleFiles, (checked, total) => {
-          state.status = `Checking visible files... ${checked}/${total}`;
-          throttledRender();
-        }, state.blossomServers).then(() => {
-          // Then check remaining files in background without blocking
-          const remainingFiles = [
-            ...state.files.slice(0, state.page * state.pageSize),
-            ...state.files.slice((state.page + 1) * state.pageSize),
-          ];
+        await checkBlossomServersForFiles(
+          relays,
+          pubkey,
+          visibleFiles,
+          (checked, total) => {
+            state.status = `Checking visible files... ${checked}/${total}`;
+            throttledRender();
+          },
+          state.blossomServers,
+          manifestEvents,
+        );
 
-          if (remainingFiles.length > 0) {
-            // Check remaining files with yielding to not block the UI
-            checkBlossomServersWithYielding(relays, pubkey, remainingFiles, state.blossomServers);
-          }
-        });
-      }).then(() => {
+        // Then check remaining files in background without blocking
+        const remainingFiles = [
+          ...state.files.slice(0, state.page * state.pageSize),
+          ...state.files.slice((state.page + 1) * state.pageSize),
+        ];
+
+        if (remainingFiles.length > 0) {
+          // Check remaining files with yielding to not block the UI
+          checkBlossomServersWithYielding(relays, pubkey, remainingFiles, state.blossomServers);
+        }
+
         hasInitialBlossomCheck = true;
         state.status = "Ready";
         updatePropagationStats(state);
         throttledRender(true); // Force immediate render when done
-      }).catch((error) => {
+      })().catch((error) => {
         hasInitialBlossomCheck = true;
         state.status = "Ready";
         log.debug(`Initial blossom check failed: ${error}`);

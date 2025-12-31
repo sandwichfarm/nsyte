@@ -1,27 +1,34 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { join } from "@std/path";
 import { ensureDir } from "@std/fs";
+import { join } from "@std/path";
 // Using Deno.serve instead of importing serve
-import { createLogger } from "../lib/logger.ts";
+import {
+  BLOSSOM_SERVER_LIST_KIND,
+  decodePointer,
+  normalizeToPubkey,
+} from "applesauce-core/helpers";
+import { decompress as brotliDecompress } from "jsr:@nick/brotli@0.1.0";
+import { readProjectFile } from "../lib/config.ts";
+import { fetchServerListEvents } from "../lib/debug-helpers.ts";
+import { DownloadService } from "../lib/download.ts";
 import { handleError } from "../lib/error-utils.ts";
-import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
+import { createLogger } from "../lib/logger.ts";
 import {
   fetchProfileEvent,
   fetchRelayListEvent,
+  fetchSiteManifestEvents,
   type FileEntry,
   listRemoteFiles,
   pool,
-  USER_BLOSSOM_SERVER_LIST_KIND,
 } from "../lib/nostr.ts";
-import { fetchServerListEvents } from "../lib/debug-helpers.ts";
-import { extractRelaysFromEvent, extractServersFromEvent } from "../lib/utils.ts";
-import { decode } from "nostr-tools/nip19";
-import { normalizeToPubkey } from "applesauce-core/helpers";
-import { DownloadService } from "../lib/download.ts";
-import { decompress as brotliDecompress } from "jsr:@nick/brotli@0.1.0";
-import { readProjectFile } from "../lib/config.ts";
+import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
 import type { ByteArray } from "../lib/types.ts";
+import {
+  extractRelaysFromEvent,
+  extractServersFromEvent,
+  extractServersFromManifestEvents,
+} from "../lib/utils.ts";
 
 const log = createLogger("run");
 
@@ -76,7 +83,7 @@ export function registerRunCommand(program: Command): void {
  */
 export function validateNpub(npub: string): boolean {
   try {
-    const decoded = decode(npub);
+    const decoded = decodePointer(npub);
     return decoded.type === "npub";
   } catch {
     return false;
@@ -162,7 +169,9 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
     }
 
     if (relays.length === 0) {
-      console.log(colors.red("✗ No file relays available. Please configure relays or enable fallbacks."));
+      console.log(
+        colors.red("✗ No file relays available. Please configure relays or enable fallbacks."),
+      );
       Deno.exit(1);
     }
 
@@ -333,31 +342,60 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
               );
             }
 
-            // Fetch server list from BOTH user's relays AND usermeta relays, use most recent
+            // Extract servers from manifest events first (per NIP-XX spec)
             const userRelaysToUse = userRelays.length > 0 ? userRelays : relays;
             const allServerListRelays = Array.from(new Set([...userRelaysToUse, ...profileRelays]));
+
+            let serverList: string[] = [];
+
+            // First, try to get servers from manifest events (prioritized per NIP-XX)
             log.debug(
-              `Fetching server list (Kind ${USER_BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${
+              `Fetching site manifest events for ${pubkeyHex} from relays: ${
                 allServerListRelays.join(", ")
               }`,
             );
-            const serverListEvents = await fetchServerListEvents(
-              pool,
+            const manifestEvents = await fetchSiteManifestEvents(
               allServerListRelays,
               pubkeyHex,
             );
 
-            // fetchServerListEvents already sorts by created_at descending, so [0] is most recent
-            const serverList = serverListEvents && serverListEvents.length > 0
-              ? extractServersFromEvent(serverListEvents[0])
-              : [];
+            if (manifestEvents.length > 0) {
+              // Sort by created_at descending (most recent first)
+              const sortedManifestEvents = [...manifestEvents].sort((a, b) =>
+                b.created_at - a.created_at
+              );
+              serverList = extractServersFromManifestEvents(sortedManifestEvents);
+              if (serverList.length > 0) {
+                log.debug(`Found ${serverList.length} servers from manifest event(s)`);
+                console.log(colors.gray(`  → Found ${serverList.length} servers in manifest`));
+              }
+            }
 
-            if (serverList.length > 0) {
-              log.debug(`Found ${serverList.length} servers from server list event`);
-              console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
-            } else {
-              log.debug("No server list event found");
-              console.log(colors.gray(`  → No server list found`));
+            // Fall back to kind 10063 server list event if no servers found in manifests
+            if (serverList.length === 0) {
+              log.debug(
+                `No servers in manifest, fetching server list (Kind ${BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${
+                  allServerListRelays.join(", ")
+                }`,
+              );
+              const serverListEvents = await fetchServerListEvents(
+                pool,
+                allServerListRelays,
+                pubkeyHex,
+              );
+
+              // fetchServerListEvents already sorts by created_at descending, so [0] is most recent
+              serverList = serverListEvents && serverListEvents.length > 0
+                ? extractServersFromEvent(serverListEvents[0])
+                : [];
+
+              if (serverList.length > 0) {
+                log.debug(`Found ${serverList.length} servers from server list event (kind 10063)`);
+                console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
+              } else {
+                log.debug("No server list event found");
+                console.log(colors.gray(`  → No server list found`));
+              }
             }
 
             profileData = { profile, relayList, serverList, userRelays, timestamp: Date.now() };
@@ -476,7 +514,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                 files = await listRemoteFiles(fallbackRelays, pubkeyHex);
               }
 
-              // Track event timestamps for cache invalidation
+              // Track manifest event timestamps for cache invalidation
               const eventTimestamps = new Map<string, number>();
               files.forEach((file) => {
                 if (file.event) {
@@ -557,7 +595,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
                   return;
                 }
 
-                // Track event timestamps for cache invalidation
+                // Track manifest event timestamps for cache invalidation
                 const newEventTimestamps = new Map<string, number>();
                 files.forEach((file) => {
                   if (file.event) {
@@ -1310,7 +1348,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
   const currentPath = '${requestedPath}';
   const npub = '${npub}';
   const startTime = Date.now();
-  
+
   function checkForUpdates() {
     fetch('/_nsyte/check-updates?path=' + encodeURIComponent(currentPath) + '&since=' + startTime)
       .then(r => r.json())
@@ -1322,7 +1360,7 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
       })
       .catch(err => console.error('Update check failed:', err));
   }
-  
+
   // Check for updates every 5 seconds
   setInterval(checkForUpdates, 5000);
 })();
@@ -1395,7 +1433,7 @@ function generateLoadingPage(npub: string, profile: any): string {
   <title>Loading ${name}'s nsite...</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
+    body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       display: flex;
       align-items: center;

@@ -11,7 +11,7 @@ This file helps AI assistants understand the nsyte codebase and contribute effec
 ### Core Technologies
 - **Language**: TypeScript/Deno
 - **Protocols**: Nostr (Notes and Other Stuff Transmitted by Relays), Blossom (blob storage)
-- **Key Libraries**: 
+- **Key Libraries**:
   - `nostr-tools` - Nostr protocol implementation
   - `@cliffy/command` - CLI framework
   - `applesauce-*` - Nostr utilities
@@ -38,7 +38,7 @@ src/
 
 #### Libraries (`src/lib/`)
 - **nostr.ts** - Nostr protocol operations
-- **download.ts** - Blossom server file operations  
+- **download.ts** - Blossom server file operations
 - **config.ts** - Configuration management
 - **utils.ts** - Shared utility functions
 - **nip46.ts** - Nostr Connect (bunker) implementation
@@ -97,7 +97,7 @@ The project supports multiple authentication methods:
 
 ### File Discovery
 1. Fetch user's relay list (Kind 10002)
-2. Query relays for file events (Kind 34128)
+2. Query relays for site manifest events (Kinds 15128 for root sites, 35128 for named sites)
 3. Fetch server list (Kind 10063)
 4. Check blossom servers for file availability
 

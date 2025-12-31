@@ -14,26 +14,23 @@ self.addEventListener("unhandledrejection", (event) => {
 });
 
 import { Command } from "@cliffy/command";
-import { colors } from "@cliffy/ansi/colors";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
-import { registerDeployCommand } from "./commands/deploy.ts";
-import { registerLsCommand } from "./commands/ls.ts";
+import { registerAnnounceCommand } from "./commands/announce.ts";
 import { registerBrowseCommand } from "./commands/browse.ts";
-import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
+import { registerConfigCommand } from "./commands/config.ts";
+import { registerDebugCommand } from "./commands/debug.ts";
+import { registerDeployCommand } from "./commands/deploy.ts";
+import { registerDownloadCommand } from "./commands/download.ts";
 import { registerInitCommand } from "./commands/init.ts";
+import { registerLsCommand } from "./commands/list.ts";
+import { registerPurgeCommand } from "./commands/purge.ts";
 import { registerRunCommand } from "./commands/run.ts";
 import { registerServeCommand } from "./commands/serve.ts";
-import { registerPurgeCommand } from "./commands/purge.ts";
 import { validateCommand } from "./commands/validate.ts";
-import { registerDebugCommand } from "./commands/debug.ts";
-import { registerAnnounceCommand } from "./commands/announce.ts";
-import { registerConfigCommand } from "./commands/config.ts";
-import { setupProject } from "./lib/config.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
-import { header } from "./ui/header.ts";
 import { version } from "./version.ts";
 
 import { registerBunkerCommand } from "./commands/bunker-cliffy.ts";
@@ -67,36 +64,10 @@ registerConfigCommand(nsite);
 registerBunkerCommand(nsite);
 
 /**
- * Display the nsyte header in a random color
- */
-function displayColorfulHeader() {
-  const colorFunctions = [
-    colors.red,
-    colors.green,
-    colors.blue,
-    colors.yellow,
-    colors.magenta,
-    colors.cyan,
-    colors.brightRed,
-    colors.brightGreen,
-    colors.brightBlue,
-    colors.brightYellow,
-    colors.brightMagenta,
-    colors.brightCyan,
-  ];
-
-  const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
-
-  console.log(randomColorFn(header));
-}
-
-/**
  * Main function - the entry point for the command line
  */
 async function main() {
   try {
-    displayColorfulHeader();
-
     // Clean up any invalid config files on startup
     try {
       const currentDir = Deno.cwd();

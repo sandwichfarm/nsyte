@@ -1,6 +1,6 @@
-import type { Nip07Interface } from "applesauce-signers";
+import type { ISigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import { createNsiteEvent, publishEventsToRelays } from "./nostr.ts";
+import { publishEventsToRelays } from "./nostr.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
 
 const log = createLogger("upload");
@@ -142,7 +142,7 @@ async function signEventWithRetry(
 }
 
 /** @deprecated use Nip07Interface from applesauce-signers */
-export interface Signer extends Nip07Interface {}
+export interface Signer extends ISigner {}
 
 export interface UploadProgress {
   total: number;
@@ -322,32 +322,6 @@ async function uploadToServer(
     log.debug(`PUT to /upload with auth header failed: ${e}`);
   }
   return { success: false, alreadyExists: false, error: "Upload failed" };
-}
-
-/**
- * Publish an nsite event to nostr
- */
-async function createpublishNsiteEvent(
-  signer: Signer,
-  pubkey: string,
-  path: string,
-  sha256: string,
-): Promise<NostrEvent> {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
-  const eventTemplate: NostrEventTemplate = {
-    kind: 34128,
-    created_at: Math.floor(Date.now() / 1000),
-    tags: [
-      ["d", normalizedPath],
-      ["x", sha256],
-      ["client", "nsyte"],
-    ],
-    content: "",
-    pubkey: pubkey,
-  };
-
-  return await signer.signEvent(eventTemplate);
 }
 
 /**
@@ -577,9 +551,7 @@ async function uploadFile(
       }),
     );
 
-    const anyServerSuccess = uploadResults.some((result) =>
-      result.success || result.alreadyExists
-    );
+    const anyServerSuccess = uploadResults.some((result) => result.success || result.alreadyExists);
 
     if (!anyServerSuccess) {
       const serverErrors = Object.entries(serverResults)
@@ -599,88 +571,16 @@ async function uploadFile(
 
     allAlready = uploadResults.every((r) => r.alreadyExists);
 
-    let signedEvent: NostrEvent | null = null;
-    let eventPublished = false;
-
-    try {
-      signedEvent = await signEventWithRetry(
-        `sign nsite event for ${file.path}`,
-        () => createNsiteEvent(
-          signer,
-          userPubkey,
-          file.path,
-          file.sha256!,
-        ),
-      );
-
-      if (!relays || relays.length === 0) {
-        throw new Error("No relays provided for publishing events");
-      }
-
-      try {
-        eventPublished = await publishEventToRelays(signedEvent, relays);
-
-        if (eventPublished) {
-          log.info(`Published nsite event for ${file.path} to relays`);
-        } else {
-          log.warn(`Failed to publish nsite event for ${file.path} to relays`);
-        }
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        if (
-          errorMessage.includes("rate-limit") ||
-          errorMessage.includes("noting too much")
-        ) {
-          log.warn(
-            `Rate limiting detected when publishing event for ${file.path}: ${errorMessage}`,
-          );
-          return {
-            file,
-            success: false,
-            skipped: allAlready,
-            eventId: signedEvent.id,
-            serverResults,
-            eventPublished: false,
-            error: `Rate limited: ${errorMessage}`,
-          };
-        }
-
-        log.error(
-          `Error publishing nsite event for ${file.path}: ${errorMessage}`,
-        );
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (
-        errorMessage.includes("rate-limit") ||
-        errorMessage.includes("noting too much")
-      ) {
-        log.warn(
-          `Rate limiting detected when signing event for ${file.path}: ${errorMessage}`,
-        );
-        return {
-          file,
-          success: false,
-          skipped: allAlready,
-          serverResults,
-          eventPublished: false,
-          error: `Rate limited during signing: ${errorMessage}`,
-        };
-      }
-
-      log.error(`Error signing nsite event for ${file.path}: ${errorMessage}`);
-    }
+    // Note: Event publishing is now handled separately after all files are uploaded
+    // This function only handles blob uploads to servers
 
     return {
       file,
-      success: eventPublished,
+      success: true, // Success if blob was uploaded to at least one server
       skipped: allAlready,
-      eventId: signedEvent?.id,
       serverResults,
-      eventPublished: eventPublished,
-      error: eventPublished ? undefined : "Event not published",
+      eventPublished: false, // Events are published separately via manifest
+      error: undefined,
     };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);

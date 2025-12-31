@@ -1,5 +1,4 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
+import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
 
 Deno.test("CLI Workflows - Command Validation", async (t) => {
   await t.step("should validate upload command arguments", () => {

@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { setupProject } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
+import { displayColorfulHeader } from "../ui/output-helpers.ts";
 
 const log = createLogger("init");
 
@@ -13,6 +14,7 @@ export function registerInitCommand(program: Command): void {
     .command("init")
     .description("Initialize a new nsyte project")
     .action(async () => {
+      console.log(displayColorfulHeader());
       try {
         const { config, privateKey } = await setupProject();
 

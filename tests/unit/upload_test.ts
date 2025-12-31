@@ -1,21 +1,15 @@
-import { assert, assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { PrivateKeySigner, SimpleSigner } from "applesauce-signers/signers";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { assertSpyCall, assertSpyCalls, type Spy, type Stub, stub } from "jsr:@std/testing/mock";
-import { SimpleSigner } from "applesauce-signers/signers";
-import { Signer as LibSigner, UploadProgress, UploadResponse } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
+import { type Spy, type Stub, stub } from "jsr:@std/testing/mock";
+import { assert, assertEquals } from "std/assert/mod.ts";
 import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
-import { uploadCommand, type UploadCommandOptions } from "../../src/commands/upload.ts";
+import { Signer as LibSigner, UploadProgress } from "../../src/lib/upload.ts"; // Actual processUploads is NOT stubbed here
 
 // Import the modules whose functions we will NOT stub directly in uploadCommand tests,
 // but whose behavior we might control via other means (e.g. file system, or fetch stubs for their dependencies)
-import * as config from "../../src/lib/config.ts";
-import * as files from "../../src/lib/files.ts";
-import * as nostr from "../../src/lib/nostr.ts";
-import * as nip46 from "../../src/lib/nip46.ts";
-import { ProjectConfig, ProjectContext } from "../../src/lib/config.ts";
-import { createLogger } from "../../src/lib/logger.ts"; // To get the logger instance
-import { verifiedSymbol } from "nostr-tools";
-import { VerifiedEvent } from "nostr-tools";
+import type { createLogger } from "../../src/lib/logger.ts"; // To get the logger instance
+import { VerifiedEvent } from "applesauce-core/helpers";
+import { UploadCommandOptions } from "../../src/commands/deploy.ts";
 
 // MockSigner class for "Upload Module" tests (can remain as is if not used by uploadCommand tests)
 class MockSigner implements LibSigner {
@@ -55,9 +49,9 @@ let commandLoggerStubbedError:
 let consoleErrorStub: Stub<Console, Parameters<Console["error"]>, void> | undefined;
 let consoleLogStub: Stub<Console, Parameters<Console["log"]>, void> | undefined; // For specific tests needing to check output
 
-let pksGetPublicKeyStub: Stub<SimpleSigner, [], Promise<string>> | undefined; // Stubbing prototype
+let pksGetPublicKeyStub: Stub<PrivateKeySigner, [], Promise<string>> | undefined; // Stubbing prototype
 let pksSignEventStub:
-  | Stub<SimpleSigner, Parameters<SimpleSigner["signEvent"]>, Promise<NostrEvent>>
+  | Stub<PrivateKeySigner, Parameters<PrivateKeySigner["signEvent"]>, Promise<NostrEvent>>
   | undefined; // Stubbing prototype
 
 let fetchStub:
@@ -135,10 +129,8 @@ describe("uploadCommand", () => {
     verbose: false,
     purge: false,
     concurrency: 1,
-    publishServerList: false,
-    publishRelayList: false,
-    publishProfile: false,
     nonInteractive: false,
+    publishAppHandler: false,
     // servers, relays, privatekey, bunker, nbunksec, fallback are optional
     ...overrides,
   });

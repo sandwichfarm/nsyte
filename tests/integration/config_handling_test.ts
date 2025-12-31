@@ -1,6 +1,5 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
-import type { Profile, ProjectConfig } from "../../src/lib/config.ts";
+import { assertEquals, assertExists } from "std/assert/mod.ts";
+import type { ProjectConfig } from "../../src/lib/config.ts";
 
 Deno.test("Configuration Handling - Validation", async (t) => {
   await t.step("should validate relay URLs", () => {
@@ -47,62 +46,48 @@ Deno.test("Configuration Handling - Validation", async (t) => {
     assertEquals(validateServerUrl("ftp://wrong-protocol.com"), false);
   });
 
-  await t.step("should validate profile data", () => {
-    const validateProfile = (profile: Profile) => {
+  await t.step("should validate metadata fields", () => {
+    const validateMetadata = (config: ProjectConfig) => {
       const errors: string[] = [];
 
-      if (profile.name && profile.name.length > 100) {
-        errors.push("Name too long (max 100 characters)");
+      if (config.title && config.title.length > 200) {
+        errors.push("Title too long (max 200 characters)");
       }
 
-      if (profile.about && profile.about.length > 500) {
-        errors.push("About too long (max 500 characters)");
+      if (config.description && config.description.length > 1000) {
+        errors.push("Description too long (max 1000 characters)");
       }
 
-      if (profile.website) {
-        try {
-          new URL(profile.website);
-        } catch {
-          errors.push("Invalid website URL");
-        }
-      }
-
-      if (profile.picture) {
-        try {
-          new URL(profile.picture);
-        } catch {
-          errors.push("Invalid picture URL");
-        }
-      }
-
-      if (profile.nip05 && !profile.nip05.includes("@")) {
-        errors.push("Invalid NIP-05 format (should be name@domain)");
+      if (config.id && typeof config.id === "string" && config.id.length > 100) {
+        errors.push("ID too long (max 100 characters)");
       }
 
       return errors;
     };
 
-    // Valid profile
-    const validProfile: Profile = {
-      name: "John Doe",
-      about: "Software developer",
-      website: "https://johndoe.com",
-      picture: "https://example.com/avatar.jpg",
-      nip05: "john@johndoe.com",
+    // Valid metadata
+    const validConfig: ProjectConfig = {
+      relays: ["wss://relay.example.com"],
+      servers: ["https://server.example.com"],
+      publishServerList: false,
+      publishRelayList: false,
+      id: "my-site",
+      title: "My Site",
+      description: "A test site",
     };
-    assertEquals(validateProfile(validProfile), []);
+    assertEquals(validateMetadata(validConfig), []);
 
-    // Invalid profile
-    const invalidProfile: Profile = {
-      name: "x".repeat(101), // Too long
-      website: "not-a-url",
-      picture: "also-not-a-url",
-      nip05: "invalid-nip05",
+    // Invalid metadata
+    const invalidConfig: ProjectConfig = {
+      relays: ["wss://relay.example.com"],
+      servers: ["https://server.example.com"],
+      publishServerList: false,
+      publishRelayList: false,
+      title: "x".repeat(201), // Too long
     };
-    const errors = validateProfile(invalidProfile);
+    const errors = validateMetadata(invalidConfig);
     assertEquals(errors.length > 0, true);
-    assertEquals(errors.some((e) => e.includes("Name too long")), true);
-    assertEquals(errors.some((e) => e.includes("Invalid website URL")), true);
+    assertEquals(errors.some((e) => e.includes("Title too long")), true);
   });
 });
 
@@ -140,9 +125,24 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       newConfig.publishServerList = Boolean(oldConfig.publishServerList);
       newConfig.publishRelayList = Boolean(oldConfig.publishRelayList);
 
-      // Migrate profile
+      // Migrate metadata (from old profile if present)
       if (oldConfig.profile && typeof oldConfig.profile === "object") {
-        newConfig.profile = { ...oldConfig.profile };
+        if (oldConfig.profile.name) {
+          newConfig.title = oldConfig.profile.name;
+        }
+        if (oldConfig.profile.about) {
+          newConfig.description = oldConfig.profile.about;
+        }
+      }
+      // Also check for direct metadata fields
+      if (oldConfig.siteIdentifier) {
+        newConfig.id = oldConfig.siteIdentifier;
+      }
+      if (oldConfig.siteTitle) {
+        newConfig.title = oldConfig.siteTitle;
+      }
+      if (oldConfig.siteDescription) {
+        newConfig.description = oldConfig.siteDescription;
       }
 
       return newConfig;
@@ -154,7 +154,7 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       servers: ["https://server1.com", "https://server2.com"],
       bunkerPubkey: "pubkey123",
       publishServerList: true,
-      profile: { name: "Test User" },
+      profile: { name: "Test User", about: "Test description" },
     };
 
     const migrated = migrateConfig(oldConfig);
@@ -162,7 +162,8 @@ Deno.test("Configuration Handling - Migration", async (t) => {
     assertEquals(migrated.servers, ["https://server1.com", "https://server2.com"]);
     assertEquals(migrated.bunkerPubkey, "pubkey123");
     assertEquals(migrated.publishServerList, true);
-    assertEquals(migrated.profile?.name, "Test User");
+    assertEquals(migrated.title, "Test User");
+    assertEquals(migrated.description, "Test description");
 
     // Test migration with array format
     const newFormatConfig = {
@@ -336,7 +337,6 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         ],
         publishServerList: true,
         publishRelayList: true,
-        publishProfile: false,
       };
     };
 
@@ -378,7 +378,9 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         publishServerList: configData.publishServerList ?? true,
         publishRelayList: configData.publishRelayList ?? true,
         bunkerPubkey: configData.bunkerPubkey,
-        profile: configData.profile,
+        id: configData.id,
+        title: configData.title,
+        description: configData.description,
       };
     };
 

@@ -8,19 +8,19 @@ import { bech32 } from "@scure/base";
 import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { pool } from "./nostr.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, pool } from "./nostr.ts";
+import { BLOSSOM_SERVER_LIST_KIND, kinds } from "applesauce-core/helpers";
 
 const log = createLogger("nip46");
 
 export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
-  0,
-  1063, // NIP-94 file metadata
-  10002,
-  10063,
-  24242,
-  30063, // NIP-51 release artifact sets
+  kinds.Metadata,
+  kinds.RelayList,
+  BLOSSOM_SERVER_LIST_KIND,
+  24242, // Blossom authorization kind
   31990, // NIP-89 handler announcement
-  34128,
+  NSITE_ROOT_SITE_KIND, // NIP-XX root site manifest
+  NSITE_NAME_SITE_KIND, // NIP-XX named site manifest
 ]);
 
 /** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
@@ -340,7 +340,9 @@ export async function importFromNbunk(
     const info = decodeBunkerInfo(nbunkString);
     const clientKey = hexToBytes(info.local_key);
 
-    log.debug(`Creating NostrConnectSigner with remote: ${info.pubkey}, relays: ${info.relays.join(', ')}`);
+    log.debug(
+      `Creating NostrConnectSigner with remote: ${info.pubkey}, relays: ${info.relays.join(", ")}`,
+    );
     log.debug(`Pool subscription method: ${NostrConnectSigner.subscriptionMethod}`);
     log.debug(`Pool publish method: ${NostrConnectSigner.publishMethod}`);
 
@@ -352,13 +354,13 @@ export async function importFromNbunk(
 
     try {
       log.debug("About to call signer.connect()...");
-      
+
       // Add timeout to prevent hanging
       const connectPromise = signer.connect();
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error("Bunker connection timeout after 30s")), 30000);
       });
-      
+
       log.debug("Waiting for connection or timeout...");
       await Promise.race([connectPromise, timeoutPromise]);
       log.debug("Connection established successfully");

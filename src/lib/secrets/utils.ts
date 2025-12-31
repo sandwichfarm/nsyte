@@ -27,14 +27,17 @@ export function getSystemConfigDir(): string | null {
   if (!home) return null;
 
   switch (Deno.build.os) {
-    case "linux":
+    case "linux": {
       const xdgConfig = Deno.env.get("XDG_CONFIG_HOME");
       return xdgConfig ? join(xdgConfig, "nsite") : join(home, ".config", "nsite");
-    case "darwin":
+    }
+    case "darwin": {
       return join(home, "Library", "Application Support", "nsyte");
-    case "windows":
+    }
+    case "windows": {
       const appData = Deno.env.get("APPDATA");
       return appData ? join(appData, "nsite") : join(home, "AppData", "Roaming", "nsite");
+    }
     default:
       return join(home, ".config", "nsyte");
   }

@@ -4,8 +4,5 @@
   "bunkerPubkey": "invalid-hex",
   "appHandler": {
     "enabled": true
-  },
-  "application": {
-    "platforms": ["invalid-platform"]
   }
 }
