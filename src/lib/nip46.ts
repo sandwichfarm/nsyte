@@ -5,7 +5,7 @@
 import { qrcode as generateQrCodeForTerminal } from "@libs/qrcode";
 import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { bech32 } from "@scure/base";
-import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
+import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, pool } from "./nostr.ts";
@@ -23,14 +23,8 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   NSITE_NAME_SITE_KIND, // NIP-XX named site manifest
 ]);
 
-/** Setup NostrConnectSigner according to https://hzrd149.github.io/applesauce/signers/nostr-connect.html#relay-communication */
-if (!pool.subscription || !pool.publish) {
-  log.error("Pool methods not available");
-  throw new Error("Pool is not properly initialized");
-}
-NostrConnectSigner.subscriptionMethod = pool.subscription.bind(pool);
-NostrConnectSigner.publishMethod = pool.publish.bind(pool);
-log.debug("NostrConnectSigner methods set up successfully");
+// Connect the signer to the global pool
+NostrConnectSigner.pool = pool;
 
 /**
  * Helper function to render a QR code boolean array with a quiet zone to the console.
@@ -349,7 +343,7 @@ export async function importFromNbunk(
     const signer = new NostrConnectSigner({
       remote: info.pubkey,
       relays: info.relays,
-      signer: new SimpleSigner(clientKey),
+      signer: new PrivateKeySigner(clientKey),
     });
 
     try {

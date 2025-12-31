@@ -434,8 +434,6 @@ async function selectKeySource(
   const existingBunkers = await secretsManager.getAllPubkeys();
   const hasBunkers = existingBunkers.length > 0;
 
-  let nbunkString: string | undefined;
-
   // Prepare options based on whether bunkers exist
   const keyOptions = [
     { name: "Generate a new private key", value: "generate" },

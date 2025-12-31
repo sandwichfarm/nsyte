@@ -1,21 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { existsSync } from "@std/fs/exists";
-import { join } from "@std/path";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
-import {
-  DEFAULT_IGNORE_PATTERNS,
-  type IgnoreRule,
-  isIgnored,
-  parseIgnorePatterns,
-} from "../lib/files.ts";
-import { createLogger } from "../lib/logger.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
-import { FileEntryWithSources, listRemoteFilesWithSources } from "../lib/nostr.ts";
-
-const log = createLogger("ls");
+import { type FileEntryWithSources, listRemoteFilesWithSources } from "../lib/nostr.ts";
 
 // Color palette for relays and servers
 export const RELAY_COLORS = [
@@ -86,9 +75,6 @@ export function registerLsCommand(program: Command): void {
 
 export async function command(options: any, pathFilter?: string): Promise<void> {
   try {
-    const cwd = Deno.cwd();
-    const ignoreFilePath = join(cwd, ".nsite-ignore");
-
     const pubkey = await resolvePubkey(options);
     const projectConfig = readProjectFile();
     const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
@@ -111,8 +97,6 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
       }
     }
 
-    let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
-
     // Normalize path filter
     let normalizedPathFilter: string | undefined;
     if (pathFilter) {
@@ -132,21 +116,6 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
 
     if (normalizedPathFilter) {
       console.log(colors.cyan(`Filtering by path: ${normalizedPathFilter}`));
-    }
-
-    if (existsSync(ignoreFilePath)) {
-      try {
-        const ignoreContent = await Deno.readTextFile(ignoreFilePath);
-        const customPatterns = ignoreContent.split("\n").map((l) => l.trim()).filter((l) =>
-          l && !l.startsWith("#")
-        );
-        ignoreRules = parseIgnorePatterns([...DEFAULT_IGNORE_PATTERNS, ...customPatterns]);
-        log.info(`Loaded .nsite-ignore rules.`);
-      } catch (error) {
-        log.warn(`Failed to read .nsite-ignore file: ${error}. Using default ignore patterns.`);
-      }
-    } else {
-      log.debug("No .nsite-ignore file found, using default patterns.");
     }
 
     let files = await listRemoteFilesWithSources(relays, pubkey);
@@ -289,26 +258,8 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         return a.path.localeCompare(b.path);
       });
 
-      // Count ignored files first
-      let ignoredFileCount = 0;
-      files.forEach((file) => {
-        const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-        if (isIgnored(relativePath, ignoreRules, false)) {
-          ignoredFileCount++;
-        }
-      });
-
       // Display files in tree-like format
       console.log("\n" + colors.bold("Files:"));
-      if (ignoredFileCount > 0) {
-        console.log(
-          colors.yellow(
-            `${ignoredFileCount} file${
-              ignoredFileCount > 1 ? "s" : ""
-            } will be skipped during upload (shown in red below)`,
-          ),
-        );
-      }
       console.log(colors.gray("─".repeat(100)));
 
       sortedItems.forEach((item, index) => {
@@ -342,8 +293,6 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
         } else {
           // Display file
           const file = item.file!;
-          const relativePath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
-          const shouldBeIgnored = isIgnored(relativePath, ignoreRules, false);
 
           // Build relay indicators (fixed width based on count, not string length)
           let relayIndicators = "";
@@ -404,12 +353,11 @@ export async function command(options: any, pathFilter?: string): Promise<void> 
           }
 
           // Format file info
-          const pathColor = shouldBeIgnored ? colors.red : colors.white;
           const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
 
           // Fixed width for indicators column, then tree and file info
           console.log(
-            `${indicators} ${colors.gray(treePrefix)}${pathColor(fileName)}${hashDisplay}`,
+            `${indicators} ${colors.gray(treePrefix)}${colors.white(fileName)}${hashDisplay}`,
           );
         }
       });

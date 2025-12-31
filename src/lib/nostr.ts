@@ -5,7 +5,10 @@ import {
   BLOSSOM_SERVER_LIST_KIND,
   type EventTemplate,
   type Filter,
+  getBlossomServersFromList,
   getTagValue,
+  kinds,
+  mergeBlossomServers,
   type NostrEvent,
 } from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
@@ -16,7 +19,7 @@ import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import type { ByteArray } from "./types.ts";
-import { extractRelaysFromEvent, extractServersFromEvent } from "./utils.ts";
+import { extractRelaysFromEvent } from "./utils.ts";
 
 const log = createLogger("nostr");
 
@@ -26,6 +29,9 @@ export const NSITE_NAME_SITE_KIND = 35128;
 
 // Create a global relay pool for connections
 export const pool = new RelayPool();
+
+// Create an in-memory event store for managing events
+export const store = new EventStore();
 
 export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
 
@@ -98,20 +104,6 @@ export function generateKeyPair(): { privateKey: string; publicKey: string } {
   const publicKey = encodeHex(publicKeyBytes);
 
   return { privateKey, publicKey };
-}
-
-/** Parse a bunker URL into its components */
-export function parseBunkerUrl(bunkerUrl: string): {
-  pubkey: string;
-  relays: string[];
-  secret?: string;
-} {
-  const parsed = NostrConnectSigner.parseBunkerURI(bunkerUrl);
-  return {
-    pubkey: parsed.remote,
-    relays: parsed.relays,
-    secret: parsed.secret,
-  };
 }
 
 /**
@@ -242,21 +234,24 @@ export async function fetchRelayListEvent(
   log.debug(`Fetching relay list for ${pubkey} from ${relays.join(", ")}`);
 
   try {
-    const store = new EventStore();
-    const events = await lastValueFrom(
+    // Load events from the relays
+    await lastValueFrom(
       pool
         .request(relays, {
-          kinds: [10002],
+          kinds: [kinds.RelayList],
           authors: [pubkey],
         })
         .pipe(
+          // Timeout after 5 seconds
           simpleTimeout(5000),
+          // Add all events to the store
           mapEventsToStore(store),
-          mapEventsToTimeline(),
         ),
-      { defaultValue: [] },
+      { defaultValue: null },
     );
-    return events.length > 0 ? events[0] : null;
+
+    // Get the latest event from the store
+    return store.getReplaceable(kinds.RelayList, pubkey) ?? null;
   } catch (error) {
     log.error(`Error fetching relay list: ${getErrorMessage(error)}`);
     return null;
@@ -307,43 +302,44 @@ export async function resolveServersWithKind10063(
   providedServers: string[],
   discoveryRelays: string[] = RELAY_DISCOVERY_RELAYS,
 ): Promise<string[]> {
-  log.debug(`Resolving servers with kind 10063 for ${pubkey}`);
-
   try {
-    const store = new EventStore();
-    const events = await lastValueFrom(
+    log.debug(`Fetching server list for ${pubkey}`);
+    await lastValueFrom(
       pool
         .request(discoveryRelays, {
           kinds: [BLOSSOM_SERVER_LIST_KIND],
           authors: [pubkey],
         })
         .pipe(
+          // Timeout after 5 seconds
           simpleTimeout(5000),
+          // Add all events to the store
           mapEventsToStore(store),
-          mapEventsToTimeline(),
         ),
-      { defaultValue: [] },
+      { defaultValue: null },
     );
 
-    // Sort by created_at descending and get the most recent
-    const sortedEvents = events.sort((a, b) => b.created_at - a.created_at);
-    const latestEvent = sortedEvents.length > 0 ? sortedEvents[0] : null;
-    const discoveredServers = extractServersFromEvent(latestEvent);
+    // Get the latest server list
+    const list = store.getReplaceable(BLOSSOM_SERVER_LIST_KIND, pubkey);
+    const discoveredServers = list ? getBlossomServersFromList(list) : [];
 
     if (discoveredServers.length > 0) {
-      log.debug(`Discovered ${discoveredServers.length} servers from kind 10063`);
+      log.debug(`Found ${discoveredServers.length} servers in user's server list`);
     }
 
     // Merge discovered servers with provided servers (deduplicated)
-    const mergedServers = Array.from(new Set([...discoveredServers, ...providedServers]));
+    const servers = mergeBlossomServers(
+      discoveredServers,
+      providedServers.map((url) => new URL(url)),
+    );
 
-    if (mergedServers.length > providedServers.length) {
+    if (servers.length > providedServers.length) {
       log.debug(
-        `Merged ${mergedServers.length} total servers (${discoveredServers.length} discovered + ${providedServers.length} provided)`,
+        `Merged ${servers.length} total servers (${discoveredServers.length} discovered + ${providedServers.length} provided)`,
       );
     }
 
-    return mergedServers;
+    return servers.map((server) => server.toString());
   } catch (error) {
     log.error(`Error fetching server list: ${getErrorMessage(error)}`);
     // Return provided servers if fetch fails

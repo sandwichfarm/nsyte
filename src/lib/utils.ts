@@ -41,6 +41,8 @@ export function extractRelaysFromEvent(event: NostrEvent | null): string[] {
  * Extract server URLs from a nostr event's tags (for blossom server lists)
  * @param event - The nostr event containing server tags
  * @returns Array of server URLs
+ *
+ * @deprecated use getBlossomServersFromList instead
  */
 export function extractServersFromEvent(event: NostrEvent | null): string[] {
   if (!event) return [];
