@@ -2,14 +2,66 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
-import { normalizeToPubkey } from "applesauce-core/helpers";
+import { type AddressPointer, decodePointer, normalizeToPubkey } from "applesauce-core/helpers";
 import { readProjectFile } from "../lib/config.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { NsiteGatewayServer } from "../lib/gateway.ts";
 import { createLogger } from "../lib/logger.ts";
 import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
+import { NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 
 const log = createLogger("run");
+
+/**
+ * Parse site identifier from various formats and return AddressPointer:
+ * - naddr format: naddr1... (kind 15128 for root or 35128 for named sites)
+ * - subdomain format: <name>.npub1... (kind 35128)
+ * - regular npub: npub1... (kind 15128)
+ */
+function parseSiteIdentifier(input: string): AddressPointer | null {
+  // 1. Check if naddr format
+  if (input.startsWith("naddr1")) {
+    try {
+      const decoded = decodePointer(input);
+      if (decoded.type === "naddr") {
+        // Return the decoded pointer directly
+        return decoded.data;
+      }
+    } catch (error) {
+      throw new Error(`Invalid naddr format: ${input} - ${error}`);
+    }
+  }
+
+  // 2. Check if subdomain format: <name>.npub1...
+  const subdomainMatch = input.match(/^([a-zA-Z0-9_-]+)\.(npub1[a-z0-9]+)$/);
+  if (subdomainMatch) {
+    const npub = subdomainMatch[2];
+    const identifier = subdomainMatch[1];
+    const pubkey = normalizeToPubkey(npub);
+    if (!pubkey) {
+      throw new Error(`Invalid npub in subdomain format: ${npub}`);
+    }
+    // Construct AddressPointer for named site (kind 35128)
+    return {
+      pubkey,
+      identifier,
+      kind: 35128,
+    };
+  }
+
+  // 3. Regular npub
+  const pubkey = normalizeToPubkey(input);
+  if (pubkey) {
+    // Construct AddressPointer for root site (kind 15128)
+    return {
+      pubkey,
+      kind: 15128,
+      identifier: "",
+    };
+  }
+
+  throw new Error(`Invalid site identifier format: ${input}`);
+}
 
 interface RunOptions extends ResolverOptions {
   port?: number;
@@ -29,7 +81,7 @@ export function registerRunCommand(program: Command): void {
     .command("run")
     .alias("rn")
     .description(
-      "Run a resolver server that serves nsites via npub subdomains. Optionally specify an npub to launch instead of default.",
+      "Run a resolver server that serves nsites via npub subdomains. Optionally specify an npub, named site (name.npub1...), or naddr to launch instead of default.",
     )
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
@@ -53,17 +105,30 @@ export function registerRunCommand(program: Command): void {
     )
     .option("--use-fallbacks", "Enable both fallback relays and servers.")
     .option("--no-open", "Don't automatically open the browser")
-    .action(async (options: RunOptions, npub?: string) => {
+    .action(async (options: RunOptions, siteIdentifier?: string) => {
       const port = options.port || 6798;
 
-      // Validate npub parameter if provided
-      let targetNpub = "npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta"; // default
-      if (npub) {
-        if (!normalizeToPubkey(npub)) {
-          console.log(colors.red(`✗ Invalid npub format: ${npub}`));
+      // Parse site identifier if provided
+      let targetSite: AddressPointer | null = null;
+      if (siteIdentifier) {
+        try {
+          targetSite = parseSiteIdentifier(siteIdentifier);
+        } catch (error) {
+          console.log(colors.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
           Deno.exit(1);
         }
-        targetNpub = npub;
+      } else {
+        // Default site
+        const defaultPubkey = normalizeToPubkey(
+          "npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta",
+        );
+        if (defaultPubkey) {
+          targetSite = {
+            pubkey: defaultPubkey,
+            kind: NSITE_ROOT_SITE_KIND,
+            identifier: "",
+          };
+        }
       }
 
       // Set up cache directory
@@ -146,7 +211,7 @@ export function registerRunCommand(program: Command): void {
       // Create and start the gateway server
       const server = new NsiteGatewayServer({
         port,
-        targetNpub,
+        targetSite,
         profileRelays,
         fileRelays: relays,
         defaultFileRelays,

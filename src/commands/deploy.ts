@@ -1,11 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
-import { copy } from "@std/fs/copy";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
-import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
+import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
 import { NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
@@ -21,6 +20,7 @@ import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
+import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
@@ -68,6 +68,7 @@ let resolvedServers: string[] = [];
 const currentWorkingDir = Deno.cwd();
 let targetDir!: string;
 let context!: ProjectContext;
+let fallbackFileEntry: FileEntry | null = null;
 
 // TYPES ----------------------------------------------------------------------------------------------------- //
 
@@ -139,7 +140,10 @@ export function registerDeployCommand(program: Command): void {
       "--handler-kinds <kinds:string>",
       "Event kinds this nsite can handle (comma separated).",
     )
-    .option("--fallback <file:string>", "An HTML file to copy and publish as 404.html")
+    .option(
+      "--fallback <file:string>",
+      "An HTML file to reference as 404.html (creates path mapping with same hash)",
+    )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: UploadCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
@@ -240,10 +244,11 @@ export async function uploadCommand(
 
     displayConfig(publisherPubkey);
 
-    // Copy fallback file to 404.html if configured
-    await copyFallbackFile();
-
     const includedFiles = await scanLocalFiles();
+
+    // Find fallback file in scanned files if configured
+    fallbackFileEntry = findFallbackFile(includedFiles);
+
     const remoteFileEntries = await fetchRemoteFiles(publisherPubkey);
     const { toTransfer, toDelete } = await compareAndPrepareFiles(
       includedFiles,
@@ -279,13 +284,23 @@ export async function uploadCommand(
 
 function displayGatewayUrl(publisherPubkey: string) {
   const npub = npubEncode(publisherPubkey);
-  const { gatewayHostnames } = config;
+  const { gatewayHostnames, id } = config;
+  const siteId = id === null || id === "" ? undefined : id;
+  const isNamedSite = !!siteId;
+
   console.log(colors.green(`\nThe nsite is now available on any nsite gateway, for example:`));
   for (const gatewayHostname of gatewayHostnames || []) {
-    console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
+    if (isNamedSite) {
+      console.log(colors.blue.underline(`https://${siteId}.${npub}.${gatewayHostname}/`));
+    } else {
+      console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
+    }
   }
   console.log(colors.green(`\nYou can also run the command:`));
-  console.log(colors.bgMagenta.bold(`nsyte run ${npub}`));
+
+  console.log(
+    colors.magenta.bold(isNamedSite ? `nsyte run ${siteId}.${npub}` : `nsyte run ${npub}`),
+  );
 }
 
 export function initState(options_: UploadCommandOptions) {
@@ -744,39 +759,37 @@ export function displayConfig(publisherPubkey: string) {
 }
 
 /**
- * Copy fallback file to 404.html if configured
+ * Find fallback file in included files by exact path match
  */
-async function copyFallbackFile(): Promise<void> {
+function findFallbackFile(includedFiles: FileEntry[]): FileEntry | null {
   const fallbackPath = options.fallback || config.fallback;
 
   if (!fallbackPath) {
-    return;
+    return null;
   }
 
-  try {
-    const fallbackSource = join(targetDir, fallbackPath.replace(/^\//, ""));
-    const fallbackDest = join(targetDir, "404.html");
+  // Normalize the fallback path to match FileEntry path format (leading slash)
+  const normalizedFallbackPath = fallbackPath.startsWith("/") ? fallbackPath : `/${fallbackPath}`;
 
-    // Check if source file exists
-    if (!existsSync(fallbackSource)) {
-      log.warn(`Configured fallback file '${fallbackPath}' not found at ${fallbackSource}`);
-      return;
-    }
+  // Find the file by exact path match
+  const found = includedFiles.find((file) => file.path === normalizedFallbackPath);
 
-    // Copy the file
-    await Deno.copyFile(fallbackSource, fallbackDest);
-    log.info(`Copied fallback file ${fallbackPath} to 404.html`);
-
+  if (!found) {
+    log.warn(
+      `Configured fallback file '${fallbackPath}' (normalized: ${normalizedFallbackPath}) not found in scanned files.`,
+    );
     if (!options.nonInteractive) {
-      console.log(colors.cyan(`Copied fallback file ${fallbackPath} to 404.html`));
+      console.log(
+        colors.yellow(
+          `Warning: Fallback file '${fallbackPath}' not found in scanned files. 404.html will not be created.`,
+        ),
+      );
     }
-  } catch (error) {
-    const errorMessage = getErrorMessage(error);
-    log.error(`Failed to copy fallback file: ${errorMessage}`);
-    if (!options.nonInteractive) {
-      console.error(colors.yellow(`Warning: Failed to copy fallback file: ${errorMessage}`));
-    }
+    return null;
   }
+
+  log.info(`Found fallback file: ${found.path}`);
+  return found;
 }
 
 /**
@@ -1158,6 +1171,54 @@ async function publishSiteManifest(
     }
   }
 
+  // Add 404.html entry if fallback file was found
+  if (fallbackFileEntry) {
+    const normalizedFallbackPath = normalizePath(fallbackFileEntry.path);
+
+    // Find the hash for the fallback file from the mappings we just built
+    let fallbackHash: string | undefined;
+
+    // First, try to find it in upload responses
+    const fallbackUploadResponse = uploadResponses.find(
+      (r) => r.success && r.file.sha256 && normalizePath(r.file.path) === normalizedFallbackPath,
+    );
+    if (fallbackUploadResponse?.file.sha256) {
+      fallbackHash = fallbackUploadResponse.file.sha256;
+    } else {
+      // Try to find it in remote entries
+      const fallbackRemoteFile = remoteFileEntries.find(
+        (r) => normalizePath(r.path) === normalizedFallbackPath,
+      );
+      if (fallbackRemoteFile?.sha256) {
+        fallbackHash = fallbackRemoteFile.sha256;
+      } else if (fallbackFileEntry.sha256) {
+        // Use the hash from the file entry itself if available
+        fallbackHash = fallbackFileEntry.sha256;
+      }
+    }
+
+    if (fallbackHash) {
+      fileMappingsMap.set("/404.html", {
+        path: "/404.html",
+        sha256: fallbackHash,
+      });
+      log.info(
+        `Added 404.html entry pointing to fallback file hash: ${fallbackHash.substring(0, 8)}...`,
+      );
+    } else {
+      log.warn(
+        `Fallback file found but no hash available. 404.html will not be added to manifest.`,
+      );
+      if (!options.nonInteractive) {
+        console.log(
+          colors.yellow(
+            `Warning: Fallback file found but no hash available. 404.html will not be added to manifest.`,
+          ),
+        );
+      }
+    }
+  }
+
   const fileMappings = Array.from(fileMappingsMap.values());
 
   if (fileMappings.length === 0) {
@@ -1260,12 +1321,8 @@ async function uploadFiles(
 
   statusDisplay.update(`Uploading ${preparedFiles.length} files...`);
 
-  const { fallback } = options;
-
-  const totalFiles = fallback ? preparedFiles.length + 1 : preparedFiles.length;
-
   setProgressMode(true);
-  progressRenderer = new ProgressRenderer(totalFiles);
+  progressRenderer = new ProgressRenderer(preparedFiles.length);
   progressRenderer.start();
 
   if (resolvedServers.length === 0) {
@@ -1394,64 +1451,6 @@ async function uploadFiles(
   }
 
   return uploadResponses;
-}
-
-/**
- * Process and upload fallback file
- */
-async function processFallbackFile(): Promise<void> {
-  const fallbackPath = options.fallback || config.fallback;
-
-  if (!fallbackPath) {
-    return;
-  }
-
-  try {
-    const fallbackFile = join(targetDir, fallbackPath);
-    const destFile = join(targetDir, "404.html");
-
-    statusDisplay.update(`Copying fallback file ${formatFilePath(fallbackPath)} to 404.html...`);
-
-    await copy(fallbackFile, destFile, { overwrite: true });
-
-    const fallbackFileEntry: FileEntry = {
-      path: "404.html",
-      contentType: "text/html",
-    };
-
-    const fallbackFileData = await loadFileData(targetDir, fallbackFileEntry);
-
-    statusDisplay.update("Uploading 404.html fallback file...");
-    const fallbackUploads = await processUploads(
-      [fallbackFileData],
-      targetDir,
-      resolvedServers,
-      signer,
-      resolvedRelays,
-      1,
-      (progress) => {
-        progressRenderer.update(progress);
-      },
-    );
-
-    if (fallbackUploads[0]?.success) {
-      statusDisplay.success(`Fallback file uploaded as 404.html`);
-    } else {
-      if (fallbackUploads[0]?.error) {
-        statusDisplay.error(`Failed to upload fallback file: ${fallbackUploads[0].error}`);
-      } else {
-        statusDisplay.error(`Failed to upload fallback file`);
-      }
-    }
-  } catch (e: unknown) {
-    const errMsg = `Error processing fallback file: ${getErrorMessage(e)}`;
-    if (displayManager.isInteractive()) {
-      statusDisplay.error(errMsg);
-    } else {
-      console.error(colors.red(errMsg));
-    }
-    log.error(errMsg);
-  }
 }
 
 /**

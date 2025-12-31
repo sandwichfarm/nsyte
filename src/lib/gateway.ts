@@ -4,7 +4,13 @@ import { ensureDir } from "@std/fs";
 import { contentType } from "@std/media-types";
 import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
-import { decodePointer, kinds, normalizeToPubkey } from "applesauce-core/helpers";
+import {
+  AddressPointer,
+  decodePointer,
+  kinds,
+  normalizeToPubkey,
+  npubEncode,
+} from "applesauce-core/helpers";
 import { DownloadService } from "./download.ts";
 import { createLogger } from "./logger.ts";
 import { getManifestFiles, getManifestServers } from "./manifest.ts";
@@ -27,7 +33,7 @@ const log = createLogger("gateway");
  */
 export interface GatewayServerOptions {
   port: number;
-  targetNpub: string;
+  targetSite: AddressPointer | null;
   profileRelays: string[];
   fileRelays: string[];
   defaultFileRelays: string[];
@@ -101,6 +107,7 @@ export class NsiteGatewayServer {
       timestamp: number;
       loading?: boolean;
       eventTimestamps?: Map<string, number>;
+      manifestFoundButEmpty?: boolean;
     }
   >;
   private fileCache: Map<string, { data: ByteArray; timestamp: number; sha256: string }>;
@@ -129,7 +136,11 @@ export class NsiteGatewayServer {
    * Start the gateway server
    */
   async start(): Promise<void> {
-    const { port, targetNpub, noOpen } = this.options;
+    const { port, targetSite, noOpen } = this.options;
+
+    // Extract targetNpub and targetIdentifier from targetSite
+    const targetNpub = targetSite ? npubEncode(targetSite.pubkey) : null;
+    const targetIdentifier = targetSite?.identifier;
 
     console.log(colors.green(`\n🚀 Starting nsyte resolver server`));
     console.log(colors.cyan(`📡 Profile relays: ${this.options.profileRelays.join(", ")}`));
@@ -144,7 +155,15 @@ export class NsiteGatewayServer {
     console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html`));
     console.log(colors.gray(`Example: http://blog.npub1abc123.localhost:${port}/index.html`));
     console.log(colors.gray(`\nNote: http://localhost:${port} redirects to:`));
-    console.log(colors.gray(`http://${targetNpub}.localhost:${port}\n`));
+    if (targetNpub) {
+      if (targetIdentifier) {
+        console.log(colors.gray(`http://${targetIdentifier}.${targetNpub}.localhost:${port}\n`));
+      } else {
+        console.log(colors.gray(`http://${targetNpub}.localhost:${port}\n`));
+      }
+    } else {
+      console.log(colors.gray(`http://localhost:${port}\n`));
+    }
     console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
 
     // Open browser automatically unless disabled
@@ -187,11 +206,25 @@ export class NsiteGatewayServer {
     const startTime = performance.now();
     const url = new URL(request.url);
     const hostname = request.headers.get("host")?.split(":")[0] || "";
-    const { port, targetNpub } = this.options;
+    const { port, targetSite } = this.options;
+
+    // Extract targetNpub and targetIdentifier from targetSite
+    const targetNpub = targetSite ? npubEncode(targetSite.pubkey) : null;
+    const targetIdentifier = targetSite?.identifier;
 
     // Handle root localhost redirect
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
-      const redirectUrl = `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
+      if (!targetNpub) {
+        const elapsed = Math.round(performance.now() - startTime);
+        console.log(colors.red(`✗ No target site configured - ${elapsed}ms`));
+        return new Response("No target site configured", {
+          status: 400,
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+      const redirectUrl = targetIdentifier
+        ? `http://${targetIdentifier}.${targetNpub}.localhost:${port}${url.pathname}${url.search}`
+        : `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.cyan(`→ Redirecting to ${redirectUrl} - ${elapsed}ms`));
       return new Response(null, {
@@ -424,9 +457,14 @@ export class NsiteGatewayServer {
             timestamp: Date.now(),
             loading: false,
             eventTimestamps: diskCache.eventTimestamps,
+            manifestFoundButEmpty: diskCache.manifestFoundButEmpty,
           };
           this.fileListCache.set(siteCacheKey, fileListEntry);
-          console.log(colors.gray(`  → Loaded ${diskCache.files.length} files from disk cache`));
+          if (diskCache.manifestFoundButEmpty) {
+            console.log(colors.gray(`  → Loaded empty manifest from disk cache`));
+          } else {
+            console.log(colors.gray(`  → Loaded ${diskCache.files.length} files from disk cache`));
+          }
         } else {
           console.log(
             colors.gray(`  → No manifest.json found in disk cache (will fetch file list)`),
@@ -521,11 +559,45 @@ export class NsiteGatewayServer {
                 );
               }
             } else {
-              // Remove the loading entry if we got no files
-              this.fileListCache.delete(siteCacheKey);
-              console.log(
-                colors.yellow(`  → No files found after retry (removed from cache)`),
+              // Check if a manifest exists but has no files
+              const allServerListRelays = Array.from(
+                new Set([...fileEventRelays, ...this.options.profileRelays]),
               );
+              const manifestEvent = await getSiteManifestEvent(
+                allServerListRelays,
+                pubkeyHex,
+                identifier,
+              );
+
+              if (manifestEvent) {
+                // Manifest exists but has no files - cache this state
+                const manifestId = manifestEvent.id || "unknown";
+                console.log(
+                  colors.yellow(
+                    `  → Manifest found (id: ${manifestId.slice(0, 16)}...) but contains no files`,
+                  ),
+                );
+                this.fileListCache.set(siteCacheKey, {
+                  files: [],
+                  timestamp: Date.now(),
+                  loading: false,
+                  eventTimestamps: new Map(),
+                  manifestFoundButEmpty: true,
+                });
+                // Save manifest to disk cache for consistency
+                await this.saveFileListManifest(
+                  this.options.cacheDir,
+                  npub,
+                  identifier,
+                  manifestEvent,
+                );
+              } else {
+                // No manifest found - remove the loading entry
+                this.fileListCache.delete(siteCacheKey);
+                console.log(
+                  colors.yellow(`  → No files found after retry (removed from cache)`),
+                );
+              }
             }
           } catch (error) {
             console.log(colors.red(`  → Failed to fetch file list: ${error}`));
@@ -548,7 +620,11 @@ export class NsiteGatewayServer {
       }
 
       // If we have cached content, serve it immediately and check for updates in the background
-      if (fileListEntry && !fileListEntry.loading && fileListEntry.files.length > 0) {
+      // Also check for updates if manifest is empty (to detect when files are added)
+      if (
+        fileListEntry && !fileListEntry.loading &&
+        (fileListEntry.files.length > 0 || fileListEntry.manifestFoundButEmpty)
+      ) {
         // Check if there's already a background update in progress for this site
         if (!this.backgroundUpdateChecks.has(siteCacheKey)) {
           // Start background update check (non-blocking)
@@ -574,14 +650,6 @@ export class NsiteGatewayServer {
                 files = await listRemoteFiles(fallbackRelays, pubkeyHex, identifier);
               }
 
-              // If the update check returned nothing (timeout or relay issue), keep current cache
-              if (files.length === 0) {
-                console.log(
-                  colors.gray(`  → No files returned from update check (keeping existing cache)`),
-                );
-                return;
-              }
-
               // Track manifest event timestamps for cache invalidation
               const newEventTimestamps = new Map<string, number>();
               files.forEach((file) => {
@@ -594,7 +662,12 @@ export class NsiteGatewayServer {
               let hasUpdates = false;
               let currentPathAffected = false;
 
-              if (fileListEntry.eventTimestamps) {
+              // If we previously had an empty manifest, any files found is an update
+              if (fileListEntry.manifestFoundButEmpty && files.length > 0) {
+                hasUpdates = true;
+                console.log(colors.yellow(`  → Files added to previously empty manifest`));
+                currentPathAffected = true; // Always refresh when files are added to empty manifest
+              } else if (fileListEntry.eventTimestamps) {
                 // Check for new or updated files
                 for (const [path, newTimestamp] of newEventTimestamps) {
                   const oldTimestamp = fileListEntry.eventTimestamps.get(path);
@@ -629,8 +702,59 @@ export class NsiteGatewayServer {
                 }
               }
 
-              // Only update cache if we got files or if we're sure the site has no files
-              if (hasUpdates) {
+              // Handle the case where files.length === 0
+              if (files.length === 0) {
+                // Check if a manifest exists but has no files
+                const allServerListRelays = Array.from(
+                  new Set([...fileEventRelays, ...this.options.profileRelays]),
+                );
+                const manifestEvent = await getSiteManifestEvent(
+                  allServerListRelays,
+                  pubkeyHex,
+                  identifier,
+                );
+
+                if (manifestEvent) {
+                  // Manifest exists but still has no files - update cache with empty flag
+                  if (!fileListEntry.manifestFoundButEmpty) {
+                    hasUpdates = true; // This is a state change (from no manifest to empty manifest)
+                    console.log(colors.yellow(`  → Manifest found but still contains no files`));
+                  }
+                  // Update cache to reflect current state
+                  this.fileListCache.set(siteCacheKey, {
+                    files: [],
+                    timestamp: Date.now(),
+                    loading: false,
+                    eventTimestamps: new Map(),
+                    manifestFoundButEmpty: true,
+                  });
+                  await this.saveFileListManifest(
+                    this.options.cacheDir,
+                    npub,
+                    identifier,
+                    manifestEvent,
+                  );
+                } else {
+                  // No manifest found - if we had an empty manifest, this is a change
+                  if (fileListEntry.manifestFoundButEmpty) {
+                    hasUpdates = true;
+                    console.log(colors.yellow(`  → Manifest no longer exists`));
+                    // Remove the cache entry
+                    this.fileListCache.delete(siteCacheKey);
+                  } else {
+                    console.log(
+                      colors.gray(
+                        `  → No files returned from update check (keeping existing cache)`,
+                      ),
+                    );
+                  }
+                }
+                // Don't continue with file update logic if no files
+                if (!hasUpdates) {
+                  return;
+                }
+              } else if (hasUpdates) {
+                // Files found - update cache and clear empty manifest flag
                 // Extract the manifest event from the first file (all files share the same event)
                 const manifestEvent = files[0]?.event;
 
@@ -639,6 +763,7 @@ export class NsiteGatewayServer {
                   timestamp: Date.now(),
                   loading: false,
                   eventTimestamps: newEventTimestamps,
+                  manifestFoundButEmpty: false, // Clear the flag since we now have files
                 });
                 console.log(colors.gray(`  → Found ${files.length} files (cache updated)`));
 
@@ -713,6 +838,17 @@ export class NsiteGatewayServer {
 
       if (fileListEntry.files.length === 0) {
         const elapsed = Math.round(performance.now() - startTime);
+        // Check if manifest exists but is empty
+        if (fileListEntry.manifestFoundButEmpty) {
+          console.log(colors.yellow(`  → Manifest found but no files - ${elapsed}ms`));
+          const noContentHtml = this.generateNoContentPage(npub, identifier, profileData?.profile);
+          return new Response(noContentHtml, {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html",
+            },
+          });
+        }
         console.log(colors.yellow(`  → No files found - ${elapsed}ms`));
         const siteLabel = identifier ? `named site "${identifier}"` : "root site";
         return new Response(`No files found for this ${siteLabel}`, {
@@ -1569,6 +1705,96 @@ export class NsiteGatewayServer {
   }
 
   /**
+   * Generate "no content" page for sites with manifest but no files
+   */
+  private generateNoContentPage(
+    npub: string,
+    identifier: string | undefined,
+    profile: NostrEvent | null,
+  ): string {
+    const profileContent = profile ? JSON.parse(profile.content || "{}") : {};
+    const name = profileContent.name || profileContent.display_name || npub.slice(0, 12) + "...";
+    const siteName = identifier ? `"${identifier}"` : "root site";
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${name}'s nsite - No Content</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #fafafa;
+      color: #333;
+    }
+    .container {
+      text-align: center;
+      max-width: 500px;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      color: #555;
+    }
+    .npub {
+      font-family: monospace;
+      font-size: 0.875rem;
+      color: #999;
+      word-break: break-all;
+      margin-bottom: 2rem;
+    }
+    .message {
+      font-size: 1rem;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+    .profile-pic {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      background: #e0e0e0;
+      overflow: hidden;
+    }
+    .profile-pic img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    ${
+      profileContent.picture
+        ? `<div class="profile-pic"><img src="${profileContent.picture}" alt="${name}" onerror="this.style.display='none'"></div>`
+        : ""
+    }
+    <div class="icon">📭</div>
+    <h1>${name}'s ${siteName}</h1>
+    <div class="npub">${npub}${identifier ? ` (${identifier})` : ""}</div>
+    <div class="message">
+      This nsite exists but currently has no content.<br>
+      Files may be added in the future.
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  /**
    * Generate HTML directory listing
    */
   private generateDirectoryListing(
@@ -1721,7 +1947,10 @@ export class NsiteGatewayServer {
     cacheDir: string | null,
     npub: string,
     identifier: string | undefined,
-  ): Promise<{ files: FileEntry[]; eventTimestamps: Map<string, number> } | null> {
+  ): Promise<
+    | { files: FileEntry[]; eventTimestamps: Map<string, number>; manifestFoundButEmpty?: boolean }
+    | null
+  > {
     if (!cacheDir) return null;
 
     try {
@@ -1748,7 +1977,16 @@ export class NsiteGatewayServer {
 
       // Use getManifestFiles() to extract files from the manifest event
       const fileMappings = getManifestFiles(manifestEvent);
-      if (fileMappings.length === 0) return null;
+
+      // If manifest exists but has no files, return empty with flag
+      if (fileMappings.length === 0) {
+        console.log(colors.gray(`  → Manifest found in cache but contains no files`));
+        return {
+          files: [],
+          eventTimestamps: new Map(),
+          manifestFoundButEmpty: true,
+        };
+      }
 
       // Reconstruct FileEntry[] from the parsed files
       const files: FileEntry[] = fileMappings.map((mapping) => ({
