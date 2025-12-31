@@ -86,8 +86,8 @@ export function registerSitesCommand(program: Command) {
 
       console.log(
         colors.cyan(
-          `Fetching sites for ${colors.bold(truncateHash(pubkey))} from relays:\n${
-            relays.join("\n")
+          `Fetching sites for ${colors.bold(truncateHash(pubkey))} from relays: ${
+            relays.join(",")
           }`,
         ),
       );

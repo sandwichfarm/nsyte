@@ -13,6 +13,7 @@ import { readProjectFile } from "../lib/config.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import { type DownloadResult, DownloadService } from "../lib/download.ts";
 import type { FileEntry } from "../lib/nostr.ts";
+import { truncateHash } from "../ui/browse/renderer.ts";
 
 const log = createLogger("download");
 
@@ -29,7 +30,7 @@ export type { DownloadProgress, DownloadResult, DownloadStats } from "../lib/dow
  * Register the download command
  */
 export function registerDownloadCommand(program: Command): void {
-  const command = program
+  program
     .command("download")
     .alias("dl")
     .description("Download files from the nostr network")
@@ -46,69 +47,74 @@ export function registerDownloadCommand(program: Command): void {
       "-p, --pubkey <npub:string>",
       "The public key to download files from (if not using private key).",
     )
+    .option(
+      "-d, --name <name:string>",
+      "The site identifier for named sites (kind 35128). If not provided, downloads from root site (kind 15128).",
+    )
     .option("--overwrite", "Overwrite existing files.", { default: false })
     .option("-v, --verbose", "Verbose output.", { default: false })
-    .action(async (options: DownloadOptions) => {
-      try {
-        await downloadCommand(options);
-      } catch (error: unknown) {
-        handleError("Error downloading files", error, {
-          exit: true,
-          showConsole: true,
-          logger: log,
-        });
+    .action(async (options) => {
+      const displayManager = getDisplayManager();
+      displayManager.configureFromOptions(options);
+
+      // Resolve public key
+      const pubkey = await resolvePubkey(options, readProjectFile(), false);
+
+      // Resolve relays and servers
+      const relays = resolveRelays(options, readProjectFile(), true);
+      const servers = resolveServers(options, readProjectFile());
+
+      const siteType = options.name ? `named site "${options.name}"` : "root site";
+      console.log(
+        colors.cyan(
+          `Downloading files from ${siteType} for: ${colors.bold(truncateHash(pubkey))}`,
+        ),
+      );
+      console.log(colors.gray(`Using relays: ${relays.join(", ")}`));
+      console.log(colors.gray(`Using servers: ${servers.join(", ")}`));
+      console.log(colors.gray(`Output directory: ${options.output}`));
+
+      // Create download service
+      const downloadService = DownloadService.create({ concurrency: 3 });
+
+      // Fetch file list from relays
+      console.log(colors.yellow("Fetching file list from relays..."));
+      const remoteFiles = await downloadService.fetchFileList(relays, pubkey, options.name);
+
+      if (remoteFiles.length === 0) {
+        const siteType = options.name ? `named site "${options.name}"` : "root site";
+        console.log(colors.yellow(`No files found for ${siteType}.`));
+        console.log(colors.gray("This could mean:"));
+        console.log(colors.gray("- No files have been uploaded by this key"));
+        console.log(colors.gray("- The relays don't have the file events"));
+        console.log(colors.gray("- The public key is incorrect"));
+        if (options.name) {
+          console.log(colors.gray("- The site identifier is incorrect"));
+        }
+        Deno.exit(1);
       }
+
+      console.log(colors.green(`Found ${remoteFiles.length} files to download.`));
+
+      // Download files using the service
+      const downloadOptions = {
+        output: options.output!,
+        overwrite: options.overwrite,
+        verbose: options.verbose,
+      };
+
+      const results = await downloadService.downloadFiles(remoteFiles, servers, downloadOptions);
+
+      // Display results
+      displayResults(results);
+    })
+    .error((error: unknown) => {
+      handleError("Error downloading files", error, {
+        exit: true,
+        showConsole: true,
+        logger: log,
+      });
     });
-}
-
-/**
- * Main download command implementation
- */
-async function downloadCommand(options: DownloadOptions): Promise<void> {
-  const displayManager = getDisplayManager();
-  displayManager.configureFromOptions(options);
-
-  // Resolve public key
-  const pubkey = await resolvePubkey(options, readProjectFile(), false);
-
-  // Resolve relays and servers
-  const relays = resolveRelays(options, readProjectFile(), true);
-  const servers = resolveServers(options, readProjectFile());
-
-  console.log(colors.cyan(`Downloading files for: ${pubkey.slice(0, 8)}...`));
-  console.log(colors.gray(`Using relays: ${relays.join(", ")}`));
-  console.log(colors.gray(`Using servers: ${servers.join(", ")}`));
-  console.log(colors.gray(`Output directory: ${options.output}`));
-
-  // Create download service
-  const downloadService = DownloadService.create({ concurrency: 3 });
-
-  // Fetch file list from relays
-  console.log(colors.yellow("Fetching file list from relays..."));
-  const remoteFiles = await downloadService.fetchFileList(relays, pubkey);
-
-  if (remoteFiles.length === 0) {
-    console.log(colors.yellow("No files found for this public key."));
-    console.log(colors.gray("This could mean:"));
-    console.log(colors.gray("- No files have been uploaded by this key"));
-    console.log(colors.gray("- The relays don't have the file events"));
-    console.log(colors.gray("- The public key is incorrect"));
-    return;
-  }
-
-  console.log(colors.green(`Found ${remoteFiles.length} files to download.`));
-
-  // Download files using the service
-  const downloadOptions = {
-    output: options.output!,
-    overwrite: options.overwrite,
-    verbose: options.verbose,
-  };
-
-  const results = await downloadService.downloadFiles(remoteFiles, servers, downloadOptions);
-
-  // Display results
-  displayResults(results);
 }
 
 /**

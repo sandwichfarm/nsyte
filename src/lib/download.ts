@@ -54,11 +54,17 @@ export class DownloadService {
   /**
    * Fetch file list from relays for a given pubkey
    */
-  async fetchFileList(relays: string[], pubkey: string): Promise<FileEntry[]> {
+  async fetchFileList(
+    relays: string[],
+    pubkey: string,
+    site?: string,
+  ): Promise<FileEntry[]> {
     log.debug(
-      `Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...`,
+      `Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...${
+        site ? ` (site: ${site})` : ""
+      }`,
     );
-    return await listRemoteFiles(relays, pubkey);
+    return await listRemoteFiles(relays, pubkey, site);
   }
 
   /**
