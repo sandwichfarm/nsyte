@@ -1,7 +1,7 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { encodeHex } from "@std/encoding/hex";
 import { BLOSSOM_SERVER_LIST_KIND, getBlossomServersFromList } from "applesauce-common/helpers";
-import { EventStore, mapEventsToStore, simpleTimeout } from "applesauce-core";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { buildEvent } from "applesauce-core/event-factory";
 import {
   type EventTemplate,
@@ -356,6 +356,45 @@ export async function getUserServers(
   if (existing) return getBlossomServersFromList(existing).map((server) => server.toString());
 
   return await fetchUserServers(pubkey);
+}
+
+/**
+ * Fetch server list events (kind 10063) for a given pubkey
+ * Returns events sorted by created_at descending
+ */
+export async function fetchServerListEvents(
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  log.debug(`Fetching kind ${BLOSSOM_SERVER_LIST_KIND} for ${pubkey}`);
+  try {
+    const tempStore = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [BLOSSOM_SERVER_LIST_KIND],
+          authors: [pubkey],
+          limit: 10,
+        })
+        .pipe(
+          simpleTimeout(5000),
+          mapEventsToStore(tempStore),
+          mapEventsToTimeline(),
+          takeUntil(timer(5000)),
+        ),
+      { defaultValue: [] },
+    );
+
+    // Sort by created_at descending
+    return events.sort((a, b) => b.created_at - a.created_at);
+  } catch (error) {
+    log.debug(
+      `Timeout or error fetching server list events: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return [];
+  }
 }
 
 /** Get a list of remote files for a user from site manifest events */

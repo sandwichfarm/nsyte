@@ -28,6 +28,7 @@ import { registerListCommand } from "./commands/list.ts";
 import { registerPurgeCommand } from "./commands/purge.ts";
 import { registerRunCommand } from "./commands/run.ts";
 import { registerServeCommand } from "./commands/serve.ts";
+import { registerSitesCommand } from "./commands/sites.ts";
 import { validateCommand } from "./commands/validate.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
@@ -51,6 +52,7 @@ const nsite = new Command()
 registerInitCommand(nsite);
 registerDeployCommand(nsite);
 registerListCommand(nsite);
+registerSitesCommand(nsite);
 registerBrowseCommand(nsite);
 registerDownloadCommand(nsite);
 registerCICommand(nsite);

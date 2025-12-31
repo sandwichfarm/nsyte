@@ -1,21 +1,157 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { decodePointer, type NostrEvent, npubEncode } from "applesauce-core/helpers";
+import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { decodePointer, type Filter, type NostrEvent, npubEncode } from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
+import { lastValueFrom, timer } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import { checkBlossomServers } from "../lib/blossom-checker.ts";
-import { readProjectFile } from "../lib/config.ts";
-import {
-  fetchAppHandlerEvents,
-  fetchIndexHtmlEvent,
-  fetchKind0Event,
-  fetchNsiteEvents,
-  fetchRelayListEvents,
-  fetchServerListEvents,
-} from "../lib/debug-helpers.ts";
+import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 
 const logger = createLogger("debug");
+
+// Debug helper functions - only used by debug command
+async function fetchEventsWithTimer(
+  pool: RelayPool,
+  relays: string[],
+  filter: Filter,
+  timeout: number = 5000,
+): Promise<NostrEvent[]> {
+  try {
+    const store = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, filter)
+        .pipe(
+          simpleTimeout(timeout),
+          mapEventsToStore(store),
+          mapEventsToTimeline(),
+          takeUntil(timer(timeout)), // Force completion even if a relay never sends EOSE
+        ),
+    );
+    return events;
+  } catch (error) {
+    logger.debug(
+      `Timeout or error fetching events: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return [];
+  }
+}
+
+async function fetchKind0Event(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  logger.debug(`Fetching kind 0 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [0],
+    authors: [pubkey],
+    limit: 1,
+  });
+
+  return events.length > 0 ? events[0] : null;
+}
+
+async function fetchRelayListEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kind 10002 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [10002],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchServerListEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kind ${BLOSSOM_SERVER_LIST_KIND} for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [BLOSSOM_SERVER_LIST_KIND],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchNsiteEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(
+    `Fetching site manifest events (kinds ${NSITE_ROOT_SITE_KIND}, ${NSITE_NAME_SITE_KIND}) for ${pubkey}`,
+  );
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+    authors: [pubkey],
+    // No limit - fetch all events
+  }, 15000); // Longer timeout for potentially many events
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchAppHandlerEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kinds 31989, 31990 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [31989, 31990],
+    authors: [pubkey],
+    limit: 20,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchIndexHtmlEvent(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  logger.debug(`Fetching site manifest events containing /index.html for ${pubkey}`);
+  // Fetch all manifest events and find one with /index.html in path tags
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Find manifest event that has /index.html in its path tags
+  for (const event of events) {
+    const pathTags = event.tags.filter((tag) => tag[0] === "path");
+    const hasIndexHtml = pathTags.some((tag) => {
+      if (tag.length >= 2) {
+        const path = tag[1];
+        return path === "/index.html" || path === "index.html";
+      }
+      return false;
+    });
+    if (hasIndexHtml) {
+      return event;
+    }
+  }
+
+  return null;
+}
 
 function prettyPrintEvent(event: NostrEvent, title: string): void {
   console.log("\n" + colors.bold(colors.cyan(`=== ${title} ===`)));
@@ -25,7 +161,7 @@ function prettyPrintEvent(event: NostrEvent, title: string): void {
 interface DebugResult {
   success: boolean;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 interface DebugReport {
@@ -34,7 +170,7 @@ interface DebugReport {
   relays: {
     provided: string[];
     found: string[];
-    kind10002?: any;
+    kind10002?: NostrEvent;
   };
   profile: DebugResult;
   nsiteEvents: DebugResult;
@@ -66,10 +202,10 @@ export function registerDebugCommand(program: Command): void {
         logger.info("Starting nsite debug...");
 
         // Load config if available
-        let config: any = null;
+        let config: ProjectConfig | null = null;
         try {
           config = readProjectFile(false);
-        } catch (e) {
+        } catch (_e) {
           logger.debug("No config file found, continuing without it");
         }
 
@@ -280,8 +416,8 @@ export function registerDebugCommand(program: Command): void {
         if (serverListEvents.length > 0) {
           const latestServerList = serverListEvents[0];
           collectedEvents.serverList = latestServerList;
-          const serverTags = latestServerList.tags.filter((tag) => tag[0] === "server");
-          const publishedServers = serverTags.map((tag) => tag[1]);
+          const serverTags = latestServerList.tags.filter((tag: string[]) => tag[0] === "server");
+          const publishedServers = serverTags.map((tag: string[]) => tag[1]);
           console.log(
             colors.gray(`  ℹ Found published server list with ${publishedServers.length} servers`),
           );

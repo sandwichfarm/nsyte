@@ -3,9 +3,8 @@ import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom } from "rxjs";
 import type { FileEntryWithSources } from "./nostr.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
-import { fetchServerListEvents } from "./debug-helpers.ts";
 import { createLogger } from "./logger.ts";
-import { getUserOutboxes, pool } from "./nostr.ts";
+import { fetchServerListEvents, getUserOutboxes, pool } from "./nostr.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 
 const log = createLogger("browse-loader");
@@ -185,7 +184,7 @@ export async function listRemoteFilesWithProgress(
   // Fall back to kind 10063 server list event if no servers found in manifests
   if (userServers.length === 0) {
     try {
-      const serverListEvents = await fetchServerListEvents(pool, mergedRelays, pubkey);
+      const serverListEvents = await fetchServerListEvents(mergedRelays, pubkey);
       if (serverListEvents.length > 0) {
         // Get the most recent server list event
         const latestEvent = serverListEvents[0];
@@ -261,7 +260,7 @@ export async function checkBlossomServersForFiles(
     // Fall back to kind 10063 server list event if no servers found in manifests
     if (servers.length === 0) {
       try {
-        const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
+        const serverListEvents = await fetchServerListEvents(relays, pubkey);
         if (serverListEvents.length > 0) {
           // Get the most recent server list event
           const latestEvent = serverListEvents[0];

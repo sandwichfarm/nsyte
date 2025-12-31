@@ -266,7 +266,7 @@ export async function command(options: any): Promise<void> {
       const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import(
         "../lib/browse-loader.ts"
       );
-      const { fetchServerListEvents } = await import("../lib/debug-helpers.ts");
+      const { fetchServerListEvents } = await import("../lib/nostr.ts");
 
       // Non-blocking function to check remaining files
       const checkBlossomServersWithYielding = async (
@@ -324,7 +324,7 @@ export async function command(options: any): Promise<void> {
 
         // Fall back to kind 10063 server list event if no servers found in manifests
         if (state.blossomServers.length === 0) {
-          const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
+          const serverListEvents = await fetchServerListEvents(relays, pubkey);
           if (serverListEvents.length > 0) {
             const latestEvent = serverListEvents[0];
             state.blossomServers = extractServersFromEvent(latestEvent);

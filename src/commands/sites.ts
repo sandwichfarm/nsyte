@@ -1,0 +1,216 @@
+import { colors } from "@cliffy/ansi/colors";
+import type { Command } from "@cliffy/command";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { type NostrEvent, relaySet } from "applesauce-core/helpers";
+import { lastValueFrom, timer } from "rxjs";
+import { takeUntil } from "rxjs/operators";
+import { readProjectFile } from "../lib/config.ts";
+import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
+import { handleError } from "../lib/error-utils.ts";
+import {
+  getManifestDescription,
+  getManifestTitle,
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+} from "../lib/manifest.ts";
+import { getUserOutboxes, pool } from "../lib/nostr.ts";
+import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { formatTimestamp } from "../ui/time-formatter.ts";
+import { truncateHash } from "../ui/browse/renderer.ts";
+
+/**
+ * Interface for site information
+ */
+interface SiteInfo {
+  event: NostrEvent;
+  type: "root" | "named";
+  identifier?: string;
+  title?: string;
+  description?: string;
+  updatedAt: number;
+}
+
+/**
+ * Register the sites command
+ */
+export function registerSitesCommand(program: Command) {
+  return program
+    .command("sites")
+    .description(
+      "List all root and named sites published by a pubkey, showing titles, descriptions, and update times.",
+    )
+    .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
+    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
+    .option(
+      "-p, --pubkey <npub:string>",
+      "The public key to list sites for (if not using private key).",
+    )
+    .option(
+      "--use-fallback-relays",
+      "Include default nsyte relays in addition to configured/user relays.",
+    )
+    .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
+    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
+    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
+    .action(async (options) => {
+      const pubkey = await resolvePubkey(options);
+      const projectConfig = readProjectFile();
+      const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
+      const configuredRelays = options.relays !== undefined
+        ? resolveRelays(options, projectConfig, false)
+        : (projectConfig?.relays || []);
+      let relays = [...configuredRelays];
+
+      if (allowFallbackRelays) {
+        relays = relaySet(relays, NSYTE_BROADCAST_RELAYS);
+      }
+
+      if (relays.length === 0) {
+        if (allowFallbackRelays) {
+          relays = NSYTE_BROADCAST_RELAYS;
+          console.log(colors.yellow("⚠️  Using default relays because none were configured."));
+        } else {
+          console.log(colors.red("✗ No relays configured and fallbacks disabled."));
+          Deno.exit(1);
+        }
+      }
+
+      console.log(
+        colors.cyan(`Fetching outbox relays for ${colors.bold(truncateHash(pubkey))}`),
+      );
+
+      // Get user's outbox relays and merge
+      const userOutboxes = await getUserOutboxes(pubkey);
+      relays = relaySet(relays, userOutboxes);
+
+      console.log(
+        colors.cyan(
+          `Fetching sites for ${colors.bold(truncateHash(pubkey))} from relays:\n${
+            relays.join("\n")
+          }`,
+        ),
+      );
+
+      // Fetch all site manifest events (both root and named)
+      const REQUEST_TIMEOUT_MS = 15000;
+      const tempStore = new EventStore();
+
+      let events: NostrEvent[] = [];
+      try {
+        events = await lastValueFrom(
+          pool
+            .request(relays, {
+              kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+              authors: [pubkey],
+            })
+            .pipe(
+              simpleTimeout(REQUEST_TIMEOUT_MS),
+              mapEventsToStore(tempStore),
+              mapEventsToTimeline(),
+              takeUntil(timer(REQUEST_TIMEOUT_MS)),
+            ),
+          { defaultValue: [] },
+        );
+      } catch (error) {
+        console.log(
+          colors.yellow(
+            `Warning: Error fetching events: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          ),
+        );
+      }
+
+      if (events.length === 0) {
+        console.log(colors.yellow("\nNo sites found for this pubkey."));
+        Deno.exit(0);
+      }
+
+      // Process events into SiteInfo objects
+      const sites: SiteInfo[] = [];
+      const rootSites: NostrEvent[] = [];
+      const namedSitesMap = new Map<string, NostrEvent>(); // Map identifier -> latest event
+
+      for (const event of events) {
+        if (event.kind === NSITE_ROOT_SITE_KIND) {
+          // For root sites, keep only the latest one
+          if (rootSites.length === 0 || event.created_at > rootSites[0].created_at) {
+            rootSites[0] = event;
+          }
+        } else if (event.kind === NSITE_NAME_SITE_KIND) {
+          // For named sites, keep the latest for each identifier
+          const identifier = event.tags.find((tag) => tag[0] === "d")?.[1];
+          if (identifier) {
+            const existing = namedSitesMap.get(identifier);
+            if (!existing || event.created_at > existing.created_at) {
+              namedSitesMap.set(identifier, event);
+            }
+          }
+        }
+      }
+
+      // Convert to SiteInfo objects
+      if (rootSites.length > 0) {
+        const event = rootSites[0];
+        sites.push({
+          event,
+          type: "root",
+          title: getManifestTitle(event),
+          description: getManifestDescription(event),
+          updatedAt: event.created_at,
+        });
+      }
+
+      for (const [identifier, event] of namedSitesMap) {
+        sites.push({
+          event,
+          type: "named",
+          identifier,
+          title: getManifestTitle(event),
+          description: getManifestDescription(event),
+          updatedAt: event.created_at,
+        });
+      }
+
+      // Sort by updatedAt descending (most recent first)
+      sites.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      // Display sites
+      console.log(colors.green(`\nFound ${sites.length} site(s):`));
+      console.log(colors.gray("─".repeat(100)));
+
+      for (const site of sites) {
+        const typeLabel = site.type === "root"
+          ? colors.cyan("ROOT")
+          : colors.magenta(`NAMED:${site.identifier}`);
+        const title = site.title || colors.gray("Untitled");
+        const description = site.description
+          ? (site.description.length > 60
+            ? site.description.substring(0, 57) + "..."
+            : site.description)
+          : colors.gray("No description");
+        const updated = formatTimestamp(site.updatedAt);
+
+        // Calculate padding width based on actual text (not ANSI codes)
+        const typeLabelText = site.type === "root" ? "ROOT" : `NAMED:${site.identifier}`;
+        const paddingWidth = Math.max(20, typeLabelText.length + 1);
+
+        console.log(
+          `\n${typeLabel}${" ".repeat(paddingWidth - typeLabelText.length)}${colors.bold(title)}`,
+        );
+        console.log(`${" ".repeat(paddingWidth)}${description}`);
+        console.log(`${" ".repeat(paddingWidth)}${colors.gray(`Updated: ${updated}`)}`);
+        console.log(`${" ".repeat(paddingWidth)}${colors.gray(`Event ID: ${site.event.id}`)}`);
+      }
+
+      console.log(colors.gray("\n" + "─".repeat(100)));
+
+      Deno.exit(0);
+    }).error((error) => {
+      handleError("Error listing sites", error, {
+        showConsole: true,
+        exit: true,
+        exitCode: 1,
+      });
+    });
+}
