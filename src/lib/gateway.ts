@@ -1,7 +1,8 @@
 import { colors } from "@cliffy/ansi/colors";
 import { decompress as brotliDecompress } from "@nick/brotli";
 import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
+import { contentType } from "@std/media-types";
+import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { decodePointer, kinds, normalizeToPubkey } from "applesauce-core/helpers";
 import { DownloadService } from "./download.ts";
@@ -1572,30 +1573,9 @@ export class NsiteGatewayServer {
    * Get content type based on file extension
    */
   private getContentType(filename: string): string {
-    const lastDotIndex = filename.lastIndexOf(".");
-    const ext = lastDotIndex !== -1 ? filename.slice(lastDotIndex + 1).toLowerCase() : "";
-    const types: Record<string, string> = {
-      html: "text/html",
-      htm: "text/html",
-      css: "text/css",
-      js: "application/javascript",
-      json: "application/json",
-      png: "image/png",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      gif: "image/gif",
-      svg: "image/svg+xml",
-      ico: "image/x-icon",
-      txt: "text/plain",
-      md: "text/markdown",
-      pdf: "application/pdf",
-      woff: "font/woff",
-      woff2: "font/woff2",
-      ttf: "font/ttf",
-      otf: "font/otf",
-    };
-
-    return types[ext || ""] || "application/octet-stream";
+    const ext = extname(filename).toLowerCase();
+    const type = contentType(ext);
+    return type || "application/octet-stream";
   }
 
   /**

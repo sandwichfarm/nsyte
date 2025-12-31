@@ -448,9 +448,10 @@ async function resolveContext(
 async function initSigner(
   _authKeyHex: string | null | undefined,
 ): Promise<Signer | { error: string }> {
-  // Use the unified signer factory for CLI-provided secrets
+  // Use the unified signer factory for CLI-provided secrets or interactively-provided secrets
+  // Priority: CLI option > interactive input > config bunker
   const signerResult = await createSignerFromFactory({
-    sec: options.sec,
+    sec: options.sec || _authKeyHex || undefined,
     bunkerPubkey: config?.bunkerPubkey,
   });
 
@@ -1150,7 +1151,7 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
 
     if (success) {
       statusDisplay.success(`Site manifest event published (${fileMappings.length} files)`);
-      console.log(formatSectionHeader("Site Manifest Event (𓅦 nostr)"));
+      console.log(formatSectionHeader("Site Manifest Event (nostr)"));
       console.log(colors.green(`✓ Site manifest event successfully published to relays`));
       console.log(colors.cyan(`  Event ID: ${manifestEvent.id.substring(0, 16)}...`));
       console.log(colors.cyan(`  Files: ${fileMappings.length}`));
@@ -1165,7 +1166,7 @@ async function publishSiteManifest(successfulUploads: UploadResponse[]): Promise
       messageCollector.addEventSuccess("site manifest", manifestEvent.id);
     } else {
       statusDisplay.error("Failed to publish site manifest event");
-      console.log(formatSectionHeader("Site Manifest Event (𓅦 nostr)"));
+      console.log(formatSectionHeader("Site Manifest Event (nostr)"));
       console.log(colors.red(`✗ Failed to publish site manifest event to relays`));
       console.log(
         colors.yellow("Files are uploaded but may not be immediately visible in the nsite."),
@@ -1269,7 +1270,7 @@ async function uploadFiles(preparedFiles: FileEntry[]): Promise<UploadResponse[]
     }
 
     if (uploadedCount > 0) {
-      console.log(formatSectionHeader("Blobs Upload Results (🌸 Blossom)"));
+      console.log(formatSectionHeader("Blobs Upload Results (Blossom)"));
       if (uploadedCount === preparedFiles.length) {
         console.log(colors.green(`✓ All ${uploadedCount} files successfully uploaded`));
       } else {
