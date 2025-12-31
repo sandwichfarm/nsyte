@@ -1,11 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { createLogger } from "../lib/logger.ts";
-import { handleError } from "../lib/error-utils.ts";
-import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
-import { validateConfigWithFeedback } from "../lib/config-validator.ts";
-import { join } from "@std/path";
 import { Keypress } from "@cliffy/keypress";
+import { join } from "@std/path";
+import { validateConfigWithFeedback } from "../lib/config-validator.ts";
+import { handleError } from "../lib/error-utils.ts";
+import { createLogger } from "../lib/logger.ts";
 import {
   clearScreen,
   enterAlternateScreen,

@@ -1,10 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { setupProject } from "../lib/config.ts";
-import { createLogger } from "../lib/logger.ts";
 import { displayColorfulHeader } from "../ui/output-helpers.ts";
-
-const log = createLogger("init");
 
 /**
  * Register the init command

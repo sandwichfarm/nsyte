@@ -674,6 +674,37 @@ Generated and stored nbunksec string.`));
     );
   }
 
+  // Ask if this is a root site or named site
+  const siteType = await Select.prompt<string>({
+    message: "What type of site are you creating?",
+    options: [
+      { name: "Root site (hosted by npub) - e.g., npub1xxxx.nsite", value: "root" },
+      { name: "Named site (subdomain) - e.g., blog.npub1xxx.nsite", value: "named" },
+    ],
+  });
+
+  let siteId: string | null | undefined;
+  if (siteType === "named") {
+    const identifier = await Input.prompt({
+      message: "Enter site identifier (subdomain name) (required):",
+      validate: (input: string) => {
+        const trimmed = input.trim();
+        if (!trimmed) {
+          return "Site identifier is required";
+        }
+        // Validate identifier: alphanumeric, hyphens, underscores only
+        if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+          return "Site identifier can only contain letters, numbers, hyphens, and underscores";
+        }
+        return true;
+      },
+    });
+    siteId = identifier.trim();
+  } else {
+    // Root site: set id to null or empty string
+    siteId = null;
+  }
+
   const siteTitle = await Input.prompt({
     message: "Enter site title (optional):",
   });
@@ -692,6 +723,7 @@ Generated and stored nbunksec string.`));
     bunkerPubkey,
     relays,
     servers,
+    id: siteId,
     title: siteTitle || undefined,
     description: siteDescription || undefined,
   };
