@@ -6,7 +6,8 @@ import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
-import { NostrConnectSigner, SimpleSigner } from "applesauce-signers";
+import { NostrConnectSigner } from "applesauce-signers";
+import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
   defaultConfig,
   type ProjectConfig,
@@ -24,7 +25,6 @@ import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
   createAppHandlerEvent,
-  createNip46ClientFromUrl,
   createSiteManifestEvent,
   fetchUserRelayList,
   type FileEntry,
@@ -80,9 +80,8 @@ export interface UploadCommandOptions {
   useFallbacks?: boolean;
   servers?: string;
   relays?: string;
-  privatekey?: string;
-  bunker?: string;
-  nbunksec?: string;
+  /** Unified secret parameter (auto-detects format: nsec, nbunksec, bunker URL, or hex) */
+  sec?: string;
   concurrency: number;
   fallback?: string;
   publishAppHandler: boolean;
@@ -109,9 +108,10 @@ export function registerDeployCommand(program: Command): void {
     .option("-f, --force", "Force publishing even if no changes were detected.", { default: false })
     .option("-s, --servers <servers:string>", "The blossom servers to use (comma separated).")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
-    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .option("-p, --purge", "After upload, delete remote file events not in current deployment.", {
       default: false,
     })
@@ -300,7 +300,7 @@ async function resolveContext(
   options: UploadCommandOptions,
 ): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
-  let authKeyHex: string | null | undefined = options.privatekey || undefined;
+  let authKeyHex: string | null | undefined = options.sec || undefined;
 
   if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
@@ -308,7 +308,7 @@ async function resolveContext(
 
     try {
       existingProjectData = readProjectFile();
-    } catch (error) {
+    } catch {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
       console.error(
@@ -345,13 +345,13 @@ async function resolveContext(
       };
     }
 
-    if (!authKeyHex && !options.nbunksec && !options.bunker) {
+    if (!authKeyHex && !options.sec) {
       if (!existingProjectData?.bunkerPubkey) {
         return {
           config: existingProjectData,
           authKeyHex,
           error:
-            "Missing signing key: For non-interactive mode, provide --privatekey, --nbunksec, --bunker, or ensure a bunker is configured in .nsite/config.json.",
+            "Missing signing key: For non-interactive mode, provide --sec, or ensure a bunker is configured in .nsite/config.json.",
         };
       } else {
         log.info(
@@ -407,7 +407,7 @@ async function resolveContext(
       keyFromInteractiveSetup = setupResult.privateKey;
     } else {
       config = currentProjectData;
-      if (!options.privatekey && !options.nbunksec && !options.bunker && !config.bunkerPubkey) {
+      if (!options.sec && !config?.bunkerPubkey) {
         log.info(
           "Project is configured but no signing method found (CLI key, CLI bunker, or configured bunker). Running key setup...",
         );
@@ -428,8 +428,8 @@ async function resolveContext(
       config.gatewayHostnames = ["nsite.lol"];
     }
 
-    if (options.privatekey) {
-      authKeyHex = options.privatekey;
+    if (options.sec) {
+      authKeyHex = options.sec;
     } else if (keyFromInteractiveSetup) {
       authKeyHex = keyFromInteractiveSetup;
     }
@@ -446,37 +446,21 @@ async function resolveContext(
 }
 
 async function initSigner(
-  authKeyHex: string | null | undefined,
+  _authKeyHex: string | null | undefined,
 ): Promise<Signer | { error: string }> {
-  // Priority 1: nbunksec from CLI (skip all other methods)
-  if (options.nbunksec) {
-    try {
-      log.info("Using NostrBunker (nbunksec from CLI) for signing...");
-      const bunkerSigner = await importFromNbunk(options.nbunksec);
-      await bunkerSigner.getPublicKey();
-      return bunkerSigner;
-    } catch (e: unknown) {
-      return { error: `Failed to import nbunksec from CLI: ${getErrorMessage(e)}` };
-    }
+  // Use the unified signer factory for CLI-provided secrets
+  const signerResult = await createSignerFromFactory({
+    sec: options.sec,
+    bunkerPubkey: config?.bunkerPubkey,
+  });
+
+  // If signer factory succeeded, return it
+  if (!("error" in signerResult)) {
+    return signerResult.signer;
   }
 
-  // Priority 2: bunker URL from CLI
-  if (options.bunker) {
-    try {
-      log.info(`Using NostrBunker (URL from CLI: ${options.bunker}) for signing...`);
-      const { client } = await createNip46ClientFromUrl(options.bunker);
-      return client;
-    } catch (e: unknown) {
-      return { error: `Failed to connect to bunker URL from CLI: ${getErrorMessage(e)}` };
-    }
-  } else if (authKeyHex) {
-    log.info("Using private key for signing (from CLI or interactive setup)...");
-    try {
-      return SimpleSigner.fromKey(authKeyHex);
-    } catch (e: unknown) {
-      return { error: `Invalid private key provided: ${getErrorMessage(e)}` };
-    }
-  } else if (config?.bunkerPubkey) {
+  // If signer factory failed but we have a stored bunker, try to use it
+  if (config?.bunkerPubkey) {
     // Only access SecretsManager if we actually need it (no CLI auth provided)
     log.info(
       `Attempting to use configured bunker (pubkey: ${
@@ -556,7 +540,7 @@ async function initSigner(
   }
   return {
     error:
-      "No valid signing method could be initialized (private key, nbunksec, or bunker). Please check your configuration or CLI arguments.",
+      "No valid signing method could be initialized. Please provide --sec with nsec, nbunksec, bunker URL, or hex key, or configure a bunker in .nsite/config.json.",
   };
 }
 

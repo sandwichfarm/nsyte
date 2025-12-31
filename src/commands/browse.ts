@@ -39,7 +39,10 @@ export function registerBrowseCommand(program: Command): void {
     .command("browse")
     .description("Interactive TUI browser for files on the nostr network")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .option(
       "-p, --pubkey <npub:string>",
       "The public key to list files for (if not using private key).",
@@ -49,8 +52,6 @@ export function registerBrowseCommand(program: Command): void {
       "Include default nsyte relays in addition to configured/user relays.",
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
-    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
     .action(command);
 }
 
@@ -61,8 +62,7 @@ export async function command(options: any): Promise<void> {
     // Loop to allow identity switching
     while (true) {
       // Check if we have explicit auth options or project config
-      const hasExplicitAuth = options.pubkey || options.privatekey || options.bunker ||
-        options.nbunksec;
+      const hasExplicitAuth = options.pubkey || options.sec;
       const projectConfig = readProjectFile();
       const hasProjectAuth = projectConfig?.bunkerPubkey;
 

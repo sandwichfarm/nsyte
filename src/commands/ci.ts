@@ -12,7 +12,7 @@
  */
 
 import { colors } from "@cliffy/ansi/colors";
-import { Command } from "@cliffy/command";
+import type { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { connectBunker } from "./bunker.ts";
 

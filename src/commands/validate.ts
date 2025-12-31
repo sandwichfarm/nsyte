@@ -88,9 +88,6 @@ export const validateCommand = (program: Command) => {
 
           // Provide helpful tips
           console.log(colors.dim("\nTips:"));
-          if (!cfg.profile) {
-            console.log(colors.dim("  - Add a 'profile' section to publish your project metadata"));
-          }
           if (!cfg.appHandler) {
             console.log(colors.dim("  - Consider adding 'appHandler' for better discoverability"));
           }

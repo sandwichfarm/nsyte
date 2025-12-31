@@ -3,19 +3,16 @@ import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
 import { npubEncode } from "applesauce-core/helpers";
-import { PrivateKeySigner } from "applesauce-signers/signers";
+import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { importFromNbunk } from "../lib/nip46.ts";
-import {
-  createDeleteEvent,
-  createNip46ClientFromUrl,
-  fetchSiteManifestEvent,
-  publishEventsToRelays,
-} from "../lib/nostr.ts";
+import { createDeleteEvent, fetchSiteManifestEvent, publishEventsToRelays } from "../lib/nostr.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
 
 const log = createLogger("purge");
+
+import type { ISigner } from "applesauce-signers";
 
 /**
  * Create a Blossom delete authorization for multiple blobs
@@ -72,9 +69,8 @@ interface PurgeOptions {
   paths?: string[];
   relays?: string;
   servers?: string;
-  privatekey?: string;
-  bunker?: string;
-  nbunksec?: string;
+  /** Unified secret parameter (auto-detects format: nsec, nbunksec, bunker URL, or hex) */
+  sec?: string;
   yes: boolean;
   includeBlobs: boolean;
 }
@@ -97,9 +93,10 @@ export function registerPurgeCommand(program: Command): void {
       "The blossom servers to delete blobs from (comma separated)",
     )
     .option("--include-blobs", "Also delete blobs from blossom servers", { default: false })
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
-    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .option("-y, --yes", "Skip confirmation prompts", { default: false })
     .action(async (options: PurgeOptions) => {
       await purgeCommand(options);
@@ -476,44 +473,19 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
   }
 }
 
-async function initSigner(options: PurgeOptions, config: any): Promise<Signer | null> {
-  // Priority 1: nbunksec from CLI
-  if (options.nbunksec) {
-    try {
-      log.info("Using nbunksec from CLI for signing...");
-      const bunkerSigner = await importFromNbunk(options.nbunksec);
-      await bunkerSigner.getPublicKey();
-      return bunkerSigner;
-    } catch (e) {
-      log.error(`Failed to import nbunksec: ${e}`);
-      return null;
-    }
+async function initSigner(options: PurgeOptions, config: any): Promise<ISigner | null> {
+  // Use the unified signer factory for CLI-provided secrets
+  const signerResult = await createSignerFromFactory({
+    sec: options.sec,
+    bunkerPubkey: config?.bunkerPubkey,
+  });
+
+  // If signer factory succeeded, return it
+  if (!("error" in signerResult)) {
+    return signerResult.signer;
   }
 
-  // Priority 2: bunker URL from CLI
-  if (options.bunker) {
-    try {
-      log.info(`Using bunker URL from CLI: ${options.bunker}`);
-      const { client } = await createNip46ClientFromUrl(options.bunker);
-      return client;
-    } catch (e) {
-      log.error(`Failed to connect to bunker: ${e}`);
-      return null;
-    }
-  }
-
-  // Priority 3: private key from CLI
-  if (options.privatekey) {
-    try {
-      log.info("Using private key from CLI for signing...");
-      return PrivateKeySigner.fromKey(options.privatekey);
-    } catch (e) {
-      log.error(`Invalid private key: ${e}`);
-      return null;
-    }
-  }
-
-  // Priority 4: configured bunker
+  // If signer factory failed but we have a stored bunker, try to use it
   if (config?.bunkerPubkey) {
     try {
       log.info(`Using configured bunker: ${config.bunkerPubkey.substring(0, 8)}...`);

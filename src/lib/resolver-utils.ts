@@ -1,28 +1,23 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Secret, Select } from "@cliffy/prompt";
-import {
-  type Nip07Interface,
-  type NostrConnectSigner,
-  PrivateKeySigner,
-  SimpleSigner,
-} from "applesauce-signers";
-import { createLogger } from "./logger.ts";
+import { type ISigner, type NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { defaultConfig, type ProjectConfig, readProjectFile } from "./config.ts";
-import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
-import { SecretsManager } from "./secrets/mod.ts";
-import { importFromNbunk } from "./nip46.ts";
 import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
+import { createLogger } from "./logger.ts";
+import { importFromNbunk } from "./nip46.ts";
+import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
+import { SecretsManager } from "./secrets/mod.ts";
+import { detectSecretFormat } from "./auth/secret-detector.ts";
 
 const log = createLogger("resolver");
 
 export interface ResolverOptions {
   relays?: string;
   servers?: string;
-  privatekey?: string;
+  /** Unified secret parameter (auto-detects format: nsec, nbunksec, bunker URL, or hex) */
+  sec?: string;
   pubkey?: string;
-  bunker?: string;
-  nbunksec?: string;
 }
 
 /**
@@ -88,45 +83,46 @@ export async function resolvePubkey(
     return options.pubkey;
   }
 
-  // Private key provided - derive pubkey
-  if (options.privatekey) {
-    const signer = SimpleSigner.fromKey(options.privatekey);
-    const pubkey = await signer.getPublicKey();
-    log.debug(`Using pubkey from private key: ${pubkey.slice(0, 8)}...`);
-    return pubkey;
-  }
-
-  // nbunksec provided - derive pubkey without accessing SecretsManager
-  if (options.nbunksec) {
-    try {
-      const signer = await importFromNbunk(options.nbunksec);
-      const pubkey = await signer.getPublicKey();
-      log.debug(`Using pubkey from nbunksec: ${pubkey.slice(0, 8)}...`);
-      if ("close" in signer && typeof signer.close === "function") {
-        await signer.close();
-      }
-      return pubkey;
-    } catch (error) {
-      log.error(
-        `Failed to get pubkey from nbunksec: ${getErrorMessage(error)}`,
+  // sec parameter (unified secret parameter) - highest priority
+  if (options.sec) {
+    const detected = detectSecretFormat(options.sec);
+    if (!detected) {
+      throw new Error(
+        `Invalid secret format in --sec. Expected nsec, nbunksec, bunker:// URL, or 64-character hex string.`,
       );
-      throw error;
     }
-  }
 
-  // Bunker URL provided - derive pubkey
-  if (options.bunker) {
     try {
-      const { client } = await createNip46ClientFromUrl(options.bunker);
-      const pubkey = await client.getPublicKey();
-      log.debug(`Using pubkey from bunker URL: ${pubkey.slice(0, 8)}...`);
-      if ("close" in client && typeof client.close === "function") {
-        await client.close();
+      switch (detected.format) {
+        case "nbunksec": {
+          const signer = await importFromNbunk(detected.value);
+          const pubkey = await signer.getPublicKey();
+          log.debug(`Using pubkey from nbunksec (--sec): ${pubkey.slice(0, 8)}...`);
+          if ("close" in signer && typeof signer.close === "function") {
+            await signer.close();
+          }
+          return pubkey;
+        }
+        case "bunker-url": {
+          const { client } = await createNip46ClientFromUrl(detected.value);
+          const pubkey = await client.getPublicKey();
+          log.debug(`Using pubkey from bunker URL (--sec): ${pubkey.slice(0, 8)}...`);
+          if ("close" in client && typeof client.close === "function") {
+            await client.close();
+          }
+          return pubkey;
+        }
+        case "nsec":
+        case "hex": {
+          const signer = PrivateKeySigner.fromKey(detected.value);
+          const pubkey = await signer.getPublicKey();
+          log.debug(`Using pubkey from private key (--sec): ${pubkey.slice(0, 8)}...`);
+          return pubkey;
+        }
       }
-      return pubkey;
     } catch (error) {
       log.error(
-        `Failed to get pubkey from bunker URL: ${getErrorMessage(error)}`,
+        `Failed to get pubkey from --sec parameter: ${getErrorMessage(error)}`,
       );
       throw error;
     }
@@ -149,7 +145,7 @@ export async function resolvePubkey(
   // Interactive mode
   if (!interactive) {
     throw new Error(
-      "No public key available. Provide --pubkey, --privatekey, or configure a bunker.",
+      "No public key available. Provide --pubkey, --sec, or configure a bunker.",
     );
   }
 
@@ -197,7 +193,7 @@ async function interactiveKeySelection(): Promise<string | undefined> {
   switch (keyChoice) {
     case "generate": {
       const keyPair = generateKeyPair();
-      signer = SimpleSigner.fromKey(keyPair.privateKey);
+      signer = PrivateKeySigner.fromKey(keyPair.privateKey);
       pubkey = await signer.getPublicKey();
       console.log(
         colors.green(`Generated new private key: ${keyPair.privateKey}`),
@@ -215,7 +211,7 @@ async function interactiveKeySelection(): Promise<string | undefined> {
       const nsec = await Secret.prompt({
         message: "Enter your private key (nsec/hex):",
       });
-      signer = SimpleSigner.fromKey(nsec);
+      signer = PrivateKeySigner.fromKey(nsec);
       pubkey = await signer.getPublicKey();
       log.debug(`Using provided private key: ${pubkey.slice(0, 8)}...`);
       break;
@@ -290,22 +286,40 @@ async function interactiveKeySelection(): Promise<string | undefined> {
 export async function createSigner(
   options: ResolverOptions,
   config?: ProjectConfig | null,
-): Promise<Nip07Interface | null> {
-  // nbunksec option (for CI)
-  if (options.nbunksec) {
-    log.info("Using nbunksec from command line...");
-    return await importFromNbunk(options.nbunksec);
-  }
+): Promise<ISigner | null> {
+  // sec parameter (unified secret parameter) - highest priority
+  if (options.sec) {
+    const detected = detectSecretFormat(options.sec);
+    if (!detected) {
+      log.error(
+        `Invalid secret format in --sec. Expected nsec, nbunksec, bunker:// URL, or 64-character hex string.`,
+      );
+      return null;
+    }
 
-  // Bunker URL option
-  if (options.bunker) {
-    const { client } = await createNip46ClientFromUrl(options.bunker);
-    return client;
-  }
-
-  // Private key option
-  if (options.privatekey) {
-    return SimpleSigner.fromKey(options.privatekey);
+    try {
+      switch (detected.format) {
+        case "nbunksec": {
+          log.info("Using nbunksec from --sec parameter...");
+          return await importFromNbunk(detected.value);
+        }
+        case "bunker-url": {
+          log.info("Using bunker URL from --sec parameter...");
+          const { client } = await createNip46ClientFromUrl(detected.value);
+          return client;
+        }
+        case "nsec":
+        case "hex": {
+          log.info("Using private key from --sec parameter...");
+          return PrivateKeySigner.fromKey(detected.value);
+        }
+      }
+    } catch (error) {
+      log.error(
+        `Failed to create signer from --sec parameter: ${getErrorMessage(error)}`,
+      );
+      return null;
+    }
   }
 
   // Check project config for bunker

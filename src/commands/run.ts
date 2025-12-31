@@ -1,23 +1,23 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
+import { decompress as brotliDecompress } from "@nick/brotli";
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
-// Using Deno.serve instead of importing serve
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
-import { decodePointer, getOutboxes, normalizeToPubkey } from "applesauce-core/helpers";
-import { decompress as brotliDecompress } from "@nick/brotli";
+import { decodePointer, kinds, normalizeToPubkey } from "applesauce-core/helpers";
 import { readProjectFile } from "../lib/config.ts";
 import { DownloadService } from "../lib/download.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { getManifestServers } from "../lib/manifest.ts";
 import {
-  fetchSiteManifestEvent,
-  fetchUserRelayList,
-  fetchUserServers,
   type FileEntry,
+  getSiteManifestEvent,
+  getUserOutboxes,
   getUserProfile,
+  getUserServers,
   listRemoteFiles,
+  store,
 } from "../lib/nostr.ts";
 import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
 import type { ByteArray } from "../lib/types.ts";
@@ -47,9 +47,10 @@ export function registerRunCommand(program: Command): void {
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option("-p, --port <port:number>", "Port number for the resolver server.", { default: 6798 })
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
-    .option("--nbunksec <nbunksec:string>", "The nbunksec string to use for authentication.")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .option(
       "-c, --cache-dir <dir:string>",
       "Directory to cache downloaded files (default: /tmp/nsyte)",
@@ -320,13 +321,13 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           console.log(colors.gray(`  → Fetching profile data for ${npub}...`));
 
           try {
-            const [profile, relayList] = await Promise.all([
+            const [profile, userRelays] = await Promise.all([
               getUserProfile(profileRelays, pubkeyHex),
-              fetchUserRelayList(profileRelays, pubkeyHex),
+              getUserOutboxes(pubkeyHex),
             ]);
 
-            // Extract user's relays from relay list
-            const userRelays = relayList ? getOutboxes(relayList) : [];
+            // Get relay list event from store for display purposes
+            const relayList = store.getReplaceable(kinds.RelayList, pubkeyHex) ?? null;
             if (userRelays.length > 0) {
               log.debug(
                 `Found ${userRelays.length} relays from user's relay list: ${
@@ -343,11 +344,11 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
 
             // First, try to get servers from manifest events (prioritized per NIP-XX)
             log.debug(
-              `Fetching site manifest event for ${pubkeyHex} from relays: ${
+              `Getting site manifest event for ${pubkeyHex} from relays: ${
                 allServerListRelays.join(", ")
               }`,
             );
-            const manifestEvent = await fetchSiteManifestEvent(
+            const manifestEvent = await getSiteManifestEvent(
               allServerListRelays,
               pubkeyHex,
             );
@@ -364,11 +365,9 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
             // Fall back to kind 10063 server list event if no servers found in manifests
             if (serverList.length === 0) {
               log.debug(
-                `No servers in manifest, fetching server list (Kind ${BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex} from relays: ${
-                  allServerListRelays.join(", ")
-                }`,
+                `No servers in manifest, getting server list (Kind ${BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex}`,
               );
-              serverList = await fetchUserServers(pubkeyHex, allServerListRelays);
+              serverList = await getUserServers(pubkeyHex);
 
               if (serverList.length > 0) {
                 log.debug(`Found ${serverList.length} servers from server list event (kind 10063)`);
@@ -1268,6 +1267,31 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
         // Update variables for serving
         file = successfulFile;
 
+        // ETag support: Check for conditional request before processing
+        if (file.sha256) {
+          const etag = `"${file.sha256}"`;
+          const ifNoneMatch = request.headers.get("If-None-Match");
+
+          // If client has the same version cached, return 304 Not Modified
+          if (ifNoneMatch === etag) {
+            const elapsed = Math.round(performance.now() - startTime);
+            console.log(
+              colors.gray(
+                `  → 304 Not Modified ${
+                  colors.cyan(file.path.replace(/\.(br|gz)$/, ""))
+                } - ${elapsed}ms`,
+              ),
+            );
+            return new Response(null, {
+              status: 304,
+              headers: {
+                "ETag": etag,
+                "Cache-Control": "public, max-age=3600",
+              },
+            });
+          }
+        }
+
         // Serve the file
         // For 404 pages, use the 404.html content type, otherwise use the target path (without .br/.gz)
         const is404 = (file.path.endsWith("404.html") || file.path.endsWith("404.html.br") ||
@@ -1313,8 +1337,19 @@ export async function runCommand(options: RunOptions, npub?: string): Promise<vo
           "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
         };
 
+        // Add ETag header for efficient caching (based on sha256 hash)
+        if (file.sha256) {
+          headers["ETag"] = `"${file.sha256}"`;
+        }
+
         // No need for Content-Encoding since we're serving decompressed data
-        console.log(colors.blue(`  → Headers: Content-Type: ${contentType}`));
+        console.log(
+          colors.blue(
+            `  → Headers: Content-Type: ${contentType}${
+              file.sha256 ? `, ETag: "${file.sha256.slice(0, 16)}..."` : ""
+            }`,
+          ),
+        );
 
         // For HTML responses, inject auto-refresh script
         if (contentType === "text/html" && !is404) {

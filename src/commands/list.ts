@@ -62,7 +62,10 @@ export function registerListCommand(program: Command) {
     )
     .arguments("[path:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .option(
       "-p, --pubkey <npub:string>",
       "The public key to list files for (if not using private key).",
@@ -76,8 +79,6 @@ export function registerListCommand(program: Command) {
       "Include default nsyte relays in addition to configured/user relays.",
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing")
-    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec")
     .action(async (options, pathFilter?: string) => {
       const pubkey = await resolvePubkey(options);
       const projectConfig = readProjectFile();

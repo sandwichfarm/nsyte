@@ -19,9 +19,10 @@ export function registerAnnounceCommand(program: Command): void {
     .description("Publish app handlers to Nostr")
     .option("--publish-app-handler", "Publish app handler information (Kind 31990)")
     .option("--all", "Publish all available data")
-    .option("-k, --privatekey <nsec:string>", "The private key (nsec/hex) to use for signing.")
-    .option("-b, --bunker <url:string>", "The NIP-46 bunker URL to use for signing.")
-    .option("--nbunksec <nbunksec:string>", "The NIP-46 bunker encoded as nbunksec.")
+    .option(
+      "--sec <secret:string>",
+      "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
     .action(async (options) => {
       const status = new StatusDisplay();
 
@@ -53,9 +54,7 @@ export function registerAnnounceCommand(program: Command): void {
         status.update("Initializing signer...");
         logger.debug("Creating signer...");
         const signerResult = await createSigner({
-          privateKey: options.privatekey,
-          nbunksec: options.nbunksec,
-          bunkerUrl: options.bunker,
+          sec: options.sec,
           bunkerPubkey: config.bunkerPubkey,
         });
 
