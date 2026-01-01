@@ -1,5 +1,11 @@
 import { colors } from "@cliffy/ansi/colors";
-import { defaultConfig, type ProjectConfig, type ProjectContext, readProjectFile, setupProject } from "../config.ts";
+import {
+  defaultConfig,
+  type ProjectConfig,
+  type ProjectContext,
+  readProjectFile,
+  setupProject,
+} from "../config.ts";
 import { createLogger } from "../logger.ts";
 
 const log = createLogger("config-resolver");
@@ -11,28 +17,27 @@ export interface ConfigResolveOptions {
   // CLI options
   servers?: string;
   relays?: string;
-  publishServerList?: boolean;
-  publishRelayList?: boolean;
-  publishProfile?: boolean;
   privatekey?: string;
   nbunksec?: string;
   bunker?: string;
   fallback?: string;
-  
+
   // Mode
   nonInteractive: boolean;
 }
 
 /**
  * Resolve project configuration from various sources
- * 
+ *
  * Priority order:
  * 1. CLI options
  * 2. Config file
  * 3. Interactive setup
  * 4. Defaults
  */
-export async function resolveProjectContext(options: ConfigResolveOptions): Promise<ProjectContext> {
+export async function resolveProjectContext(
+  options: ConfigResolveOptions,
+): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let authKeyHex: string | null | undefined = options.privatekey || undefined;
 
@@ -46,38 +51,47 @@ export async function resolveProjectContext(options: ConfigResolveOptions): Prom
 /**
  * Resolve configuration in non-interactive mode
  */
-function resolveNonInteractive(options: ConfigResolveOptions, authKeyHex: string | null | undefined): ProjectContext {
+function resolveNonInteractive(
+  options: ConfigResolveOptions,
+  authKeyHex: string | null | undefined,
+): ProjectContext {
   log.debug("Resolving project context in non-interactive mode.");
-  
+
   let existingProjectData: ProjectConfig | null = null;
-  
+
   try {
     existingProjectData = readProjectFile();
   } catch (error) {
     // Configuration exists but is invalid
     console.error(colors.red("\nConfiguration file exists but contains errors."));
-    console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+    console.error(
+      colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+    );
     return {
       config: defaultConfig,
       authKeyHex,
       error: "Configuration validation failed",
     };
   }
-  
+
   if (!existingProjectData) {
     existingProjectData = defaultConfig;
   }
 
   // Validate required fields
-  if (!options.servers && (!existingProjectData?.servers || existingProjectData.servers.length === 0)) {
+  if (
+    !options.servers && (!existingProjectData?.servers || existingProjectData.servers.length === 0)
+  ) {
     return {
       config: existingProjectData,
       authKeyHex,
       error: "Missing servers: Provide --servers or configure in .nsite/config.json.",
     };
   }
-  
-  if (!options.relays && (!existingProjectData?.relays || existingProjectData.relays.length === 0)) {
+
+  if (
+    !options.relays && (!existingProjectData?.relays || existingProjectData.relays.length === 0)
+  ) {
     return {
       config: existingProjectData,
       authKeyHex,
@@ -90,29 +104,20 @@ function resolveNonInteractive(options: ConfigResolveOptions, authKeyHex: string
       return {
         config: existingProjectData,
         authKeyHex,
-        error: "Missing key: Provide --privatekey, --nbunksec, --bunker, or configure bunker in .nsite/config.json.",
+        error:
+          "Missing key: Provide --privatekey, --nbunksec, --bunker, or configure bunker in .nsite/config.json.",
       };
     }
   }
 
   // Build final config by merging CLI options with existing config
   const config: ProjectConfig = {
-    servers: options.servers 
-      ? options.servers.split(",").filter(s => s.trim())
+    servers: options.servers
+      ? options.servers.split(",").filter((s) => s.trim())
       : existingProjectData?.servers || [],
     relays: options.relays
-      ? options.relays.split(",").filter(r => r.trim())
+      ? options.relays.split(",").filter((r) => r.trim())
       : existingProjectData?.relays || [],
-    publishServerList: options.publishServerList !== undefined
-      ? options.publishServerList
-      : existingProjectData?.publishServerList || false,
-    publishRelayList: options.publishRelayList !== undefined
-      ? options.publishRelayList
-      : existingProjectData?.publishRelayList || false,
-    publishProfile: options.publishProfile !== undefined
-      ? options.publishProfile
-      : existingProjectData?.publishProfile || false,
-    profile: existingProjectData?.profile,
     bunkerPubkey: existingProjectData?.bunkerPubkey,
     fallback: options.fallback || existingProjectData?.fallback,
     gatewayHostnames: existingProjectData?.gatewayHostnames || ["nsite.lol"],
@@ -124,9 +129,12 @@ function resolveNonInteractive(options: ConfigResolveOptions, authKeyHex: string
 /**
  * Resolve configuration in interactive mode
  */
-async function resolveInteractive(options: ConfigResolveOptions, authKeyHex: string | null | undefined): Promise<ProjectContext> {
+async function resolveInteractive(
+  options: ConfigResolveOptions,
+  authKeyHex: string | null | undefined,
+): Promise<ProjectContext> {
   log.debug("Resolving project context in interactive mode.");
-  
+
   let currentProjectData: ProjectConfig | null = null;
   let keyFromInteractiveSetup: string | undefined;
 
@@ -135,7 +143,9 @@ async function resolveInteractive(options: ConfigResolveOptions, authKeyHex: str
   } catch (error) {
     // Configuration exists but is invalid
     console.error(colors.red("\nConfiguration file exists but contains errors."));
-    console.error(colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"));
+    console.error(
+      colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+    );
     return {
       config: defaultConfig,
       authKeyHex: undefined,
@@ -157,7 +167,10 @@ async function resolveInteractive(options: ConfigResolveOptions, authKeyHex: str
     keyFromInteractiveSetup = setupResult.privateKey;
   } else {
     // Check if we need key setup
-    if (!options.privatekey && !options.nbunksec && !options.bunker && !currentProjectData.bunkerPubkey) {
+    if (
+      !options.privatekey && !options.nbunksec && !options.bunker &&
+      !currentProjectData.bunkerPubkey
+    ) {
       log.info("Project is configured but no signing method found. Running key setup...");
       const keySetupResult = await setupProject(false);
       if (!keySetupResult.config) {

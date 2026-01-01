@@ -5,8 +5,9 @@ description: Upload files from a directory to relays and blossom servers
 
 # upload
 
-> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
-> 
+> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use
+> [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
+>
 > **[→ View the deploy documentation](deploy.md)**
 
 Upload files from a directory to configured relays and blossom servers.
@@ -26,7 +27,7 @@ nsyte upload <folder> [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
 - `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
 - `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--nbunksec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
 - `-p, --purge` — Delete online file events that are not used anymore (default: false)
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
@@ -35,9 +36,6 @@ nsyte upload <folder> [options]
 - `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
 - `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
-- `--publish-file-metadata` — Publish NIP-94 file metadata events for releases (default: false)
-- `--version <version>` — Version tag for the release (required when using --publish-file-metadata)
-- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release artifacts
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -71,16 +69,6 @@ Publish NIP-89 app handler announcement:
 
 ```bash
 nsyte upload dist --app-handler --handler-kinds "1,30023,30311"
-```
-
-Publish release with NIP-94 file metadata:
-
-```bash
-# Auto-create archive from uploaded files
-nsyte upload dist --publish-file-metadata --version v1.0.0
-
-# Use existing archives
-nsyte upload dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
 ```
 
 ## Next Steps

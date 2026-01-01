@@ -71,7 +71,7 @@ jobs:
           SERVERS: "https://a.blossom.server.com,https://another.blossom.server"
         run: |
           nsyte deploy ./dist -i \
-            --nbunksec ${{ secrets.NBUNKSEC }} \
+            --sec ${{ secrets.NBUNKSEC }} \
             --relays ${{ env.RELAYS }} \
             --servers ${{ env.SERVERS }} \
             --fallback "/index.html"

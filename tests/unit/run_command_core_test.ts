@@ -219,8 +219,10 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
 
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => []);
     const resolveServersStub = stub(resolverUtils, "resolveServers", () => []);
-    const serveStub = stub(Deno, "serve", (..._args) =>
-      ({ finished: Promise.resolve() } as unknown as Deno.HttpServer)
+    const serveStub = stub(
+      Deno,
+      "serve",
+      (..._args) => ({ finished: Promise.resolve() } as unknown as Deno.HttpServer),
     );
     const addSignalListenerStub = stub(Deno, "addSignalListener", (..._args) => {});
 

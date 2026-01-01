@@ -53,7 +53,7 @@ interface ProgressData {
   completed: number;
   failed: number;
   inProgress: number;
-   skipped?: number;
+  skipped?: number;
   serverStats?: {
     [filename: string]: {
       successCount: number;

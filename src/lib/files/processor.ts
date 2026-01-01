@@ -1,4 +1,3 @@
-import { contentType } from "@std/media-types";
 import { extname } from "@std/path";
 import { createLogger } from "../logger.ts";
 import type { FileEntry } from "../nostr.ts";
@@ -23,13 +22,13 @@ export function compareFiles(local: FileEntry[], remote: FileEntry[]): FileCompa
   const unchanged: FileEntry[] = [];
 
   // Create maps for efficient lookup
-  const localMap = new Map(local.map(f => [f.path, f]));
-  const remoteMap = new Map(remote.map(f => [f.path, f]));
+  const localMap = new Map(local.map((f) => [f.path, f]));
+  const remoteMap = new Map(remote.map((f) => [f.path, f]));
 
   // Check local files
   for (const localFile of local) {
     const remoteFile = remoteMap.get(localFile.path);
-    
+
     if (!remoteFile) {
       // New file
       toUpload.push(localFile);
@@ -86,14 +85,14 @@ export function calculateTotalSize(files: FileEntry[]): number {
  */
 export function groupFilesByExtension(files: FileEntry[]): Map<string, FileEntry[]> {
   const groups = new Map<string, FileEntry[]>();
-  
+
   for (const file of files) {
-    const ext = extname(file.path) || 'no-extension';
-    
+    const ext = extname(file.path) || "no-extension";
+
     const group = groups.get(ext) || [];
     group.push(file);
     groups.set(ext, group);
   }
-  
+
   return groups;
 }

@@ -1,27 +1,8 @@
-import { assertEquals } from "std/assert/mod.ts";
 import { Command } from "@cliffy/command";
+import { assertEquals } from "std/assert/mod.ts";
 
 // Import the command registration function
 import { registerRunCommand } from "../../src/commands/run.ts";
-
-// Mock console.log to capture output
-let consoleOutput: string[] = [];
-const originalConsoleLog = console.log;
-
-function mockConsole() {
-  consoleOutput = [];
-  console.log = (...args: unknown[]) => {
-    consoleOutput.push(args.map((arg) => String(arg)).join(" "));
-  };
-}
-
-function restoreConsole() {
-  console.log = originalConsoleLog;
-}
-
-function getConsoleOutput(): string {
-  return consoleOutput.join("\n");
-}
 
 // Mock file entries for testing
 const mockFiles = [

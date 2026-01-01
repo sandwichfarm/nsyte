@@ -5,10 +5,7 @@ import { assertEquals, assertExists } from "std/assert/mod.ts";
 import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
 import { restore, type Stub, stub } from "std/testing/mock.ts";
 
-import {
-  showBunkerHelp,
-  handleBunkerCommand,
-} from "../../src/commands/bunker.ts";
+import { handleBunkerCommand, showBunkerHelp } from "../../src/commands/bunker.ts";
 
 // Test state
 let exitStub: Stub;
@@ -126,7 +123,7 @@ describe("Bunker Command - Safe Tests", () => {
 
         assertEquals(
           output.includes("Unknown bunker action") || output.includes("Usage: nsyte bunker"),
-          true
+          true,
         );
         assertEquals(exitStub.calls.length, 1);
       } finally {

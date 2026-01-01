@@ -16,7 +16,7 @@ async function testEncryptedStorageFallback() {
 
   try {
     const manager = SecretsManager.getInstance();
-    
+
     // Initialize the manager
     console.log("1. Initializing SecretsManager...");
     const initialized = await manager.initialize();
@@ -49,10 +49,10 @@ async function testEncryptedStorageFallback() {
     console.log("\n4. Testing persistence (new instance)...");
     // Clear the singleton to force a new instance
     SecretsManager.resetInstance();
-    
+
     const manager2 = SecretsManager.getInstance();
     await manager2.initialize();
-    
+
     const retrieved2 = await manager2.getNbunk(testPubkey);
     console.log(`   Retrieved from new instance: ${retrieved2 === testNbunksec ? "✓" : "✗"}`);
     if (retrieved2 !== testNbunksec) {
@@ -78,8 +78,8 @@ async function testEncryptedStorageFallback() {
 
     // Check storage file location
     console.log("\n7. Storage file location:");
-    const configDir = Deno.env.get("XDG_CONFIG_HOME") || 
-                     `${Deno.env.get("HOME")}/.config`;
+    const configDir = Deno.env.get("XDG_CONFIG_HOME") ||
+      `${Deno.env.get("HOME")}/.config`;
     const storageFile = `${configDir}/nsyte/secrets.enc`;
     try {
       const stats = await Deno.stat(storageFile);
@@ -90,7 +90,6 @@ async function testEncryptedStorageFallback() {
       console.log(`   File exists: ✗`);
       console.log(`   Expected location: ${storageFile}`);
     }
-
   } finally {
     // Restore original env
     if (originalEnv !== undefined) {

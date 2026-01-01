@@ -1,19 +1,27 @@
 # NIP-89 App Handler
 
-nsyte supports NIP-89 handler announcements, allowing your nsite to be discovered as a viewer/handler for specific Nostr event types.
+nsyte supports NIP-89 handler announcements, allowing your nsite to be discovered as a
+viewer/handler for specific Nostr event types.
 
 ## What is NIP-89?
 
-NIP-89 (Recommended Application Handlers) provides a way for applications to announce what event kinds they can handle. This enables cross-client discovery - when users encounter an unknown event type in their Nostr client, the client can find and suggest applications that can display that event type.
+NIP-89 (Recommended Application Handlers) provides a way for applications to announce what event
+kinds they can handle. This enables cross-client discovery - when users encounter an unknown event
+type in their Nostr client, the client can find and suggest applications that can display that event
+type.
 
 ### Event Kinds
 
-- **Kind 31990**: Handler information event - Published by applications to announce their capabilities
-- **Kind 31989**: Recommendation event - Published by users to recommend an app for handling specific event kinds
+- **Kind 31990**: Handler information event - Published by applications to announce their
+  capabilities
+- **Kind 31989**: Recommendation event - Published by users to recommend an app for handling
+  specific event kinds
 
 ## How nsyte Uses NIP-89
 
-When enabled, nsyte will publish a kind 31990 event announcing that your nsite can handle/display specific event kinds. Other Nostr clients can then suggest your nsite when users encounter those event types.
+When enabled, nsyte will publish a kind 31990 event announcing that your nsite can handle/display
+specific event kinds. Other Nostr clients can then suggest your nsite when users encounter those
+event types.
 
 ## Configuration
 
@@ -86,6 +94,7 @@ Here are some common event kinds you might want to handle:
 ## Example Use Cases
 
 ### 1. Blog Viewer
+
 ```json
 {
   "appHandler": {
@@ -98,6 +107,7 @@ Here are some common event kinds you might want to handle:
 ```
 
 ### 2. Media Gallery
+
 ```json
 {
   "appHandler": {
@@ -110,6 +120,7 @@ Here are some common event kinds you might want to handle:
 ```
 
 ### 3. Event Archive
+
 ```json
 {
   "appHandler": {
@@ -134,15 +145,19 @@ Here are some common event kinds you might want to handle:
 
 ## Gateway URLs
 
-The handler announcement uses your configured gateway hostname (default: `nsite.lol`) to construct URLs following the NIP-89 pattern:
+The handler announcement uses your configured gateway hostname (default: `nsite.lol`) to construct
+URLs following the NIP-89 pattern:
 
 ### Default Patterns
+
 - `https://<your-npub>.nsite.lol/e/<bech32>` - For event entities (nevent)
 - `https://<your-npub>.nsite.lol/a/<bech32>` - For addressable entities (naddr)
 - `https://<your-npub>.nsite.lol/p/<bech32>` - For profile entities (nprofile)
 
 ### Custom Patterns
-You can define custom URL patterns in your configuration to match your application's routing. These must be full URLs:
+
+You can define custom URL patterns in your configuration to match your application's routing. These
+must be full URLs:
 
 ```json
 {
@@ -171,4 +186,5 @@ Where `<bech32>` will be replaced by the client with the actual bech32-encoded e
 
 ## Permissions
 
-The handler announcement (kind 31990) is automatically included in the NIP-46 permissions when using a bunker for signing.
+The handler announcement (kind 31990) is automatically included in the NIP-46 permissions when using
+a bunker for signing.

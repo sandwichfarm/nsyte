@@ -64,7 +64,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     ensureDirStub?.restore();
     nostrModuleStub?.restore();
     restore();
-    
+
     // Restore original import
     (globalThis as any).import = originalImport;
   });
@@ -94,13 +94,13 @@ describe("DownloadService - comprehensive branch coverage", () => {
   describe("fetchFileList", () => {
     it("should fetch file list successfully", async () => {
       const service = new DownloadService();
-      
+
       // Since we mocked the import, the listRemoteFiles should return our mock data
       const files = await service.fetchFileList(
         ["wss://relay.example.com"],
         "test-pubkey",
       );
-      
+
       assertEquals(Array.isArray(files), true);
       assertEquals(files.length, 2);
       assertEquals(files[0].path, "/file1.html");
@@ -184,7 +184,11 @@ describe("DownloadService - comprehensive branch coverage", () => {
       const results = await service.downloadFiles(mockFiles, ["https://server.com"], options);
       assertEquals(Array.isArray(results), true);
       assertEquals(results[0].success, false);
-      assertEquals(results[0].error?.includes("Network error") || results[0].error?.includes("Download failed"), true);
+      assertEquals(
+        results[0].error?.includes("Network error") ||
+          results[0].error?.includes("Download failed"),
+        true,
+      );
     });
 
     it("should handle mixed success and failure results", async () => {
