@@ -1,6 +1,6 @@
-import { assert, assertEquals, assertExists } from "std/assert/mod.ts";
-import { join } from "std/path/mod.ts";
-import { ensureDirSync, existsSync } from "std/fs/mod.ts";
+import { assert, assertEquals, assertExists } from "jsr:@std/assert";
+import { join } from "jsr:@std/path";
+import { ensureDirSync, existsSync } from "jsr:@std/fs";
 import { EncryptedStorage } from "../../src/lib/secrets/encrypted-storage.ts";
 
 // Test utilities

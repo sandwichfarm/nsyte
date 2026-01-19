@@ -24,8 +24,6 @@ Deno.test("Config Validator - Valid full config", () => {
     id: "test-project",
     title: "Test Project",
     description: "A test project",
-    publishServerList: true,
-    publishRelayList: false,
   };
 
   const result = validateConfig(config);

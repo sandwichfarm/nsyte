@@ -1,7 +1,7 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
+import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { restore, stub } from "jsr:@std/testing/mock";
 import {
@@ -17,7 +17,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
   let denoWriteFileStub: any;
   let ensureDirStub: any;
   let nostrModuleStub: any;
-  const originalImport = globalThis.import;
+  const originalImport = (globalThis as any).import;
 
   beforeEach(() => {
     // Mock fetch API
@@ -243,8 +243,26 @@ describe("DownloadService - comprehensive branch coverage", () => {
       denoStatStub.restore();
       denoStatStub = stub(Deno, "stat", async () => ({
         isFile: true,
+        isDirectory: false,
+        isSymlink: false,
         size: 1024,
-      }));
+        mtime: new Date(),
+        atime: new Date(),
+        birthtime: new Date(),
+        dev: 0,
+        ino: 0,
+        mode: 0,
+        nlink: 0,
+        uid: 0,
+        gid: 0,
+        rdev: 0,
+        blksize: 0,
+        blocks: 0,
+        isBlockDevice: false,
+        isCharDevice: false,
+        isFifo: false,
+        isSocket: false,
+      } as Deno.FileInfo));
 
       const service = new DownloadService();
       const file: FileEntry = { path: "/test.html", sha256: "hash123" };
@@ -265,8 +283,26 @@ describe("DownloadService - comprehensive branch coverage", () => {
       denoStatStub.restore();
       denoStatStub = stub(Deno, "stat", async () => ({
         isFile: true,
+        isDirectory: false,
+        isSymlink: false,
         size: 1024,
-      }));
+        mtime: new Date(),
+        atime: new Date(),
+        birthtime: new Date(),
+        dev: 0,
+        ino: 0,
+        mode: 0,
+        nlink: 0,
+        uid: 0,
+        gid: 0,
+        rdev: 0,
+        blksize: 0,
+        blocks: 0,
+        isBlockDevice: false,
+        isCharDevice: false,
+        isFifo: false,
+        isSocket: false,
+      } as Deno.FileInfo));
 
       const service = new DownloadService();
       const file: FileEntry = { path: "/test.html", sha256: "hash123" };
@@ -285,7 +321,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
     it("should try multiple servers on failure", async () => {
       let fetchCallCount = 0;
       fetchStub.restore();
-      fetchStub = stub(globalThis, "fetch", async (url: string) => {
+      fetchStub = stub(globalThis, "fetch", async (url: URL | RequestInfo) => {
         fetchCallCount++;
         if (fetchCallCount < 2) {
           throw new Error("Server unavailable");

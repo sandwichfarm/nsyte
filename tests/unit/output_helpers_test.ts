@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertMatch } from "std/assert/mod.ts";
+import { assertEquals, assertExists, assertMatch } from "jsr:@std/assert";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { restore, stub } from "jsr:@std/testing/mock";
 import {
@@ -108,8 +108,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         purge: false,
         concurrency: 8,
         fallback: "index.html",
-        publishRelayList: true,
-        publishServerList: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -133,8 +131,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         force: false,
         purge: false,
         concurrency: 4,
-        publishRelayList: false,
-        publishServerList: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -154,8 +150,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         force: false,
         purge: false,
         concurrency: 4,
-        publishRelayList: false,
-        publishServerList: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -167,10 +161,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
 
     it("should handle different boolean combinations", () => {
       const booleanCombinations = [
-        { force: true, purge: true, publishRelayList: true },
-        { force: false, purge: false, publishRelayList: false },
-        { force: true, purge: false, publishRelayList: true },
-        { force: false, purge: true, publishRelayList: false },
       ];
 
       booleanCombinations.forEach((booleans) => {
@@ -179,7 +169,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           relays: ["wss://relay.com"],
           servers: ["https://server.com"],
           concurrency: 4,
-          publishServerList: false,
           ...booleans,
         };
 
@@ -204,8 +193,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           servers: ["https://server.com"],
           force: false,
           purge: false,
-          publishRelayList: false,
-          publishServerList: false,
           ...concurrencyConfig,
         };
 
@@ -515,8 +502,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           force: false,
           purge: false,
           concurrency: 4,
-          publishRelayList: false,
-          publishServerList: false,
         })),
         true,
       );

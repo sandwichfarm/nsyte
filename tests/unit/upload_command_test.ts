@@ -1,7 +1,7 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
+import { stub } from "jsr:@std/testing/mock";
 import type { Command } from "@cliffy/command";
-import { registerUploadCommand } from "../../src/commands/upload.ts";
+import { registerDeployCommand } from "../../src/commands/deploy.ts";
 
 Deno.test("Upload Command Registration", async (t) => {
   await t.step("should register upload command with proper structure", () => {
@@ -52,7 +52,7 @@ Deno.test("Upload Command Registration", async (t) => {
     } as any;
 
     // Register the command
-    registerUploadCommand(mockCommand);
+    registerDeployCommand(mockCommand);
 
     // Verify command was called
     assertEquals(cmd.calls.length, 1);

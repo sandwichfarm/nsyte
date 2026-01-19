@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertRejects } from "std/assert/mod.ts";
-import { join } from "std/path/mod.ts";
-import { restore, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
+import { join } from "jsr:@std/path";
+import { restore, stub } from "jsr:@std/testing/mock";
 import {
   calculateFileHash,
   compareFiles,

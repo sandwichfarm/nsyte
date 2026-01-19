@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertStringIncludes } from "std/assert/mod.ts";
-import { restore, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert";
+import { restore, stub } from "jsr:@std/testing/mock";
 import { Command } from "@cliffy/command";
 import {
   formatFileSize,

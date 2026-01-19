@@ -1,4 +1,4 @@
-import { Stub, stub } from "std/testing/mock.ts";
+import { Stub, stub } from "jsr:@std/testing/mock";
 
 /**
  * Helper to stub Deno.exit for tests

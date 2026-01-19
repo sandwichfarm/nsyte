@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
+import { stub } from "jsr:@std/testing/mock";
 import type { Signer, UploadProgress, UploadResponse } from "../../src/lib/upload.ts";
 import type { FileEntry } from "../../src/lib/nostr.ts";
 
@@ -52,7 +52,7 @@ Deno.test("Upload/Download Workflows - File Processing", async (t) => {
 
   await t.step("should calculate file hashes", async () => {
     const calculateSHA256 = async (data: Uint8Array): Promise<string> => {
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data.buffer as ArrayBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
     };
@@ -78,6 +78,7 @@ Deno.test("Upload/Download Workflows - Progress Tracking", async (t) => {
         completed: 0,
         failed: 0,
         inProgress: 0,
+        skipped: 0,
       };
 
       return {

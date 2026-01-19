@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertThrows } from "std/assert/mod.ts";
+import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert";
 import {
   defaultConfig,
   popularBlossomServers,
@@ -55,8 +55,6 @@ Deno.test(
       const config: ProjectConfig = {
         relays: ["wss://test.relay"],
         servers: ["https://test.server"],
-        publishServerList: false,
-        publishRelayList: false,
       };
 
       writeProjectFile(config);
@@ -72,8 +70,6 @@ Deno.test(
       const config: ProjectConfig = {
         relays: ["wss://test.relay"],
         servers: ["https://test.server"],
-        publishServerList: false,
-        publishRelayList: false,
         bunkerPubkey: "1234567890123456789012345678901234567890123456789012345678901234",
       };
 
@@ -86,7 +82,7 @@ Deno.test(
         restoreConsole();
 
         assertExists(readConfig);
-        assertEquals(readConfig.bunkerPubkey, config.bunkerPubkey);
+        assertEquals(readConfig!.bunkerPubkey, config.bunkerPubkey);
       } finally {
         restoreConsole();
       }
@@ -96,8 +92,6 @@ Deno.test(
       const config: ProjectConfig = {
         relays: ["wss://test.relay"],
         servers: ["https://test.server"],
-        publishServerList: false,
-        publishRelayList: false,
         id: "test-site",
         title: "Test User",
         description: "Test description",
@@ -107,10 +101,10 @@ Deno.test(
 
       const readConfig = readProjectFile(false); // Skip validation
       assertExists(readConfig);
-      assertExists(readConfig.id);
-      assertEquals(readConfig.id, "test-site");
-      assertEquals(readConfig.title, "Test User");
-      assertEquals(readConfig.description, "Test description");
+      assertExists(readConfig!.id);
+      assertEquals(readConfig!.id, "test-site");
+      assertEquals(readConfig!.title, "Test User");
+      assertEquals(readConfig!.description, "Test description");
     });
 
     await t.step("readProjectFile returns null for non-existent file", async () => {
@@ -182,8 +176,6 @@ Deno.test(
         const config: ProjectConfig = {
           relays: ["wss://test.relay"],
           servers: ["https://test.server"],
-          publishServerList: false,
-          publishRelayList: false,
           bunkerPubkey: "1234567890123456789012345678901234567890123456789012345678901234",
         };
 
@@ -212,8 +204,6 @@ Deno.test("Config - Utility Functions", async (t) => {
     const validConfig: ProjectConfig = {
       relays: ["wss://test.relay"],
       servers: ["https://test.server"],
-      publishServerList: true,
-      publishRelayList: true,
     };
 
     // These should not throw when used in isolation
@@ -227,8 +217,6 @@ Deno.test("Config - Utility Functions", async (t) => {
     const configWithAllFields: ProjectConfig = {
       relays: ["wss://test.relay"],
       servers: ["https://test.server"],
-      publishServerList: false,
-      publishRelayList: false,
       id: "test-site",
       title: "Test User",
       description: "Test description",
@@ -237,8 +225,6 @@ Deno.test("Config - Utility Functions", async (t) => {
     const configWithMinFields: ProjectConfig = {
       relays: ["wss://test.relay"],
       servers: ["https://test.server"],
-      publishServerList: false,
-      publishRelayList: false,
     };
 
     assertEquals(typeof configWithAllFields.title, "string");

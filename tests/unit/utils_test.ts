@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { assertEquals, assertExists } from "std/assert/mod.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
 import { createGroupedCommand } from "../../src/lib/utils.ts";
 
 Deno.test("createGroupedCommand", async (t) => {

@@ -1,6 +1,6 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, spy, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { restore, spy, stub } from "jsr:@std/testing/mock";
 import * as prompt from "@cliffy/prompt";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import {

@@ -1,9 +1,9 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { getSystemConfigDir } from "../../src/lib/secrets/utils.ts";
-import { join } from "std/path/mod.ts";
-import { ensureDir } from "std/fs/ensure_dir.ts";
+import { join } from "jsr:@std/path";
+import { ensureDir } from "jsr:@std/fs/ensure-dir";
 
 const originalEnv = Deno.env.toObject();
 

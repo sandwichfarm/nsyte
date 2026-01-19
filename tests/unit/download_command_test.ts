@@ -1,9 +1,9 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, type Stub, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
+import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { restore, type Stub, stub } from "jsr:@std/testing/mock";
 
 import { registerDownloadCommand } from "../../src/commands/download.ts";
 import { Command } from "@cliffy/command";
@@ -99,7 +99,7 @@ describe("Download Command - Comprehensive Tests", () => {
 
       // Execute the command action with test options
       try {
-        await downloadCommand.parse(["download", "--output", "./test-downloads"]);
+        await downloadCommand!.parse(["download", "--output", "./test-downloads"]);
       } catch {
         // Expected to fail in test environment, but we can check console output
       }
@@ -143,16 +143,16 @@ describe("Download Command - Comprehensive Tests", () => {
       // Mock listRemoteFiles to return some files
       const mockFiles = [
         {
-          hash: "abc123",
-          name: "test1.txt",
+          sha256: "abc123",
+          path: "test1.txt",
           size: 100,
           url: "https://server1.com/abc123",
           eventId: "event1",
           created: Date.now(),
         },
         {
-          hash: "def456",
-          name: "test2.txt",
+          sha256: "def456",
+          path: "test2.txt",
           size: 200,
           url: "https://server1.com/def456",
           eventId: "event2",
@@ -208,7 +208,7 @@ describe("Download Command - Comprehensive Tests", () => {
 
         // This will likely fail due to the complex download logic, but we can test parts
         try {
-          await downloadCommand.parse(["download", "--output", "./test-downloads"]);
+          await downloadCommand!.parse(["download", "--output", "./test-downloads"]);
         } catch {
           // Expected in test environment
         }
@@ -241,7 +241,7 @@ describe("Download Command - Comprehensive Tests", () => {
 
       // Should handle the error gracefully via handleError wrapper
       try {
-        await downloadCommand.parse(["download"]);
+        await downloadCommand!.parse(["download"]);
       } catch {
         // Expected
       }
@@ -272,7 +272,7 @@ describe("Download Command - Comprehensive Tests", () => {
       );
       const readProjectFileSpy = stub(configModule, "readProjectFile", () => null);
 
-      const mockDisplayManager = { configureFromOptions: stub() };
+      const mockDisplayManager = { configureFromOptions: () => {} };
       const getDisplayManagerSpy = stub(
         displayModeModule,
         "getDisplayManager",

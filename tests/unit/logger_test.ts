@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { restore, stub } from "jsr:@std/testing/mock";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../../src/lib/logger.ts";

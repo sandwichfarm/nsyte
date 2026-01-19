@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
 import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
 import { restore, stub } from "jsr:@std/testing/mock";
 import {
@@ -292,8 +292,6 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         relays: [],
         servers: [],
         bunkerPubkey: "file-bunker-pubkey",
-        publishServerList: false,
-        publishRelayList: false,
       };
       const readStub = stub(config, "readProjectFile", () => fileConfig);
 
@@ -603,8 +601,6 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         relays: [],
         servers: [],
         bunkerPubkey: "config-bunker-pubkey",
-        publishServerList: false,
-        publishRelayList: false,
       };
 
       const signer = await createSigner(options, configData);
@@ -626,8 +622,6 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         relays: [],
         servers: [],
         bunkerPubkey: "file-bunker-pubkey",
-        publishServerList: false,
-        publishRelayList: false,
       };
       const readStub = stub(config, "readProjectFile", () => fileConfig);
 
@@ -659,8 +653,6 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         relays: [],
         servers: [],
         bunkerPubkey: "config-bunker-pubkey",
-        publishServerList: false,
-        publishRelayList: false,
       };
 
       const signer = await createSigner(options, configData);

@@ -1,5 +1,5 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { restore, spy, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
+import { restore, spy, stub } from "jsr:@std/testing/mock";
 import {
   getErrorMessage,
   handleError,
@@ -141,7 +141,7 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       });
 
       // Find the console error call
-      const coloredCall = consoleErrorSpy.calls.find((call) =>
+      const coloredCall = consoleErrorSpy.calls.find((call: any) =>
         String(call.args[0]).includes("Error:")
       );
       assertExists(coloredCall);
@@ -156,7 +156,7 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       });
 
       // Find the uncolored console error call
-      const uncoloredCall = consoleErrorSpy.calls.find((call) =>
+      const uncoloredCall = consoleErrorSpy.calls.find((call: any) =>
         call.args[0] === "Error: No color test: Uncolored error"
       );
       assertExists(uncoloredCall);

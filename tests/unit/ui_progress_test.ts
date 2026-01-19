@@ -1,5 +1,5 @@
-import { assertEquals, assertStringIncludes } from "std/assert/mod.ts";
-import { restore, returnsNext, stub } from "std/testing/mock.ts";
+import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
+import { restore, returnsNext, stub } from "jsr:@std/testing/mock";
 import {
   formatProgressBar,
   formatUploadProgress,

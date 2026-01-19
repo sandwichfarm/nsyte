@@ -7,6 +7,8 @@ import { globToRegExp } from "@std/path/glob-to-regexp";
 import { createLogger } from "./logger.ts";
 import type { FileEntry } from "./nostr.ts";
 
+export type { FileEntry };
+
 const log = createLogger("files");
 
 export const DEFAULT_IGNORE_PATTERNS = [

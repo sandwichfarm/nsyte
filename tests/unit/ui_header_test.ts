@@ -1,4 +1,4 @@
-import { assertEquals } from "std/assert/mod.ts";
+import { assertEquals } from "jsr:@std/assert";
 import { header } from "../../src/ui/header.ts";
 
 Deno.test("UI Header", async (t) => {
