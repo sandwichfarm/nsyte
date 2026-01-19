@@ -687,6 +687,12 @@ export function displayConfig(publisherPubkey: string) {
   if (displayManager.isInteractive()) {
     console.log(formatTitle("Upload Configuration"));
     console.log(formatConfigValue("User", publisherPubkey, false));
+    
+    // Display site type (root site vs named site)
+    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteType = siteId ? `Named site: ${siteId}` : "Root site";
+    console.log(formatConfigValue("Site Type", siteType, false));
+    
     console.log(
       formatConfigValue(
         "Relays",
@@ -714,6 +720,12 @@ export function displayConfig(publisherPubkey: string) {
     console.log("");
   } else if (!options.nonInteractive) {
     console.log(colors.cyan(`User: ${publisherPubkey}`));
+    
+    // Display site type (root site vs named site)
+    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteType = siteId ? `Named site: ${siteId}` : "Root site";
+    console.log(colors.cyan(`Site Type: ${siteType}`));
+    
     console.log(
       colors.cyan(
         `Relays: ${resolvedRelays.join(", ") || "none"}${
