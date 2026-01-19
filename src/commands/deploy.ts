@@ -1459,7 +1459,7 @@ async function uploadFiles(
 async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
   log.debug("maybePublishMetadata called");
 
-  const usermeta_relays = ["wss://user.kindpag.es", "wss://purplepag.es", "wss://relay.nostr.band"];
+  const usermeta_relays = ["wss://user.kindpag.es", "wss://purplepag.es"];
   // const nsite_relays = ['wss://relay.nsite.lol']
 
   // Check both command-line options AND config settings

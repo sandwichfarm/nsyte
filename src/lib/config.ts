@@ -58,7 +58,6 @@ export const popularRelays = [
   "wss://nos.lol",
   "wss://nostr-pub.wellorder.net",
   "wss://relay.damus.io",
-  "wss://relay.nostr.band",
 ];
 
 export const popularBlossomServers = [

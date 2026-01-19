@@ -4,7 +4,6 @@
   "relays": [
     "wss://relay.nsite.lol",
     "wss://nos.lol",
-    "wss://relay.nostr.band",
     "wss://relay.primal.net",
     "wss://relay.damus.io"
   ],
