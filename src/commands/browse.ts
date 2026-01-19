@@ -45,7 +45,7 @@ export function registerBrowseCommand(program: Command): void {
     )
     .option(
       "-p, --pubkey <npub:string>",
-      "The public key to list files for (if not using private key).",
+      "The public key to list files for (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
     .option(
       "--use-fallback-relays",

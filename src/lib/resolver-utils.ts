@@ -6,6 +6,7 @@ import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import { importFromNbunk } from "./nip46.ts";
+import { normalizePubkeyInput } from "./nip05.ts";
 import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 import { detectSecretFormat } from "./auth/secret-detector.ts";
@@ -80,7 +81,16 @@ export async function resolvePubkey(
   // Explicit pubkey provided
   if (options.pubkey) {
     log.debug(`Using explicit pubkey: ${options.pubkey}`);
-    return options.pubkey;
+    // Normalize the pubkey (handles npub, hex, and NIP-05 identifiers)
+    try {
+      const normalized = await normalizePubkeyInput(options.pubkey);
+      log.debug(`Normalized to: ${normalized.slice(0, 8)}...`);
+      return normalized;
+    } catch (error) {
+      throw new Error(
+        `Failed to resolve pubkey from --pubkey parameter: ${getErrorMessage(error)}`,
+      );
+    }
   }
 
   // sec parameter (unified secret parameter) - highest priority

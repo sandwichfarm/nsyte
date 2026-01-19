@@ -45,7 +45,7 @@ export function registerDownloadCommand(program: Command): void {
     )
     .option(
       "-p, --pubkey <npub:string>",
-      "The public key to download files from (if not using private key).",
+      "The public key to download files from (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
     .option(
       "-d, --name <name:string>",
