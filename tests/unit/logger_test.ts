@@ -1,8 +1,8 @@
-import { assertEquals, assertStringIncludes } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
-import { createLogger, flushQueuedLogs, setProgressMode } from "../../src/lib/logger.ts";
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore } from "@std/testing/mock";
 import { getDisplayManager } from "../../src/lib/display-mode.ts";
+import { createLogger, flushQueuedLogs, setProgressMode } from "../../src/lib/logger.ts";
 
 describe("logger - comprehensive branch coverage", () => {
   let originalConsoleLog: typeof console.log;

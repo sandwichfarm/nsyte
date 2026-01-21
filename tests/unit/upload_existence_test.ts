@@ -1,7 +1,7 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { processUploads, Signer } from "../../src/lib/upload.ts";
-import { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
+import { assertEquals, assertExists } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { processUploads, type Signer } from "../../src/lib/upload.ts";
+import type { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
 
 // Store original fetch and WebSocket for restoration
 const originalFetch = globalThis.fetch;

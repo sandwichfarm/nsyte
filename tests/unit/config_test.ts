@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertExists, assertThrows } from "@std/assert";
 import {
   defaultConfig,
   popularBlossomServers,
@@ -11,7 +11,7 @@ import {
 } from "../../src/lib/config.ts";
 import {
   createMockConfig,
-  createTestEnvironment,
+  type createTestEnvironment,
   createTestEnvVars,
   suppressConsole,
   withTestEnvironment,

@@ -1,5 +1,5 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { restore, spy, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists } from "@std/assert";
+import { restore, spy, stub } from "@std/testing/mock";
 import {
   formatProgressBar,
   formatUploadProgress,

@@ -10,6 +10,7 @@ import { createLogger } from "./logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
 import { pool } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
+import { kinds } from "applesauce-core/helpers";
 
 const log = createLogger("nip46");
 
@@ -18,6 +19,7 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   31990, // NIP-89 handler announcement
   NSITE_ROOT_SITE_KIND, // NIP-XX root site manifest
   NSITE_NAME_SITE_KIND, // NIP-XX named site manifest
+  kinds.EventDeletion, // NIP-09 event deletion
 ]);
 
 // Connect the signer to the global pool

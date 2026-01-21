@@ -2,6 +2,7 @@ import type { FileEntryWithSources } from "../../lib/nostr.ts";
 import type { IgnoreRule } from "../../lib/files.ts";
 import type { PropagationStats } from "../../lib/propagation-stats.ts";
 import { calculatePropagationStats } from "../../lib/propagation-stats.ts";
+import type { ISigner } from "applesauce-signers";
 
 export interface TreeItem {
   path: string;
@@ -35,20 +36,21 @@ export interface BrowseState {
   relayColorMap: Map<string, (str: string) => string>;
   serverColorMap: Map<string, (str: string) => string>;
   ignoreRules: IgnoreRule[];
-  signer?: any; // Temporary signer, only used during delete
+  signer?: ISigner; // Temporary signer, only used during delete
   authOptions?: { // CLI auth options for creating signer when needed
-    privatekey?: string;
-    bunker?: string;
-    nbunksec?: string;
+    sec?: string; // Unified secret parameter (auto-detects format)
   };
   status: string; // Current status message
   statusColor?: (str: string) => string; // Optional color function for status
   filterMode: boolean; // Whether filter is active
   filterText: string; // Current filter text
   switchIdentity: boolean; // Signal to switch identity
+  switchSite: boolean; // Signal to switch site (go back to site selection)
   pubkey: string; // Current pubkey being browsed
   blossomServers: string[]; // Cached blossom server list
   propagationStats: PropagationStats; // Propagation strength stats
+  siteName?: string; // Name of the currently browsed site
+  hasMultipleSites: boolean; // Whether the user has multiple sites (for hotkey display)
 }
 
 export function buildTreeItems(files: FileEntryWithSources[]): TreeItem[] {
@@ -140,7 +142,9 @@ export function createInitialState(
   serverColorMap: Map<string, (str: string) => string>,
   ignoreRules: IgnoreRule[],
   pubkey: string,
-  signer?: any,
+  signer?: ISigner,
+  siteName?: string,
+  hasMultipleSites?: boolean,
 ): BrowseState {
   const treeItems = buildTreeItems(files);
 
@@ -180,9 +184,12 @@ export function createInitialState(
     filterMode: false,
     filterText: "",
     switchIdentity: false,
+    switchSite: false,
     pubkey,
     blossomServers: [],
     propagationStats: calculatePropagationStats(files, relayColorMap.size, serverColorMap.size),
+    siteName,
+    hasMultipleSites: hasMultipleSites || false,
   };
 }
 

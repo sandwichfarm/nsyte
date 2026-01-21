@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
-import { stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "@std/assert";
+import type { stub } from "@std/testing/mock";
 import type { Command } from "@cliffy/command";
 import { registerDeployCommand } from "../../src/commands/deploy.ts";
 

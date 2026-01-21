@@ -1,10 +1,10 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
-import { Command } from "@cliffy/command";
+import { assertEquals } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
+import type { Command } from "@cliffy/command";
 
 describe("CI command", () => {
   let consoleLogStub: any;

@@ -1,4 +1,4 @@
-import { type Stub, stub } from "jsr:@std/testing/mock";
+import { type Stub, stub } from "@std/testing/mock";
 import type { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 

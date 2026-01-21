@@ -166,7 +166,9 @@ export async function normalizePubkeyInput(input: string): Promise<string> {
     }
   } catch (error) {
     // Not a valid npub/hex, continue to NIP-05 check
-    log.debug(`Input not a valid npub/hex: ${error instanceof Error ? error.message : String(error)}`);
+    log.debug(
+      `Input not a valid npub/hex: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   // Check if it's a NIP-05 identifier

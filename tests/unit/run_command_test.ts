@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertRejects, type assertThrows } from "@std/assert";
 
 // Import the functions to test
 import { formatFileSize, runCommand, validateNpub } from "../../src/commands/run.ts";

@@ -17,8 +17,8 @@
 
 import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
-import { NostrConnectSigner } from "applesauce-signers";
 import { join } from "@std/path";
+import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import {
@@ -27,8 +27,8 @@ import {
   initiateNostrConnect,
   parseBunkerUrl,
 } from "../lib/nip46.ts";
-import { SecretsManager } from "../lib/secrets/mod.ts";
 import { EncryptedStorage } from "../lib/secrets/encrypted-storage.ts";
+import { SecretsManager } from "../lib/secrets/mod.ts";
 
 const log = createLogger("bunker-direct");
 const SERVICE_NAME = "nsyte";
@@ -36,7 +36,7 @@ const SERVICE_NAME = "nsyte";
 /**
  * Handle bunker commands directly without going through setupProject
  */
-export async function handleBunkerCommand(showHeader = true): Promise<void> {
+export async function handleBunkerCommand(): Promise<void> {
   try {
     if (Deno.args.length === 1 || Deno.args.includes("-h") || Deno.args.includes("--help")) {
       await showBunkerHelp();
@@ -143,7 +143,7 @@ export async function handleBunkerCommand(showHeader = true): Promise<void> {
 /**
  * Show help information for the bunker command
  */
-export async function showBunkerHelp(): Promise<void> {
+export function showBunkerHelp() {
   console.log(colors.cyan("\nBunker Command Help"));
   console.log("Usage: nsyte bunker <action> [arguments]\n");
   console.log(colors.cyan("Description:"));
@@ -219,7 +219,7 @@ export async function listBunkers(): Promise<void> {
       const info = decodeBunkerInfo(nbunkString);
       console.log(`- ${colors.green(pubkey)}`);
       console.log(`  Relays: ${info.relays.join(", ")}`);
-    } catch (error) {
+    } catch {
       console.log(
         `- ${
           colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))
@@ -697,7 +697,7 @@ async function discoverKeychainBunkers(): Promise<string[]> {
         // Skip if not found
       }
     }
-  } catch (error) {
+  } catch {
     console.log(colors.dim("Failed to scan configs, continuing..."));
   }
 
@@ -792,7 +792,7 @@ export async function migrateBunkers(pubkeys?: string[]): Promise<void> {
   console.log(`\nMigrating ${existingBunkers.length} bunkers to index...`);
 
   let migrated = 0;
-  for (const { pubkey, nbunkString } of existingBunkers) {
+  for (const { pubkey } of existingBunkers) {
     try {
       // Just update the index, don't re-store in keychain
       const encryptedStorage = new EncryptedStorage();

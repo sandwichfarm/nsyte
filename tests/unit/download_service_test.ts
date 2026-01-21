@@ -1,15 +1,15 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, type assertRejects } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   type DownloadOptions,
   type DownloadResult,
   DownloadService,
 } from "../../src/lib/download.ts";
-import { type FileEntry } from "../../src/lib/nostr.ts";
+import type { FileEntry } from "../../src/lib/nostr.ts";
 
 describe("DownloadService - comprehensive branch coverage", () => {
   let fetchStub: any;

@@ -1,6 +1,6 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.220.0/assert/mod.ts";
 import {
-  suggestConfigFixes,
+  type suggestConfigFixes,
   validateConfig,
   validateConfigWithFeedback,
 } from "../src/lib/config-validator.ts";

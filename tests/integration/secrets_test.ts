@@ -1,6 +1,6 @@
 import { join } from "jsr:@std/path";
-import { assertEquals, assertNotEquals } from "jsr:@std/assert";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import { restore, stub } from "@std/testing/mock";
 import {
   type BunkerInfo,
   decodeBunkerInfo,

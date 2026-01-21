@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 
 Deno.test("Configuration Handling - Validation", async (t) => {

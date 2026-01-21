@@ -371,10 +371,7 @@ async function connectToBunkerWithURI(): Promise<NostrConnectSigner> {
   return NostrConnectSigner.fromBunkerURI(bunkerUrl);
 }
 
-async function newBunker(
-  config: ProjectConfig,
-  secretsManager: SecretsManager,
-): Promise<NostrConnectSigner | undefined> {
+async function newBunker(): Promise<NostrConnectSigner | undefined> {
   let signer: NostrConnectSigner | null = null;
 
   const choice = await Select.prompt<string>({
@@ -473,7 +470,7 @@ async function selectKeySource(
     });
     // Note: privateKey is returned but not stored in config, so no config change
   } else if (keyChoice === "new_bunker") {
-    const signer = await newBunker(config, secretsManager);
+    const signer = await newBunker();
     if (signer) {
       config.bunkerPubkey = await signer.getPublicKey();
       const nbunkString = getNbunkString(signer);

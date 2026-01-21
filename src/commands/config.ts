@@ -30,7 +30,7 @@ export function registerConfigCommand(program: Command): void {
 
 interface ConfigField {
   key: string;
-  value: any;
+  value: unknown;
   type: "string" | "number" | "boolean" | "array" | "object" | "special";
   description?: string;
   required?: boolean;
@@ -43,8 +43,8 @@ interface ConfigState {
   selectedIndex: number;
   editingIndex: number | null;
   editValue: string;
-  config: any;
-  originalConfig: any;
+  config: Record<string, unknown>;
+  originalConfig: Record<string, unknown>;
   configPath: string;
   hasChanges: boolean;
   status: string;
@@ -52,6 +52,11 @@ interface ConfigState {
   showHelp: boolean;
   expandedPaths: Set<string>;
   bunkerSelection?: BunkerSelectionState;
+}
+
+// Type guard to check if a value is a Record<string, unknown>
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 const FIELD_DESCRIPTIONS: Record<
@@ -81,7 +86,7 @@ const FIELD_DESCRIPTIONS: Record<
 };
 
 function flattenConfig(
-  config: any,
+  config: Record<string, unknown>,
   prefix = "",
   expandedPaths: Set<string> = new Set(),
 ): ConfigField[] {
@@ -126,7 +131,7 @@ function flattenConfig(
         fields.push({
           key: `${fullKey}[+]`,
           value: "<Add new item>",
-          type: "special" as any,
+          type: "special",
           description: "Add a new item to this array",
           editable: true,
         });
@@ -146,14 +151,16 @@ function flattenConfig(
       // If expanded, show nested fields
       if (isExpandable && expandedPaths.has(fullKey)) {
         // Recursively flatten nested objects
-        fields.push(...flattenConfig(value, fullKey, expandedPaths));
+        if (isRecord(value)) {
+          fields.push(...flattenConfig(value, fullKey, expandedPaths));
+        }
 
         // Add option to add new property (for certain objects)
         if (fullKey === "profile") {
           fields.push({
             key: `${fullKey}.+`,
             value: "<Add new property>",
-            type: "special" as any,
+            type: "special",
             description: "Add a new property to this object",
             editable: true,
           });
@@ -282,9 +289,9 @@ function renderConfigEditor(state: ConfigState): void {
       } else if (
         field.type === "special" && (field.key.endsWith("[+]") || field.key.endsWith(".+"))
       ) {
-        valueStr = field.value;
+        valueStr = typeof field.value === "string" ? field.value : String(field.value);
       } else {
-        valueStr = field.value || "<empty>";
+        valueStr = field.value ? String(field.value) : "<empty>";
       }
     }
 
@@ -445,17 +452,27 @@ function renderBunkerSelection(
   console.log(colors.bgBlack.white("└" + "─".repeat(width - 2) + "┘"));
 }
 
-function updateConfigValue(state: ConfigState, fieldIndex: number, newValue: any): void {
+function updateConfigValue(
+  state: ConfigState,
+  fieldIndex: number,
+  newValue: string | number | boolean | string[],
+): void {
   const field = state.fields[fieldIndex];
   const keys = field.key.split(".");
 
   // Update the actual config object
-  let current = state.config;
+  let current: Record<string, unknown> = state.config;
   for (let i = 0; i < keys.length - 1; i++) {
     if (!current[keys[i]]) {
       current[keys[i]] = {};
     }
-    current = current[keys[i]];
+    const next = current[keys[i]];
+    if (!isRecord(next)) {
+      current[keys[i]] = {};
+      current = {};
+    } else {
+      current = next;
+    }
   }
 
   const lastKey = keys[keys.length - 1];
@@ -555,7 +572,7 @@ async function saveConfig(state: ConfigState): Promise<boolean> {
   }
 }
 
-export async function command(options: any): Promise<void> {
+export async function command(options: { path?: string }): Promise<void> {
   try {
     // Check if we're in a TTY environment
     if (!Deno.stdout.isTerminal()) {
@@ -590,10 +607,11 @@ export async function command(options: any): Promise<void> {
     }
 
     // Read and parse config
-    let config: any;
+    let config: Record<string, unknown>;
     try {
       const configContent = await Deno.readTextFile(configPath);
-      config = JSON.parse(configContent) || {};
+      const parsed = JSON.parse(configContent);
+      config = isRecord(parsed) ? parsed : {};
     } catch (error) {
       clearScreen();
       moveCursor(1, 1);
@@ -622,7 +640,7 @@ export async function command(options: any): Promise<void> {
       console.log();
       console.log(colors.yellow("The following validation issues were found:"));
       console.log();
-      validationResult.errors?.forEach((error: any) => {
+      validationResult.errors?.forEach((error) => {
         console.log(colors.red(`  • ${error.message || error}`));
       });
       console.log();
@@ -635,13 +653,14 @@ export async function command(options: any): Promise<void> {
 
     // Initialize state
     const expandedPaths = new Set<string>();
+    const configRecord: Record<string, unknown> = isRecord(config) ? config : {};
     const state: ConfigState = {
-      fields: flattenConfig(config, "", expandedPaths),
+      fields: flattenConfig(configRecord, "", expandedPaths),
       selectedIndex: 0,
       editingIndex: null,
       editValue: "",
-      config: structuredClone(config),
-      originalConfig: structuredClone(config),
+      config: structuredClone(configRecord),
+      originalConfig: structuredClone(configRecord),
       configPath,
       hasChanges: false,
       status: validationResult.valid
@@ -731,7 +750,7 @@ export async function command(options: any): Promise<void> {
           const field = state.fields[state.editingIndex];
 
           // Parse the value based on type
-          let newValue: any = state.editValue;
+          let newValue: string | number | boolean | string[] = state.editValue;
           if (field.type === "number") {
             newValue = Number(state.editValue);
             if (isNaN(newValue)) {
@@ -756,15 +775,22 @@ export async function command(options: any): Promise<void> {
               const keys = arrayKey.split(".");
 
               // Navigate to array in config
-              let current = state.config;
+              let current: Record<string, unknown> = state.config;
               for (let i = 0; i < keys.length - 1; i++) {
-                current = current[keys[i]];
+                const next = current[keys[i]];
+                if (!isRecord(next)) {
+                  current[keys[i]] = {};
+                  current = {};
+                  break;
+                }
+                current = next;
               }
               const lastKey = keys[keys.length - 1];
 
               // Update array item
-              if (Array.isArray(current[lastKey])) {
-                current[lastKey][index] = newValue;
+              const arrayValue = current[lastKey];
+              if (Array.isArray(arrayValue)) {
+                arrayValue[index] = newValue;
                 state.hasChanges = true;
 
                 // Update fields to reflect change
@@ -839,17 +865,27 @@ export async function command(options: any): Promise<void> {
                 const keys = arrayKey.split(".");
 
                 // Navigate to array in config
-                let current = state.config;
+                let current: Record<string, unknown> = state.config;
                 for (let i = 0; i < keys.length - 1; i++) {
-                  current = current[keys[i]];
+                  const next = current[keys[i]];
+                  if (!isRecord(next)) {
+                    current[keys[i]] = {};
+                    current = {};
+                    break;
+                  }
+                  current = next;
                 }
                 const lastKey = keys[keys.length - 1];
 
                 // Add to array
-                if (!Array.isArray(current[lastKey])) {
+                const arrayValue = current[lastKey];
+                if (!Array.isArray(arrayValue)) {
                   current[lastKey] = [];
                 }
-                current[lastKey].push(newValue);
+                const newArray = current[lastKey];
+                if (Array.isArray(newArray)) {
+                  newArray.push(newValue);
+                }
 
                 // Update fields
                 state.expandedPaths.add(arrayKey);
@@ -888,17 +924,27 @@ export async function command(options: any): Promise<void> {
                   const keys = objectKey.split(".");
 
                   // Navigate to object in config
-                  let current = state.config;
+                  let current: Record<string, unknown> = state.config;
                   for (let i = 0; i < keys.length - 1; i++) {
-                    current = current[keys[i]];
+                    const next = current[keys[i]];
+                    if (!isRecord(next)) {
+                      current[keys[i]] = {};
+                      current = {};
+                      break;
+                    }
+                    current = next;
                   }
                   const lastKey = keys[keys.length - 1];
 
                   // Add to object
-                  if (!current[lastKey]) {
+                  const objectValue = current[lastKey];
+                  if (!isRecord(objectValue)) {
                     current[lastKey] = {};
                   }
-                  current[lastKey][propertyName] = propertyValue;
+                  const targetObject = current[lastKey];
+                  if (isRecord(targetObject)) {
+                    targetObject[propertyName] = propertyValue;
+                  }
 
                   // Update fields
                   state.expandedPaths.add(objectKey);
@@ -983,15 +1029,22 @@ export async function command(options: any): Promise<void> {
                   const keys = arrayKey.split(".");
 
                   // Navigate to array in config
-                  let current = state.config;
+                  let current: Record<string, unknown> = state.config;
                   for (let i = 0; i < keys.length - 1; i++) {
-                    current = current[keys[i]];
+                    const next = current[keys[i]];
+                    if (!isRecord(next)) {
+                      current[keys[i]] = {};
+                      current = {};
+                      break;
+                    }
+                    current = next;
                   }
                   const lastKey = keys[keys.length - 1];
 
                   // Remove from array
-                  if (Array.isArray(current[lastKey])) {
-                    current[lastKey].splice(index, 1);
+                  const arrayValue = current[lastKey];
+                  if (Array.isArray(arrayValue)) {
+                    arrayValue.splice(index, 1);
 
                     // Update fields
                     state.expandedPaths.add(arrayKey);
@@ -1011,15 +1064,22 @@ export async function command(options: any): Promise<void> {
                   const propertyName = keys[keys.length - 1];
 
                   // Navigate to parent object
-                  let current = state.config;
+                  let current: Record<string, unknown> = state.config;
                   for (let i = 0; i < keys.length - 2; i++) {
-                    current = current[keys[i]];
+                    const next = current[keys[i]];
+                    if (!isRecord(next)) {
+                      current[keys[i]] = {};
+                      current = {};
+                      break;
+                    }
+                    current = next;
                   }
                   const parentKey = keys[keys.length - 2];
 
                   // Delete property
-                  if (current[parentKey] && typeof current[parentKey] === "object") {
-                    delete current[parentKey][propertyName];
+                  const parentValue = current[parentKey];
+                  if (isRecord(parentValue)) {
+                    delete parentValue[propertyName];
 
                     // Update fields
                     const parentPath = keys.slice(0, -1).join(".");

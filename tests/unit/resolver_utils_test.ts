@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, assertRejects, type assertThrows } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   createSigner,
   parseCommaSeparated,

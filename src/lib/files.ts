@@ -37,7 +37,7 @@ export async function getLocalFiles(
 
   // --- Load and parse .nsyte-ignore rules from CWD ---
   const ignoreFilePath = join(cwd, ".nsyte-ignore");
-  let ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
+  const ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
   let foundIgnoreFile = false;
 
   if (existsSync(ignoreFilePath)) {

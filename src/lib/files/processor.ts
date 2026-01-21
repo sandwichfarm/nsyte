@@ -1,8 +1,5 @@
 import { extname } from "@std/path";
-import { createLogger } from "../logger.ts";
 import type { FileEntry } from "../nostr.ts";
-
-const log = createLogger("file-processor");
 
 /**
  * Result of file comparison

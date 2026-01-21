@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, type assertRejects } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   getKeychainProvider,
   type KeychainCredential,
@@ -689,11 +689,11 @@ Currently stored credentials:
     Target: test-service:account1
     Type: Generic
     User: account1
-    
+
     Target: test-service:account2
-    Type: Generic  
+    Type: Generic
     User: account2
-    
+
     Target: other-service:account3
     Type: Generic
     User: account3
@@ -955,7 +955,7 @@ Currently stored credentials:
         const searchOutput = `
 [/org/freedesktop/secrets/collection/login/1]
 label = test-service - account1
-secret = 
+secret =
 created = 2024-01-01 00:00:00
 modified = 2024-01-01 00:00:00
 schema = org.freedesktop.Secret.Generic
@@ -964,7 +964,7 @@ attribute.account = account1
 
 [/org/freedesktop/secrets/collection/login/2]
 label = test-service - account2
-secret = 
+secret =
 created = 2024-01-01 00:00:00
 modified = 2024-01-01 00:00:00
 schema = org.freedesktop.Secret.Generic

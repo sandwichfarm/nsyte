@@ -1,5 +1,5 @@
-import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert";
-import { returnsNext, spy, SpyCall, Stub, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertRejects, type assertThrows } from "@std/assert";
+import { type returnsNext, type spy, type SpyCall, type Stub, stub } from "@std/testing/mock";
 
 // Import the functions to test
 import { formatFileSize, runCommand, validateNpub } from "../../src/commands/run.ts";

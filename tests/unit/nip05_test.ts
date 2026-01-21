@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@^1.0.0";
+import { assertEquals, assertRejects } from "@std/assert";
 import {
   clearNip05Cache,
   isNip05Identifier,

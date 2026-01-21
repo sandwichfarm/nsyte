@@ -155,7 +155,8 @@ class MacOSKeychain implements KeychainProvider {
     }
   }
 
-  async list(service: string): Promise<string[]> {
+  // deno-lint-ignore require-await
+  async list(): Promise<string[]> {
     try {
       // Since macOS security command doesn't have a proper way to list all items for a service
       // without requesting full keychain access, we'll return an empty array here.

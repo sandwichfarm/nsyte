@@ -1,7 +1,5 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "jsr:@std/assert";
-import { stub } from "jsr:@std/testing/mock";
-import type { Signer, UploadProgress, UploadResponse } from "../../src/lib/upload.ts";
-import type { FileEntry } from "../../src/lib/nostr.ts";
+import { assertEquals, assertExists, assertRejects, assertThrows } from "@std/assert";
+import type { UploadProgress } from "../../src/lib/upload.ts";
 
 Deno.test("Upload/Download Workflows - File Processing", async (t) => {
   await t.step("should handle file metadata extraction", () => {

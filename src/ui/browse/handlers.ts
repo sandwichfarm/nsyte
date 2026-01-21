@@ -1,3 +1,7 @@
+import { colors } from "@cliffy/ansi/colors";
+import { createLogger } from "../../lib/logger.ts";
+import type { FileEntryWithSources, NostrEvent } from "../../lib/nostr.ts";
+import { render } from "./renderer.ts";
 import type { BrowseState } from "./state.ts";
 import {
   deselectAll,
@@ -9,11 +13,6 @@ import {
   toggleSelection,
   updateFilteredFiles,
 } from "./state.ts";
-import { createLogger } from "../../lib/logger.ts";
-import type { FileEntryWithSources } from "../../lib/nostr.ts";
-import { render } from "./renderer.ts";
-import { colors } from "@cliffy/ansi/colors";
-import type { NostrEvent } from "../../lib/nostr.ts";
 
 const log = createLogger("browse-handlers");
 
@@ -21,13 +20,8 @@ async function processAuthentication(state: BrowseState): Promise<void> {
   const { createSigner } = await import("../../lib/auth/signer-factory.ts");
 
   try {
-    let signerResult;
-
-    if (state.authChoice === "nbunksec") {
-      signerResult = await createSigner({ nbunksec: state.authInput });
-    } else if (state.authChoice === "nsec" || state.authChoice === "hex") {
-      signerResult = await createSigner({ privateKey: state.authInput });
-    }
+    // Use unified sec parameter - createSigner auto-detects the format
+    const signerResult = await createSigner({ sec: state.authInput });
 
     if (signerResult && "error" in signerResult) {
       state.status = `Authentication failed: ${signerResult.error}`;
@@ -37,7 +31,7 @@ async function processAuthentication(state: BrowseState): Promise<void> {
       return;
     }
 
-    if (signerResult) {
+    if (signerResult && "signer" in signerResult) {
       state.signer = signerResult.signer;
       state.authMode = "none";
       state.authInput = "";
@@ -54,11 +48,10 @@ async function processAuthentication(state: BrowseState): Promise<void> {
   }
 }
 
-export async function handleAuthSelection(
+export function handleAuthSelection(
   state: BrowseState,
   key: string,
-  sequence?: string,
-): Promise<boolean> {
+): boolean {
   if (key === "escape") {
     state.authMode = "none";
     state.status = "Authentication cancelled";
@@ -123,11 +116,11 @@ export async function handleAuthInput(
   return false;
 }
 
-export async function handleDeleteConfirmation(
+export function handleDeleteConfirmation(
   state: BrowseState,
   key: string,
   sequence?: string,
-): Promise<boolean> {
+): boolean {
   if (key === "escape") {
     state.confirmingDelete = false;
     state.deleteConfirmText = "";
@@ -213,7 +206,7 @@ export async function deleteFiles(
 
   try {
     // Import required modules dynamically to avoid circular dependencies
-    const { createDeleteEvent, publishEventsToRelays } = await import("../../lib/nostr.ts");
+    const { createDeleteEvent } = await import("../../lib/nostr.ts");
     const { readProjectFile } = await import("../../lib/config.ts");
     const { createSigner } = await import("../../lib/auth/signer-factory.ts");
     // Auth prompts now handled by TUI
@@ -223,14 +216,9 @@ export async function deleteFiles(
 
     // Try to create signer from CLI options or config
     let signer = undefined;
-    if (
-      state.authOptions?.privatekey || state.authOptions?.bunker || state.authOptions?.nbunksec ||
-      config?.bunkerPubkey
-    ) {
+    if (state.authOptions?.sec || config?.bunkerPubkey) {
       const signerResult = await createSigner({
-        privateKey: state.authOptions?.privatekey,
-        bunkerUrl: state.authOptions?.bunker,
-        nbunksec: state.authOptions?.nbunksec,
+        sec: state.authOptions?.sec,
         bunkerPubkey: config?.bunkerPubkey,
       });
 
@@ -516,7 +504,6 @@ async function verifyDeletion(files: FileEntryWithSources[], state: BrowseState)
     const pubkey = files[0].event.pubkey;
 
     // Check each relay individually to see which still have the events
-    const eventIds = files.map((f) => f.eventId);
     const stillExistsOn = new Map<string, Set<string>>(); // eventId -> relays that still have it
 
     for (const file of files) {
@@ -720,7 +707,9 @@ export function handleListModeKey(state: BrowseState, key: string): boolean {
       return true;
 
     case "q":
-      return false; // Signal to quit
+      // Signal to go back to site selection (or quit if only one site)
+      state.switchSite = true;
+      return false;
 
     default:
       return true;

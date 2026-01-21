@@ -5,7 +5,7 @@ import { contentType } from "@std/media-types";
 import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import {
-  AddressPointer,
+  type AddressPointer,
   decodePointer,
   kinds,
   normalizeToPubkey,

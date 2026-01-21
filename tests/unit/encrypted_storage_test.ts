@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertExists } from "jsr:@std/assert";
+import { assert, assertEquals, type assertExists } from "@std/assert";
 import { join } from "jsr:@std/path";
 import { ensureDirSync, existsSync } from "jsr:@std/fs";
 import { EncryptedStorage } from "../../src/lib/secrets/encrypted-storage.ts";

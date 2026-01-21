@@ -1,5 +1,5 @@
-import { assertEquals } from "jsr:@std/assert";
-import { stub } from "jsr:@std/testing/mock";
+import { assertEquals } from "@std/assert";
+import { stub } from "@std/testing/mock";
 import { StatusDisplay } from "../../src/ui/status.ts";
 
 Deno.test("UI Status - StatusDisplay", async (t) => {

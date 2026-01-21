@@ -17,7 +17,7 @@ import { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { registerAnnounceCommand } from "./commands/announce.ts";
-// import { registerBrowseCommand } from "./commands/browse.ts";
+import { registerBrowseCommand } from "./commands/browse.ts";
 import { registerCICommand } from "./commands/ci.ts";
 import { registerConfigCommand } from "./commands/config.ts";
 import { registerDebugCommand } from "./commands/debug.ts";
@@ -53,7 +53,7 @@ registerInitCommand(nsite);
 registerDeployCommand(nsite);
 registerListCommand(nsite);
 registerSitesCommand(nsite);
-// registerBrowseCommand(nsite);
+registerBrowseCommand(nsite);
 registerDownloadCommand(nsite);
 registerCICommand(nsite);
 registerRunCommand(nsite);
@@ -86,7 +86,7 @@ async function main() {
     // with cliffy's execution model. We register it with cliffy for help display
     // but handle execution directly to maintain proper timeout and cleanup behavior.
     if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
-      await handleBunkerCommand(false);
+      await handleBunkerCommand();
       return;
     }
 

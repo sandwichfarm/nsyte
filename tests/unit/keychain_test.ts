@@ -1,5 +1,5 @@
-import { assertEquals, assertExists, assertInstanceOf } from "jsr:@std/assert";
-import { restore, returnsNext, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists } from "@std/assert";
+import { restore, stub } from "@std/testing/mock";
 import {
   getKeychainProvider,
   type KeychainCredential,
@@ -372,11 +372,11 @@ Currently stored credentials:
     Target: test-service:test-account1
     Type: Generic
     User: test-account1
-    
+
     Target: other-service:other-account
-    Type: Generic  
+    Type: Generic
     User: other-account
-    
+
     Target: test-service:test-account2
     Type: Generic
     User: test-account2
@@ -499,7 +499,7 @@ Deno.test("LinuxSecretService", async (t) => {
     const listOutput = `
 [/org/freedesktop/secrets/collection/login/2]
 label = test-service - test-account1
-secret = 
+secret =
 created = 2024-01-01 00:00:00
 modified = 2024-01-01 00:00:00
 schema = org.freedesktop.Secret.Generic
@@ -508,7 +508,7 @@ attribute.service = test-service
 
 [/org/freedesktop/secrets/collection/login/3]
 label = test-service - test-account2
-secret = 
+secret =
 created = 2024-01-01 00:00:00
 modified = 2024-01-01 00:00:00
 schema = org.freedesktop.Secret.Generic

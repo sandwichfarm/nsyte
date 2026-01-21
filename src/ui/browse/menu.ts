@@ -1,6 +1,14 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Keypress } from "@cliffy/keypress";
 import { hexToBytes } from "@noble/hashes/utils";
+import {
+  decodePointer,
+  generateSecretKey,
+  getPublicKey,
+  npubEncode,
+  nsecEncode,
+} from "applesauce-core/helpers";
+import type { SiteInfo } from "../../lib/browse-loader.ts";
 import { SecretsManager } from "../../lib/secrets/mod.ts";
 import {
   clearScreen,
@@ -11,13 +19,6 @@ import {
   moveCursor,
   showCursor,
 } from "./renderer.ts";
-import {
-  decodePointer,
-  generateSecretKey,
-  getPublicKey,
-  npubEncode,
-  nsecEncode,
-} from "applesauce-core/helpers";
 
 interface MenuItem {
   label: string;
@@ -29,7 +30,7 @@ export async function showBunkerMenu(
   currentPubkey?: string,
 ): Promise<{ type: string; value: string }> {
   // This is the same as showBrowseMenu but can be called from other commands
-  return showBrowseMenu(currentPubkey);
+  return await showBrowseMenu(currentPubkey);
 }
 
 export async function showBrowseMenu(
@@ -260,6 +261,139 @@ export async function showBrowseMenu(
           }
 
           throw new Error("Invalid selection");
+        } else if (event.key === "q") {
+          keypress.dispose();
+          exitAlternateScreen();
+          showCursor();
+          Deno.exit(0);
+        }
+      }
+    }
+  } catch (error) {
+    exitAlternateScreen();
+    showCursor();
+    throw error;
+  }
+}
+
+/**
+ * Show site selection menu
+ * Returns the selected site identifier (null for root site, string for named site)
+ */
+export async function showSiteSelectionMenu(
+  sites: SiteInfo[],
+): Promise<string | null> {
+  enterAlternateScreen();
+  hideCursor();
+
+  try {
+    // Build menu items
+    interface SiteMenuItem {
+      label: string;
+      value: string | null | "separator";
+      fileCount: number;
+    }
+
+    const menuItems: SiteMenuItem[] = [];
+
+    // Add root site if exists
+    const rootSite = sites.find((s) => s.type === "root");
+    if (rootSite) {
+      menuItems.push({
+        label: `${rootSite.title} (${rootSite.fileCount} files)`,
+        value: null,
+        fileCount: rootSite.fileCount,
+      });
+    }
+
+    // Add named sites
+    const namedSites = sites.filter((s) => s.type === "named");
+    if (namedSites.length > 0) {
+      for (const site of namedSites) {
+        menuItems.push({
+          label: `${site.title} (${site.fileCount} files)`,
+          value: site.identifier!,
+          fileCount: site.fileCount,
+        });
+      }
+    }
+
+    // Filter out separators from selectable items
+    const selectableItems = menuItems.filter((item) => item.value !== "separator");
+    let selectedIndex = 0;
+
+    // Render loop
+    while (true) {
+      clearScreen();
+      const { rows, cols } = getTerminalSize();
+
+      // Calculate vertical centering
+      const totalHeight = menuItems.length + 6;
+      const startRow = Math.max(1, Math.floor((rows - totalHeight) / 2));
+
+      // Render title
+      const title = "Select Site to Browse";
+      const titleCol = Math.floor((cols - title.length) / 2);
+      moveCursor(startRow, titleCol);
+      console.log(colors.bold.cyan(title));
+
+      // Render subtitle
+      const subtitle = `Found ${sites.length} site${sites.length !== 1 ? "s" : ""}`;
+      const subtitleCol = Math.floor((cols - subtitle.length) / 2);
+      moveCursor(startRow + 2, subtitleCol);
+      console.log(colors.gray(subtitle));
+
+      // Render menu items
+      let menuRow = startRow + 4;
+      let selectableCounter = 0;
+
+      menuItems.forEach((item) => {
+        const isSelectable = item.value !== "separator";
+        const isSelected = isSelectable && selectableCounter === selectedIndex;
+
+        const displayLabel = item.label;
+        const labelCol = Math.floor((cols - displayLabel.length) / 2);
+        moveCursor(menuRow, labelCol);
+
+        if (item.value === "separator") {
+          console.log(colors.gray(displayLabel));
+        } else if (isSelected) {
+          console.log(colors.bgMagenta.white(` ${displayLabel} `));
+        } else if (item.value === null) {
+          // Root site
+          console.log(colors.cyan(displayLabel));
+        } else {
+          // Named sites
+          console.log(colors.green(displayLabel));
+        }
+
+        if (isSelectable) {
+          selectableCounter++;
+        }
+        menuRow++;
+      });
+
+      // Show help text
+      const helpText = "↑/↓ Navigate • ENTER Select • q Quit";
+      const helpCol = Math.floor((cols - helpText.length) / 2);
+      moveCursor(rows - 2, helpCol);
+      console.log(colors.gray(helpText));
+
+      // Handle keypress
+      const keypress = new Keypress();
+      for await (const event of keypress) {
+        if (event.key === "up") {
+          selectedIndex = Math.max(0, selectedIndex - 1);
+          break;
+        } else if (event.key === "down") {
+          selectedIndex = Math.min(selectableItems.length - 1, selectedIndex + 1);
+          break;
+        } else if (event.key === "return") {
+          const selected = selectableItems[selectedIndex];
+          keypress.dispose();
+          exitAlternateScreen();
+          showCursor();
+          return selected.value;
         } else if (event.key === "q") {
           keypress.dispose();
           exitAlternateScreen();

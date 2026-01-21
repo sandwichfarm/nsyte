@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
+import { assertEquals, assertExists, assertRejects } from "@std/assert";
 import { join } from "jsr:@std/path";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { type restore, stub } from "@std/testing/mock";
 import {
   calculateFileHash,
   compareFiles,

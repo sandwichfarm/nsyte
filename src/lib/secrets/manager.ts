@@ -1,14 +1,13 @@
 import { join } from "@std/path";
 import { createLogger } from "../logger.ts";
-import { ensureSystemConfigDir, fileExists } from "./utils.ts";
-import { getKeychainProvider, KeychainProvider } from "./keychain.ts";
 import { EncryptedStorage } from "./encrypted-storage.ts";
+import { getKeychainProvider, type KeychainProvider } from "./keychain.ts";
+import { ensureSystemConfigDir, fileExists } from "./utils.ts";
 
 const log = createLogger("secrets-manager");
 
 const SECRETS_FILENAME = "secrets.json";
 const SERVICE_NAME = "nsyte";
-const BUNDLE_ACCOUNT = "bunker-bundle"; // Single keychain entry for all bunkers
 
 /**
  * Interface for the secrets storage file (legacy)
@@ -81,7 +80,7 @@ class EncryptedBackend implements StorageBackend {
  * Class that manages system-wide secrets for nsite
  */
 export class SecretsManager {
-  private static instance: SecretsManager;
+  private static instance: SecretsManager | null = null;
   private secretsPath: string | null = null;
   private storageBackend: StorageBackend | null = null;
   private initialized = false;
@@ -104,7 +103,7 @@ export class SecretsManager {
    * Reset the singleton instance (for testing purposes)
    */
   public static resetInstance(): void {
-    SecretsManager.instance = null as any;
+    SecretsManager.instance = null;
   }
 
   /**

@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertMatch } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, type assertMatch } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   displayColorfulHeader,
   displayUploadConfigTable,
@@ -160,8 +160,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     });
 
     it("should handle different boolean combinations", () => {
-      const booleanCombinations = [
-      ];
+      const booleanCombinations = [];
 
       booleanCombinations.forEach((booleans) => {
         const config = {

@@ -1,9 +1,9 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, type Stub, stub } from "jsr:@std/testing/mock";
+import { assertEquals, type assertExists } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, type Stub, stub } from "@std/testing/mock";
 
 import { handleBunkerCommand, showBunkerHelp } from "../../src/commands/bunker.ts";
 

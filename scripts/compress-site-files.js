@@ -9,8 +9,9 @@
 
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import zlib from "node:zlib";
+import process from "node:process";
 import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);

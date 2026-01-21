@@ -3,7 +3,6 @@ import type { ISigner } from "applesauce-signers";
 import type { ProjectConfig } from "../config.ts";
 import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
-import type { FileEntry } from "../nostr.ts";
 import { createAppHandlerEvent, publishEventsToRelays } from "../nostr.ts";
 
 const log = createLogger("metadata-publisher");
@@ -82,7 +81,7 @@ export async function publishAppHandler(
       : undefined;
 
     // Prepare handlers object
-    const handlers: any = {
+    const handlers: Record<string, unknown> = {
       web: {
         url: gatewayUrl,
         patterns: config.appHandler?.platforms?.web?.patterns,
@@ -124,7 +123,6 @@ export async function publishMetadata(
   relays: string[],
   statusDisplay: StatusDisplay,
   options: PublishOptions,
-  includedFiles: FileEntry[] = [],
 ): Promise<void> {
   try {
     // Check both command-line options AND config settings

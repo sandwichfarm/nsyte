@@ -83,6 +83,9 @@ export function renderHeader(state: BrowseState) {
   const npub = npubEncode(state.pubkey);
   const identity = colors.green(`[${npub.substring(0, 12)}...${npub.substring(npub.length - 6)}]`);
 
+  // Add site name if available
+  const siteInfo = state.siteName ? colors.yellow(` • ${state.siteName}`) : "";
+
   const legendItems: string[] = [];
 
   if (state.relayColorMap.size > 0) {
@@ -109,8 +112,12 @@ export function renderHeader(state: BrowseState) {
   }
 
   const legend = legendItems.join(" ");
-  const titleAndIdentity = `${title} ${identity}`;
-  const legendMaxWidth = cols - titleAndIdentity.length - 3;
+  const titleAndIdentity = `${title} ${identity}${siteInfo}`;
+  // Calculate visible length (title + identity + site name without ANSI codes)
+  const visibleLength = "nsyte browse".length +
+    ` [${npub.substring(0, 12)}...${npub.substring(npub.length - 6)}]`.length +
+    (state.siteName ? ` • ${state.siteName}`.length : 0);
+  const legendMaxWidth = cols - visibleLength - 3;
   const truncatedLegend = legend.length > legendMaxWidth
     ? legend.substring(0, legendMaxWidth - 3) + "..."
     : legend;
@@ -196,7 +203,7 @@ export function renderFooter(state: BrowseState) {
         `${colors.gray("/")} Filter`,
         `${colors.gray("DEL")} Delete`,
         `${colors.gray("i")} Identity`,
-        `${colors.gray("q")} Quit`,
+        `${colors.gray("q")} ${state.hasMultipleSites ? "Sites" : "Quit"}`,
       );
     }
   } else {
@@ -206,7 +213,9 @@ export function renderFooter(state: BrowseState) {
   const hotkeysText = hotkeys.join(" │ ");
 
   // Calculate padding to right-align status
+  // deno-lint-ignore no-control-regex
   const statusLength = statusText.replace(/\x1b\[[0-9;]*m/g, "").length; // Remove ANSI codes for length
+  // deno-lint-ignore no-control-regex
   const hotkeysLength = hotkeysText.replace(/\x1b\[[0-9;]*m/g, "").length;
   const padding = Math.max(1, cols - statusLength - hotkeysLength - 1);
 
@@ -239,8 +248,6 @@ export function renderFileList(state: BrowseState) {
   const maxRelayCount = Math.max(...state.files.map((f) => f.foundOnRelays.length), 3);
   const maxServerCount = Math.max(...state.files.map((f) => f.availableOnServers.length), 3);
   const treeRootCol = maxRelayCount + maxServerCount + 2; // indicators + spaces + tree starts here
-
-  let hasConnector = false;
 
   if (state.filterMode) {
     // Show filter input with blinking cursor
@@ -294,7 +301,6 @@ export function renderFileList(state: BrowseState) {
       const horizontalLength = treeRootCol - pathLength;
       if (horizontalLength > 0) {
         pathConnector = "─".repeat(horizontalLength) + "┐";
-        hasConnector = true;
       }
     }
 
@@ -306,7 +312,9 @@ export function renderFileList(state: BrowseState) {
     }
 
     // Calculate padding to right-align propagation stats (if available)
+    // deno-lint-ignore no-control-regex
     const pathDisplayLength = pathDisplay.replace(/\x1b\[[0-9;]*m/g, "").length;
+    // deno-lint-ignore no-control-regex
     const propagationLength = propagationStats.replace(/\x1b\[[0-9;]*m/g, "").length;
 
     if (propagationStats) {
@@ -520,7 +528,7 @@ export function renderDetailView(state: BrowseState) {
       withLineNumbers.split("\n").forEach((line) => {
         printLine(line);
       });
-    } catch (error) {
+    } catch {
       printLine(colors.red("Error formatting event JSON"));
     }
   }

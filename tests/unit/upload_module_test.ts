@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import type { Signer, UploadProgress, UploadResponse } from "../../src/lib/upload.ts";
 
 Deno.test("upload types", async (t) => {

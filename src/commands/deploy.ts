@@ -1,10 +1,9 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
-import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
-import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
+import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
 import { NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
@@ -20,7 +19,6 @@ import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
-import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
@@ -256,7 +254,7 @@ export async function uploadCommand(
     );
 
     await maybeProcessFiles(toTransfer, toDelete, includedFiles, remoteFileEntries);
-    await maybePublishMetadata(includedFiles);
+    await maybePublishMetadata();
 
     // Handle smart purge AFTER upload
     if (options.purge) {
@@ -687,12 +685,12 @@ export function displayConfig(publisherPubkey: string) {
   if (displayManager.isInteractive()) {
     console.log(formatTitle("Upload Configuration"));
     console.log(formatConfigValue("User", publisherPubkey, false));
-    
+
     // Display site type (root site vs named site)
     const siteId = config.id === null || config.id === "" ? undefined : config.id;
     const siteType = siteId ? `Named site: ${siteId}` : "Root site";
     console.log(formatConfigValue("Site Type", siteType, false));
-    
+
     console.log(
       formatConfigValue(
         "Relays",
@@ -720,12 +718,12 @@ export function displayConfig(publisherPubkey: string) {
     console.log("");
   } else if (!options.nonInteractive) {
     console.log(colors.cyan(`User: ${publisherPubkey}`));
-    
+
     // Display site type (root site vs named site)
     const siteId = config.id === null || config.id === "" ? undefined : config.id;
     const siteType = siteId ? `Named site: ${siteId}` : "Root site";
     console.log(colors.cyan(`Site Type: ${siteType}`));
-    
+
     console.log(
       colors.cyan(
         `Relays: ${resolvedRelays.join(", ") || "none"}${
@@ -1468,7 +1466,7 @@ async function uploadFiles(
 /**
  * Publish metadata to relays (profile, relay list, server list, app handler, file metadata)
  */
-async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
+async function maybePublishMetadata(): Promise<void> {
   log.debug("maybePublishMetadata called");
 
   const usermeta_relays = ["wss://user.kindpag.es", "wss://purplepag.es"];
@@ -1542,7 +1540,7 @@ async function maybePublishMetadata(includedFiles: FileEntry[]): Promise<void> {
             : undefined;
 
           // Prepare handlers object
-          const handlers: any = {
+          const handlers: Record<string, unknown> = {
             web: {
               url: gatewayUrl,
               patterns: config.appHandler?.platforms?.web?.patterns,

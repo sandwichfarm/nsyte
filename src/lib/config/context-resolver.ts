@@ -38,13 +38,12 @@ export interface ConfigResolveOptions {
 export async function resolveProjectContext(
   options: ConfigResolveOptions,
 ): Promise<ProjectContext> {
-  let config: ProjectConfig | null = null;
-  let authKeyHex: string | null | undefined = options.privatekey || undefined;
+  const authKeyHex: string | null | undefined = options.privatekey || undefined;
 
   if (options.nonInteractive) {
-    return resolveNonInteractive(options, authKeyHex);
+    return await resolveNonInteractive(options, authKeyHex);
   } else {
-    return resolveInteractive(options, authKeyHex);
+    return await resolveInteractive(options, authKeyHex);
   }
 }
 
@@ -61,7 +60,7 @@ function resolveNonInteractive(
 
   try {
     existingProjectData = readProjectFile();
-  } catch (error) {
+  } catch {
     // Configuration exists but is invalid
     console.error(colors.red("\nConfiguration file exists but contains errors."));
     console.error(
@@ -140,7 +139,7 @@ async function resolveInteractive(
 
   try {
     currentProjectData = readProjectFile();
-  } catch (error) {
+  } catch {
     // Configuration exists but is invalid
     console.error(colors.red("\nConfiguration file exists but contains errors."));
     console.error(

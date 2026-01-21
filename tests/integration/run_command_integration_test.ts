@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 
 // Import the command registration function
 import { registerRunCommand } from "../../src/commands/run.ts";

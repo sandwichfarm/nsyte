@@ -1,8 +1,7 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, spy, stub } from "jsr:@std/testing/mock";
 import * as prompt from "@cliffy/prompt";
-import { SecretsManager } from "../../src/lib/secrets/mod.ts";
+import { assertEquals } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   connectBunker,
   exportNbunk,
@@ -13,6 +12,7 @@ import {
   showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 
 describe("Bunker command - comprehensive branch coverage", () => {
   let consoleLogStub: any;

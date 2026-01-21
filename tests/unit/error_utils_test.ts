@@ -1,12 +1,12 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
-import { restore, spy, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists } from "@std/assert";
+import { restore, spy, stub } from "@std/testing/mock";
 import {
   getErrorMessage,
   handleError,
   logError,
   withErrorHandling,
 } from "../../src/lib/error-utils.ts";
-import { createLogger } from "../../src/lib/logger.ts";
+import type { createLogger } from "../../src/lib/logger.ts";
 
 Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
   await t.step("getErrorMessage - edge cases", () => {

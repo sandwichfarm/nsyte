@@ -6,10 +6,25 @@ import { renderLoadingScreen } from "../ui/browse/renderer.ts";
 import { createLogger } from "./logger.ts";
 import { fetchServerListEvents, getUserOutboxes, pool } from "./nostr.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
+import {
+  getManifestFiles,
+  getManifestTitle,
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+} from "./manifest.ts";
 
 const log = createLogger("browse-loader");
-const NSITE_ROOT_KIND = 15128;
-const NSITE_NAMED_KIND = 35128;
+
+/**
+ * Represents a site (root or named) for browsing
+ */
+export interface SiteInfo {
+  event: NostrEvent;
+  type: "root" | "named";
+  identifier?: string;
+  title?: string;
+  fileCount: number;
+}
 
 // Simple circuit breaker to avoid hammering consistently failing servers
 const serverFailureCount = new Map<string, number>();
@@ -30,10 +45,97 @@ function recordServerSuccess(server: string): void {
   serverFailureCount.delete(server);
 }
 
+/**
+ * Fetch all sites (root + named) for a pubkey
+ */
+export async function fetchAllSites(
+  relays: string[],
+  pubkey: string,
+): Promise<SiteInfo[]> {
+  renderLoadingScreen("Discovering user relays...", "Fetching kind 10002");
+  const mergedRelays = relaySet(relays, await getUserOutboxes(pubkey));
+
+  renderLoadingScreen("Fetching sites...", `Querying ${mergedRelays.length} relays`);
+
+  const store = new EventStore();
+  let events: NostrEvent[] = [];
+
+  try {
+    events = await lastValueFrom(
+      pool
+        .request(mergedRelays, {
+          kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+          authors: [pubkey],
+        })
+        .pipe(
+          simpleTimeout(12000),
+          mapEventsToStore(store),
+          mapEventsToTimeline(),
+        ),
+      { defaultValue: [] },
+    );
+  } catch (error) {
+    log.debug(`Error fetching sites: ${error}`);
+  }
+
+  if (events.length === 0) {
+    return [];
+  }
+
+  renderLoadingScreen("Processing sites...", `${events.length} manifest events found`);
+
+  // Group sites: keep latest root site and latest of each named site
+  const sites: SiteInfo[] = [];
+  let latestRootSite: NostrEvent | null = null;
+  const namedSitesMap = new Map<string, NostrEvent>();
+
+  for (const event of events) {
+    if (event.kind === NSITE_ROOT_SITE_KIND) {
+      if (!latestRootSite || event.created_at > latestRootSite.created_at) {
+        latestRootSite = event;
+      }
+    } else if (event.kind === NSITE_NAME_SITE_KIND) {
+      const identifier = event.tags.find((tag) => tag[0] === "d")?.[1];
+      if (identifier) {
+        const existing = namedSitesMap.get(identifier);
+        if (!existing || event.created_at > existing.created_at) {
+          namedSitesMap.set(identifier, event);
+        }
+      }
+    }
+  }
+
+  // Add root site if exists
+  if (latestRootSite) {
+    const files = getManifestFiles(latestRootSite);
+    sites.push({
+      event: latestRootSite,
+      type: "root",
+      title: getManifestTitle(latestRootSite) || "Root Site",
+      fileCount: files.length,
+    });
+  }
+
+  // Add named sites
+  for (const [identifier, event] of namedSitesMap.entries()) {
+    const files = getManifestFiles(event);
+    sites.push({
+      event,
+      type: "named",
+      identifier,
+      title: getManifestTitle(event) || identifier,
+      fileCount: files.length,
+    });
+  }
+
+  return sites;
+}
+
 export async function listRemoteFilesWithProgress(
   relays: string[],
   pubkey: string,
   checkBlossomServers = true,
+  siteIdentifier?: string | null, // null = root site, undefined = all sites, string = specific named site
 ): Promise<FileEntryWithSources[]> {
   // First, fetch kind 10002 to get user's preferred relays
   renderLoadingScreen("Discovering user relays...", "Fetching kind 10002");
@@ -51,13 +153,25 @@ export async function listRemoteFilesWithProgress(
       log.debug(`Connecting to relay: ${relay}`);
       const store = new EventStore();
 
+      // Build filter based on site selection
+      const filter: any = { authors: [pubkey] };
+
+      if (siteIdentifier === null) {
+        // Fetch only root site
+        filter.kinds = [NSITE_ROOT_SITE_KIND];
+      } else if (siteIdentifier === undefined) {
+        // Fetch all sites (both root and named)
+        filter.kinds = [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND];
+      } else {
+        // Fetch specific named site
+        filter.kinds = [NSITE_NAME_SITE_KIND];
+        filter["#d"] = [siteIdentifier];
+      }
+
       // Add a race condition with manual timeout to handle EOSE issues
       const requestPromise = lastValueFrom(
         pool
-          .request([relay], {
-            kinds: [NSITE_ROOT_KIND, NSITE_NAMED_KIND],
-            authors: [pubkey],
-          })
+          .request([relay], filter)
           .pipe(
             simpleTimeout(8000),
             mapEventsToStore(store),

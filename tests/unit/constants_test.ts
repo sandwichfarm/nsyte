@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import {
   DEFAULT_BLOSSOM_SERVERS,
   NSYTE_BROADCAST_RELAYS,
