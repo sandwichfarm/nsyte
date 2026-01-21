@@ -9,6 +9,7 @@ import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
 import {
   getManifestDescription,
+  getManifestFiles,
   getManifestTitle,
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
@@ -28,6 +29,7 @@ interface SiteInfo {
   title?: string;
   description?: string;
   updatedAt: number;
+  fileCount: number;
 }
 
 /**
@@ -159,6 +161,7 @@ export function registerSitesCommand(program: Command) {
           title: getManifestTitle(event),
           description: getManifestDescription(event),
           updatedAt: event.created_at,
+          fileCount: getManifestFiles(event).length,
         });
       }
 
@@ -170,6 +173,7 @@ export function registerSitesCommand(program: Command) {
           title: getManifestTitle(event),
           description: getManifestDescription(event),
           updatedAt: event.created_at,
+          fileCount: getManifestFiles(event).length,
         });
       }
 
@@ -200,7 +204,11 @@ export function registerSitesCommand(program: Command) {
           `\n${typeLabel}${" ".repeat(paddingWidth - typeLabelText.length)}${colors.bold(title)}`,
         );
         console.log(`${" ".repeat(paddingWidth)}${description}`);
-        console.log(`${" ".repeat(paddingWidth)}${colors.gray(`Updated: ${updated}`)}`);
+        console.log(
+          `${" ".repeat(paddingWidth)}${
+            colors.gray(`Files: ${site.fileCount} | Updated: ${updated}`)
+          }`,
+        );
         console.log(`${" ".repeat(paddingWidth)}${colors.gray(`Event ID: ${site.event.id}`)}`);
       }
 
