@@ -1,10 +1,5 @@
 # AGENTS.md
 
-## Purpose
-
-This file helps AI assistants understand the nsyte codebase and contribute effectively. It provides
-context about the project's architecture, conventions, and best practices.
-
 ## Project Overview
 
 **nsyte** is a command-line tool for managing and browsing Nostr-based websites (nsites). It enables

@@ -32,8 +32,8 @@ NostrConnectSigner.pool = pool;
 function _renderQrArrayWithQuietZone(
   qrArray: boolean[][] | undefined,
   borderSize: number,
-  lightCharPair = "\u2588\u2588", // Full blocks (appears as foreground color, e.g., white)
-  darkCharPair = "  ", // Spaces (appears as background color, e.g., black)
+  _lightCharPair = "\u2588\u2588", // Full blocks (appears as foreground color, e.g., white)
+  _darkCharPair = "  ", // Spaces (appears as background color, e.g., black)
 ): number {
   if (!qrArray || qrArray.length === 0) {
     log.warn("QR array is empty, cannot render.");
@@ -44,27 +44,62 @@ function _renderQrArrayWithQuietZone(
   const totalWidthModules = qrWidth + 2 * borderSize;
   let linesPrinted = 0;
 
-  // Top border
-  for (let i = 0; i < borderSize; i++) {
-    console.log(lightCharPair.repeat(totalWidthModules));
+  // Unicode block characters for compact rendering
+  // For black-on-white QR code in dark terminals:
+  // space = white (background), █ = black (foreground)
+  // ▀ = U+2580 (upper half block) - upper half black, lower half white
+  // ▄ = U+2584 (lower half block) - upper half white, lower half black
+  // █ = U+2588 (full block) - both halves black
+  //   = space - both halves white
+  const UPPER_HALF = "\u2580";
+  const LOWER_HALF = "\u2584";
+  const FULL_BLOCK = "\u2588";
+  const SPACE = " "; // space (full black)
+
+  // Top border (using full blocks for white quiet zone)
+  for (let i = 0; i < borderSize / 2; i++) {
+    console.log(SPACE.repeat(totalWidthModules));
     linesPrinted++;
   }
 
-  // QR content with side borders
-  for (const row of qrArray) {
+  // QR content with side borders - render two rows at once using half-block characters
+  for (let rowIdx = 0; rowIdx < qrArray.length; rowIdx += 2) {
+    const topRow = qrArray[rowIdx];
+    const bottomRow = rowIdx + 1 < qrArray.length ? qrArray[rowIdx + 1] : null;
+
     let line = "";
-    line += lightCharPair.repeat(borderSize); // Left border
-    for (const cell of row) {
-      line += cell ? darkCharPair : lightCharPair; // cell is true (dark) -> darkCharPair, cell is false (light) -> lightCharPair
+    // Left border (white quiet zone)
+    line += SPACE.repeat(borderSize);
+
+    // Process each column pair
+    for (let colIdx = 0; colIdx < qrWidth; colIdx++) {
+      const topDark = topRow[colIdx];
+      const bottomDark = bottomRow ? bottomRow[colIdx] : false;
+
+      // Choose character based on top/bottom combination
+      // true = dark module (should be black/space)
+      // false = light module (should be white/full block)
+      // For black-on-white QR code: dark modules are black (spaces), light modules are white (full blocks)
+      if (topDark && bottomDark) {
+        line += FULL_BLOCK; // Both dark → both black
+      } else if (topDark && !bottomDark) {
+        line += UPPER_HALF; // Top dark (white), bottom light (black) → ▄ (lower half black)
+      } else if (!topDark && bottomDark) {
+        line += LOWER_HALF; // Top light (black), bottom dark (white) → ▀ (upper half black)
+      } else {
+        line += SPACE; // Both light → both white
+      }
     }
-    line += lightCharPair.repeat(borderSize); // Right border
+
+    // Right border (white quiet zone)
+    line += SPACE.repeat(borderSize);
     console.log(line);
     linesPrinted++;
   }
 
-  // Bottom border
-  for (let i = 0; i < borderSize; i++) {
-    console.log(lightCharPair.repeat(totalWidthModules));
+  // Bottom border (using full blocks for white quiet zone)
+  for (let i = 0; i < borderSize / 2; i++) {
+    console.log(SPACE.repeat(totalWidthModules));
     linesPrinted++;
   }
   return linesPrinted;

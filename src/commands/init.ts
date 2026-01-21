@@ -21,9 +21,13 @@ export function registerInitCommand(program: Command): void {
           const keyType = privateKey ? "private key" : "bunker connection";
           const relayCount = config.relays.length;
           const serverCount = config.servers.length;
+          const siteName = config.id || "root";
 
           console.log(
             colors.green(`\nProject initialized successfully with:`),
+          );
+          console.log(
+            colors.green(`- Site: ${siteName}`),
           );
           console.log(
             colors.green(`- Authentication: ${keyType}`),
@@ -85,9 +89,13 @@ export function registerInitCommand(program: Command): void {
                 const keyType = privateKey ? "private key" : "bunker connection";
                 const relayCount = config.relays.length;
                 const serverCount = config.servers.length;
+                const siteName = config.id || "root";
 
                 console.log(
                   colors.green(`\nProject reinitialized successfully with:`),
+                );
+                console.log(
+                  colors.green(`- Site: ${siteName}`),
                 );
                 console.log(
                   colors.green(`- Authentication: ${keyType}`),
