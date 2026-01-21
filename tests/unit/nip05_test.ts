@@ -2,6 +2,7 @@ import { assertEquals, assertRejects } from "@std/assert";
 import {
   clearNip05Cache,
   isNip05Identifier,
+  normalizeNip05Identifier,
   normalizePubkeyInput,
   resolveNip05ToPubkey,
 } from "../../src/lib/nip05.ts";
@@ -14,12 +15,24 @@ Deno.test("NIP-05 Identifier Validation", async (t) => {
     assertEquals(isNip05Identifier("user-name@example.co.uk"), true);
   });
 
+  await t.step("should identify root name shortcuts", () => {
+    assertEquals(isNip05Identifier("@example.com"), true);
+    assertEquals(isNip05Identifier("@hzrd149.com"), true);
+    assertEquals(isNip05Identifier("example.com"), true);
+    assertEquals(isNip05Identifier("hzrd149.com"), true);
+    assertEquals(isNip05Identifier("sub.example.com"), true);
+    assertEquals(isNip05Identifier("example.co.uk"), true);
+  });
+
   await t.step("should reject invalid NIP-05 identifiers", () => {
     assertEquals(isNip05Identifier("invalid"), false);
-    assertEquals(isNip05Identifier("@example.com"), false);
     assertEquals(isNip05Identifier("user@"), false);
     assertEquals(isNip05Identifier("user@com"), false);
     assertEquals(isNip05Identifier("npub1..."), false);
+    assertEquals(isNip05Identifier("@"), false);
+    assertEquals(isNip05Identifier("@.com"), false);
+    assertEquals(isNip05Identifier("domain"), false);
+    assertEquals(isNip05Identifier("domain."), false);
   });
 });
 
@@ -53,6 +66,28 @@ Deno.test("NIP-05 Resolution", async (t) => {
   });
 });
 
+Deno.test("NIP-05 Identifier Normalization", async (t) => {
+  await t.step("should normalize @domain.com to _@domain.com", () => {
+    assertEquals(normalizeNip05Identifier("@example.com"), "_@example.com");
+    assertEquals(normalizeNip05Identifier("@hzrd149.com"), "_@hzrd149.com");
+  });
+
+  await t.step("should normalize domain.com to _@domain.com", () => {
+    assertEquals(normalizeNip05Identifier("example.com"), "_@example.com");
+    assertEquals(normalizeNip05Identifier("hzrd149.com"), "_@hzrd149.com");
+    assertEquals(normalizeNip05Identifier("sub.example.com"), "_@sub.example.com");
+  });
+
+  await t.step("should leave standard formats unchanged", () => {
+    assertEquals(normalizeNip05Identifier("user@example.com"), "user@example.com");
+    assertEquals(normalizeNip05Identifier("_@example.com"), "_@example.com");
+    assertEquals(
+      normalizeNip05Identifier("user.name@sub.example.com"),
+      "user.name@sub.example.com",
+    );
+  });
+});
+
 Deno.test("Pubkey Input Normalization", async (t) => {
   await t.step("should normalize hex pubkey", async () => {
     const hex = "266815e0c9210dfa324c6cba3573b14bee49da4209a9456f9484e5106cd408a5";
@@ -71,6 +106,22 @@ Deno.test("Pubkey Input Normalization", async (t) => {
   await t.step("should resolve NIP-05 identifier", async () => {
     clearNip05Cache();
     const normalized = await normalizePubkeyInput("_@hzrd149.com");
+    assertEquals(typeof normalized, "string");
+    assertEquals(normalized.length, 64);
+    assertEquals(/^[0-9a-f]{64}$/i.test(normalized), true);
+  });
+
+  await t.step("should resolve @domain.com shortcut", async () => {
+    clearNip05Cache();
+    const normalized = await normalizePubkeyInput("@hzrd149.com");
+    assertEquals(typeof normalized, "string");
+    assertEquals(normalized.length, 64);
+    assertEquals(/^[0-9a-f]{64}$/i.test(normalized), true);
+  });
+
+  await t.step("should resolve domain.com shortcut", async () => {
+    clearNip05Cache();
+    const normalized = await normalizePubkeyInput("hzrd149.com");
     assertEquals(typeof normalized, "string");
     assertEquals(normalized.length, 64);
     assertEquals(/^[0-9a-f]{64}$/i.test(normalized), true);

@@ -17,10 +17,69 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const NIP05_REGEX = /^[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 
 /**
+ * Domain-only format validation (for root name shortcuts)
+ * Matches: domain.com, sub.domain.com, etc.
+ */
+const DOMAIN_REGEX = /^[a-z0-9.-]+\.[a-z]{2,}$/i;
+
+/**
  * Check if a string looks like a NIP-05 identifier
+ * Supports:
+ * - Standard format: name@domain.com or _@domain.com
+ * - Root name shortcuts: @domain.com or domain.com
  */
 export function isNip05Identifier(input: string): boolean {
-  return NIP05_REGEX.test(input);
+  // Check standard NIP-05 format
+  if (NIP05_REGEX.test(input)) {
+    return true;
+  }
+
+  // Check for @domain.com shortcut (root name)
+  if (input.startsWith("@") && DOMAIN_REGEX.test(input.slice(1))) {
+    return true;
+  }
+
+  // Check for domain.com shortcut (root name)
+  if (DOMAIN_REGEX.test(input)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Normalize a NIP-05 identifier to standard format
+ * Converts shortcuts to _@domain.com format:
+ * - @domain.com → _@domain.com
+ * - domain.com → _@domain.com
+ * - name@domain.com → name@domain.com (unchanged)
+ * - _@domain.com → _@domain.com (unchanged)
+ * @param identifier - NIP-05 identifier in any supported format
+ * @returns Normalized NIP-05 identifier
+ */
+export function normalizeNip05Identifier(identifier: string): string {
+  const trimmed = identifier.trim();
+
+  // If it's already in standard format, return as-is
+  if (NIP05_REGEX.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Handle @domain.com shortcut
+  if (trimmed.startsWith("@")) {
+    const domain = trimmed.slice(1);
+    if (DOMAIN_REGEX.test(domain)) {
+      return `_@${domain}`;
+    }
+  }
+
+  // Handle domain.com shortcut
+  if (DOMAIN_REGEX.test(trimmed)) {
+    return `_@${trimmed}`;
+  }
+
+  // If we can't normalize it, return as-is (will fail validation later)
+  return trimmed;
 }
 
 /**
@@ -171,17 +230,21 @@ export async function normalizePubkeyInput(input: string): Promise<string> {
     );
   }
 
-  // Check if it's a NIP-05 identifier
+  // Check if it's a NIP-05 identifier (including shortcuts)
   if (isNip05Identifier(trimmed)) {
-    log.debug(`Attempting NIP-05 resolution for: ${trimmed}`);
-    const pubkey = await resolveNip05ToPubkey(trimmed);
+    // Normalize shortcuts (@domain.com or domain.com) to _@domain.com
+    const normalizedIdentifier = normalizeNip05Identifier(trimmed);
+    log.debug(
+      `Attempting NIP-05 resolution for: ${trimmed} (normalized to: ${normalizedIdentifier})`,
+    );
+    const pubkey = await resolveNip05ToPubkey(normalizedIdentifier);
     if (pubkey) {
       return pubkey;
     }
     throw new Error(
       `Failed to resolve NIP-05 identifier: ${trimmed}\n` +
         `Please check:\n` +
-        `  - The identifier is correct (e.g., "name@domain.com")\n` +
+        `  - The identifier is correct (e.g., "name@domain.com", "@domain.com", or "domain.com")\n` +
         `  - The domain's .well-known/nostr.json is accessible\n` +
         `  - Your internet connection is working`,
     );
@@ -193,7 +256,7 @@ export async function normalizePubkeyInput(input: string): Promise<string> {
       `Expected one of:\n` +
       `  - npub (e.g., "npub1...")\n` +
       `  - hex (64-character hex string)\n` +
-      `  - NIP-05 identifier (e.g., "name@domain.com")`,
+      `  - NIP-05 identifier (e.g., "name@domain.com", "@domain.com", or "domain.com")`,
   );
 }
 
