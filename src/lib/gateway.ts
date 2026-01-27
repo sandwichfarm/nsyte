@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { decompress as brotliDecompress } from "@nick/brotli";
 import { ensureDir } from "@std/fs";
-import { contentType } from "@std/media-types";
+import { contentType as getContentType } from "@std/media-types";
 import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import {
