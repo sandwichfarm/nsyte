@@ -1842,9 +1842,8 @@ export class NsiteGatewayServer {
    * Get content type based on file extension
    */
   private getContentType(filename: string): string {
-    const ext = extname(filename).toLowerCase();
-    const type = contentType(ext);
-    return type || "application/octet-stream";
+    return contentType(extname(filename).toLowerCase()) ||
+      "application/octet-stream";
   }
 
   /**
