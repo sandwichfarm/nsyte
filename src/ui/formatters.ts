@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import { DisplayMode, getDisplayManager } from "../lib/display-mode.ts";
+import { getDisplayManager } from "../lib/display-mode.ts";
 
 /**
  * Format a title section with color

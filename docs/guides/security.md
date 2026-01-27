@@ -73,7 +73,7 @@ nsyte ci
 # This creates a dedicated nbunksec for CI/CD use
 
 # Use in CI/CD with secrets
-nsyte deploy ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
+nsyte deploy ./dist --sec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ### Key Rotation

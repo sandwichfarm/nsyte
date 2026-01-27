@@ -5,7 +5,6 @@ export const RELAY_DISCOVERY_RELAYS = [
   "wss://purplepag.es",
   "wss://user.kindpag.es",
   "wss://nos.lol",
-  "wss://relay.nostr.band",
   "wss://relay.damus.io",
   "wss://relay.primal.net",
 ];
@@ -15,7 +14,6 @@ export const RELAY_DISCOVERY_RELAYS = [
  */
 export const NSYTE_BROADCAST_RELAYS = [
   "wss://relay.damus.io",
-  "wss://relay.nostr.band",
   "wss://nos.lol",
   "wss://nostr.wine",
   "wss://relay.snort.social",

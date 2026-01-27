@@ -1,5 +1,5 @@
-import { assertEquals, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { returnsNext, spy, SpyCall, Stub, stub } from "std/testing/mock.ts";
+import { assertEquals, assertRejects, type assertThrows } from "@std/assert";
+import { type returnsNext, type spy, type SpyCall, type Stub, stub } from "@std/testing/mock";
 
 // Import the functions to test
 import { formatFileSize, runCommand, validateNpub } from "../../src/commands/run.ts";
@@ -219,8 +219,10 @@ Deno.test("Run Command Core - Configuration Detection", async (t) => {
 
     resolveRelaysStub = stub(resolverUtils, "resolveRelays", () => []);
     const resolveServersStub = stub(resolverUtils, "resolveServers", () => []);
-    const serveStub = stub(Deno, "serve", (..._args) =>
-      ({ finished: Promise.resolve() } as unknown as Deno.HttpServer)
+    const serveStub = stub(
+      Deno,
+      "serve",
+      (..._args) => ({ finished: Promise.resolve() } as unknown as Deno.HttpServer),
     );
     const addSignalListenerStub = stub(Deno, "addSignalListener", (..._args) => {});
 

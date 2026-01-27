@@ -1,4 +1,4 @@
-import { assertEquals } from "std/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   DEFAULT_BLOSSOM_SERVERS,
   NSYTE_BROADCAST_RELAYS,

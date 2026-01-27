@@ -4,7 +4,7 @@
  * Test runner with comprehensive mocking setup
  */
 
-import { stub } from "std/testing/mock.ts";
+import { stub } from "@std/testing/mock";
 
 // Global test setup
 async function setupTestEnvironment() {

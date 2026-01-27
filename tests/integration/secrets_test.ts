@@ -1,19 +1,17 @@
-import { assertEquals, assertNotEquals } from "std/testing/asserts.ts";
-import { restore, stub } from "std/testing/mock.ts";
-import * as path from "std/path/mod.ts";
-import { SecretsManager } from "../../src/lib/secrets/mod.ts";
+import { join } from "jsr:@std/path";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import { restore, stub } from "@std/testing/mock";
 import {
-  BunkerInfo,
+  type BunkerInfo,
   decodeBunkerInfo,
   encodeBunkerInfo,
   getBunkerInfo,
-  parseBunkerUrl,
-  saveBunkerInfo,
   storeBunkerUrl,
 } from "../../src/lib/nip46.ts";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 
 Deno.test("Secrets and NIP-46 Integration", async (t) => {
-  const testDir = path.join(Deno.cwd(), ".test_secrets");
+  const testDir = join(Deno.cwd(), ".test_secrets");
   const testBunkerPubkey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
   const testBunkerUrl =
     `bunker://${testBunkerPubkey}?relay=wss://test.relay&relay=wss://another.relay`;

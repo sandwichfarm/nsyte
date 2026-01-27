@@ -1,10 +1,10 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, stub } from "std/testing/mock.ts";
-import { Command } from "@cliffy/command";
+import { assertEquals } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
+import type { Command } from "@cliffy/command";
 
 describe("CI command", () => {
   let consoleLogStub: any;
@@ -32,14 +32,14 @@ describe("CI command", () => {
   describe("registerCICommand", () => {
     it("should register CI command with correct configuration", async () => {
       const { registerCICommand } = await import("../../src/commands/ci.ts");
-      
+
       const mockCommand: any = {
         command: () => mockCommand,
         description: () => mockCommand,
         arguments: () => mockCommand,
         action: () => mockCommand,
       };
-      
+
       const commandStub = stub(mockCommand, "command", () => mockCommand);
       const descriptionStub = stub(mockCommand, "description", () => mockCommand);
       const argumentsStub = stub(mockCommand, "arguments", () => mockCommand);

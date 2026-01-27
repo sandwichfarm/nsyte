@@ -24,7 +24,7 @@ nsyte bunker list
 
 # Check if any legacy secrets exist
 ls ~/.config/nsyte/secrets.json      # Linux
-ls ~/Library/Application\ Support/nsyte/secrets.json  # macOS  
+ls ~/Library/Application\ Support/nsyte/secrets.json  # macOS
 ls %APPDATA%\nsyte\secrets.json      # Windows
 ```
 
@@ -183,7 +183,7 @@ nsyte ci  # Follow interactive prompts
 echo $NBUNK_SECRET | head -c 50  # Should start with "nbunksec1"
 
 # Test locally first
-nsyte deploy ./dist --nbunksec $NBUNK_SECRET
+nsyte deploy ./dist --sec $NBUNK_SECRET
 
 # Check secret configuration in CI/CD platform
 # GitHub Actions: Repository Settings > Secrets
@@ -239,7 +239,7 @@ security find-generic-password -a test -s nsyte-test -w
 security delete-generic-password -a test -s nsyte-test
 
 # Linux:
-echo "testpass" | secret-tool store --label "test" service nsyte-test account test  
+echo "testpass" | secret-tool store --label "test" service nsyte-test account test
 secret-tool lookup service nsyte-test account test
 secret-tool clear service nsyte-test account test
 

@@ -1,12 +1,12 @@
-import type { FileEntryWithSources } from "../commands/ls.ts";
+import type { FileEntryWithSources } from "./nostr.ts";
 import { colors } from "@cliffy/ansi/colors";
 
-export type PropagationStrength = 
-  | "broken" 
-  | "fragile" 
-  | "weak" 
-  | "average" 
-  | "strong" 
+export type PropagationStrength =
+  | "broken"
+  | "fragile"
+  | "weak"
+  | "average"
+  | "strong"
   | "nominal";
 
 export interface PropagationStats {
@@ -32,7 +32,7 @@ export interface PropagationStats {
 export function calculatePropagationStats(
   files: FileEntryWithSources[],
   totalRelays: number,
-  totalServers: number
+  totalServers: number,
 ): PropagationStats {
   if (files.length === 0) {
     return {
@@ -57,14 +57,14 @@ export function calculatePropagationStats(
   const relayStatsRaw = calculateNetworkStats(
     files,
     totalRelays,
-    (file) => file.foundOnRelays.length
+    (file) => file.foundOnRelays.length,
   );
 
   // Calculate server stats
   const serverStatsRaw = calculateNetworkStats(
     files,
     totalServers,
-    (file) => file.availableOnServers.length
+    (file) => file.availableOnServers.length,
   );
 
   const relayStats = {
@@ -92,7 +92,7 @@ export function calculatePropagationStats(
 function calculateNetworkStats(
   files: FileEntryWithSources[],
   totalNetworkNodes: number,
-  getFileNodeCount: (file: FileEntryWithSources) => number
+  getFileNodeCount: (file: FileEntryWithSources) => number,
 ): {
   totalNodes: number;
   filesWithAllNodes: number;
@@ -109,12 +109,12 @@ function calculateNetworkStats(
   }
 
   const filesWithAllNodes = files.filter(
-    (file) => getFileNodeCount(file) === totalNetworkNodes
+    (file) => getFileNodeCount(file) === totalNetworkNodes,
   ).length;
 
   const totalCoverage = files.reduce(
     (sum, file) => sum + getFileNodeCount(file),
-    0
+    0,
   );
 
   const averageCoverage = totalCoverage / files.length;
@@ -130,7 +130,7 @@ function calculateNetworkStats(
 
 function determineRelayStrength(
   stats: ReturnType<typeof calculateNetworkStats>,
-  totalRelays: number
+  totalRelays: number,
 ): PropagationStrength {
   if (totalRelays === 0) return "broken";
   if (totalRelays === 1) return "fragile";
@@ -140,20 +140,20 @@ function determineRelayStrength(
 
   // Nominal: ≥3 relays with 100% propagation
   if (totalRelays >= 3 && propagationPercent >= 100) return "nominal";
-  
+
   // Strong: ≥5 relays with >95% total propagation
   if (totalRelays >= 5 && propagationPercent > 95) return "strong";
-  
+
   // Average: 3-4 relays with mixed coverage
   if (totalRelays >= 3 && totalRelays <= 4) return "average";
-  
+
   // Default to average for other cases
   return "average";
 }
 
 function determineServerStrength(
   stats: ReturnType<typeof calculateNetworkStats>,
-  totalServers: number
+  totalServers: number,
 ): PropagationStrength {
   if (totalServers === 0) return "broken";
   if (totalServers === 1) return "fragile";
@@ -163,10 +163,10 @@ function determineServerStrength(
 
   // Nominal: ≥3 servers with 100% propagation
   if (totalServers >= 3 && propagationPercent >= 100) return "nominal";
-  
-  // Strong: ≥3 servers with >95% total propagation  
+
+  // Strong: ≥3 servers with >95% total propagation
   if (totalServers >= 3 && propagationPercent > 95) return "strong";
-  
+
   // Average: 3+ servers with spotty access (anything else)
   return "average";
 }
@@ -179,7 +179,6 @@ export function getPropagationDisplay(strength: PropagationStrength): {
   symbol: string;
   color: (str: string) => string;
 } {
-  
   switch (strength) {
     case "broken":
       return {
@@ -196,7 +195,7 @@ export function getPropagationDisplay(strength: PropagationStrength): {
     case "weak":
       return {
         label: "Weak",
-        symbol: "◐", 
+        symbol: "◐",
         color: colors.yellow,
       };
     case "average":

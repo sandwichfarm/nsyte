@@ -1,8 +1,7 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, spy, stub } from "std/testing/mock.ts";
 import * as prompt from "@cliffy/prompt";
-import { SecretsManager } from "../../src/lib/secrets/mod.ts";
+import { assertEquals } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   connectBunker,
   exportNbunk,
@@ -13,6 +12,7 @@ import {
   showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
+import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 
 describe("Bunker command - comprehensive branch coverage", () => {
   let consoleLogStub: any;
@@ -59,13 +59,13 @@ describe("Bunker command - comprehensive branch coverage", () => {
         storeNbunk: () => Promise.resolve(true),
         getNbunk: () => Promise.resolve("nbunksec1test"),
         deleteNbunk: () => Promise.resolve(true),
-      })
+      }),
     };
     secretsManagerStub = stub(SecretsManager, "getInstance", mockSecretsManager.getInstance);
 
     // Reset timer tracking
     timerIds = [];
-    
+
     // Mock timers to prevent leaks
     setTimeoutStub = stub(globalThis, "setTimeout", (fn: () => void, delay?: number) => {
       const id = originalSetTimeout(() => {
@@ -78,7 +78,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
       timerIds.push(id);
       return id;
     });
-    
+
     clearTimeoutStub = stub(globalThis, "clearTimeout", (id: number) => {
       originalClearTimeout(id);
       const index = timerIds.indexOf(id);
@@ -97,7 +97,7 @@ describe("Bunker command - comprehensive branch coverage", () => {
       originalClearTimeout(id);
     }
     timerIds = [];
-    
+
     // Restore all stubs explicitly
     consoleLogStub?.restore();
     consoleErrorStub?.restore();
@@ -108,10 +108,10 @@ describe("Bunker command - comprehensive branch coverage", () => {
     secretsManagerStub?.restore();
     setTimeoutStub?.restore();
     clearTimeoutStub?.restore();
-    
+
     // Then call general restore
     restore();
-    
+
     // Restore Deno.args to original
     Object.defineProperty(Deno, "args", {
       get: () => originalArgs,

@@ -1,12 +1,12 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { restore, spy, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists } from "@std/assert";
+import { restore, spy, stub } from "@std/testing/mock";
 import {
   getErrorMessage,
   handleError,
   logError,
   withErrorHandling,
 } from "../../src/lib/error-utils.ts";
-import { createLogger } from "../../src/lib/logger.ts";
+import type { createLogger } from "../../src/lib/logger.ts";
 
 Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
   await t.step("getErrorMessage - edge cases", () => {
@@ -136,12 +136,12 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
 
     try {
       // Test colored console output (default)
-      logError("Color test", new Error("Colored error"), { 
-        showConsole: true 
+      logError("Color test", new Error("Colored error"), {
+        showConsole: true,
       });
 
       // Find the console error call
-      const coloredCall = consoleErrorSpy.calls.find((call) =>
+      const coloredCall = consoleErrorSpy.calls.find((call: any) =>
         String(call.args[0]).includes("Error:")
       );
       assertExists(coloredCall);
@@ -150,13 +150,13 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       assertEquals(coloredMessage.includes("\x1b["), true);
 
       // Test uncolored console output
-      logError("No color test", new Error("Uncolored error"), { 
-        showConsole: true, 
-        color: false 
+      logError("No color test", new Error("Uncolored error"), {
+        showConsole: true,
+        color: false,
       });
 
       // Find the uncolored console error call
-      const uncoloredCall = consoleErrorSpy.calls.find((call) =>
+      const uncoloredCall = consoleErrorSpy.calls.find((call: any) =>
         call.args[0] === "Error: No color test: Uncolored error"
       );
       assertExists(uncoloredCall);

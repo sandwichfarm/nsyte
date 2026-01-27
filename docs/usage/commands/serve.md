@@ -5,7 +5,8 @@ description: Build and serve local nsite files for development
 
 # `nsyte serve`
 
-Build and serve your local nsite files for development and testing purposes. This command creates a local development server that serves your files as they would appear when published.
+Build and serve your local nsite files for development and testing purposes. This command creates a
+local development server that serves your files as they would appear when published.
 
 ## Usage
 
@@ -69,12 +70,16 @@ The serve command:
 The serve command mimics how your nsite will behave when published:
 
 ### Fallback Handling
+
 If you have a `fallback` configured in your config (e.g., `"/index.html"`), the serve command will:
+
 - Serve the fallback file for any non-existent paths
 - Support client-side routing for SPAs (React, Vue, etc.)
 
 ### Content Types
+
 Files are served with appropriate MIME types:
+
 - `.html` → `text/html`
 - `.css` → `text/css`
 - `.js` → `application/javascript`
@@ -83,20 +88,27 @@ Files are served with appropriate MIME types:
 - And more...
 
 ### Directory Structure
-The serve command respects your project's directory structure and serves files from the configured source directory.
+
+The serve command respects your project's directory structure and serves files from the configured
+source directory.
 
 ## Development Features
 
 ### Hot Reload
-The serve command can watch for file changes and automatically reload the browser (feature availability depends on implementation).
+
+The serve command can watch for file changes and automatically reload the browser (feature
+availability depends on implementation).
 
 ### Error Handling
+
 - Shows helpful error messages for missing files
 - Serves fallback content for 404 errors
 - Displays server logs for debugging
 
 ### Network Access
+
 When using `--host 0.0.0.0`, you can access your nsite from:
+
 - Other devices on your network
 - Mobile devices for testing
 - Virtual machines
@@ -104,6 +116,7 @@ When using `--host 0.0.0.0`, you can access your nsite from:
 ## Use Cases
 
 ### SPA Development
+
 For single-page applications with client-side routing:
 
 ```bash
@@ -113,6 +126,7 @@ nsyte serve --open
 The fallback configuration ensures all routes are handled by your SPA.
 
 ### Mobile Testing
+
 Test your nsite on mobile devices:
 
 ```bash
@@ -122,6 +136,7 @@ nsyte serve --host 0.0.0.0
 Then access `http://[your-ip]:3000` from your mobile device.
 
 ### Production Preview
+
 Preview how your nsite will look when published:
 
 ```bash
@@ -141,16 +156,19 @@ The serve command respects these configuration options from `.nsite/config.json`
 ## Comparison with Other Servers
 
 ### vs. `python -m http.server`
+
 - ✅ Respects nsite fallback configuration
 - ✅ Proper MIME types
 - ✅ Understands nsite project structure
 
 ### vs. `npx serve`
+
 - ✅ No Node.js dependency
 - ✅ nsite-specific features
 - ✅ Integrated with nsite configuration
 
 ### vs. Production nsite
+
 - ⚠️ Local files (not from Blossom)
 - ⚠️ No relay integration
 - ✅ Same fallback behavior
@@ -159,31 +177,37 @@ The serve command respects these configuration options from `.nsite/config.json`
 ## Troubleshooting
 
 ### Port Already in Use
+
 ```
 Error: Port 3000 is already in use
 ```
 
 **Solution**: Use a different port:
+
 ```bash
 nsyte serve --port 3001
 ```
 
 ### Permission Denied
+
 ```
 Error: Permission denied binding to port 80
 ```
 
 **Solution**: Use a port above 1024 or run with sudo (not recommended):
+
 ```bash
 nsyte serve --port 8080
 ```
 
 ### Files Not Found
+
 ```
 Error: Source directory not found
 ```
 
-**Solution**: Ensure you're running the command from your project directory with a valid `.nsite/config.json`.
+**Solution**: Ensure you're running the command from your project directory with a valid
+`.nsite/config.json`.
 
 ## Related Commands
 

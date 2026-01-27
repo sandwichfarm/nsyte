@@ -1,6 +1,6 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, spy, stub } from "jsr:@std/testing/mock";
+import { assertEquals, type assertExists } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, spy, stub } from "@std/testing/mock";
 
 describe("CLI - comprehensive branch coverage", () => {
   let consoleLogStub: any;
