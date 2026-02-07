@@ -1,25 +1,34 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { encodeHex } from "@std/encoding/hex";
+import { castUser } from "applesauce-common/casts";
 import { BLOSSOM_SERVER_LIST_KIND, getBlossomServersFromList } from "applesauce-common/helpers";
-import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import {
+  EventStore,
+  firstValueFrom,
+  mapEventsToStore,
+  mapEventsToTimeline,
+  simpleTimeout,
+} from "applesauce-core";
 import { buildEvent } from "applesauce-core/event-factory";
 import {
   type EventTemplate,
   type Filter,
-  getOutboxes,
   getSeenRelays,
-  getTagValue,
   kinds,
   type NostrEvent,
+  type ProfilePointer,
   relaySet,
   unixNow,
 } from "applesauce-core/helpers";
 import { setDeleteEvents } from "applesauce-core/operations/delete";
+import { loadAsyncMap } from "applesauce-loaders/helpers";
+import { createEventLoaderForStore } from "applesauce-loaders/loaders";
 import { RelayPool } from "applesauce-relay/pool";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
-import { lastValueFrom, timer } from "rxjs";
-import { takeUntil } from "rxjs/operators";
-import { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
+import { catchError, lastValueFrom, of } from "rxjs";
+import { timeout } from "rxjs/operators";
+import { truncateHash } from "../ui/browse/renderer.ts";
+import { LOCAL_RELAY_URL, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import { type FilePathMapping, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
@@ -33,7 +42,147 @@ export const pool = new RelayPool();
 // Create an in-memory event store for managing events
 export const store = new EventStore();
 
-export { NSYTE_BROADCAST_RELAYS, RELAY_DISCOVERY_RELAYS };
+// Create a cache request method for loading from the local relay if it exists
+let hasLocalRelay: boolean | null = null;
+export async function cacheRequest(filters: Filter[]): Promise<NostrEvent[]> {
+  // Check if a local relay is available
+  if (hasLocalRelay === null) {
+    hasLocalRelay = !!(await firstValueFrom(
+      pool.relay(LOCAL_RELAY_URL).information$.pipe(timeout(500), catchError(() => of(null))),
+    ));
+  }
+
+  if (hasLocalRelay === false) return [];
+
+  // Load events from the local relay if its available
+  try {
+    return await lastValueFrom(
+      pool.relay(LOCAL_RELAY_URL).request(filters).pipe(
+        // Collect all events into an array
+        mapEventsToTimeline(),
+        // Throw timeout error after 1 second
+        timeout(1000),
+      ),
+      { defaultValue: [] },
+    );
+  } catch (error) {
+    log.error(`Error loading events from local relay: ${getErrorMessage(error)}`);
+    hasLocalRelay = false;
+    return [];
+  }
+}
+
+// Create the event loader for the store so it can load profiles
+export const eventLoader = createEventLoaderForStore(store, pool, {
+  lookupRelays: RELAY_DISCOVERY_RELAYS,
+  cacheRequest,
+  // Set a low buffer time since this tool will not be loading anything in parallel
+  bufferTime: 300,
+});
+
+/** A quick async method to get a users display name */
+export async function getUserDisplayName(
+  pubkey: string | ProfilePointer,
+  timeout = 500,
+): Promise<string> {
+  const user = castUser(pubkey, store);
+  return await user.profile$.displayName.$first(timeout, truncateHash(user.npub));
+}
+
+/** A quick async method to get a users outboxes */
+export async function getUserOutboxes(
+  pubkey: string | ProfilePointer,
+  timeout = 5000,
+): Promise<string[] | undefined> {
+  const user = castUser(pubkey, store);
+
+  // Load outboxes and profile in parallel
+  const { outboxes, name } = await loadAsyncMap({
+    outboxes: user.outboxes$.$first(timeout, undefined),
+    name: getUserDisplayName(pubkey, timeout),
+  }, timeout);
+
+  if (outboxes) log.debug(`Found ${outboxes.length} outboxes for ${name}`);
+  else log.warn(`No outboxes found for ${name}`);
+
+  return outboxes;
+}
+
+/** A quick async method to get a users blossom servers */
+export async function getUserBlossomServers(
+  pubkey: string | ProfilePointer,
+  timeout = 5000,
+): Promise<string[] | undefined> {
+  const user = castUser(pubkey, store);
+
+  const serverList = await user.replaceable(BLOSSOM_SERVER_LIST_KIND).$first(timeout, undefined);
+  if (serverList) {
+    return getBlossomServersFromList(serverList).map((server) => server.toString());
+  }
+}
+
+/** @deprecated use getUserBlossomServers instead */
+export async function getUserServers(
+  pubkey: string | ProfilePointer,
+  timeout = 5000,
+): Promise<string[]> {
+  return (await getUserBlossomServers(pubkey, timeout)) ?? [];
+}
+
+/** Fetch profile event (kind 0) from nostr relays */
+export async function getUserProfile(
+  relays: string[],
+  pubkey: string,
+  timeout = 5000,
+): Promise<NostrEvent | null> {
+  const user = castUser(pubkey, store);
+
+  // Load the users outboxes first
+  const outboxes = await user.outboxes$.$first(timeout, undefined);
+
+  // Now load the users profile from the outboxes
+  const event = await firstValueFrom(
+    eventLoader({ kind: 0, pubkey, relays: relaySet(relays, outboxes) }),
+    { defaultValue: null },
+  );
+
+  return event;
+}
+
+/** Fetch relay list event (kind 10002) from nostr relays */
+export async function fetchUserRelayList(
+  relays: string[],
+  pubkey: string,
+  timeout = 5000,
+): Promise<NostrEvent | null> {
+  log.debug(
+    `Fetching relay list for ${await getUserDisplayName(pubkey)} from ${relays.join(", ")}`,
+  );
+
+  try {
+    // Load events from the relays
+    const event = await lastValueFrom(
+      pool
+        .request(relays, {
+          kinds: [kinds.RelayList],
+          authors: [pubkey],
+        })
+        .pipe(
+          // Timeout after 5 seconds
+          simpleTimeout(timeout),
+          // Add all events to the store
+          mapEventsToStore(store),
+        ),
+      { defaultValue: null },
+    );
+
+    // Get the latest event from the store
+    return event;
+  } catch (error) {
+    log.error(`Error fetching relay list: ${getErrorMessage(error)}`);
+    return null;
+  }
+}
 
 /**
  * File entry interface
@@ -84,12 +233,6 @@ export function generateKeyPair(): { privateKey: string; publicKey: string } {
   return { privateKey, publicKey };
 }
 
-/**
- * Basic nostr event interface
- * This is a simplified version for this example
- */
-export type { NostrEvent };
-
 /** Interface for unsigned nostr events */
 export type NostrEventTemplate = EventTemplate & { pubkey?: string };
 
@@ -117,63 +260,55 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
   }
 }
 
-/** Extract a tag value from an event */
-export { getTagValue };
-
 /**
  * Fetches the latest site manifest event for the given pubkey and identifier
  * @param relays - Relays to query (will be merged with kind 10002 discovered relays)
  * @param pubkey - Public key of the site owner
  * @param identifier - Optional site identifier for named sites. If not provided, fetches root site (kind 15128) and all named sites (kind 35128)
+ * @param timeout - Timeout for the request in milliseconds
  */
 export async function fetchSiteManifestEvent(
   relays: string[],
   pubkey: string,
   identifier?: string,
+  timeout = 12_000,
 ): Promise<NostrEvent | null> {
+  // Load user information in parallel up front
+  const { outboxes, name } = await loadAsyncMap({
+    outboxes: getUserOutboxes(pubkey),
+    name: getUserDisplayName(pubkey, 1000),
+  }, 5000);
+
   // First, fetch kind 10002 to get user's preferred relays
-  relays = relaySet(relays, await getUserOutboxes(pubkey));
+  relays = relaySet(relays, outboxes);
 
   log.debug(
-    `Fetching site manifest events for ${pubkey} from ${relays.join(", ")}${
+    `Fetching site manifest events for ${name} from ${relays.join(" ")}${
       identifier ? ` (site: ${identifier})` : ""
     }`,
   );
 
-  // Keep timeouts reasonable to avoid long waits
-  const REQUEST_TIMEOUT_MS = 12000;
-
-  // Build filter based on whether we're fetching a specific named site or all sites
-  const filter: Filter = identifier
-    ? {
-      // Search for named site manifest event
-      kinds: [NSITE_NAME_SITE_KIND],
-      authors: [pubkey],
-      "#d": [identifier],
-    }
-    : {
-      // Search for root site manifest event
-      kinds: [NSITE_ROOT_SITE_KIND],
-      authors: [pubkey],
-    };
-
   try {
-    // Fetch the site manifest event from relays
-    await lastValueFrom(
-      pool
-        .request(relays, filter)
-        .pipe(
-          simpleTimeout(7000),
-          mapEventsToStore(store),
-          takeUntil(timer(REQUEST_TIMEOUT_MS)), // Force completion even if a relay never sends EOSE
-        ),
+    const event = await lastValueFrom(
+      pool.request(
+        relays,
+        identifier
+          ? {
+            kinds: [NSITE_NAME_SITE_KIND],
+            authors: [pubkey],
+            "#d": [identifier],
+            limit: 1,
+          }
+          : {
+            kinds: [NSITE_ROOT_SITE_KIND],
+            authors: [pubkey],
+            limit: 1,
+          },
+      ).pipe(
+        mapEventsToStore(store),
+        simpleTimeout(timeout),
+      ),
       { defaultValue: null },
-    );
-
-    const event = store.getReplaceable(
-      identifier ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
-      pubkey,
-      identifier,
     );
 
     if (!event) {
@@ -197,165 +332,11 @@ export async function getSiteManifestEvent(
   pubkey: string,
   identifier?: string,
 ): Promise<NostrEvent | null> {
-  const existing = store.getReplaceable(
+  return store.getReplaceable(
     identifier ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
     pubkey,
     identifier,
-  );
-  if (existing) return existing;
-
-  return await fetchSiteManifestEvent(relays, pubkey, identifier);
-}
-
-/** Fetch profile event (kind 0) from nostr relays */
-export async function getUserProfile(
-  relays: string[],
-  pubkey: string,
-): Promise<NostrEvent | null> {
-  try {
-    const existing = store.getReplaceable(kinds.Metadata, pubkey);
-    if (existing) return existing;
-
-    log.debug(`Fetching profile for ${pubkey} from ${relays.join(", ")}`);
-
-    // Always check the lookup relays
-    relays = relaySet(relays, RELAY_DISCOVERY_RELAYS);
-
-    // Fetch from the users outboxes
-    relays = relaySet(relays, await getUserOutboxes(pubkey));
-
-    // Fetch profile event from relays
-    await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [0],
-          authors: [pubkey],
-        })
-        .pipe(
-          simpleTimeout(5000),
-          mapEventsToStore(store),
-        ),
-      { defaultValue: null },
-    );
-
-    const event = store.getReplaceable(kinds.Metadata, pubkey);
-    return event ?? null;
-  } catch (error) {
-    log.error(`Error fetching profile: ${getErrorMessage(error)}`);
-    return null;
-  }
-}
-
-/** Fetch relay list event (kind 10002) from nostr relays */
-export async function fetchUserRelayList(
-  relays: string[],
-  pubkey: string,
-): Promise<NostrEvent | null> {
-  log.debug(`Fetching relay list for ${pubkey} from ${relays.join(", ")}`);
-
-  try {
-    // Load events from the relays
-    await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [kinds.RelayList],
-          authors: [pubkey],
-        })
-        .pipe(
-          // Timeout after 5 seconds
-          simpleTimeout(5000),
-          // Add all events to the store
-          mapEventsToStore(store),
-        ),
-      { defaultValue: null },
-    );
-
-    // Get the latest event from the store
-    return store.getReplaceable(kinds.RelayList, pubkey) ?? null;
-  } catch (error) {
-    log.error(`Error fetching relay list: ${getErrorMessage(error)}`);
-    return null;
-  }
-}
-
-/**
- * Resolve relays by fetching kind 10002 (relay list) and merging with provided relays
- * @param pubkey - Public key to fetch relay list for
- * @param providedRelays - Relays provided by user/config
- * @returns Merged list of discovered and provided relays (deduplicated)
- */
-export async function getUserOutboxes(
-  pubkey: string,
-): Promise<string[]> {
-  const existing = store.getReplaceable(kinds.RelayList, pubkey);
-  if (existing) return getOutboxes(existing);
-
-  // Fetch kind 10002 using discovery relays
-  const mailboxes = await fetchUserRelayList(RELAY_DISCOVERY_RELAYS, pubkey);
-  if (!mailboxes) {
-    log.warn(`No mailboxes found for ${pubkey}`);
-    return [];
-  }
-
-  const outboxes = getOutboxes(mailboxes);
-  log.debug(`Found ${outboxes.length} outboxes for ${pubkey}`);
-  return outboxes;
-}
-
-/**
- * Resolve servers by fetching kind 10063 (server list) and merging with provided servers
- * @param pubkey - Public key to fetch server list for
- * @param providedServers - Servers provided by user/config
- * @param discoveryRelays - Relays to use for fetching kind 10063 (defaults to RELAY_DISCOVERY_RELAYS)
- * @returns Merged list of discovered and provided servers (deduplicated)
- */
-export async function fetchUserServers(
-  pubkey: string,
-  discoveryRelays: string[] = RELAY_DISCOVERY_RELAYS,
-): Promise<string[]> {
-  log.debug(`Fetching server list for ${pubkey}`);
-
-  try {
-    await lastValueFrom(
-      pool
-        .request(discoveryRelays, {
-          kinds: [BLOSSOM_SERVER_LIST_KIND],
-          authors: [pubkey],
-        })
-        .pipe(
-          // Timeout after 5 seconds
-          simpleTimeout(5000),
-          // Add all events to the store
-          mapEventsToStore(store),
-        ),
-      { defaultValue: null },
-    );
-
-    // Get the latest server list
-    const list = store.getReplaceable(BLOSSOM_SERVER_LIST_KIND, pubkey);
-    if (!list) log.warn(`No server list found for ${pubkey}`);
-
-    const servers = list ? getBlossomServersFromList(list) : [];
-    if (servers.length > 0) {
-      log.debug(`Found ${servers.length} servers in user's server list`);
-    }
-
-    return servers.map((server) => server.toString());
-  } catch (error) {
-    log.error(`Error fetching server list: ${getErrorMessage(error)}`);
-    // Return provided servers if fetch fails
-    return [];
-  }
-}
-
-/** Get the user's servers from the store or fetch them from the relays */
-export async function getUserServers(
-  pubkey: string,
-): Promise<string[]> {
-  const existing = store.getReplaceable(BLOSSOM_SERVER_LIST_KIND, pubkey);
-  if (existing) return getBlossomServersFromList(existing).map((server) => server.toString());
-
-  return await fetchUserServers(pubkey);
+  ) || await fetchSiteManifestEvent(relays, pubkey, identifier);
 }
 
 /**
@@ -371,20 +352,17 @@ export async function fetchServerListEvents(
     // Use the global store for caching - server list events are replaceable
     // so the store will automatically keep the latest one
     const events = await lastValueFrom(
-      pool
-        .request(relays, {
-          kinds: [BLOSSOM_SERVER_LIST_KIND],
-          authors: [pubkey],
-          limit: 10,
-        })
-        .pipe(
-          simpleTimeout(5000),
-          mapEventsToStore(store), // Use global store for caching
-          mapEventsToTimeline(),
-          takeUntil(timer(5000)),
-        ),
+      eventLoader({
+        kind: BLOSSOM_SERVER_LIST_KIND,
+        pubkey,
+        relays,
+        // Explicitly skip cache
+        cache: false,
+      }).pipe(mapEventsToStore(store), mapEventsToTimeline(), simpleTimeout(5000)),
       { defaultValue: [] },
-    );
+    )
+      // Ingore errors
+      .catch(() => []);
 
     // Sort by created_at descending
     return events.sort((a, b) => b.created_at - a.created_at);

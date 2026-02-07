@@ -36,6 +36,7 @@ import { version } from "./version.ts";
 
 import { registerBunkerCommand } from "./commands/bunker-cliffy.ts";
 import { handleBunkerCommand } from "./commands/bunker.ts";
+import { pool } from "./lib/nostr.ts";
 
 const log = createLogger("cli");
 
@@ -91,6 +92,14 @@ async function main() {
     }
 
     await nsite.parse(Deno.args);
+
+    // Close relays after command execution
+    log.debug("Closing relays");
+    await Promise.all(Array.from(pool.relays.values()).map((r) => r.close()));
+    log.debug("Relays closed");
+
+    // TODO: This should be removed once we figure out what is keeping the process alive
+    Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`CLI error: ${errorMessage}`);

@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { logger, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom, timer } from "rxjs";
 import { takeUntil } from "rxjs/operators";
@@ -14,10 +14,10 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../lib/manifest.ts";
-import { getUserOutboxes, pool, store } from "../lib/nostr.ts";
+import { getUserDisplayName, getUserOutboxes, pool, store } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
-import { truncateHash } from "../ui/browse/renderer.ts";
 import { formatTimestamp } from "../ui/time-formatter.ts";
+import { log } from "../lib/logger.ts";
 
 /**
  * Interface for site information
@@ -62,7 +62,7 @@ export function registerSitesCommand(program: Command) {
       const configuredRelays = options.relays !== undefined
         ? resolveRelays(options, projectConfig, false)
         : (projectConfig?.relays || []);
-      let relays = [...configuredRelays];
+      let relays = relaySet(configuredRelays);
 
       if (allowFallbackRelays) {
         relays = relaySet(relays, NSYTE_BROADCAST_RELAYS);
@@ -79,17 +79,19 @@ export function registerSitesCommand(program: Command) {
       }
 
       console.log(
-        colors.cyan(`Fetching outbox relays for ${colors.bold(truncateHash(pubkey))}`),
+        colors.cyan(
+          `Fetching outbox relays for ${colors.bold(await getUserDisplayName(pubkey))}`,
+        ),
       );
 
       // Get user's outbox relays and merge
-      const userOutboxes = await getUserOutboxes(pubkey);
-      relays = relaySet(relays, userOutboxes);
+      const outboxes = await getUserOutboxes(pubkey);
+      if (outboxes) relays = relaySet(relays, outboxes);
 
       console.log(
         colors.cyan(
-          `Fetching sites for ${colors.bold(truncateHash(pubkey))} from relays: ${
-            relays.join(",")
+          `Fetching sites for ${colors.bold(await getUserDisplayName(pubkey))} from relays: ${
+            relays.join(" ")
           }`,
         ),
       );
@@ -99,15 +101,20 @@ export function registerSitesCommand(program: Command) {
 
       let events: NostrEvent[] = [];
       try {
+        const filter = {
+          kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+          authors: [pubkey],
+        };
+
+        log.debug(`Filter: ${JSON.stringify(filter)}`);
+        log.debug(`Relays: ${relays.join(" ")}`);
+
         events = await lastValueFrom(
           pool
-            .request(relays, {
-              kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
-              authors: [pubkey],
-            })
+            .request(relays, filter)
             .pipe(
               simpleTimeout(REQUEST_TIMEOUT_MS),
-              mapEventsToStore(store), // Use global store for caching
+              mapEventsToStore(store),
               mapEventsToTimeline(),
               takeUntil(timer(REQUEST_TIMEOUT_MS)),
             ),

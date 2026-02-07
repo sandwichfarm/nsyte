@@ -1,7 +1,8 @@
 import type { ISigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { publishEventsToRelays } from "./nostr.ts";
-import type { FileEntry, NostrEvent, NostrEventTemplate } from "./nostr.ts";
+import type { FileEntry, NostrEventTemplate } from "./nostr.ts";
+import { NostrEvent } from "applesauce-core/helpers";
 
 const log = createLogger("upload");
 

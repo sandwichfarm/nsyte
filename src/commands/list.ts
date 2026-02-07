@@ -7,7 +7,13 @@ import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { getManifestFiles, getManifestServers } from "../lib/manifest.ts";
-import { type FileEntryWithSources, getSiteManifestEvent, getUserServers } from "../lib/nostr.ts";
+import {
+  type FileEntryWithSources,
+  getSiteManifestEvent,
+  getUserBlossomServers,
+  getUserDisplayName,
+  getUserServers,
+} from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 
 // Color palette for relays and servers
@@ -117,7 +123,7 @@ export function registerListCommand(program: Command) {
       console.log(
         colors.cyan(
           `Searching for ${siteType} manifest event for ${
-            colors.bold(truncateHash(pubkey))
+            colors.bold(await getUserDisplayName(pubkey))
           } on relays: ${relays.join(", ")}`,
         ),
       );
@@ -149,7 +155,7 @@ export function registerListCommand(program: Command) {
 
       // Get full list of blossom servers: user's servers + manifest servers
       const manifestServers = getManifestServers(manifest).map((url) => url.toString());
-      const userServers = await getUserServers(pubkey);
+      const userServers = await getUserBlossomServers(pubkey);
       const allServers = mergeBlossomServers(userServers, manifestServers);
 
       // Check server availability for each file

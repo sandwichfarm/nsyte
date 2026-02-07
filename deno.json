@@ -60,6 +60,7 @@
     "ajv-formats": "npm:ajv-formats@3.0.1",
     "applesauce-common": "npm:applesauce-common@^5.1.0",
     "applesauce-core": "npm:applesauce-core@^5.1.0",
+    "applesauce-loaders": "npm:applesauce-loaders@^5.1.0",
     "applesauce-relay": "npm:applesauce-relay@^5.1.0",
     "applesauce-signers": "npm:applesauce-signers@^5.1.0",
     "rxjs": "npm:rxjs@^7.8.2",

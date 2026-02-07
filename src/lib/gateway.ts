@@ -1,15 +1,16 @@
 import { colors } from "@cliffy/ansi/colors";
 import { decompress as brotliDecompress } from "@nick/brotli";
 import { ensureDir } from "@std/fs";
-import { contentType as getContentType } from "@std/media-types";
+import { contentType } from "@std/media-types";
 import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import {
   type AddressPointer,
   decodePointer,
-  kinds,
   normalizeToPubkey,
+  NostrEvent,
   npubEncode,
+  relaySet,
 } from "applesauce-core/helpers";
 import { DownloadService } from "./download.ts";
 import { createLogger } from "./logger.ts";
@@ -21,8 +22,6 @@ import {
   getUserProfile,
   getUserServers,
   listRemoteFiles,
-  type NostrEvent,
-  store,
 } from "./nostr.ts";
 import type { ByteArray } from "./types.ts";
 
@@ -94,7 +93,6 @@ export class NsiteGatewayServer {
     string,
     {
       profile: NostrEvent | null;
-      relayList: NostrEvent | null;
       serverList: string[];
       userRelays: string[];
       timestamp: number;
@@ -316,24 +314,14 @@ export class NsiteGatewayServer {
         console.log(colors.gray(`  → Fetching profile data for ${npub}...`));
 
         try {
-          const [profile, userRelays] = await Promise.all([
+          const [profile, outboxes] = await Promise.all([
             getUserProfile(this.options.profileRelays, pubkeyHex),
             getUserOutboxes(pubkeyHex),
           ]);
 
-          // Get relay list event from store for display purposes
-          const relayList = store.getReplaceable(kinds.RelayList, pubkeyHex) ?? null;
-          if (userRelays.length > 0) {
-            log.debug(
-              `Found ${userRelays.length} relays from user's relay list: ${userRelays.join(", ")}`,
-            );
-          }
-
           // Extract servers from manifest events first (per NIP-XX spec)
-          const userRelaysToUse = userRelays.length > 0 ? userRelays : this.options.fileRelays;
-          const allServerListRelays = Array.from(
-            new Set([...userRelaysToUse, ...this.options.profileRelays]),
-          );
+          const userRelaysToUse = outboxes ? outboxes : this.options.fileRelays;
+          const allServerListRelays = relaySet(this.options.profileRelays, userRelaysToUse);
 
           let serverList: string[] = [];
 
@@ -387,7 +375,12 @@ export class NsiteGatewayServer {
             }
           }
 
-          profileData = { profile, relayList, serverList, userRelays, timestamp: Date.now() };
+          profileData = {
+            profile,
+            serverList,
+            userRelays: outboxes ?? [],
+            timestamp: Date.now(),
+          };
           this.profileCache.set(npub, profileData);
 
           if (profile) {
@@ -405,12 +398,10 @@ export class NsiteGatewayServer {
             console.log(colors.gray(`  → No profile found (user may not have set one)`));
           }
 
-          if (relayList) {
+          if (outboxes) {
             console.log(
               colors.gray(
-                `  → Found relay list with ${
-                  relayList.tags.filter((t) => t[0] === "r").length
-                } relays`,
+                `  → Found relay list with ${outboxes.length} relays`,
               ),
             );
           }
@@ -418,7 +409,6 @@ export class NsiteGatewayServer {
           console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
           profileData = {
             profile: null,
-            relayList: null,
             serverList: [],
             userRelays: [],
             timestamp: Date.now(),
@@ -607,7 +597,11 @@ export class NsiteGatewayServer {
         })();
 
         // Return loading page only for first-time load
-        const loadingHtml = this.generateLoadingPage(npub, identifier, profileData?.profile);
+        const loadingHtml = this.generateLoadingPage(
+          npub,
+          identifier,
+          profileData?.profile ?? null,
+        );
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.blue(`  → Loading page served (first visit) - ${elapsed}ms`));
         return new Response(loadingHtml, {
@@ -824,7 +818,11 @@ export class NsiteGatewayServer {
 
       // If still loading, show loading page
       if (fileListEntry.loading) {
-        const loadingHtml = this.generateLoadingPage(npub, identifier, profileData?.profile);
+        const loadingHtml = this.generateLoadingPage(
+          npub,
+          identifier,
+          profileData?.profile ?? null,
+        );
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.blue(`  → Loading page served (still loading) - ${elapsed}ms`));
         return new Response(loadingHtml, {
@@ -841,7 +839,11 @@ export class NsiteGatewayServer {
         // Check if manifest exists but is empty
         if (fileListEntry.manifestFoundButEmpty) {
           console.log(colors.yellow(`  → Manifest found but no files - ${elapsed}ms`));
-          const noContentHtml = this.generateNoContentPage(npub, identifier, profileData?.profile);
+          const noContentHtml = this.generateNoContentPage(
+            npub,
+            identifier,
+            profileData?.profile ?? null,
+          );
           return new Response(noContentHtml, {
             status: 200,
             headers: {

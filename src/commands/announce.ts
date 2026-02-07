@@ -6,9 +6,8 @@ import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { publishAppHandler } from "../lib/metadata/publisher.ts";
-import { fetchUserRelayList } from "../lib/nostr.ts";
+import { getUserDisplayName, getUserOutboxes } from "../lib/nostr.ts";
 import { StatusDisplay } from "../ui/status.ts";
-import { getOutboxes } from "applesauce-core/helpers";
 
 const logger = createLogger("announce");
 
@@ -76,13 +75,15 @@ export function registerAnnounceCommand(program: Command): void {
         };
 
         // Discover user's existing relay list for broader publishing
-        let discoveredRelayList: string[] = [];
+        let discoveredOutboxes: string[] = [];
         try {
-          status.update("Discovering user relays...");
-          const relayListEvent = await fetchUserRelayList(RELAY_DISCOVERY_RELAYS, pubkey);
-          if (relayListEvent) {
-            discoveredRelayList = getOutboxes(relayListEvent);
-            logger.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
+          status.update(
+            `Discovering outboxes for ${await getUserDisplayName(pubkey)}...`,
+          );
+          const outboxes = await getUserOutboxes(pubkey);
+          if (outboxes) {
+            discoveredOutboxes = outboxes;
+            logger.debug(`Discovered ${outboxes.length} relays from user's relay list`);
           }
         } catch (e) {
           logger.debug(`Failed to fetch relay list for discovery: ${getErrorMessage(e)}`);
@@ -91,7 +92,7 @@ export function registerAnnounceCommand(program: Command): void {
         // Combine all relays for publishing: config relays + discovery relays + user's relay list
         const configRelays = config.relays || [];
         const publishToRelays = Array.from(
-          new Set([...configRelays, ...RELAY_DISCOVERY_RELAYS, ...discoveredRelayList]),
+          new Set([...configRelays, ...RELAY_DISCOVERY_RELAYS, ...discoveredOutboxes]),
         );
 
         // Publish app handler

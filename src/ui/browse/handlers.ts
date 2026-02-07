@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import { createLogger } from "../../lib/logger.ts";
-import type { FileEntryWithSources, NostrEvent } from "../../lib/nostr.ts";
+import type { FileEntryWithSources } from "../../lib/nostr.ts";
 import { render } from "./renderer.ts";
 import type { BrowseState } from "./state.ts";
 import {
@@ -13,6 +13,7 @@ import {
   toggleSelection,
   updateFilteredFiles,
 } from "./state.ts";
+import { NostrEvent } from "applesauce-core/helpers";
 
 const log = createLogger("browse-handlers");
 

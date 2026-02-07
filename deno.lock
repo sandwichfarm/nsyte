@@ -22,6 +22,7 @@
     "jsr:@std/encoding@~1.0.5": "1.0.10",
     "jsr:@std/fmt@^1.0.9": "1.0.9",
     "jsr:@std/fmt@~1.0.2": "1.0.9",
+    "jsr:@std/fs@*": "1.0.22",
     "jsr:@std/fs@^1.0.22": "1.0.22",
     "jsr:@std/html@^1.0.5": "1.0.5",
     "jsr:@std/http@^1.0.24": "1.0.24",
@@ -29,6 +30,7 @@
     "jsr:@std/io@~0.224.9": "0.224.9",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.6": "1.0.6",
+    "jsr:@std/path@*": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@std/path@~1.0.6": "1.0.9",
     "jsr:@std/streams@^1.0.17": "1.0.17",
@@ -43,6 +45,7 @@
     "npm:ajv@8.17.1": "8.17.1",
     "npm:applesauce-common@^5.1.0": "5.1.0",
     "npm:applesauce-core@^5.1.0": "5.1.0",
+    "npm:applesauce-loaders@^5.1.0": "5.1.0",
     "npm:applesauce-relay@^5.1.0": "5.1.0",
     "npm:applesauce-signers@^5.1.0": "5.1.0",
     "npm:rxjs@^7.8.2": "7.8.2"
@@ -148,7 +151,7 @@
         "jsr:@std/cli",
         "jsr:@std/encoding@^1.0.10",
         "jsr:@std/fmt@^1.0.9",
-        "jsr:@std/fs",
+        "jsr:@std/fs@^1.0.22",
         "jsr:@std/html",
         "jsr:@std/media-types",
         "jsr:@std/net",
@@ -186,7 +189,7 @@
         "jsr:@std/assert@^1.0.17",
         "jsr:@std/async",
         "jsr:@std/data-structures",
-        "jsr:@std/fs",
+        "jsr:@std/fs@^1.0.22",
         "jsr:@std/internal",
         "jsr:@std/path@^1.1.4"
       ]
@@ -301,6 +304,14 @@
         "hash-sum",
         "nanoid",
         "nostr-tools",
+        "rxjs"
+      ]
+    },
+    "applesauce-loaders@5.1.0": {
+      "integrity": "sha512-xllWYl7KxG0oaJqKVdZNzxN8OZQoDMaMmaTAO9Ao1Son+mmJyR9Q4UVicSwSlzzHarf59WCfvJeSdrSHIitkHg==",
+      "dependencies": [
+        "applesauce-core",
+        "nanoid",
         "rxjs"
       ]
     },
@@ -441,6 +452,7 @@
       "npm:ajv@8.17.1",
       "npm:applesauce-common@^5.1.0",
       "npm:applesauce-core@^5.1.0",
+      "npm:applesauce-loaders@^5.1.0",
       "npm:applesauce-relay@^5.1.0",
       "npm:applesauce-signers@^5.1.0",
       "npm:rxjs@^7.8.2"

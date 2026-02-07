@@ -30,3 +30,6 @@ export const DEFAULT_BLOSSOM_SERVERS = [
   "https://cdn.nostrcheck.me",
   "https://nostr.download",
 ];
+
+/** The common local relay URL for caching */
+export const LOCAL_RELAY_URL = "ws://localhost:4869";

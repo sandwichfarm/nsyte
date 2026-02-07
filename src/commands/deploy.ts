@@ -4,7 +4,7 @@ import { Confirm, Input, Select } from "@cliffy/prompt";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
-import { NostrConnectSigner } from "applesauce-signers";
+import { ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
   defaultConfig,
@@ -16,7 +16,7 @@ import {
 } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
-import { getErrorMessage } from "../lib/error-utils.ts";
+import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
@@ -26,14 +26,14 @@ import {
   createSiteManifestEvent,
   fetchUserRelayList,
   type FileEntry,
+  getUserBlossomServers,
   getUserOutboxes,
-  getUserServers,
   listRemoteFiles,
   publishEventsToRelays,
   purgeRemoteFiles,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { processUploads, type Signer, type UploadResponse } from "../lib/upload.ts";
+import { processUploads, type UploadResponse } from "../lib/upload.ts";
 import { parseRelayInput, truncateString } from "../lib/utils.ts";
 import {
   formatConfigValue,
@@ -47,30 +47,17 @@ import {
 } from "../ui/formatters.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
+import { loadAsyncMap } from "applesauce-loaders/helpers";
 
-// LOCAL STATE ------------------------------------------------------------------------------------------------ //
-const log = createLogger("upload");
-
-let displayManager!: DisplayManager;
-let statusDisplay!: StatusDisplay;
-let messageCollector!: MessageCollector;
-let signer!: Signer;
-let progressRenderer!: ProgressRenderer;
-
-let config!: ProjectConfig;
-let options!: UploadCommandOptions;
-
-let resolvedRelays: string[] = [];
-let resolvedServers: string[] = [];
-
-const currentWorkingDir = Deno.cwd();
-let targetDir!: string;
-let context!: ProjectContext;
-let fallbackFileEntry: FileEntry | null = null;
+// LOGGER
+const log = createLogger("deploy");
 
 // TYPES ----------------------------------------------------------------------------------------------------- //
 
-export interface UploadCommandOptions {
+/**
+ * Deploy command options
+ */
+export interface DeployCommandOptions {
   force: boolean;
   verbose: boolean;
   purge: boolean;
@@ -86,6 +73,23 @@ export interface UploadCommandOptions {
   publishAppHandler: boolean;
   handlerKinds?: string;
   nonInteractive: boolean;
+}
+
+/**
+ * Deployment state container
+ */
+interface DeploymentState {
+  displayManager: DisplayManager;
+  statusDisplay: StatusDisplay;
+  messageCollector: MessageCollector;
+  signer: ISigner;
+  progressRenderer: ProgressRenderer;
+  config: ProjectConfig;
+  options: DeployCommandOptions;
+  resolvedRelays: string[];
+  resolvedServers: string[];
+  targetDir: string;
+  fallbackFileEntry: FileEntry | null;
 }
 
 export interface FilePreparationResult {
@@ -143,7 +147,7 @@ export function registerDeployCommand(program: Command): void {
       "An HTML file to reference as 404.html (creates path mapping with same hash)",
     )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
-    .action(async (options: UploadCommandOptions, folder: string) => {
+    .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
       const cmdName = Deno.args[0];
       if (cmdName === "upload") {
@@ -151,16 +155,23 @@ export function registerDeployCommand(program: Command): void {
           colors.yellow("⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n"),
         );
       }
-      await uploadCommand(folder, options);
+      await deployCommand(folder, options);
+    })
+    .error((error) => {
+      handleError("Error deploying site", error, {
+        showConsole: true,
+        exit: true,
+        exitCode: 1,
+      });
     });
 }
 
 // ------------------------------------------------------------------------------------------------ //
 
 /**
- * Implements the primary upload command functionality for nsyte
+ * Implements the primary deploy command functionality for nsyte
  *
- * This function handles the entire upload workflow including:
+ * This function handles the entire deployment workflow including:
  * - Initializing state and configuration
  * - Resolving project context and authentication
  * - Setting up signing capabilities
@@ -170,21 +181,25 @@ export function registerDeployCommand(program: Command): void {
  * - Publishing metadata
  * - Displaying results
  *
- * @param fileOrFolder: string - Path to the file or folder to upload, relative to current working directory
- * @param options<UploadCommandOptions> - Upload command options
- *
- * @returns Promise that resolves when upload completes, process exits with status code
+ * @param fileOrFolder - Path to the file or folder to deploy, relative to current working directory
+ * @param options - Deploy command options
  */
-export async function uploadCommand(
+export async function deployCommand(
   fileOrFolder: string,
-  options_: UploadCommandOptions,
+  options: DeployCommandOptions,
 ): Promise<void> {
-  initState(options_);
-  log.debug("begin nstye upload");
+  log.debug("Begin nsyte deployment");
+
+  // Initialize display and state
+  const displayManager = getDisplayManager();
+  displayManager.configureFromOptions(options);
+  const statusDisplay = new StatusDisplay();
+  const messageCollector = new MessageCollector(displayManager.isInteractive());
 
   try {
-    targetDir = join(currentWorkingDir, fileOrFolder);
-    context = await resolveContext(options);
+    const currentWorkingDir = Deno.cwd();
+    const targetDir = join(currentWorkingDir, fileOrFolder);
+    const context = await resolveContext(options);
 
     if (context.error) {
       statusDisplay.error(context.error);
@@ -192,25 +207,23 @@ export async function uploadCommand(
       return Deno.exit(1);
     }
 
-    const { authKeyHex } = context;
-    config = context.config;
+    const { authKeyHex, config } = context;
 
     if (!config) {
       statusDisplay.error("Critical error: Project data could not be resolved.");
-      log.error(
-        "Critical error: Project data is null after context resolution without error (interactive mode).",
-      );
+      log.error("Critical error: Project data is null after context resolution.");
       return Deno.exit(1);
     }
 
-    signer = (await initSigner(authKeyHex)) as Signer;
+    const signerResult = await initSigner(authKeyHex, config, options);
 
-    if ("error" in signer) {
-      statusDisplay.error(`Signer: ${signer.error}`);
-      log.error(`Signer initialization failed: ${signer.error}`);
+    if ("error" in signerResult) {
+      statusDisplay.error(`Signer: ${signerResult.error}`);
+      log.error(`Signer initialization failed: ${signerResult.error}`);
       return Deno.exit(1);
     }
 
+    const signer = signerResult;
     const publisherPubkey = await signer.getPublicKey();
 
     // Get config values for manifest metadata (these are recommendations for others)
@@ -221,66 +234,87 @@ export async function uploadCommand(
 
     // Fetch kind 10002 and 10063 to get user's preferred relays/servers for operations
     statusDisplay.update("Discovering user preferences...");
-    resolvedRelays = relaySet(await getUserOutboxes(publisherPubkey), manifestRelays);
-    resolvedServers = mergeBlossomServers(await getUserServers(publisherPubkey), manifestServers);
+    const userPreferences = await loadAsyncMap({
+      outboxes: getUserOutboxes(publisherPubkey),
+      servers: getUserBlossomServers(publisherPubkey),
+    }, 5000);
+    const resolvedRelays = relaySet(userPreferences.outboxes, manifestRelays);
+    const resolvedServers = mergeBlossomServers(
+      userPreferences.servers,
+      manifestServers,
+    );
 
-    // If no servers discovered, fall back to config/options
-    if (resolvedServers.length === 0) {
-      resolvedServers = manifestServers;
-      if (resolvedServers.length === 0) {
-        log.warn("No servers configured or discovered - uploads will fail");
-      }
+    // Validate resolved configuration
+    if (resolvedServers.length === 0 && manifestServers.length === 0) {
+      log.warn("No servers configured or discovered - uploads will fail");
+    }
+    if (resolvedRelays.length === 0 && manifestRelays.length === 0) {
+      log.warn("No relays configured or discovered - publishing will fail");
     }
 
-    // If no relays discovered, fall back to config/options
-    if (resolvedRelays.length === 0) {
-      resolvedRelays = manifestRelays;
-      if (resolvedRelays.length === 0) {
-        log.warn("No relays configured or discovered - publishing will fail");
-      }
-    }
+    // Create deployment state
+    const state: Partial<DeploymentState> = {
+      displayManager,
+      statusDisplay,
+      messageCollector,
+      signer,
+      config,
+      options,
+      resolvedRelays: resolvedRelays.length > 0 ? resolvedRelays : manifestRelays,
+      resolvedServers: resolvedServers.length > 0 ? resolvedServers : manifestServers,
+      targetDir,
+      progressRenderer: new ProgressRenderer(0), // Will be updated later
+      fallbackFileEntry: null,
+    };
 
-    displayConfig(publisherPubkey);
+    displayConfig(state as DeploymentState, publisherPubkey);
 
-    const includedFiles = await scanLocalFiles();
+    const includedFiles = await scanLocalFiles(state as DeploymentState);
 
     // Find fallback file in scanned files if configured
-    fallbackFileEntry = findFallbackFile(includedFiles);
+    state.fallbackFileEntry = findFallbackFile(state as DeploymentState, includedFiles);
 
-    const remoteFileEntries = await fetchRemoteFiles(publisherPubkey);
+    const remoteFileEntries = await fetchRemoteFiles(state as DeploymentState, publisherPubkey);
     const { toTransfer, toDelete } = await compareAndPrepareFiles(
+      state as DeploymentState,
       includedFiles,
       remoteFileEntries,
     );
 
-    await maybeProcessFiles(toTransfer, toDelete, includedFiles, remoteFileEntries);
-    await maybePublishMetadata();
+    await maybeProcessFiles(
+      state as DeploymentState,
+      toTransfer,
+      toDelete,
+      includedFiles,
+      remoteFileEntries,
+    );
+    await maybePublishMetadata(state as DeploymentState, publisherPubkey);
 
     // Handle smart purge AFTER upload
     if (options.purge) {
-      await handleSmartPurgeOperation(includedFiles, remoteFileEntries);
+      await handleSmartPurgeOperation(state as DeploymentState, includedFiles, remoteFileEntries);
     }
 
-    if (
-      includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0
-    ) {
+    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0) {
       log.info("No effective operations performed.");
     }
 
     flushQueuedLogs();
-
-    displayGatewayUrl(publisherPubkey);
+    displayGatewayUrl(config, publisherPubkey);
 
     return Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
-    statusDisplay.error(`Upload command failed: ${errorMessage}`);
-    log.error(`Upload command failed: ${errorMessage}`);
+    statusDisplay.error(`Deploy command failed: ${errorMessage}`);
+    log.error(`Deploy command failed: ${errorMessage}`);
     return Deno.exit(1);
   }
 }
 
-function displayGatewayUrl(publisherPubkey: string) {
+/**
+ * Display gateway URLs where the deployed site is available
+ */
+function displayGatewayUrl(config: ProjectConfig, publisherPubkey: string): void {
   const npub = npubEncode(publisherPubkey);
   const { gatewayHostnames, id } = config;
   const siteId = id === null || id === "" ? undefined : id;
@@ -301,16 +335,11 @@ function displayGatewayUrl(publisherPubkey: string) {
   );
 }
 
-export function initState(options_: UploadCommandOptions) {
-  options = options_;
-  displayManager = getDisplayManager();
-  displayManager.configureFromOptions(options);
-  messageCollector = new MessageCollector(displayManager.isInteractive());
-  statusDisplay = new StatusDisplay();
-}
-
+/**
+ * Resolve project context (configuration and authentication)
+ */
 async function resolveContext(
-  options: UploadCommandOptions,
+  options: DeployCommandOptions,
 ): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let authKeyHex: string | null | undefined = options.sec || undefined;
@@ -458,13 +487,18 @@ async function resolveContext(
   return { config, authKeyHex };
 }
 
+/**
+ * Initialize signer from available authentication options
+ */
 async function initSigner(
-  _authKeyHex: string | null | undefined,
-): Promise<Signer | { error: string }> {
+  authKeyHex: string | null | undefined,
+  config: ProjectConfig,
+  options: DeployCommandOptions,
+): Promise<ISigner | { error: string }> {
   // Use the unified signer factory for CLI-provided secrets or interactively-provided secrets
   // Priority: CLI option > interactive input > config bunker
   const signerResult = await createSignerFromFactory({
-    sec: options.sec || _authKeyHex || undefined,
+    sec: options.sec || authKeyHex || undefined,
     bunkerPubkey: config?.bunkerPubkey,
   });
 
@@ -533,7 +567,7 @@ async function initSigner(
 
         try {
           // Reconnect to the bunker
-          const bunkerSigner = await reconnectToBunker(config.bunkerPubkey);
+          const bunkerSigner = await reconnectToBunker(config);
           if (bunkerSigner) {
             return bunkerSigner;
           } else {
@@ -561,7 +595,11 @@ async function initSigner(
 /**
  * Reconnect to an existing bunker that has lost its stored secret
  */
-async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
+async function reconnectToBunker(config: ProjectConfig): Promise<ISigner | null> {
+  const bunkerPubkey = config.bunkerPubkey;
+  if (!bunkerPubkey) {
+    return null;
+  }
   const choice = await Select.prompt<string>({
     message: "How would you like to reconnect to your bunker?",
     options: [
@@ -681,9 +719,14 @@ async function reconnectToBunker(bunkerPubkey: string): Promise<Signer | null> {
   }
 }
 
-export function displayConfig(publisherPubkey: string) {
+/**
+ * Display deployment configuration
+ */
+function displayConfig(state: DeploymentState, publisherPubkey: string): void {
+  const { displayManager, config, options, resolvedRelays, resolvedServers } = state;
+
   if (displayManager.isInteractive()) {
-    console.log(formatTitle("Upload Configuration"));
+    console.log(formatTitle("Deployment Configuration"));
     console.log(formatConfigValue("User", publisherPubkey, false));
 
     // Display site type (root site vs named site)
@@ -771,7 +814,8 @@ export function displayConfig(publisherPubkey: string) {
 /**
  * Find fallback file in included files by exact path match
  */
-function findFallbackFile(includedFiles: FileEntry[]): FileEntry | null {
+function findFallbackFile(state: DeploymentState, includedFiles: FileEntry[]): FileEntry | null {
+  const { options, config } = state;
   const fallbackPath = options.fallback || config.fallback;
 
   if (!fallbackPath) {
@@ -805,8 +849,9 @@ function findFallbackFile(includedFiles: FileEntry[]): FileEntry | null {
 /**
  * Scan local files in the target directory
  */
-async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
-  targetDir = _targetDir || targetDir;
+async function scanLocalFiles(state: DeploymentState): Promise<FileEntry[]> {
+  const { statusDisplay, displayManager, options, config, targetDir } = state;
+
   statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
   const { includedFiles, ignoredFilePaths } = await getLocalFiles(targetDir);
 
@@ -848,7 +893,11 @@ async function scanLocalFiles(_targetDir?: string): Promise<FileEntry[]> {
 /**
  * Fetch remote file entries from relays
  */
-async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
+async function fetchRemoteFiles(
+  state: DeploymentState,
+  publisherPubkey: string,
+): Promise<FileEntry[]> {
+  const { statusDisplay, displayManager, options, resolvedRelays } = state;
   let remoteFileEntries: FileEntry[] = [];
 
   // We still need remote file info when purging, even if we're forcing uploads
@@ -915,9 +964,12 @@ async function fetchRemoteFiles(publisherPubkey: string): Promise<FileEntry[]> {
  * Handle smart purge operations - only purge files not in current deployment
  */
 async function handleSmartPurgeOperation(
+  state: DeploymentState,
   localFiles: FileEntry[],
   remoteEntries: FileEntry[],
 ): Promise<void> {
+  const { statusDisplay, displayManager, options, resolvedRelays, signer } = state;
+
   // Find remote files that are not in the current local deployment
   const localFilePaths = new Set(localFiles.map((f) => f.path));
   const filesToPurge = remoteEntries.filter((remote) => !localFilePaths.has(remote.path));
@@ -968,9 +1020,12 @@ async function handleSmartPurgeOperation(
  * Compare local and remote files to determine what needs to be transferred
  */
 async function compareAndPrepareFiles(
+  state: DeploymentState,
   localFiles: FileEntry[],
   remoteFiles: FileEntry[],
 ): Promise<FilePreparationResult> {
+  const { statusDisplay, displayManager, options, config } = state;
+
   statusDisplay.update("Comparing local and remote files...");
   const { toTransfer: initialToTransfer, existing, toDelete } = compareFiles(
     localFiles,
@@ -1045,10 +1100,15 @@ async function compareAndPrepareFiles(
 /**
  * Delete files marked for deletion
  */
-async function deleteRemovedFiles(filesToDelete: FileEntry[]): Promise<void> {
+async function deleteRemovedFiles(
+  state: DeploymentState,
+  filesToDelete: FileEntry[],
+): Promise<void> {
   if (filesToDelete.length === 0) {
     return;
   }
+
+  const { statusDisplay, resolvedRelays, signer } = state;
 
   log.info(`Requesting deletion of ${filesToDelete.length} files from remote events`);
 
@@ -1076,8 +1136,13 @@ async function deleteRemovedFiles(filesToDelete: FileEntry[]): Promise<void> {
 /**
  * Load and prepare files for upload
  */
-async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<FileEntry[]> {
+async function prepareFilesForUpload(
+  state: DeploymentState,
+  filesToTransfer: FileEntry[],
+): Promise<FileEntry[]> {
+  const { messageCollector, targetDir } = state;
   const preparedFiles: FileEntry[] = [];
+
   for (const file of filesToTransfer) {
     try {
       const fileWithData = await loadFileData(targetDir, file);
@@ -1092,19 +1157,25 @@ async function prepareFilesForUpload(filesToTransfer: FileEntry[]): Promise<File
   return preparedFiles;
 }
 
-export async function maybeProcessFiles(
+/**
+ * Process file uploads and deletions
+ */
+async function maybeProcessFiles(
+  state: DeploymentState,
   toTransfer: FileEntry[],
   toDelete: FileEntry[],
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
-) {
+): Promise<void> {
+  const { statusDisplay, resolvedRelays } = state;
+
   if (toTransfer.length > 0) {
     log.info("Processing files for upload...");
 
     try {
-      const preparedFiles = await prepareFilesForUpload(toTransfer);
+      const preparedFiles = await prepareFilesForUpload(state, toTransfer);
 
-      await uploadFiles(preparedFiles, includedFiles, remoteFileEntries);
+      await uploadFiles(state, preparedFiles, includedFiles, remoteFileEntries);
     } catch (e: unknown) {
       const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
@@ -1114,12 +1185,12 @@ export async function maybeProcessFiles(
     // Even if no files to upload, we may need to publish manifest with existing files
     // (e.g., when files were deleted or metadata changed)
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
-      await publishSiteManifest(includedFiles, remoteFileEntries, []);
+      await publishSiteManifest(state, includedFiles, remoteFileEntries, []);
     }
   }
 
   if (toDelete.length > 0) {
-    await deleteRemovedFiles(toDelete);
+    await deleteRemovedFiles(state, toDelete);
   }
 }
 
@@ -1128,10 +1199,21 @@ export async function maybeProcessFiles(
  * According to NIP-XX, the manifest MUST include ALL path mappings, not just changed files
  */
 async function publishSiteManifest(
+  state: DeploymentState,
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
   uploadResponses: UploadResponse[],
 ): Promise<void> {
+  const {
+    statusDisplay,
+    signer,
+    config,
+    options,
+    resolvedRelays,
+    messageCollector,
+    fallbackFileEntry,
+  } = state;
+
   // Build a complete file mapping from all local files
   // This ensures the manifest includes ALL files, not just newly uploaded ones
   const fileMappingsMap = new Map<string, { path: string; sha256: string }>();
@@ -1320,10 +1402,21 @@ async function publishSiteManifest(
  * Upload prepared files to servers and publish to relays
  */
 async function uploadFiles(
+  state: DeploymentState,
   preparedFiles: FileEntry[],
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
 ): Promise<UploadResponse[]> {
+  const {
+    statusDisplay,
+    messageCollector,
+    targetDir,
+    resolvedServers,
+    signer,
+    resolvedRelays,
+    options,
+  } = state;
+
   if (preparedFiles.length === 0) {
     statusDisplay.error("No files could be loaded for upload.");
     return [];
@@ -1332,7 +1425,8 @@ async function uploadFiles(
   statusDisplay.update(`Uploading ${preparedFiles.length} files...`);
 
   setProgressMode(true);
-  progressRenderer = new ProgressRenderer(preparedFiles.length);
+  const progressRenderer = new ProgressRenderer(preparedFiles.length);
+  state.progressRenderer = progressRenderer;
   progressRenderer.start();
 
   if (resolvedServers.length === 0) {
@@ -1438,6 +1532,7 @@ async function uploadFiles(
     // (e.g., when only metadata needs updating or files were deleted)
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
       await publishSiteManifest(
+        state,
         includedFiles,
         remoteFileEntries,
         uploadResponses.filter((r) => r.success),
@@ -1464,13 +1559,17 @@ async function uploadFiles(
 }
 
 /**
- * Publish metadata to relays (profile, relay list, server list, app handler, file metadata)
+ * Publish metadata to relays (app handler, etc.)
  */
-async function maybePublishMetadata(): Promise<void> {
+async function maybePublishMetadata(
+  state: DeploymentState,
+  publisherPubkey: string,
+): Promise<void> {
+  const { statusDisplay, signer, config, options, resolvedRelays, messageCollector } = state;
+
   log.debug("maybePublishMetadata called");
 
   const usermeta_relays = ["wss://user.kindpag.es", "wss://purplepag.es"];
-  // const nsite_relays = ['wss://relay.nsite.lol']
 
   // Check both command-line options AND config settings
   const shouldPublishAppHandler = options.publishAppHandler ||
@@ -1494,7 +1593,6 @@ async function maybePublishMetadata(): Promise<void> {
   console.log(formatSectionHeader("Metadata Events Publish Results"));
 
   // Get relays from the user's 10002 list if present
-  const publisherPubkey = await signer.getPublicKey();
   let discoveredRelayList: string[] = [];
   try {
     const relayListEvent = await fetchUserRelayList(usermeta_relays, publisherPubkey);
@@ -1527,7 +1625,6 @@ async function maybePublishMetadata(): Promise<void> {
         } else {
           // Get the gateway URL - use the first configured hostname or default
           const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-          const publisherPubkey = await signer.getPublicKey();
           const npub = npubEncode(publisherPubkey);
           const gatewayUrl = `https://${npub}.${gatewayHostname}`;
 
