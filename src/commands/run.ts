@@ -81,7 +81,7 @@ export function registerRunCommand(program: Command): void {
     .command("run")
     .alias("rn")
     .description(
-      "Run a resolver server that serves nsites via npub subdomains. Optionally specify an npub, named site (name.npub1...), or naddr to launch instead of default.",
+      "Run a resolver server that serves nsites via npub subdomains",
     )
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
@@ -119,16 +119,13 @@ export function registerRunCommand(program: Command): void {
         }
       } else {
         // Default site
-        const defaultPubkey = normalizeToPubkey(
-          "npub1rqznq898cxkjly6fqak09qheqkeure2qazr8tc2tjkzkcs9htces9rzvta",
-        );
-        if (defaultPubkey) {
-          targetSite = {
-            pubkey: defaultPubkey,
-            kind: NSITE_ROOT_SITE_KIND,
-            identifier: "",
-          };
-        }
+        const defaultPubkey = "1805301ca7c1ad2f9349076cf282f905b3c1e540e88675e14b95856c40b75e33";
+
+        targetSite = {
+          pubkey: defaultPubkey,
+          kind: NSITE_ROOT_SITE_KIND,
+          identifier: "",
+        };
       }
 
       // Set up cache directory
