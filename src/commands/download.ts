@@ -13,7 +13,7 @@ import { readProjectFile } from "../lib/config.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import { type DownloadResult, DownloadService } from "../lib/download.ts";
 import type { FileEntry } from "../lib/nostr.ts";
-import { truncateHash } from "../ui/browse/renderer.ts";
+import { getUserDisplayName } from "../lib/nostr.ts";
 
 const log = createLogger("download");
 
@@ -67,7 +67,9 @@ export function registerDownloadCommand(program: Command): void {
       const siteType = options.name ? `named site "${options.name}"` : "root site";
       console.log(
         colors.cyan(
-          `Downloading files from ${siteType} for: ${colors.bold(truncateHash(pubkey))}`,
+          `Downloading files from ${siteType} for: ${
+            colors.bold(await getUserDisplayName(pubkey))
+          }`,
         ),
       );
       console.log(colors.gray(`Using relays: ${relays.join(", ")}`));

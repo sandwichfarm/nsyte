@@ -2,11 +2,15 @@ import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
-import { npubEncode } from "applesauce-core/helpers";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
-import { createDeleteEvent, getSiteManifestEvent, publishEventsToRelays } from "../lib/nostr.ts";
+import {
+  createDeleteEvent,
+  getSiteManifestEvent,
+  getUserDisplayName,
+  publishEventsToRelays,
+} from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
 
@@ -149,10 +153,10 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
         return Deno.exit(1);
       }
 
-      const npub = npubEncode(pubkey);
+      const displayName = await getUserDisplayName(pubkey);
 
       console.log(formatSectionHeader("Configuration"));
-      console.log(`User: ${colors.cyan(npub)}`);
+      console.log(`User: ${colors.cyan(displayName)}`);
       console.log(`Relays: ${colors.cyan(relays.join(", "))}`);
       console.log(`Site: ${colors.cyan(options.name)}`);
 
@@ -390,10 +394,10 @@ async function purgeCommand(options: PurgeOptions): Promise<void> {
     }
     // Use signer's pubkey (it's the source of truth for signing)
     const finalPubkey = signerPubkey;
-    const npub = npubEncode(finalPubkey);
+    const displayName = await getUserDisplayName(finalPubkey);
 
     console.log(formatSectionHeader("Configuration"));
-    console.log(`User: ${colors.cyan(npub)}`);
+    console.log(`User: ${colors.cyan(displayName)}`);
     console.log(`Relays: ${colors.cyan(relays.join(", "))}`);
 
     // Resolve servers if blob deletion is requested

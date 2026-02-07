@@ -27,11 +27,29 @@ import {
   initiateNostrConnect,
   parseBunkerUrl,
 } from "../lib/nip46.ts";
+import { getUserDisplayName } from "../lib/nostr.ts";
 import { EncryptedStorage } from "../lib/secrets/encrypted-storage.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
+import { truncateHash } from "../ui/browse/renderer.ts";
+import { npubEncode } from "applesauce-core/helpers";
 
 const log = createLogger("bunker-direct");
 const SERVICE_NAME = "nsyte";
+
+/**  Helper to load display names for multiple pubkeys */
+async function loadDisplayNames(pubkeys: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (const pubkey of pubkeys) {
+    map.set(pubkey, truncateHash(npubEncode(pubkey)));
+  }
+
+  // Load all display names in parallel
+  await Promise.all(
+    pubkeys.map((pk) => getUserDisplayName(pk, 1000).then((name) => map.set(pk, name))),
+  );
+
+  return map;
+}
 
 /**
  * Handle bunker commands directly without going through setupProject
@@ -210,28 +228,44 @@ export async function listBunkers(): Promise<void> {
     return;
   }
 
+  // Load display names for all pubkeys in parallel
+  const displayNamesMap = await loadDisplayNames(pubkeys);
+
   console.log(colors.cyan("\nStored Bunkers:"));
   for (const pubkey of pubkeys) {
     const nbunkString = await secretsManager.getNbunk(pubkey);
     if (!nbunkString) continue;
 
+    const displayName = displayNamesMap.get(pubkey) || pubkey;
+
     try {
       const info = decodeBunkerInfo(nbunkString);
-      console.log(`- ${colors.green(pubkey)}`);
+      console.log(`- ${colors.green(displayName)}`);
+      if (displayName !== pubkey) {
+        console.log(`  ${colors.gray(`Pubkey: ${pubkey.slice(0, 16)}...${pubkey.slice(-8)}`)}`);
+      }
       console.log(`  Relays: ${info.relays.join(", ")}`);
     } catch {
       console.log(
-        `- ${
-          colors.yellow(pubkey.slice(0, 8) + "..." + pubkey.slice(-4))
-        } (Error decoding nbunksec)`,
+        `- ${colors.yellow(displayName)} (Error decoding nbunksec)`,
       );
     }
   }
 
   const config = readProjectFile();
   if (config?.bunkerPubkey) {
+    const currentDisplayName = displayNamesMap.get(config.bunkerPubkey) || config.bunkerPubkey;
     console.log(colors.cyan("\nCurrent project uses bunker:"));
-    console.log(`- ${colors.green(config.bunkerPubkey)}`);
+    console.log(`- ${colors.green(currentDisplayName)}`);
+    if (currentDisplayName !== config.bunkerPubkey) {
+      console.log(
+        `  ${
+          colors.gray(
+            `Pubkey: ${config.bunkerPubkey.slice(0, 16)}...${config.bunkerPubkey.slice(-8)}`,
+          )
+        }`,
+      );
+    }
   } else {
     console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
   }
@@ -297,8 +331,11 @@ export async function exportNbunk(pubkey?: string): Promise<void> {
       return;
     }
 
+    // Load display names for better UX
+    const displayNamesMap = await loadDisplayNames(pubkeys);
+
     const options = pubkeys.map((key) => ({
-      name: `${key.slice(0, 8)}...${key.slice(-4)}`,
+      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key,
     }));
 
@@ -550,8 +587,11 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
       return;
     }
 
+    // Load display names for better UX
+    const displayNamesMap = await loadDisplayNames(pubkeys);
+
     const options = pubkeys.map((key) => ({
-      name: `${key.slice(0, 8)}...${key.slice(-4)}`,
+      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key,
     }));
 
@@ -588,8 +628,10 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   config.bunkerPubkey = pubkey;
   writeProjectFile(config);
 
+  // Show friendly name in confirmation message
+  const displayName = await getUserDisplayName(pubkey, 1000);
   console.log(
-    colors.green(`Project configured to use bunker with pubkey ${pubkey.slice(0, 8)}...`),
+    colors.green(`Project configured to use bunker: ${displayName}`),
   );
 }
 
@@ -608,8 +650,11 @@ export async function removeBunker(pubkey?: string): Promise<void> {
       return;
     }
 
+    // Load display names for better UX
+    const displayNamesMap = await loadDisplayNames(pubkeys);
+
     const options = pubkeys.map((key) => ({
-      name: `${key.slice(0, 8)}...${key.slice(-4)}`,
+      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
       value: key,
     }));
 
@@ -627,8 +672,11 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     return;
   }
 
+  // Get display name for confirmation message
+  const displayName = await getUserDisplayName(pubkey, 1000);
+
   const confirm = await Confirm.prompt({
-    message: `Are you sure you want to remove bunker ${pubkey.slice(0, 8)}...?`,
+    message: `Are you sure you want to remove bunker: ${displayName}?`,
     default: false,
   });
 
@@ -641,7 +689,7 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   const deleted = await secretsManager.deleteNbunk(pubkey);
 
   if (deleted) {
-    console.log(colors.green(`Bunker ${pubkey.slice(0, 8)}... removed from system storage.`));
+    console.log(colors.green(`Bunker ${displayName} removed from system storage.`));
 
     const config = readProjectFile();
     if (config?.bunkerPubkey === pubkey) {

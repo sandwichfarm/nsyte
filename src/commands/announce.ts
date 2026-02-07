@@ -74,13 +74,19 @@ export function registerAnnounceCommand(program: Command): void {
           appHandler: false,
         };
 
-        // Discover user's existing relay list for broader publishing
+        // Discover user's existing relay list and display name in parallel
         let discoveredOutboxes: string[] = [];
+        let displayName: string = pubkey;
         try {
-          status.update(
-            `Discovering outboxes for ${await getUserDisplayName(pubkey)}...`,
-          );
-          const outboxes = await getUserOutboxes(pubkey);
+          status.update("Discovering user metadata...");
+          const [outboxes, name] = await Promise.all([
+            getUserOutboxes(pubkey),
+            getUserDisplayName(pubkey),
+          ]);
+
+          if (name) displayName = name;
+          status.update(`Discovering outboxes for ${displayName}...`);
+
           if (outboxes) {
             discoveredOutboxes = outboxes;
             logger.debug(`Discovered ${outboxes.length} relays from user's relay list`);

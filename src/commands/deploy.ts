@@ -4,7 +4,7 @@ import { Confirm, Input, Select } from "@cliffy/prompt";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
-import { ISigner, NostrConnectSigner } from "applesauce-signers";
+import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
   defaultConfig,
@@ -27,6 +27,7 @@ import {
   fetchUserRelayList,
   type FileEntry,
   getUserBlossomServers,
+  getUserDisplayName,
   getUserOutboxes,
   listRemoteFiles,
   publishEventsToRelays,
@@ -235,6 +236,7 @@ export async function deployCommand(
     // Fetch kind 10002 and 10063 to get user's preferred relays/servers for operations
     statusDisplay.update("Discovering user preferences...");
     const userPreferences = await loadAsyncMap({
+      displayName: getUserDisplayName(publisherPubkey),
       outboxes: getUserOutboxes(publisherPubkey),
       servers: getUserBlossomServers(publisherPubkey),
     }, 5000);
@@ -267,7 +269,7 @@ export async function deployCommand(
       fallbackFileEntry: null,
     };
 
-    displayConfig(state as DeploymentState, publisherPubkey);
+    displayConfig(state as DeploymentState, publisherPubkey, userPreferences.displayName);
 
     const includedFiles = await scanLocalFiles(state as DeploymentState);
 
@@ -722,12 +724,17 @@ async function reconnectToBunker(config: ProjectConfig): Promise<ISigner | null>
 /**
  * Display deployment configuration
  */
-function displayConfig(state: DeploymentState, publisherPubkey: string): void {
+function displayConfig(
+  state: DeploymentState,
+  publisherPubkey: string,
+  displayName?: string,
+): void {
   const { displayManager, config, options, resolvedRelays, resolvedServers } = state;
+  const userDisplay = displayName || publisherPubkey;
 
   if (displayManager.isInteractive()) {
     console.log(formatTitle("Deployment Configuration"));
-    console.log(formatConfigValue("User", publisherPubkey, false));
+    console.log(formatConfigValue("User", userDisplay, false));
 
     // Display site type (root site vs named site)
     const siteId = config.id === null || config.id === "" ? undefined : config.id;
@@ -760,7 +767,7 @@ function displayConfig(state: DeploymentState, publisherPubkey: string): void {
     );
     console.log("");
   } else if (!options.nonInteractive) {
-    console.log(colors.cyan(`User: ${publisherPubkey}`));
+    console.log(colors.cyan(`User: ${userDisplay}`));
 
     // Display site type (root site vs named site)
     const siteId = config.id === null || config.id === "" ? undefined : config.id;

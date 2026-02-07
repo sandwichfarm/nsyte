@@ -16,6 +16,7 @@ import {
   getSeenRelays,
   kinds,
   type NostrEvent,
+  npubEncode,
   type ProfilePointer,
   relaySet,
   unixNow,
@@ -86,7 +87,9 @@ export async function getUserDisplayName(
   timeout = 500,
 ): Promise<string> {
   const user = castUser(pubkey, store);
-  return await user.profile$.displayName.$first(timeout, truncateHash(user.npub));
+  const npub = truncateHash(npubEncode(typeof pubkey === "string" ? pubkey : pubkey.pubkey));
+  const name = await user.profile$.displayName.$first(timeout, undefined);
+  return name ? `${name} (${npub})` : npub;
 }
 
 /** A quick async method to get a users outboxes */
