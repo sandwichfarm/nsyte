@@ -6,21 +6,31 @@ import { extname, join } from "@std/path";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import {
   type AddressPointer,
-  decodePointer,
+  getDisplayName,
+  getProfilePicture,
+  getReplaceableAddressFromPointer,
   normalizeToPubkey,
-  NostrEvent,
+  type NostrEvent,
   npubEncode,
+  type ProfileContent,
   relaySet,
 } from "applesauce-core/helpers";
+import { truncateHash } from "../ui/browse/renderer.ts";
 import { DownloadService } from "./download.ts";
 import { createLogger } from "./logger.ts";
-import { getManifestFiles, getManifestServers } from "./manifest.ts";
+import {
+  getManifestFiles,
+  getManifestServers,
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+} from "./manifest.ts";
 import {
   type FileEntry,
   getSiteManifestEvent,
+  getUserBlossomServers,
+  getUserDisplayName,
   getUserOutboxes,
   getUserProfile,
-  getUserServers,
   listRemoteFiles,
 } from "./nostr.ts";
 import type { ByteArray } from "./types.ts";
@@ -50,22 +60,27 @@ export interface GatewayServerOptions {
  */
 function extractNpubAndIdentifier(
   hostname: string,
-): { npub: string; identifier?: string } | null {
+): AddressPointer | null {
   const parts = hostname.split(".");
   if (parts.length < 2) return null;
 
   // Handle root site: npub123.localhost
   if (parts[0].startsWith("npub")) {
-    return { npub: parts[0] };
+    const pubkey = normalizeToPubkey(parts[0]);
+    if (!pubkey) return null;
+    return { pubkey, kind: NSITE_ROOT_SITE_KIND, identifier: "" };
   }
 
   // Handle named site: blog.npub123.localhost
   if (parts.length >= 3 && parts[0] && parts[1].startsWith("npub")) {
     const identifier = parts[0];
-    const npub = parts[1];
+    const pubkey = normalizeToPubkey(parts[1]);
+
+    if (!pubkey) return null;
+
     // Validate identifier (alphanumeric, hyphens, underscores)
     if (/^[a-zA-Z0-9_-]+$/.test(identifier)) {
-      return { npub, identifier };
+      return { pubkey, kind: NSITE_NAME_SITE_KIND, identifier };
     }
   }
 
@@ -73,31 +88,10 @@ function extractNpubAndIdentifier(
 }
 
 /**
- * Validates an npub string format
- */
-function validateNpub(npub: string): boolean {
-  try {
-    const decoded = decodePointer(npub);
-    return decoded.type === "npub";
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Nsite Gateway Server - serves nsites via npub subdomains
  */
 export class NsiteGatewayServer {
   private options: GatewayServerOptions;
-  private profileCache: Map<
-    string,
-    {
-      profile: NostrEvent | null;
-      serverList: string[];
-      userRelays: string[];
-      timestamp: number;
-    }
-  >;
   private fileListCache: Map<
     string,
     {
@@ -111,7 +105,6 @@ export class NsiteGatewayServer {
   private fileCache: Map<string, { data: ByteArray; timestamp: number; sha256: string }>;
   private pathUpdateTimestamps: Map<string, number>;
   private backgroundUpdateChecks: Map<string, Promise<void>>;
-  private readonly CACHE_TTL = 600000; // 10 minutes cache for profile data only
   private serverController: Deno.HttpServer | null = null;
 
   /**
@@ -123,7 +116,6 @@ export class NsiteGatewayServer {
 
   constructor(options: GatewayServerOptions) {
     this.options = options;
-    this.profileCache = new Map();
     this.fileListCache = new Map();
     this.fileCache = new Map();
     this.pathUpdateTimestamps = new Map();
@@ -235,9 +227,9 @@ export class NsiteGatewayServer {
     }
 
     // Extract npub and identifier from hostname
-    const hostInfo = extractNpubAndIdentifier(hostname);
+    const sitePointer = extractNpubAndIdentifier(hostname);
 
-    if (!hostInfo) {
+    if (!sitePointer) {
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.red(`✗ Invalid request (no npub) - ${elapsed}ms`));
       return new Response(
@@ -249,23 +241,36 @@ export class NsiteGatewayServer {
       );
     }
 
-    const { npub, identifier } = hostInfo;
-
-    // Validate npub format
-    if (!validateNpub(npub)) {
+    // Return error for invalid site pointer
+    if (!sitePointer) {
       const elapsed = Math.round(performance.now() - startTime);
-      console.log(colors.red(`✗ Invalid npub format: ${npub} - ${elapsed}ms`));
-      return new Response(`Invalid npub format: ${npub}`, {
+      console.log(colors.red(`✗ Invalid site pointer: ${hostname} - ${elapsed}ms`));
+      return new Response(`Invalid site pointer: ${hostname}`, {
         status: 400,
         headers: { "Content-Type": "text/plain" },
       });
     }
 
+    // Get readable address for console logging
+    const displayName = await getUserDisplayName(sitePointer.pubkey);
+    const readableAddress = colors.cyan(
+      sitePointer.kind === NSITE_ROOT_SITE_KIND
+        ? `ROOT:${displayName}`
+        : `NAMED:${displayName}:${sitePointer.identifier}`,
+    );
+
+    // Full address
+    const siteAddress = getReplaceableAddressFromPointer(sitePointer);
+
+    // Log successful site pointer resolution to console
+    console.log(
+      colors.green(
+        `✓ Resolved ${hostname} → ${siteAddress}`,
+      ),
+    );
+
     try {
-      const pubkeyHex = normalizeToPubkey(npub);
-      if (!pubkeyHex) throw new Error(`Invalid npub format: ${npub}`);
       const requestedPath = url.pathname;
-      const siteCacheKey = this.getSiteCacheKey(npub, identifier);
 
       // Update check endpoint
       if (requestedPath === "/_nsyte/check-updates") {
@@ -279,7 +284,7 @@ export class NsiteGatewayServer {
           });
         }
 
-        const updateKey = `${siteCacheKey}:${path}`;
+        const updateKey = `${siteAddress}:${path}`;
         const lastUpdate = this.pathUpdateTimestamps.get(updateKey) || 0;
         const hasUpdate = lastUpdate > since;
 
@@ -293,154 +298,106 @@ export class NsiteGatewayServer {
       }
 
       log.debug(
-        `Request: ${hostname}${requestedPath} -> npub: ${npub}, identifier: ${
-          identifier || "root"
-        }`,
+        `Request: ${hostname}${requestedPath} -> ${siteAddress}`,
       );
 
-      // Log successful npub resolution to console
-      console.log(
-        colors.green(
-          `✓ Resolved ${colors.cyan(npub)} ${identifier ? `(${colors.cyan(identifier)})` : ""} → ${
-            colors.gray(requestedPath)
-          }`,
-        ),
-      );
+      // Fetch profile data using event store (handles caching internally)
+      console.log(colors.gray(`  → Fetching outbox relays for ${displayName}...`));
 
-      // Check profile cache
-      let profileData = this.profileCache.get(npub);
-      if (!profileData || Date.now() - profileData.timestamp > this.CACHE_TTL) {
-        // Fetch profile and relay list
-        console.log(colors.gray(`  → Fetching profile data for ${npub}...`));
+      const outboxes = await getUserOutboxes(sitePointer.pubkey, 5000);
 
-        try {
-          const [profile, outboxes] = await Promise.all([
-            getUserProfile(this.options.profileRelays, pubkeyHex),
-            getUserOutboxes(pubkeyHex),
-          ]);
+      // List of blossom servers to load for the site
+      let serverList: string[] = [];
 
-          // Extract servers from manifest events first (per NIP-XX spec)
-          const userRelaysToUse = outboxes ? outboxes : this.options.fileRelays;
-          const allServerListRelays = relaySet(this.options.profileRelays, userRelaysToUse);
+      try {
+        const relays = relaySet(outboxes, this.options.profileRelays);
 
-          let serverList: string[] = [];
+        // First, try to get servers from manifest events (prioritized per nsite NIP)
+        log.debug(
+          `Getting site manifest event for ${readableAddress}" from relays: ${relays.join(" ")}`,
+        );
 
-          // First, try to get servers from manifest events (prioritized per NIP-XX)
-          log.debug(
-            `Getting site manifest event for ${pubkeyHex}${
-              identifier ? ` (site: ${identifier})` : " (root site)"
-            } from relays: ${allServerListRelays.join(", ")}`,
-          );
-          const manifestEvent = await getSiteManifestEvent(
-            allServerListRelays,
-            pubkeyHex,
-            identifier,
-          );
+        const manifestEvent = await getSiteManifestEvent(
+          relays,
+          sitePointer.pubkey,
+          sitePointer.identifier,
+        );
 
-          if (manifestEvent) {
-            const manifestId = manifestEvent.id || "unknown";
-            const manifestServers = getManifestServers(manifestEvent);
-            serverList = manifestServers.map((url) => url.toString());
-            if (serverList.length > 0) {
-              log.debug(`Found ${serverList.length} servers from manifest event ${manifestId}`);
-              console.log(
-                colors.gray(
-                  `  → Found ${serverList.length} servers in manifest (id: ${
-                    manifestId.slice(0, 16)
-                  }...)`,
-                ),
-              );
-            } else {
-              console.log(
-                colors.gray(
-                  `  → Found manifest (id: ${manifestId.slice(0, 16)}...) but no servers listed`,
-                ),
-              );
-            }
-          }
+        // List of servers from the manifest event
+        let manifestServers: string[] = [];
+        if (manifestEvent) {
+          const manifestId = manifestEvent.id || "unknown";
+          manifestServers = getManifestServers(manifestEvent).map((url) => url.toString());
 
-          // Fall back to kind 10063 server list event if no servers found in manifests
-          if (serverList.length === 0) {
+          if (manifestServers.length > 0) {
             log.debug(
-              `No servers in manifest, getting server list (Kind ${BLOSSOM_SERVER_LIST_KIND}) for ${pubkeyHex}`,
+              `Found ${manifestServers.length} servers from manifest event ${manifestId}...`,
             );
-            serverList = await getUserServers(pubkeyHex);
-
-            if (serverList.length > 0) {
-              log.debug(`Found ${serverList.length} servers from server list event (kind 10063)`);
-              console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
-            } else {
-              log.debug("No server list event found");
-              console.log(colors.gray(`  → No server list found`));
-            }
-          }
-
-          profileData = {
-            profile,
-            serverList,
-            userRelays: outboxes ?? [],
-            timestamp: Date.now(),
-          };
-          this.profileCache.set(npub, profileData);
-
-          if (profile) {
-            try {
-              const profileContent = JSON.parse(profile.content || "{}");
-              console.log(
-                colors.gray(
-                  `  → Profile: ${profileContent.name || profileContent.display_name || "Unknown"}`,
-                ),
-              );
-            } catch {
-              console.log(colors.gray(`  → Profile data found but could not parse`));
-            }
-          } else {
-            console.log(colors.gray(`  → No profile found (user may not have set one)`));
-          }
-
-          if (outboxes) {
             console.log(
               colors.gray(
-                `  → Found relay list with ${outboxes.length} relays`,
+                `  → Found ${manifestServers.length} servers in manifest (id: ${
+                  manifestId.slice(0, 16)
+                }...)`,
+              ),
+            );
+          } else {
+            console.log(
+              colors.gray(
+                `  → Found manifest (id: ${manifestId.slice(0, 16)}...) but no servers listed`,
               ),
             );
           }
-        } catch (error) {
-          console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
-          profileData = {
-            profile: null,
-            serverList: [],
-            userRelays: [],
-            timestamp: Date.now(),
-          };
-          this.profileCache.set(npub, profileData);
         }
+
+        // Fall back to kind 10063 server list event if no servers found in manifests
+        if (manifestServers.length === 0) {
+          log.debug(
+            `No servers in manifest, getting server list (Kind ${BLOSSOM_SERVER_LIST_KIND}) for ${displayName}`,
+          );
+          serverList = await getUserBlossomServers(sitePointer.pubkey, 5000) ?? [];
+
+          if (serverList.length > 0) {
+            log.debug(
+              `Found ${serverList.length} servers from server list event (kind ${BLOSSOM_SERVER_LIST_KIND})`,
+            );
+            console.log(colors.gray(`  → Found server list with ${serverList.length} servers`));
+          } else {
+            log.debug("No server list event found");
+            console.log(colors.gray(`  → No server list found`));
+          }
+        }
+
+        if (outboxes) {
+          console.log(
+            colors.gray(
+              `  → Found relay list with ${outboxes.length} relays`,
+            ),
+          );
+        }
+      } catch (error) {
+        console.log(colors.yellow(`  → Could not fetch profile data: ${error}`));
       }
 
       // Determine which relays to use for file events - prefer user's relays from kind 10002
       // Merge user relays (kind 10002) with configured relays to improve coverage
-      const fileEventRelays = Array.from(
-        new Set([
-          ...(profileData?.userRelays || []),
-          ...this.options.fileRelays,
-        ]),
-      );
+      const fileEventRelays = relaySet(outboxes, this.options.fileRelays);
 
       // Get or fetch file list
-      let fileListEntry = this.fileListCache.get(siteCacheKey);
+      let fileListEntry = this.fileListCache.get(siteAddress);
 
       // If we have no in-memory cache, try to load from disk first
       if (!fileListEntry && this.options.cacheDir) {
         console.log(
           colors.gray(
-            `  → Checking disk cache for ${npub}${identifier ? ` (${identifier})` : ""}...`,
+            `  → Checking disk cache for ${sitePointer.kind}:${sitePointer.pubkey}:${sitePointer.identifier}...`,
           ),
         );
         const diskCache = await this.loadFileListFromDiskCache(
           this.options.cacheDir,
-          npub,
-          identifier,
+          sitePointer.pubkey,
+          sitePointer.identifier,
         );
+
         if (diskCache) {
           fileListEntry = {
             files: diskCache.files,
@@ -449,7 +406,7 @@ export class NsiteGatewayServer {
             eventTimestamps: diskCache.eventTimestamps,
             manifestFoundButEmpty: diskCache.manifestFoundButEmpty,
           };
-          this.fileListCache.set(siteCacheKey, fileListEntry);
+          this.fileListCache.set(siteAddress, fileListEntry);
           if (diskCache.manifestFoundButEmpty) {
             console.log(colors.gray(`  → Loaded empty manifest from disk cache`));
           } else {
@@ -482,18 +439,20 @@ export class NsiteGatewayServer {
         }
 
         // Start loading file list
-        this.fileListCache.set(siteCacheKey, { files: [], timestamp: Date.now(), loading: true });
+        this.fileListCache.set(siteAddress, { files: [], timestamp: Date.now(), loading: true });
 
         (async () => {
           try {
             console.log(
               colors.gray(
-                `  → Fetching file list for ${
-                  identifier ? `site "${identifier}"` : "root site"
-                } from ${fileEventRelays.length} relays...`,
+                `  → Fetching file list for ${readableAddress} from ${fileEventRelays.length} relays...`,
               ),
             );
-            let files = await listRemoteFiles(fileEventRelays, pubkeyHex, identifier);
+            let files = await listRemoteFiles(
+              fileEventRelays,
+              sitePointer.pubkey,
+              sitePointer.identifier,
+            );
 
             // Retry with default file relays if allowed and nothing came back (likely relay hiccup)
             if (files.length === 0 && this.options.allowFallbackRelays) {
@@ -505,7 +464,11 @@ export class NsiteGatewayServer {
                   `  → No files returned, retrying with fallback relays (${fallbackRelays.length})...`,
                 ),
               );
-              files = await listRemoteFiles(fallbackRelays, pubkeyHex, identifier);
+              files = await listRemoteFiles(
+                fallbackRelays,
+                sitePointer.pubkey,
+                sitePointer.identifier,
+              );
             }
 
             // Track manifest event timestamps for cache invalidation
@@ -521,7 +484,7 @@ export class NsiteGatewayServer {
               // Extract the manifest event from the first file (all files share the same event)
               const manifestEvent = files[0]?.event;
 
-              this.fileListCache.set(siteCacheKey, {
+              this.fileListCache.set(siteAddress, {
                 files,
                 timestamp: Date.now(),
                 loading: false,
@@ -539,8 +502,8 @@ export class NsiteGatewayServer {
                 );
                 await this.saveFileListManifest(
                   this.options.cacheDir,
-                  npub,
-                  identifier,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
                   manifestEvent,
                 );
               } else {
@@ -550,13 +513,11 @@ export class NsiteGatewayServer {
               }
             } else {
               // Check if a manifest exists but has no files
-              const allServerListRelays = Array.from(
-                new Set([...fileEventRelays, ...this.options.profileRelays]),
-              );
+              const relays = relaySet(fileEventRelays, this.options.profileRelays);
               const manifestEvent = await getSiteManifestEvent(
-                allServerListRelays,
-                pubkeyHex,
-                identifier,
+                relays,
+                sitePointer.pubkey,
+                sitePointer.identifier,
               );
 
               if (manifestEvent) {
@@ -567,7 +528,7 @@ export class NsiteGatewayServer {
                     `  → Manifest found (id: ${manifestId.slice(0, 16)}...) but contains no files`,
                   ),
                 );
-                this.fileListCache.set(siteCacheKey, {
+                this.fileListCache.set(siteAddress, {
                   files: [],
                   timestamp: Date.now(),
                   loading: false,
@@ -577,13 +538,13 @@ export class NsiteGatewayServer {
                 // Save manifest to disk cache for consistency
                 await this.saveFileListManifest(
                   this.options.cacheDir,
-                  npub,
-                  identifier,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
                   manifestEvent,
                 );
               } else {
                 // No manifest found - remove the loading entry
-                this.fileListCache.delete(siteCacheKey);
+                this.fileListCache.delete(siteAddress);
                 console.log(
                   colors.yellow(`  → No files found after retry (removed from cache)`),
                 );
@@ -592,15 +553,18 @@ export class NsiteGatewayServer {
           } catch (error) {
             console.log(colors.red(`  → Failed to fetch file list: ${error}`));
             // Remove the loading entry on error
-            this.fileListCache.delete(siteCacheKey);
+            this.fileListCache.delete(siteAddress);
           }
         })();
 
+        // Load profile on demand
+        const profile = await getUserProfile(sitePointer.pubkey, 5000);
+
         // Return loading page only for first-time load
         const loadingHtml = this.generateLoadingPage(
-          npub,
-          identifier,
-          profileData?.profile ?? null,
+          sitePointer.pubkey,
+          sitePointer.identifier,
+          profile,
         );
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.blue(`  → Loading page served (first visit) - ${elapsed}ms`));
@@ -620,7 +584,7 @@ export class NsiteGatewayServer {
         (fileListEntry.files.length > 0 || fileListEntry.manifestFoundButEmpty)
       ) {
         // Check if there's already a background update in progress for this site
-        if (!this.backgroundUpdateChecks.has(siteCacheKey)) {
+        if (!this.backgroundUpdateChecks.has(siteAddress)) {
           // Start background update check (non-blocking)
           const updatePromise = (async () => {
             try {
@@ -629,7 +593,11 @@ export class NsiteGatewayServer {
                   `  → Checking for updates in background from ${fileEventRelays.length} relays...`,
                 ),
               );
-              let files = await listRemoteFiles(fileEventRelays, pubkeyHex, identifier);
+              let files = await listRemoteFiles(
+                fileEventRelays,
+                sitePointer.pubkey,
+                sitePointer.identifier,
+              );
 
               // Retry with default file relays if allowed and nothing came back (relay hiccup)
               if (files.length === 0 && this.options.allowFallbackRelays) {
@@ -641,7 +609,11 @@ export class NsiteGatewayServer {
                     `  → No files returned, retrying update check with fallback relays...`,
                   ),
                 );
-                files = await listRemoteFiles(fallbackRelays, pubkeyHex, identifier);
+                files = await listRemoteFiles(
+                  fallbackRelays,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
+                );
               }
 
               // Track manifest event timestamps for cache invalidation
@@ -699,13 +671,11 @@ export class NsiteGatewayServer {
               // Handle the case where files.length === 0
               if (files.length === 0) {
                 // Check if a manifest exists but has no files
-                const allServerListRelays = Array.from(
-                  new Set([...fileEventRelays, ...this.options.profileRelays]),
-                );
+                const relays = relaySet(fileEventRelays, this.options.profileRelays);
                 const manifestEvent = await getSiteManifestEvent(
-                  allServerListRelays,
-                  pubkeyHex,
-                  identifier,
+                  relays,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
                 );
 
                 if (manifestEvent) {
@@ -715,7 +685,7 @@ export class NsiteGatewayServer {
                     console.log(colors.yellow(`  → Manifest found but still contains no files`));
                   }
                   // Update cache to reflect current state
-                  this.fileListCache.set(siteCacheKey, {
+                  this.fileListCache.set(siteAddress, {
                     files: [],
                     timestamp: Date.now(),
                     loading: false,
@@ -724,8 +694,8 @@ export class NsiteGatewayServer {
                   });
                   await this.saveFileListManifest(
                     this.options.cacheDir,
-                    npub,
-                    identifier,
+                    sitePointer.pubkey,
+                    sitePointer.identifier,
                     manifestEvent,
                   );
                 } else {
@@ -734,7 +704,7 @@ export class NsiteGatewayServer {
                     hasUpdates = true;
                     console.log(colors.yellow(`  → Manifest no longer exists`));
                     // Remove the cache entry
-                    this.fileListCache.delete(siteCacheKey);
+                    this.fileListCache.delete(siteAddress);
                   } else {
                     console.log(
                       colors.gray(
@@ -752,7 +722,7 @@ export class NsiteGatewayServer {
                 // Extract the manifest event from the first file (all files share the same event)
                 const manifestEvent = files[0]?.event;
 
-                this.fileListCache.set(siteCacheKey, {
+                this.fileListCache.set(siteAddress, {
                   files,
                   timestamp: Date.now(),
                   loading: false,
@@ -771,8 +741,8 @@ export class NsiteGatewayServer {
                   );
                   await this.saveFileListManifest(
                     this.options.cacheDir,
-                    npub,
-                    identifier,
+                    sitePointer.pubkey,
+                    sitePointer.identifier,
                     manifestEvent,
                   );
                 } else {
@@ -786,7 +756,7 @@ export class NsiteGatewayServer {
                     colors.yellow(`  → Current path affected by updates, client should refresh`),
                   );
                   // Mark this path as updated
-                  this.pathUpdateTimestamps.set(`${siteCacheKey}:${requestedPath}`, Date.now());
+                  this.pathUpdateTimestamps.set(`${siteAddress}:${requestedPath}`, Date.now());
                 }
               } else {
                 console.log(colors.gray(`  → No updates found (${files.length} files)`));
@@ -795,12 +765,12 @@ export class NsiteGatewayServer {
               console.log(colors.red(`  → Background update check failed: ${error}`));
             } finally {
               // Remove from ongoing checks
-              this.backgroundUpdateChecks.delete(siteCacheKey);
+              this.backgroundUpdateChecks.delete(siteAddress);
             }
           })();
 
           // Track this background check
-          this.backgroundUpdateChecks.set(siteCacheKey, updatePromise);
+          this.backgroundUpdateChecks.set(siteAddress, updatePromise);
         }
       }
 
@@ -816,12 +786,15 @@ export class NsiteGatewayServer {
         });
       }
 
+      // Load profile on demand
+      const profile = await getUserProfile(sitePointer.pubkey, 5000);
+
       // If still loading, show loading page
       if (fileListEntry.loading) {
         const loadingHtml = this.generateLoadingPage(
-          npub,
-          identifier,
-          profileData?.profile ?? null,
+          sitePointer.pubkey,
+          sitePointer.identifier,
+          profile,
         );
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.blue(`  → Loading page served (still loading) - ${elapsed}ms`));
@@ -840,9 +813,9 @@ export class NsiteGatewayServer {
         if (fileListEntry.manifestFoundButEmpty) {
           console.log(colors.yellow(`  → Manifest found but no files - ${elapsed}ms`));
           const noContentHtml = this.generateNoContentPage(
-            npub,
-            identifier,
-            profileData?.profile ?? null,
+            sitePointer.pubkey,
+            sitePointer.identifier,
+            profile,
           );
           return new Response(noContentHtml, {
             status: 200,
@@ -852,7 +825,9 @@ export class NsiteGatewayServer {
           });
         }
         console.log(colors.yellow(`  → No files found - ${elapsed}ms`));
-        const siteLabel = identifier ? `named site "${identifier}"` : "root site";
+        const siteLabel = sitePointer.identifier
+          ? `named site "${sitePointer.identifier}"`
+          : "root site";
         return new Response(`No files found for this ${siteLabel}`, {
           status: 404,
           headers: { "Content-Type": "text/plain" },
@@ -930,7 +905,11 @@ export class NsiteGatewayServer {
 
         // If still root, show directory listing
         if (targetPath === "/") {
-          const html = this.generateDirectoryListing(npub, identifier, fileListEntry.files);
+          const html = this.generateDirectoryListing(
+            sitePointer.pubkey,
+            sitePointer.identifier,
+            fileListEntry.files,
+          );
           const elapsed = Math.round(performance.now() - startTime);
           console.log(colors.gray(`  → Directory listing served - ${elapsed}ms`));
           return new Response(html, {
@@ -1214,8 +1193,8 @@ export class NsiteGatewayServer {
         const tryFile = fileOption.file;
         const fileSha256 = tryFile.sha256!; // We already checked this is not undefined
         // Use different cache keys for compressed vs decompressed content
-        const rawCacheKey = `${siteCacheKey}-${fileSha256}-raw`;
-        const decompressedCacheKey = `${siteCacheKey}-${fileSha256}-decompressed`;
+        const rawCacheKey = `${siteAddress}-${fileSha256}-raw`;
+        const decompressedCacheKey = `${siteAddress}-${fileSha256}-decompressed`;
         const isStale = this.isCacheStale(fileListEntry, tryFile);
 
         let currentFileData: ByteArray | null = null;
@@ -1235,8 +1214,8 @@ export class NsiteGatewayServer {
           if (!currentFileData && this.options.cacheDir) {
             currentFileData = await this.loadCachedFile(
               this.options.cacheDir,
-              npub,
-              identifier,
+              sitePointer.pubkey,
+              sitePointer.identifier,
               fileSha256 + "-decompressed",
             );
             if (currentFileData) {
@@ -1252,8 +1231,8 @@ export class NsiteGatewayServer {
           if (this.options.cacheDir) {
             currentFileData = await this.loadCachedFile(
               this.options.cacheDir,
-              npub,
-              identifier,
+              sitePointer.pubkey,
+              sitePointer.identifier,
               fileSha256,
             );
             if (currentFileData) {
@@ -1283,9 +1262,7 @@ export class NsiteGatewayServer {
           );
 
           // Use servers from profile data if available, otherwise fall back to configured servers
-          const userServers = profileData?.serverList && profileData.serverList.length > 0
-            ? profileData.serverList
-            : this.options.servers;
+          const userServers = serverList.length > 0 ? serverList : this.options.servers;
 
           log.debug(
             `Using ${userServers.length} servers for download: ${userServers.join(", ")}`,
@@ -1310,8 +1287,8 @@ export class NsiteGatewayServer {
                 if (this.options.cacheDir) {
                   await this.saveCachedFile(
                     this.options.cacheDir,
-                    npub,
-                    identifier,
+                    sitePointer.pubkey,
+                    sitePointer.identifier,
                     fileSha256,
                     currentFileData,
                   );
@@ -1366,8 +1343,8 @@ export class NsiteGatewayServer {
               if (this.options.cacheDir) {
                 await this.saveCachedFile(
                   this.options.cacheDir,
-                  npub,
-                  identifier,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
                   fileSha256 + "-decompressed",
                   decompressed,
                 );
@@ -1409,8 +1386,8 @@ export class NsiteGatewayServer {
               if (this.options.cacheDir) {
                 await this.saveCachedFile(
                   this.options.cacheDir,
-                  npub,
-                  identifier,
+                  sitePointer.pubkey,
+                  sitePointer.identifier,
                   fileSha256 + "-decompressed",
                   fileData,
                 );
@@ -1447,9 +1424,7 @@ export class NsiteGatewayServer {
 
       if (!fileData || !successfulFile) {
         const elapsed = Math.round(performance.now() - startTime);
-        const userServers = profileData?.serverList && profileData.serverList.length > 0
-          ? profileData.serverList
-          : this.options.servers;
+        const userServers = serverList.length > 0 ? serverList : this.options.servers;
         console.log(colors.red(`  → Failed to download any version of the file - ${elapsed}ms`));
         log.debug(`No servers had the requested file. Servers tried: ${userServers.join(", ")}`);
         return new Response(
@@ -1559,7 +1534,7 @@ export class NsiteGatewayServer {
 <script>
 (function() {
   const currentPath = '${requestedPath}';
-  const npub = '${npub}';
+  const npub = '${npubEncode(sitePointer.pubkey)}';
   const startTime = Date.now();
 
   function checkForUpdates() {
@@ -1614,18 +1589,20 @@ export class NsiteGatewayServer {
    * Generate loading page
    */
   private generateLoadingPage(
-    npub: string,
+    pubkey: string,
     identifier: string | undefined,
-    profile: NostrEvent | null,
+    profileContent: ProfileContent | null,
   ): string {
-    const profileContent = profile ? JSON.parse(profile.content || "{}") : {};
-    const name = profileContent.name || profileContent.display_name || npub.slice(0, 12) + "...";
+    const displayName = profileContent
+      ? getDisplayName(profileContent)
+      : truncateHash(npubEncode(pubkey));
+    const picture = profileContent ? getProfilePicture(profileContent) : undefined;
     const siteName = identifier ? `"${identifier}"` : "root site";
 
     return `<!DOCTYPE html>
 <html>
 <head>
-  <title>Loading ${name}'s nsite...</title>
+  <title>Loading ${displayName}'s nsite...</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1690,12 +1667,12 @@ export class NsiteGatewayServer {
 <body>
   <div class="container">
     ${
-      profileContent.picture
-        ? `<div class="profile-pic"><img src="${profileContent.picture}" alt="${name}" onerror="this.style.display='none'"></div>`
+      picture
+        ? `<div class="profile-pic"><img src="${picture}" alt="${displayName}" onerror="this.style.display='none'"></div>`
         : ""
     }
-    <h1>Loading ${name}'s ${siteName}</h1>
-    <div class="npub">${npub}${identifier ? ` (${identifier})` : ""}</div>
+    <h1>Loading ${displayName}'s ${siteName}</h1>
+    <div class="npub">${pubkey}${identifier ? ` (${identifier})` : ""}</div>
     <div class="loader"></div>
     <div class="status">
       Connecting to nostr relays...<br>
@@ -1710,18 +1687,18 @@ export class NsiteGatewayServer {
    * Generate "no content" page for sites with manifest but no files
    */
   private generateNoContentPage(
-    npub: string,
+    pubkey: string,
     identifier: string | undefined,
-    profile: NostrEvent | null,
+    profile: ProfileContent | null,
   ): string {
-    const profileContent = profile ? JSON.parse(profile.content || "{}") : {};
-    const name = profileContent.name || profileContent.display_name || npub.slice(0, 12) + "...";
+    const displayName = profile ? getDisplayName(profile) : truncateHash(npubEncode(pubkey));
+    const picture = profile ? getProfilePicture(profile) : undefined;
     const siteName = identifier ? `"${identifier}"` : "root site";
 
     return `<!DOCTYPE html>
 <html>
 <head>
-  <title>${name}'s nsite - No Content</title>
+  <title>${displayName}'s nsite - No Content</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1780,13 +1757,13 @@ export class NsiteGatewayServer {
 <body>
   <div class="container">
     ${
-      profileContent.picture
-        ? `<div class="profile-pic"><img src="${profileContent.picture}" alt="${name}" onerror="this.style.display='none'"></div>`
+      picture
+        ? `<div class="profile-pic"><img src="${picture}" alt="${name}" onerror="this.style.display='none'"></div>`
         : ""
     }
     <div class="icon">📭</div>
     <h1>${name}'s ${siteName}</h1>
-    <div class="npub">${npub}${identifier ? ` (${identifier})` : ""}</div>
+    <div class="npub">${pubkey}${identifier ? ` (${identifier})` : ""}</div>
     <div class="message">
       This nsite exists but currently has no content.<br>
       Files may be added in the future.
@@ -1946,8 +1923,8 @@ export class NsiteGatewayServer {
    */
   private async loadFileListFromDiskCache(
     cacheDir: string | null,
-    npub: string,
-    identifier: string | undefined,
+    pubkey: string,
+    identifier: string,
   ): Promise<
     | { files: FileEntry[]; eventTimestamps: Map<string, number>; manifestFoundButEmpty?: boolean }
     | null
@@ -1956,7 +1933,7 @@ export class NsiteGatewayServer {
 
     try {
       const siteDir = identifier || "root";
-      const manifestPath = join(cacheDir, npub, siteDir, "manifest.json");
+      const manifestPath = join(cacheDir, pubkey, siteDir, "manifest.json");
       const manifestData = await Deno.readTextFile(manifestPath);
       const parsed = JSON.parse(manifestData);
 

@@ -17,6 +17,7 @@ import {
   kinds,
   type NostrEvent,
   npubEncode,
+  type ProfileContent,
   type ProfilePointer,
   relaySet,
   unixNow,
@@ -51,6 +52,8 @@ export async function cacheRequest(filters: Filter[]): Promise<NostrEvent[]> {
     hasLocalRelay = !!(await firstValueFrom(
       pool.relay(LOCAL_RELAY_URL).information$.pipe(timeout(500), catchError(() => of(null))),
     ));
+
+    if (hasLocalRelay) log.info(`Found local relay at ${LOCAL_RELAY_URL}`);
   }
 
   if (hasLocalRelay === false) return [];
@@ -133,23 +136,13 @@ export async function getUserServers(
 }
 
 /** Fetch profile event (kind 0) from nostr relays */
-export async function getUserProfile(
-  relays: string[],
+export function getUserProfile(
   pubkey: string,
   timeout = 5000,
-): Promise<NostrEvent | null> {
+): Promise<ProfileContent | null> {
   const user = castUser(pubkey, store);
 
-  // Load the users outboxes first
-  const outboxes = await user.outboxes$.$first(timeout, undefined);
-
-  // Now load the users profile from the outboxes
-  const event = await firstValueFrom(
-    eventLoader({ kind: 0, pubkey, relays: relaySet(relays, outboxes) }),
-    { defaultValue: null },
-  );
-
-  return event;
+  return user.profile$.$first(timeout, null);
 }
 
 /** Fetch relay list event (kind 10002) from nostr relays */
@@ -383,9 +376,9 @@ export async function fetchServerListEvents(
 export async function listRemoteFiles(
   relays: string[],
   pubkey: string,
-  siteIdentifier?: string,
+  identifier?: string,
 ): Promise<FileEntry[]> {
-  const manifestEvent = await fetchSiteManifestEvent(relays, pubkey, siteIdentifier);
+  const manifestEvent = await fetchSiteManifestEvent(relays, pubkey, identifier);
   const now = unixNow();
 
   if (!manifestEvent) {
