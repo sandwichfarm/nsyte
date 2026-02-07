@@ -1,17 +1,17 @@
-import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { type NostrEvent, relaySet } from "applesauce-core/helpers";
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { type Filter, type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom } from "rxjs";
-import type { FileEntryWithSources } from "./nostr.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
 import { createLogger } from "./logger.ts";
-import { fetchServerListEvents, getUserOutboxes, pool } from "./nostr.ts";
-import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 import {
   getManifestFiles,
   getManifestTitle,
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "./manifest.ts";
+import type { FileEntryWithSources } from "./nostr.ts";
+import { fetchServerListEvents, getUserOutboxes, pool, store } from "./nostr.ts";
+import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 
 const log = createLogger("browse-loader");
 
@@ -57,7 +57,6 @@ export async function fetchAllSites(
 
   renderLoadingScreen("Fetching sites...", `Querying ${mergedRelays.length} relays`);
 
-  const store = new EventStore();
   let events: NostrEvent[] = [];
 
   try {
@@ -151,10 +150,9 @@ export async function listRemoteFilesWithProgress(
   const promises = mergedRelays.map(async (relay) => {
     try {
       log.debug(`Connecting to relay: ${relay}`);
-      const store = new EventStore();
 
       // Build filter based on site selection
-      const filter: any = { authors: [pubkey] };
+      const filter: Filter = { authors: [pubkey] };
 
       if (siteIdentifier === null) {
         // Fetch only root site

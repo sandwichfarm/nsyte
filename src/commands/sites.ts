@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom, timer } from "rxjs";
 import { takeUntil } from "rxjs/operators";
@@ -14,10 +14,10 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../lib/manifest.ts";
-import { getUserOutboxes, pool } from "../lib/nostr.ts";
+import { getUserOutboxes, pool, store } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
-import { formatTimestamp } from "../ui/time-formatter.ts";
 import { truncateHash } from "../ui/browse/renderer.ts";
+import { formatTimestamp } from "../ui/time-formatter.ts";
 
 /**
  * Interface for site information
@@ -96,7 +96,6 @@ export function registerSitesCommand(program: Command) {
 
       // Fetch all site manifest events (both root and named)
       const REQUEST_TIMEOUT_MS = 15000;
-      const tempStore = new EventStore();
 
       let events: NostrEvent[] = [];
       try {
@@ -108,7 +107,7 @@ export function registerSitesCommand(program: Command) {
             })
             .pipe(
               simpleTimeout(REQUEST_TIMEOUT_MS),
-              mapEventsToStore(tempStore),
+              mapEventsToStore(store), // Use global store for caching
               mapEventsToTimeline(),
               takeUntil(timer(REQUEST_TIMEOUT_MS)),
             ),

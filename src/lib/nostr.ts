@@ -368,7 +368,8 @@ export async function fetchServerListEvents(
 ): Promise<NostrEvent[]> {
   log.debug(`Fetching kind ${BLOSSOM_SERVER_LIST_KIND} for ${pubkey}`);
   try {
-    const tempStore = new EventStore();
+    // Use the global store for caching - server list events are replaceable
+    // so the store will automatically keep the latest one
     const events = await lastValueFrom(
       pool
         .request(relays, {
@@ -378,7 +379,7 @@ export async function fetchServerListEvents(
         })
         .pipe(
           simpleTimeout(5000),
-          mapEventsToStore(tempStore),
+          mapEventsToStore(store), // Use global store for caching
           mapEventsToTimeline(),
           takeUntil(timer(5000)),
         ),
