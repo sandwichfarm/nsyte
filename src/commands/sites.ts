@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { Command } from "@cliffy/command";
-import { logger, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom, timer } from "rxjs";
 import { takeUntil } from "rxjs/operators";
