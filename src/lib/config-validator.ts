@@ -39,13 +39,35 @@ export function validateConfig(config: unknown): ValidationResult {
   const validate = ajv.compile(configSchema);
 
   const valid = validate(config);
+  const errors: ValidationError[] = [];
 
   if (!valid && validate.errors) {
-    const errors: ValidationError[] = validate.errors.map((err: any) => ({
+    errors.push(...validate.errors.map((err) => ({
       path: err.instancePath || "/",
       message: err.message || "Unknown validation error",
-    }));
+    })));
+  }
 
+  // Custom validation: root sites with app handlers must have appHandler.id
+  if (config && typeof config === "object") {
+    const cfg = config as {
+      id?: string | null;
+      publishAppHandler?: boolean;
+      appHandler?: { id?: string };
+    };
+    const isRootSite = cfg.id === null || cfg.id === "" || cfg.id === undefined;
+    const hasAppHandler = cfg.appHandler && cfg.publishAppHandler === true;
+
+    if (isRootSite && hasAppHandler && !cfg.appHandler?.id) {
+      errors.push({
+        path: "/appHandler/id",
+        message:
+          "is required for root sites (sites without an 'id' field). Root sites must specify 'appHandler.id' to publish app handlers.",
+      });
+    }
+  }
+
+  if (errors.length > 0) {
     return { valid: false, errors };
   }
 
@@ -64,7 +86,7 @@ export function formatValidationErrors(errors: ValidationError[]): string {
 /**
  * Check if config has deprecated fields and return warnings
  */
-export function checkDeprecatedFields(config: any): string[] {
+export function checkDeprecatedFields(_config: unknown): string[] {
   const warnings: string[] = [];
 
   // Add deprecation checks here as needed in the future

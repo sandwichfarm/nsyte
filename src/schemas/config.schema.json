@@ -5,6 +5,11 @@
   "description": "Schema for nsyte project configuration files (.nsite/config.json)",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for this configuration file",
+      "format": "uri"
+    },
     "bunkerPubkey": {
       "type": "string",
       "description": "Public key reference for NIP-46 bunker connection",
@@ -77,6 +82,11 @@
       "type": "object",
       "description": "NIP-89 app handler configuration",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional unique identifier for this handler (defaults to site id). Used as the 'd' tag in kind 31990 events.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
         "kinds": {
           "type": "array",
           "description": "Event kinds this nsite can handle/display",
@@ -93,7 +103,12 @@
         },
         "description": {
           "type": "string",
-          "description": "Optional description of what the handler does"
+          "description": "Optional description of what the app handler does"
+        },
+        "icon": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional app icon URL (will be included as 'picture' in the app handlers metadata)"
         },
         "platforms": {
           "type": "object",
@@ -176,7 +191,8 @@
       "appHandler": {
         "kinds": [1, 30023],
         "name": "My Nostr Viewer",
-        "description": "A viewer for notes and articles"
+        "description": "A viewer for notes and articles",
+        "icon": "https://example.com/logo.png"
       }
     }
   ]

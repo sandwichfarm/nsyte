@@ -22,9 +22,11 @@ export type ProjectConfig = {
   title?: string; // Optional site title for manifest
   description?: string; // Optional site description for manifest
   appHandler?: {
+    id?: string; // Optional unique identifier for this handler (defaults to site id)
     kinds: number[]; // Event kinds this nsite can handle/display
     name?: string; // Optional app name for the handler
     description?: string; // Optional description
+    icon?: string; // Optional app icon URL
     platforms?: {
       web?: {
         patterns?: Array<{

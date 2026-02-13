@@ -602,14 +602,14 @@ export async function createAppHandlerEvent(
     windows?: string;
     linux?: string;
   },
-  metadata?: {
-    name?: string;
-    description?: string;
-    picture?: string;
-  },
+  metadata?: Partial<ProfileContent>,
+  handlerId?: string,
 ): Promise<NostrEvent> {
+  // Use provided handlerId or default to "default"
+  const normalizedId = handlerId || "default";
+
   const tags: string[][] = [
-    ["d", crypto.randomUUID()], // Random identifier for this handler
+    ["d", normalizedId], // Stable identifier for this handler
     ["client", "nsyte"],
   ];
 
@@ -650,10 +650,19 @@ export async function createAppHandlerEvent(
   if (handlers.windows) tags.push(["windows", handlers.windows]);
   if (handlers.linux) tags.push(["linux", handlers.linux]);
 
-  // Optional metadata content
+  // NIP-01 style metadata content (ProfileContent)
   let content = "";
   if (metadata && Object.keys(metadata).length > 0) {
-    content = JSON.stringify(metadata);
+    const profile: Partial<ProfileContent> = {};
+
+    // Build ProfileContent object
+    if (metadata.name) profile.name = metadata.name;
+    if (metadata.about) profile.about = metadata.about;
+    if (metadata.picture) profile.picture = metadata.picture;
+
+    if (Object.keys(profile).length > 0) {
+      content = JSON.stringify(profile);
+    }
   }
 
   const eventTemplate: NostrEventTemplate = {

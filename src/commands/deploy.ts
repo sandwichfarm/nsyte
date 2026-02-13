@@ -20,9 +20,9 @@ import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
+import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
-  createAppHandlerEvent,
   createSiteManifestEvent,
   fetchUserRelayList,
   type FileEntry,
@@ -1611,83 +1611,16 @@ async function maybePublishMetadata(
     log.debug(`Failed to fetch relay list: ${getErrorMessage(e)}`);
   }
 
-  try {
-    if (shouldPublishAppHandler) {
-      statusDisplay.update("Publishing NIP-89 app handler...");
+  // Combine all relays for publishing
+  const publishToRelays = Array.from(
+    new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
+  );
 
-      try {
-        // Get event kinds from command line or config
-        let kinds: number[] = [];
-        if (options.handlerKinds) {
-          kinds = options.handlerKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
-            !isNaN(k)
-          );
-        } else if (config.appHandler?.kinds) {
-          kinds = config.appHandler.kinds;
-        }
-
-        if (kinds.length === 0) {
-          statusDisplay.error("No event kinds specified for app handler");
-          log.error("App handler requires event kinds to be specified");
-        } else {
-          // Get the gateway URL - use the first configured hostname or default
-          const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-          const npub = npubEncode(publisherPubkey);
-          const gatewayUrl = `https://${npub}.${gatewayHostname}`;
-
-          // Get metadata from config if available
-          const metadata = config.appHandler?.name || config.appHandler?.description
-            ? {
-              name: config.appHandler.name,
-              description: config.appHandler.description,
-            }
-            : undefined;
-
-          // Prepare handlers object
-          const handlers: Record<string, unknown> = {
-            web: {
-              url: gatewayUrl,
-              patterns: config.appHandler?.platforms?.web?.patterns,
-            },
-          };
-
-          // Add other platform handlers if configured
-          if (config.appHandler?.platforms) {
-            const { android, ios, macos, windows, linux } = config.appHandler.platforms;
-            if (android) handlers.android = android;
-            if (ios) handlers.ios = ios;
-            if (macos) handlers.macos = macos;
-            if (windows) handlers.windows = windows;
-            if (linux) handlers.linux = linux;
-          }
-
-          const handlerEvent = await createAppHandlerEvent(
-            signer,
-            kinds,
-            handlers,
-            metadata,
-          );
-          log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
-          const appHandlerPublishRelays = Array.from(
-            new Set([...resolvedRelays, ...usermeta_relays, ...discoveredRelayList]),
-          );
-          await publishEventsToRelays(appHandlerPublishRelays, [handlerEvent]);
-          statusDisplay.success(
-            `App handler published for kinds: ${
-              kinds.join(", ")
-            } to ${appHandlerPublishRelays.length} relays`,
-          );
-        }
-      } catch (e: unknown) {
-        statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);
-        log.error(`App handler publication error: ${getErrorMessage(e)}`);
-      }
-    }
-  } catch (e: unknown) {
-    const errMsg = `Error during metadata publishing: ${getErrorMessage(e)}`;
-    statusDisplay.error(errMsg);
-    log.error(errMsg);
-  }
+  // Use the centralized metadata publisher
+  await publishMetadata(config, signer, publishToRelays, statusDisplay, {
+    publishAppHandler: shouldPublishAppHandler,
+    handlerKinds: options.handlerKinds,
+  });
 
   if (messageCollector.hasMessageCategory(MessageCategory.RELAY)) {
     log.info(formatSectionHeader("Relay Messages"));
@@ -1707,8 +1640,13 @@ async function maybePublishMetadata(
       }
     }
 
-    console.log(formatServerResults(relayResults));
+    for (const [relay, result] of Object.entries(relayResults)) {
+      const status = result.success === result.total
+        ? colors.green("✓")
+        : result.success === 0
+        ? colors.red("✗")
+        : colors.yellow("⚠");
+      log.info(`  ${status} ${relay}: ${result.success}/${result.total} events`);
+    }
   }
-
-  log.debug("Metadata publishing completed");
 }

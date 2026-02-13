@@ -53,6 +53,28 @@ export async function publishAppHandler(
       return;
     }
 
+    // Determine handler ID: prefer appHandler.id, fallback to site id
+    // For root sites (id is null/empty), appHandler.id is REQUIRED
+    const isRootSite = config.id === null || config.id === "" || config.id === undefined;
+    let handlerId: string;
+
+    if (config.appHandler?.id) {
+      // Explicitly configured handler ID takes priority
+      handlerId = config.appHandler.id;
+    } else if (!isRootSite && config.id) {
+      // Named site: use the site id (type guard ensures it's a string)
+      handlerId = config.id;
+    } else {
+      // Root site without appHandler.id: ERROR
+      statusDisplay.error(
+        "App handler requires 'id' field when site is a root site (no site id configured)",
+      );
+      log.error(
+        "Root sites must specify 'appHandler.id' in config to publish app handlers",
+      );
+      return;
+    }
+
     // Get the gateway URL
     const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
 
@@ -73,10 +95,14 @@ export async function publishAppHandler(
     const gatewayUrl = `https://${npub}.${gatewayHostname}`;
 
     // Get metadata from config if available
-    const metadata = config.appHandler?.name || config.appHandler?.description
+    // Map config fields to NIP-01 ProfileContent format
+    const metadata = config.appHandler?.name ||
+        config.appHandler?.description ||
+        config.appHandler?.icon
       ? {
         name: config.appHandler.name,
-        description: config.appHandler.description,
+        about: config.appHandler.description, // NIP-01 uses 'about', not 'description'
+        picture: config.appHandler.icon, // Map icon to picture for NIP-01 format
       }
       : undefined;
 
@@ -103,6 +129,7 @@ export async function publishAppHandler(
       kinds,
       handlers,
       metadata,
+      handlerId,
     );
 
     log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
