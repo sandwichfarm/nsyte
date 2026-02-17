@@ -685,7 +685,7 @@ export async function createProfileEvent(
 ): Promise<NostrEvent> {
   // Build the profile content object
   const profileContent: Partial<ProfileContent> = {};
-  
+
   if (profile.name) profileContent.name = profile.name;
   if (profile.display_name) profileContent.display_name = profile.display_name;
   if (profile.about) profileContent.about = profile.about;

@@ -1,5 +1,4 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom, timer } from "rxjs";
@@ -7,6 +6,7 @@ import { takeUntil } from "rxjs/operators";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
+import { log } from "../lib/logger.ts";
 import {
   getManifestDescription,
   getManifestFiles,
@@ -17,7 +17,7 @@ import {
 import { getUserDisplayName, getUserOutboxes, pool, store } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { formatTimestamp } from "../ui/time-formatter.ts";
-import { log } from "../lib/logger.ts";
+import nsyte from "./root.ts";
 
 /**
  * Interface for site information
@@ -33,10 +33,22 @@ interface SiteInfo {
 }
 
 /**
+ * Sites command options
+ */
+interface SitesCommandOptions {
+  config?: string;
+  relays?: string;
+  sec?: string;
+  pubkey?: string;
+  useFallbackRelays?: boolean;
+  useFallbacks?: boolean;
+}
+
+/**
  * Register the sites command
  */
-export function registerSitesCommand(program: Command) {
-  return program
+export function registerSitesCommand() {
+  return nsyte
     .command("sites")
     .description(
       "List all root and named sites published by a pubkey, showing titles, descriptions, and update times.",
@@ -55,9 +67,9 @@ export function registerSitesCommand(program: Command) {
       "Include default nsyte relays in addition to configured/user relays.",
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
-    .action(async (options) => {
+    .action(async (options: SitesCommandOptions) => {
       const pubkey = await resolvePubkey(options);
-      const projectConfig = readProjectFile();
+      const projectConfig = readProjectFile(options.config);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       const configuredRelays = options.relays !== undefined
         ? resolveRelays(options, projectConfig, false)

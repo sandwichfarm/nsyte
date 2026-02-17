@@ -71,8 +71,7 @@ export function validateConfig(config: unknown): ValidationResult {
     }
 
     // Custom validation: metadata publishing only allowed for root sites
-    const wantsToPublishMetadata =
-      cfg.publishProfile === true ||
+    const wantsToPublishMetadata = cfg.publishProfile === true ||
       cfg.publishRelayList === true ||
       cfg.publishServerList === true;
 

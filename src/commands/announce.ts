@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
@@ -11,8 +11,8 @@ import { StatusDisplay } from "../ui/status.ts";
 
 const logger = createLogger("announce");
 
-export function registerAnnounceCommand(program: Command): void {
-  program
+export function registerAnnounceCommand(): void {
+  nsyte
     .command("announce")
     .alias("annc")
     .description("Publish app handlers to Nostr")
@@ -27,7 +27,7 @@ export function registerAnnounceCommand(program: Command): void {
 
       try {
         // Read project config
-        const config = readProjectFile();
+        const config = readProjectFile(options.config);
         if (!config) {
           console.error(colors.red("No nsyte project found in this directory."));
           console.error(colors.yellow("Run 'nsyte init' to create a new project."));

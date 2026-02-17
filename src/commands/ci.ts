@@ -12,9 +12,9 @@
  */
 
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { connectBunker } from "./bunker.ts";
+import nsyte from "./root.ts";
 
 const log = createLogger("ci");
 
@@ -52,8 +52,8 @@ export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
 /**
  * Register the CI command with the CLI
  */
-export function registerCICommand(program: Command): void {
-  program
+export function registerCICommand(): void {
+  nsyte
     .command("ci")
     .description("Create an nbunksec string for CI/CD use (ephemeral, never stored to disk)")
     .arguments("[url:string]")

@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { decodePointer, type Filter, type NostrEvent, npubEncode } from "applesauce-core/helpers";
@@ -185,8 +185,8 @@ interface CollectedEvents {
   indexHtmlNsite?: NostrEvent;
 }
 
-export function registerDebugCommand(program: Command): void {
-  program
+export function registerDebugCommand(): void {
+  nsyte
     .command("debug")
     .description("Debug an nsite by checking relays, blossom servers, and event kinds")
     .arguments("[npub:string]")
@@ -197,14 +197,14 @@ export function registerDebugCommand(program: Command): void {
       "Pretty print events (kind 0, 10002, server list, and index.html nsite event)",
       { default: false },
     )
-    .action(async (options, npub?: string) => {
+    .action(async (options: any, npub?: string) => {
       try {
         logger.info("Starting nsite debug...");
 
         // Load config if available
         let config: ProjectConfig | null = null;
         try {
-          config = readProjectFile(false);
+          config = readProjectFile(options.config, false);
         } catch (_e) {
           logger.debug("No config file found, continuing without it");
         }

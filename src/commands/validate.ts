@@ -1,28 +1,20 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { formatValidationErrors, validateConfigWithFeedback } from "../lib/config-validator.ts";
-import { createLogger } from "../lib/logger.ts";
-
-const log = createLogger("validate");
-
-export interface ValidateCommandOptions {
-  file?: string;
-  schema?: boolean;
-}
+import nsyte from "./root.ts";
 
 /**
  * Validate command - checks configuration file against schema
  */
-export const validateCommand = (program: Command) => {
-  program
+export function registerValidateCommand() {
+  return nsyte
     .command("validate")
     .alias("val")
     .description("Validate nsyte configuration file")
     .option("-f, --file <path>", "Path to config file (default: .nsite/config.json)")
     .option("-s, --schema", "Show the JSON schema location", { default: false })
-    .action(async (options: ValidateCommandOptions) => {
+    .action(async (options) => {
       if (options.schema) {
         console.log(colors.cyan("JSON Schema Location:"));
         console.log("  Local: src/schemas/config.schema.json");
@@ -111,4 +103,4 @@ export const validateCommand = (program: Command) => {
         Deno.exit(1);
       }
     });
-};
+}

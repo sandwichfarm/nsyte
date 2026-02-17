@@ -1,21 +1,21 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt";
 import { join } from "@std/path";
 import { configDir, setupProject } from "../lib/config.ts";
 import { displayColorfulHeader } from "../ui/output-helpers.ts";
+import nsyte from "./root.ts";
 
 /**
  * Register the init command
  */
-export function registerInitCommand(program: Command): void {
-  program
+export function registerInitCommand() {
+  return nsyte
     .command("init")
     .description("Initialize a new nsyte project")
-    .action(async () => {
+    .action(async (options) => {
       console.log(displayColorfulHeader());
       try {
-        const { config, privateKey } = await setupProject();
+        const { config, privateKey } = await setupProject(false, options.config);
 
         if (privateKey || config.bunkerPubkey) {
           const keyType = privateKey ? "private key" : "bunker connection";
@@ -83,7 +83,7 @@ export function registerInitCommand(program: Command): void {
 
             // Try setup again
             try {
-              const { config, privateKey } = await setupProject();
+              const { config, privateKey } = await setupProject(false, options.config);
 
               if (privateKey || config.bunkerPubkey) {
                 const keyType = privateKey ? "private key" : "bunker connection";

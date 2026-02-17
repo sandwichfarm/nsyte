@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
+import nsyte from "./root.ts";
 import { join } from "@std/path";
 import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
@@ -59,6 +59,7 @@ const log = createLogger("deploy");
  * Deploy command options
  */
 export interface DeployCommandOptions {
+  config?: string;
   force: boolean;
   verbose: boolean;
   purge: boolean;
@@ -105,8 +106,8 @@ export interface FilePreparationResult {
 /**
  * Register the deploy command
  */
-export function registerDeployCommand(program: Command): void {
-  program
+export function registerDeployCommand(): void {
+  nsyte
     .command("deploy")
     .alias("upload")
     .alias("dpl")
@@ -152,9 +153,13 @@ export function registerDeployCommand(program: Command): void {
     .option("--publish-relay-list", "Publish relay list (Kind 10002) - root sites only.", {
       default: false,
     })
-    .option("--publish-server-list", "Publish Blossom server list (Kind 10063) - root sites only.", {
-      default: false,
-    })
+    .option(
+      "--publish-server-list",
+      "Publish Blossom server list (Kind 10063) - root sites only.",
+      {
+        default: false,
+      },
+    )
     .option(
       "--fallback <file:string>",
       "An HTML file to reference as 404.html (creates path mapping with same hash)",
@@ -228,7 +233,7 @@ export async function deployCommand(
       return Deno.exit(1);
     }
 
-    const signerResult = await initSigner(authKeyHex, config, options);
+    const signerResult = await initSigner(authKeyHex, config, options, options.config);
 
     if ("error" in signerResult) {
       statusDisplay.error(`Signer: ${signerResult.error}`);
@@ -363,7 +368,7 @@ async function resolveContext(
     let existingProjectData: ProjectConfig | null = null;
 
     try {
-      existingProjectData = readProjectFile();
+      existingProjectData = readProjectFile(options.config);
     } catch {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
@@ -435,7 +440,7 @@ async function resolveContext(
     let keyFromInteractiveSetup: string | undefined;
 
     try {
-      currentProjectData = readProjectFile();
+      currentProjectData = readProjectFile(options.config);
     } catch {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
@@ -451,7 +456,7 @@ async function resolveContext(
 
     if (!currentProjectData) {
       log.info("No .nsite/config.json found, running initial project setup.");
-      const setupResult = await setupProject(false);
+      const setupResult = await setupProject(false, options.config);
       if (!setupResult.config) {
         return {
           config: defaultConfig,
@@ -467,7 +472,7 @@ async function resolveContext(
         log.info(
           "Project is configured but no signing method found (CLI key, CLI bunker, or configured bunker). Running key setup...",
         );
-        const keySetupResult = await setupProject(false);
+        const keySetupResult = await setupProject(false, options.config);
         if (!keySetupResult.config) {
           return {
             config,
@@ -508,6 +513,7 @@ async function initSigner(
   authKeyHex: string | null | undefined,
   config: ProjectConfig,
   options: DeployCommandOptions,
+  configPath?: string,
 ): Promise<ISigner | { error: string }> {
   // Use the unified signer factory for CLI-provided secrets or interactively-provided secrets
   // Priority: CLI option > interactive input > config bunker
@@ -581,7 +587,7 @@ async function initSigner(
 
         try {
           // Reconnect to the bunker
-          const bunkerSigner = await reconnectToBunker(config);
+          const bunkerSigner = await reconnectToBunker(config, configPath);
           if (bunkerSigner) {
             return bunkerSigner;
           } else {
@@ -609,7 +615,10 @@ async function initSigner(
 /**
  * Reconnect to an existing bunker that has lost its stored secret
  */
-async function reconnectToBunker(config: ProjectConfig): Promise<ISigner | null> {
+async function reconnectToBunker(
+  config: ProjectConfig,
+  configPath?: string,
+): Promise<ISigner | null> {
   const bunkerPubkey = config.bunkerPubkey;
   if (!bunkerPubkey) {
     return null;
@@ -701,7 +710,7 @@ async function reconnectToBunker(config: ProjectConfig): Promise<ISigner | null>
 
       // Update the configuration with the new bunker pubkey
       config.bunkerPubkey = connectedPubkey;
-      writeProjectFile(config);
+      writeProjectFile(config, configPath);
     }
 
     // Store the bunker info for future use

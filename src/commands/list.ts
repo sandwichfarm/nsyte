@@ -1,5 +1,4 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { mergeBlossomServers } from "applesauce-common/helpers";
 import { relaySet } from "applesauce-core/helpers";
 import { checkBlossomServersForFile } from "../lib/browse-loader.ts";
@@ -12,9 +11,9 @@ import {
   getSiteManifestEvent,
   getUserBlossomServers,
   getUserDisplayName,
-  getUserServers,
 } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import nsyte from "./root.ts";
 
 // Color palette for relays and servers
 export const RELAY_COLORS = [
@@ -59,8 +58,8 @@ function truncateHash(hash: string): string {
 /**
  * Register the ls command
  */
-export function registerListCommand(program: Command) {
-  return program
+export function registerListCommand() {
+  return nsyte
     .command("list")
     .alias("ls")
     .description(
@@ -87,7 +86,7 @@ export function registerListCommand(program: Command) {
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .action(async (options, pathFilter?: string) => {
       const pubkey = await resolvePubkey(options);
-      const projectConfig = readProjectFile();
+      const projectConfig = readProjectFile(options.config);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       const configuredRelays = options.relays !== undefined
         ? resolveRelays(options, projectConfig, false)

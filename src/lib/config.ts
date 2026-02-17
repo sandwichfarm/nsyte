@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
-import { dirname, join } from "@std/path";
+import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
 import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
@@ -94,6 +94,20 @@ export const defaultConfig: ProjectConfig = {
 };
 
 /**
+ * Resolve the configuration file path
+ * @param customPath - Optional custom path to config file (can be relative or absolute)
+ * @returns Absolute path to the config file
+ */
+function resolveConfigPath(customPath?: string): string {
+  if (customPath) {
+    // If custom path is provided, resolve it relative to CWD
+    return isAbsolute(customPath) ? customPath : resolve(Deno.cwd(), customPath);
+  }
+  // Default: .nsite/config.json in CWD
+  return join(Deno.cwd(), configDir, projectFile);
+}
+
+/**
  * Sanitize a bunker URL for storage by removing the secret parameter
  */
 function sanitizeBunkerUrl(url: string): string {
@@ -125,12 +139,17 @@ function sanitizeBunkerUrl(url: string): string {
 
 /**
  * Write project configuration to file
+ * @param config - The project configuration to write
+ * @param configPath - Optional custom path to config file
  */
-export function writeProjectFile(config: ProjectConfig): void {
+export function writeProjectFile(config: ProjectConfig, configPath?: string): void {
   const cwd = Deno.cwd();
 
-  // Prevent writing config in test environments or temp directories
-  if (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/")) {
+  // Prevent writing config in test environments or temp directories (only for default path)
+  if (
+    !configPath &&
+    (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/"))
+  ) {
     // Skip logging in test environments to avoid noise
     if (!cwd.includes("nsyte-test-")) {
       log.warn("Attempting to write config in temporary directory, skipping...");
@@ -138,7 +157,7 @@ export function writeProjectFile(config: ProjectConfig): void {
     return;
   }
 
-  const projectPath = join(cwd, configDir, projectFile);
+  const projectPath = resolveConfigPath(configPath);
 
   try {
     // Validate the file extension to prevent accidental YAML file creation
@@ -184,10 +203,13 @@ export function writeProjectFile(config: ProjectConfig): void {
 
 /**
  * Read project configuration from file
+ * @param configPath - Optional custom path to config file
+ * @param validateSchema - Whether to validate the config against the schema (default: true)
+ * @returns The project configuration or null if not found
  */
-export function readProjectFile(validateSchema = true): ProjectConfig | null {
+export function readProjectFile(configPath?: string, validateSchema = true): ProjectConfig | null {
+  const projectPath = resolveConfigPath(configPath);
   const cwd = Deno.cwd();
-  const projectPath = join(cwd, configDir, projectFile);
 
   // Check for common config file mistakes
   const configDirPath = join(cwd, configDir);
@@ -286,13 +308,17 @@ function fileExists(filePath: string): boolean {
 /**
  * Setup project interactively
  * @param skipInteractive If true, will return a basic configuration without prompting
+ * @param configPath - Optional custom path to config file
  */
-export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
+export async function setupProject(
+  skipInteractive = false,
+  configPath?: string,
+): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let privateKey: string | undefined;
 
   try {
-    config = readProjectFile();
+    config = readProjectFile(configPath);
   } catch (error) {
     // If there's a validation error, don't proceed with setup
     if (
@@ -322,7 +348,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
     const setupResult = await interactiveSetup();
     config = setupResult.config;
     privateKey = setupResult.privateKey;
-    writeProjectFile(config);
+    writeProjectFile(config, configPath);
   }
 
   // In non-interactive mode, don't proceed with key setup prompts
@@ -338,7 +364,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
 
   // Only proceed with interactive key setup if we're in interactive mode
   if (!config.bunkerPubkey && !privateKey) {
-    const keyResult = await selectKeySource(config);
+    const keyResult = await selectKeySource(config, configPath);
     config = keyResult.config;
     privateKey = keyResult.privateKey;
   }
@@ -430,6 +456,7 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
 
 async function selectKeySource(
   existingConfig?: ProjectConfig,
+  configPath?: string,
 ): Promise<{ config: ProjectConfig; privateKey?: string }> {
   console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
@@ -524,7 +551,7 @@ async function selectKeySource(
 
   // Only write config if it actually changed
   if (configChanged || !existingConfig) {
-    writeProjectFile(config);
+    writeProjectFile(config, configPath);
     console.log(colors.green("Key configuration set up successfully!"));
   } else {
     console.log(colors.green("Key configuration completed."));

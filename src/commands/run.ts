@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
 import { type AddressPointer, decodePointer, normalizeToPubkey } from "applesauce-core/helpers";
@@ -64,6 +64,7 @@ function parseSiteIdentifier(input: string): AddressPointer | null {
 }
 
 interface RunOptions extends ResolverOptions {
+  config?: string;
   port?: number;
   cacheDir?: string;
   noCache?: boolean;
@@ -76,8 +77,8 @@ interface RunOptions extends ResolverOptions {
 /**
  * Register the run command
  */
-export function registerRunCommand(program: Command): void {
-  program
+export function registerRunCommand(): void {
+  nsyte
     .command("run")
     .alias("rn")
     .description(
@@ -155,7 +156,7 @@ export function registerRunCommand(program: Command): void {
       const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
       // Default relays that actually host nsite file events (optional fallback)
       const defaultFileRelays = ["wss://relay.nsite.lol", "wss://relay.nosto.re"];
-      const projectConfig = readProjectFile();
+      const projectConfig = readProjectFile(options.config);
       let allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       let allowFallbackServers = options.useFallbacks || options.useFallbackServers || false;
 

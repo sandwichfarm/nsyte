@@ -65,12 +65,15 @@ Here's a basic configuration file with all available options:
 
 - `relays`: Array of WebSocket URLs for nostr relays
 - `servers`: Array of HTTP(S) URLs for blossom servers
-- `publishRelayList`: Whether to publish the relay list as kind 10002 (default: false, **root sites only**)
-- `publishServerList`: Whether to publish the Blossom server list as kind 10063 (default: false, **root sites only**)
+- `publishRelayList`: Whether to publish the relay list as kind 10002 (default: false, **root sites
+  only**)
+- `publishServerList`: Whether to publish the Blossom server list as kind 10063 (default: false,
+  **root sites only**)
 
 ### Profile Metadata
 
-- `publishProfile`: Whether to publish profile metadata as kind 0 (default: false, **root sites only**)
+- `publishProfile`: Whether to publish profile metadata as kind 0 (default: false, **root sites
+  only**)
 - `profile.name`: Your name
 - `profile.display_name`: Your display name
 - `profile.about`: A description about yourself
@@ -110,7 +113,7 @@ conflicts.
 ```json
 {
   "id": "blog",
-  "publishProfile": true  // ❌ ERROR - not allowed for named sites
+  "publishProfile": true // ❌ ERROR - not allowed for named sites
 }
 ```
 

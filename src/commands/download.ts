@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 import { dirname } from "@std/path";
 import { createLogger } from "../lib/logger.ts";
 import { handleError } from "../lib/error-utils.ts";
@@ -29,8 +29,8 @@ export type { DownloadProgress, DownloadResult, DownloadStats } from "../lib/dow
 /**
  * Register the download command
  */
-export function registerDownloadCommand(program: Command): void {
-  program
+export function registerDownloadCommand(): void {
+  nsyte
     .command("download")
     .alias("dl")
     .description("Download files from the nostr network")
@@ -58,11 +58,11 @@ export function registerDownloadCommand(program: Command): void {
       displayManager.configureFromOptions(options);
 
       // Resolve public key
-      const pubkey = await resolvePubkey(options, readProjectFile(), false);
+      const pubkey = await resolvePubkey(options, readProjectFile(options.config), false);
 
       // Resolve relays and servers
-      const relays = resolveRelays(options, readProjectFile(), true);
-      const servers = resolveServers(options, readProjectFile());
+      const relays = resolveRelays(options, readProjectFile(options.config), true);
+      const servers = resolveServers(options, readProjectFile(options.config));
 
       const siteType = options.name ? `named site "${options.name}"` : "root site";
       console.log(

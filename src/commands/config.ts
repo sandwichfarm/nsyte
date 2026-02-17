@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 import { Keypress } from "@cliffy/keypress";
 import { join } from "@std/path";
 import { validateConfigWithFeedback } from "../lib/config-validator.ts";
@@ -20,8 +20,8 @@ import { decodePointer, npubEncode } from "applesauce-core/helpers";
 
 const log = createLogger("config");
 
-export function registerConfigCommand(program: Command): void {
-  program
+export function registerConfigCommand(): void {
+  nsyte
     .command("config")
     .description("Interactive configuration editor for nsyte project settings")
     .option("-p, --path <path:string>", "Path to config file (default: ./nsyte.yaml)")

@@ -7,11 +7,12 @@
  */
 
 import { Command } from "@cliffy/command";
+import nsyte from "./root.ts";
 
 /**
  * Register the bunker command with cliffy for help menu only
  */
-export function registerBunkerCommand(program: Command): void {
+export function registerBunkerCommand(): void {
   const bunker = new Command()
     .description("Manage NIP-46 bunker connections and nbunks")
     .action(() => {
@@ -71,5 +72,5 @@ export function registerBunkerCommand(program: Command): void {
     });
 
   // Register the bunker command to the main program
-  program.command("bunker", bunker);
+  nsyte.command("bunker", bunker);
 }

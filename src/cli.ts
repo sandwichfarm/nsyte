@@ -13,7 +13,6 @@ self.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-import { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
 import { registerAnnounceCommand } from "./commands/announce.ts";
@@ -29,42 +28,33 @@ import { registerPurgeCommand } from "./commands/purge.ts";
 import { registerRunCommand } from "./commands/run.ts";
 import { registerServeCommand } from "./commands/serve.ts";
 import { registerSitesCommand } from "./commands/sites.ts";
-import { validateCommand } from "./commands/validate.ts";
+import { registerValidateCommand } from "./commands/validate.ts";
+import nsyte from "./commands/root.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
-import { version } from "./version.ts";
+import { pool } from "./lib/nostr.ts";
 
 import { registerBunkerCommand } from "./commands/bunker-cliffy.ts";
 import { handleBunkerCommand } from "./commands/bunker.ts";
-import { pool } from "./lib/nostr.ts";
 
 const log = createLogger("cli");
 
-const nsite = new Command()
-  .name("nsyte")
-  .version(version)
-  .description("Publish your site to nostr and blossom servers")
-  .action(async () => {
-    // Just show help when no command is provided
-    await nsite.showHelp();
-  });
-
 // Register all commands
-registerInitCommand(nsite);
-registerDeployCommand(nsite);
-registerListCommand(nsite);
-registerSitesCommand(nsite);
-registerBrowseCommand(nsite);
-registerDownloadCommand(nsite);
-registerCICommand(nsite);
-registerRunCommand(nsite);
-registerServeCommand(nsite);
-registerPurgeCommand(nsite);
-validateCommand(nsite);
-registerDebugCommand(nsite);
-registerAnnounceCommand(nsite);
-registerConfigCommand(nsite);
-registerBunkerCommand(nsite);
+registerInitCommand();
+registerDeployCommand();
+registerListCommand();
+registerSitesCommand();
+registerBrowseCommand();
+registerDownloadCommand();
+registerCICommand();
+registerRunCommand();
+registerServeCommand();
+registerPurgeCommand();
+registerValidateCommand();
+registerDebugCommand();
+registerAnnounceCommand();
+registerConfigCommand();
+registerBunkerCommand();
 
 /**
  * Main function - the entry point for the command line
@@ -91,7 +81,7 @@ async function main() {
       return;
     }
 
-    await nsite.parse(Deno.args);
+    await nsyte.parse(Deno.args);
 
     // Close relays after command execution
     log.debug("Closing relays");
