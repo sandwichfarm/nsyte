@@ -3,39 +3,39 @@ import { assertEquals } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import {
-  connectBunker,
+  connectBunkerAction,
+  type ConnectBunkerOptions,
   exportNbunk,
-  handleBunkerCommand,
   importNbunk,
   listBunkers,
+  migrateBunkers,
   removeBunker,
-  showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 
-describe("Bunker command - comprehensive branch coverage", () => {
+describe("Bunker command - Cliffy integration", () => {
   let consoleLogStub: any;
   let consoleErrorStub: any;
   let denoExitStub: any;
   let promptInputStub: any;
   let promptSelectStub: any;
   let promptConfirmStub: any;
-  let secretsManagerStub: any;
+  let secretsManagerGetInstanceStub: any;
   let setTimeoutStub: any;
   let clearTimeoutStub: any;
   let timerIds: number[] = [];
-  const originalArgs = Deno.args;
   const originalSetTimeout = globalThis.setTimeout;
   const originalClearTimeout = globalThis.clearTimeout;
 
-  // Helper to mock Deno.args
-  function mockDenoArgs(args: string[]) {
-    Object.defineProperty(Deno, "args", {
-      get: () => args,
-      configurable: true,
-    });
-  }
+  // Mock SecretsManager instance
+  const mockSecretsManagerInstance = {
+    getAllPubkeys: () => Promise.resolve(["test-pubkey1", "test-pubkey2"]),
+    storeNbunk: () => Promise.resolve(true),
+    getNbunk: () => Promise.resolve("nbunksec1test"),
+    deleteNbunk: () => Promise.resolve(true),
+    initialize: () => Promise.resolve(),
+  };
 
   beforeEach(() => {
     // Mock console methods
@@ -52,43 +52,46 @@ describe("Bunker command - comprehensive branch coverage", () => {
     promptSelectStub = stub(prompt.Select, "prompt", () => Promise.resolve("test-selection"));
     promptConfirmStub = stub(prompt.Confirm, "prompt", () => Promise.resolve(true));
 
-    // Mock SecretsManager
-    const mockSecretsManager = {
-      getInstance: () => ({
-        getAllPubkeys: () => Promise.resolve(["test-pubkey1", "test-pubkey2"]),
-        storeNbunk: () => Promise.resolve(true),
-        getNbunk: () => Promise.resolve("nbunksec1test"),
-        deleteNbunk: () => Promise.resolve(true),
-      }),
-    };
-    secretsManagerStub = stub(SecretsManager, "getInstance", mockSecretsManager.getInstance);
+    // Mock SecretsManager.getInstance()
+    secretsManagerGetInstanceStub = stub(
+      SecretsManager,
+      "getInstance",
+      () => mockSecretsManagerInstance as any,
+    );
 
     // Reset timer tracking
     timerIds = [];
 
     // Mock timers to prevent leaks
-    setTimeoutStub = stub(globalThis, "setTimeout", (fn: () => void, delay?: number) => {
-      const id = originalSetTimeout(() => {
-        try {
-          fn();
-        } catch (e) {
-          // Ignore errors in timer callbacks during tests
+    setTimeoutStub = stub(
+      globalThis,
+      "setTimeout",
+      ((fn: () => void, delay?: number) => {
+        const id = originalSetTimeout(() => {
+          try {
+            fn();
+          } catch (e) {
+            // Ignore errors in timer callbacks during tests
+          }
+        }, delay);
+        timerIds.push(id);
+        return id;
+      }) as any,
+    );
+
+    clearTimeoutStub = stub(
+      globalThis,
+      "clearTimeout",
+      ((id?: number) => {
+        if (id !== undefined) {
+          originalClearTimeout(id);
+          const index = timerIds.indexOf(id);
+          if (index > -1) {
+            timerIds.splice(index, 1);
+          }
         }
-      }, delay);
-      timerIds.push(id);
-      return id;
-    });
-
-    clearTimeoutStub = stub(globalThis, "clearTimeout", (id: number) => {
-      originalClearTimeout(id);
-      const index = timerIds.indexOf(id);
-      if (index > -1) {
-        timerIds.splice(index, 1);
-      }
-    });
-
-    // Set default args
-    mockDenoArgs(["bunker"]);
+      }) as any,
+    );
   });
 
   afterEach(() => {
@@ -105,238 +108,45 @@ describe("Bunker command - comprehensive branch coverage", () => {
     promptInputStub?.restore();
     promptSelectStub?.restore();
     promptConfirmStub?.restore();
-    secretsManagerStub?.restore();
+    secretsManagerGetInstanceStub?.restore();
     setTimeoutStub?.restore();
     clearTimeoutStub?.restore();
 
     // Then call general restore
     restore();
-
-    // Restore Deno.args to original
-    Object.defineProperty(Deno, "args", {
-      get: () => originalArgs,
-      configurable: true,
-    });
-  });
-
-  describe("handleBunkerCommand", () => {
-    it("should show help when no subcommand provided", async () => {
-      mockDenoArgs(["bunker"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to interactive elements
-      }
-
-      // Should call exit
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should show help with -h flag", async () => {
-      mockDenoArgs(["bunker", "-h"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to interactive elements
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should show help with --help flag", async () => {
-      mockDenoArgs(["bunker", "--help"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to interactive elements
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle list subcommand", async () => {
-      mockDenoArgs(["bunker", "list"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to secrets manager dependency
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle import subcommand with arg", async () => {
-      mockDenoArgs(["bunker", "import", "test-nbunk"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle import subcommand without arg", async () => {
-      mockDenoArgs(["bunker", "import"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle export subcommand with arg", async () => {
-      mockDenoArgs(["bunker", "export", "test-pubkey"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle export subcommand without arg", async () => {
-      mockDenoArgs(["bunker", "export"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle use subcommand with arg", async () => {
-      mockDenoArgs(["bunker", "use", "test-pubkey"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle use subcommand without arg", async () => {
-      mockDenoArgs(["bunker", "use"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle remove subcommand with arg", async () => {
-      mockDenoArgs(["bunker", "remove", "test-pubkey"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle remove subcommand without arg", async () => {
-      mockDenoArgs(["bunker", "remove"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle connect subcommand with arg", async () => {
-      mockDenoArgs(["bunker", "connect", "bunker://test"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle connect subcommand without arg", async () => {
-      mockDenoArgs(["bunker", "connect"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(denoExitStub.calls.length >= 0, true);
-    });
-
-    it("should handle unknown subcommand", async () => {
-      mockDenoArgs(["bunker", "unknown"]);
-
-      try {
-        await handleBunkerCommand();
-      } catch (error) {
-        // Expected due to dependencies
-      }
-
-      assertEquals(consoleLogStub.calls.length >= 1 || consoleErrorStub.calls.length >= 1, true);
-    });
-
-    it("should handle showHeader parameter", async () => {
-      mockDenoArgs(["bunker"]);
-
-      try {
-        await handleBunkerCommand(false); // showHeader = false
-      } catch (error) {
-        // Expected due to interactive elements
-      }
-
-      assertEquals(true, true); // Basic test that function can be called with parameter
-    });
-  });
-
-  describe("showBunkerHelp", () => {
-    it("should display help information", async () => {
-      await showBunkerHelp();
-
-      // Should log help information
-      assertEquals(consoleLogStub.calls.length >= 5, true);
-
-      // Check for key help content
-      const logCalls = consoleLogStub.calls.map((call: any) => call.args[0]).join(" ");
-      assertEquals(logCalls.includes("bunker") || logCalls.includes("Bunker"), true);
-    });
   });
 
   describe("listBunkers", () => {
-    it("should attempt to list bunkers", async () => {
+    it("should list bunkers when they exist", async () => {
       try {
         await listBunkers();
       } catch (error) {
-        // Expected due to SecretsManager dependency
-        assertEquals(true, true);
+        // May throw due to mocked dependencies
       }
 
       // Should attempt to show output
+      assertEquals(consoleLogStub.calls.length >= 0, true);
+    });
+
+    it("should show message when no bunkers found", async () => {
+      // Override the mock to return empty array
+      secretsManagerGetInstanceStub.restore();
+      secretsManagerGetInstanceStub = stub(
+        SecretsManager,
+        "getInstance",
+        () =>
+          ({
+            ...mockSecretsManagerInstance,
+            getAllPubkeys: () => Promise.resolve([]),
+          }) as any,
+      );
+
+      try {
+        await listBunkers();
+      } catch (error) {
+        // Expected
+      }
+
       assertEquals(consoleLogStub.calls.length >= 0, true);
     });
   });
@@ -364,14 +174,6 @@ describe("Bunker command - comprehensive branch coverage", () => {
       }
 
       assertEquals(true, true);
-    });
-
-    it("should validate nbunk string format", () => {
-      const validNbunk = "nbunksec1test";
-      const invalidNbunk = "invalid";
-
-      assertEquals(validNbunk.startsWith("nbunksec1"), true);
-      assertEquals(invalidNbunk.startsWith("nbunksec1"), false);
     });
   });
 
@@ -401,12 +203,16 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
   });
 
-  describe("connectBunker", () => {
+  describe("connectBunkerAction", () => {
     it("should handle connect with bunker URL", async () => {
       const testUrl = "bunker://pubkey?relay=wss://test&secret=xxx";
+      const options: ConnectBunkerOptions = {
+        persist: true,
+        forceEncryptedStorage: false,
+      };
 
       try {
-        await connectBunker(testUrl);
+        await connectBunkerAction(options, testUrl);
       } catch (error) {
         // Expected due to complex dependencies
         assertEquals(true, true);
@@ -415,67 +221,58 @@ describe("Bunker command - comprehensive branch coverage", () => {
       assertEquals(testUrl.startsWith("bunker://"), true);
     });
 
-    it("should handle connect without bunker URL", async () => {
-      try {
-        await connectBunker();
-      } catch (error) {
-        // Expected due to interactive prompt
-        assertEquals(true, true);
-      }
+    it("should handle connect with pubkey and relay options", async () => {
+      const options: ConnectBunkerOptions = {
+        pubkey: "test-pubkey",
+        relay: "wss://relay.example",
+        secret: "test-secret",
+        persist: true,
+        forceEncryptedStorage: false,
+      };
 
-      assertEquals(true, true);
-    });
-
-    it("should handle skipProjectInteraction parameter", async () => {
       try {
-        await connectBunker(undefined, true);
+        await connectBunkerAction(options);
       } catch (error) {
         // Expected due to dependencies
         assertEquals(true, true);
       }
 
-      assertEquals(true, true);
+      assertEquals(typeof options.pubkey, "string");
     });
 
-    it("should handle noPersist parameter", async () => {
+    it("should handle --no-persist flag", async () => {
+      const options: ConnectBunkerOptions = {
+        persist: false, // --no-persist
+        forceEncryptedStorage: false,
+      };
+
       try {
-        await connectBunker(undefined, false, true);
+        await connectBunkerAction(options);
       } catch (error) {
         // Expected due to dependencies
         assertEquals(true, true);
       }
 
-      assertEquals(true, true);
+      assertEquals(options.persist, false);
     });
 
-    it("should handle all parameters", async () => {
-      const testUrl = "bunker://test";
+    it("should handle --force-encrypted-storage flag", async () => {
+      const options: ConnectBunkerOptions = {
+        persist: true,
+        forceEncryptedStorage: true,
+      };
 
       try {
-        await connectBunker(testUrl, true, true);
+        await connectBunkerAction(options);
       } catch (error) {
-        // Expected due to dependencies
-        assertEquals(true, true);
+        // Expected
       }
 
-      assertEquals(typeof testUrl, "string");
+      assertEquals(options.forceEncryptedStorage, true);
     });
   });
 
   describe("useBunkerForProject", () => {
-    it("should handle use with pubkey", async () => {
-      const testPubkey = "test-pubkey-456";
-
-      try {
-        await useBunkerForProject(testPubkey);
-      } catch (error) {
-        // Expected due to config dependencies
-        assertEquals(true, true);
-      }
-
-      assertEquals(typeof testPubkey, "string");
-    });
-
     it("should handle use without pubkey", async () => {
       try {
         await useBunkerForProject();
@@ -514,122 +311,39 @@ describe("Bunker command - comprehensive branch coverage", () => {
     });
   });
 
-  describe("parameter validation", () => {
-    it("should validate bunker URL format", () => {
-      const validUrls = [
-        "bunker://pubkey?relay=wss://test",
-        "bunker://abc123?relay=wss://relay.example&secret=xxx",
-      ];
+  describe("migrateBunkers", () => {
+    it("should handle migrate with pubkeys", async () => {
+      try {
+        await migrateBunkers("pubkey1", "pubkey2");
+      } catch (error) {
+        // Expected due to dependencies
+        assertEquals(true, true);
+      }
 
-      const invalidUrls = [
-        "http://example.com",
-        "bunker://",
-        "invalid-format",
-      ];
-
-      validUrls.forEach((url) => {
-        assertEquals(url.startsWith("bunker://"), true);
-      });
-
-      invalidUrls.forEach((url) => {
-        assertEquals(url.startsWith("bunker://") && url.length > 9, false);
-      });
+      assertEquals(true, true);
     });
 
-    it("should validate pubkey format", () => {
-      const testPubkeys = [
-        "valid-pubkey-123",
-        "npub1test",
-        "",
-        "short",
-      ];
+    it("should handle migrate without pubkeys", async () => {
+      try {
+        await migrateBunkers();
+      } catch (error) {
+        // Expected due to dependencies
+        assertEquals(true, true);
+      }
 
-      testPubkeys.forEach((pubkey) => {
-        assertEquals(typeof pubkey, "string");
-      });
-    });
-
-    it("should validate nbunk string format", () => {
-      const validNbunks = [
-        "nbunksec1teststring123",
-        "nbunksec1abcdef",
-      ];
-
-      const invalidNbunks = [
-        "nsec1test",
-        "invalid",
-        "",
-      ];
-
-      validNbunks.forEach((nbunk) => {
-        assertEquals(nbunk.startsWith("nbunksec1"), true);
-      });
-
-      invalidNbunks.forEach((nbunk) => {
-        assertEquals(nbunk.startsWith("nbunksec1"), false);
-      });
-    });
-  });
-
-  describe("error handling patterns", () => {
-    it("should test error message handling", () => {
-      const errors = [
-        new Error("Connection failed"),
-        "String error",
-        { message: "Object error" },
-      ];
-
-      const formatError = (error: unknown): string => {
-        return error instanceof Error ? error.message : String(error);
-      };
-
-      assertEquals(formatError(errors[0]), "Connection failed");
-      assertEquals(formatError(errors[1]), "String error");
-      assertEquals(formatError(errors[2]), "[object Object]");
-    });
-
-    it("should test URL validation error messages", () => {
-      const errorMessages = [
-        "Bunker URL must start with bunker://",
-        "URL appears to be incomplete",
-        "Shell metacharacters need to be quoted",
-      ];
-
-      errorMessages.forEach((message) => {
-        assertEquals(typeof message, "string");
-        assertEquals(message.length > 0, true);
-      });
-    });
-  });
-
-  describe("console output patterns", () => {
-    it("should test console message patterns", () => {
-      const messages = [
-        "Available bunkers:",
-        "No bunkers found",
-        "Successfully imported bunker",
-        "Connecting to bunker",
-        "Bunker URL appears to be incomplete",
-        "Select a bunker to",
-      ];
-
-      messages.forEach((message) => {
-        assertEquals(typeof message, "string");
-        assertEquals(message.length > 0, true);
-      });
+      assertEquals(true, true);
     });
   });
 
   describe("function exports", () => {
     it("should validate all function exports exist", () => {
-      assertEquals(typeof handleBunkerCommand, "function");
-      assertEquals(typeof showBunkerHelp, "function");
       assertEquals(typeof listBunkers, "function");
       assertEquals(typeof importNbunk, "function");
       assertEquals(typeof exportNbunk, "function");
-      assertEquals(typeof connectBunker, "function");
+      assertEquals(typeof connectBunkerAction, "function");
       assertEquals(typeof useBunkerForProject, "function");
       assertEquals(typeof removeBunker, "function");
+      assertEquals(typeof migrateBunkers, "function");
     });
   });
 });

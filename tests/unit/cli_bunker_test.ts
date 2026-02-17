@@ -6,7 +6,6 @@ import {
   importNbunk,
   listBunkers,
   removeBunker,
-  showBunkerHelp,
   useBunkerForProject,
 } from "../../src/commands/bunker.ts";
 
@@ -48,11 +47,6 @@ function captureConsoleOutput(fn: () => Promise<void> | void): Promise<string> {
 describe("CLI Bunker Command Exports", () => {
   // We're testing that the bunker commands are properly exported and have the expected signatures
 
-  it("should export showBunkerHelp function", () => {
-    assertEquals(typeof showBunkerHelp, "function", "showBunkerHelp should be a function");
-    assertEquals(showBunkerHelp.length, 0, "showBunkerHelp should take 0 arguments");
-  });
-
   it("should export listBunkers function", () => {
     assertEquals(typeof listBunkers, "function", "listBunkers should be a function");
     assertEquals(listBunkers.length, 0, "listBunkers should take 0 arguments");
@@ -89,34 +83,5 @@ describe("CLI Bunker Command Exports", () => {
   it("should export removeBunker function", () => {
     assertEquals(typeof removeBunker, "function", "removeBunker should be a function");
     assertEquals(removeBunker.length, 1, "removeBunker should take 1 optional argument");
-  });
-
-  it("help output should include all subcommands", async () => {
-    const originalExit = Deno.exit;
-    // We need to mock Deno.exit to prevent the test from exiting
-    // @ts-ignore: Override for testing
-    Deno.exit = () => undefined as never;
-
-    try {
-      const output = await captureConsoleOutput(() => showBunkerHelp());
-
-      assertStringIncludes(output, "Bunker Command Help");
-      assertStringIncludes(output, "list");
-      assertStringIncludes(output, "import");
-      assertStringIncludes(output, "export");
-      assertStringIncludes(output, "connect");
-      assertStringIncludes(output, "use");
-      assertStringIncludes(output, "remove");
-      assertStringIncludes(output, "help");
-
-      // Check that CI/CD usage is documented
-      assertStringIncludes(output, "CI/CD Usage");
-      assertStringIncludes(output, "--nbunksec");
-
-      // Check that --no-persist is documented
-      assertStringIncludes(output, "--no-persist");
-    } finally {
-      Deno.exit = originalExit;
-    }
   });
 });

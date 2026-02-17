@@ -1,23 +1,16 @@
 /**
- * Direct bunker command implementation
+ * Bunker command implementation
  *
- * This is a direct command handler that bypasses the Cliffy command framework.
- * It was created because the bunker command requires complex URL parsing and
- * argument handling that is difficult to implement with Cliffy's command framework.
- *
- * Specifically:
- * 1. Complex URL parsing for bunker:// URLs with query parameters
- * 2. Interactive prompts for connection details
- * 3. Special handling of shell escaping for URLs with ? and & characters
- * 4. Direct control over command exit timing
- *
- * The command is registered in cli.ts and intercepts all bunker commands
- * before they reach the Cliffy command framework.
+ * Manages NIP-46 bunker connections and nbunks (encoded bunker credentials).
+ * This module provides functions for connecting to, importing, exporting, and
+ * managing bunker signers for the nsyte CLI.
  */
 
 import { colors } from "@cliffy/ansi/colors";
+import { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { join } from "@std/path";
+import { npubEncode } from "applesauce-core/helpers";
 import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
@@ -31,248 +24,199 @@ import { getUserDisplayName } from "../lib/nostr.ts";
 import { EncryptedStorage } from "../lib/secrets/encrypted-storage.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { truncateHash } from "../ui/browse/renderer.ts";
-import { npubEncode } from "applesauce-core/helpers";
+import nsyte from "./root.ts";
 
-const log = createLogger("bunker-direct");
+const log = createLogger("bunker");
 const SERVICE_NAME = "nsyte";
+
+/**
+ * Options for the connect subcommand
+ */
+export interface ConnectBunkerOptions {
+  pubkey?: string;
+  relay?: string;
+  secret?: string;
+  persist: boolean;
+  forceEncryptedStorage: boolean;
+}
+
+/**
+ * Register the bunker command with Cliffy
+ */
+export function registerBunkerCommand(): void {
+  const bunker = new Command()
+    .description("Manage NIP-46 bunker connections and nbunks")
+    .action(async () => {
+      // Show help when no subcommand is provided
+      await bunker.showHelp();
+    })
+    // List subcommand
+    .command("list", "List all stored bunkers in the system")
+    .action(async () => {
+      await listBunkers();
+    })
+    .reset()
+    // Import subcommand
+    .command("import [nbunksec:string]", "Import a bunker from an nbunksec string")
+    .action(async (_options, nbunksec?: string) => {
+      await importNbunk(nbunksec);
+    })
+    .reset()
+    // Export subcommand
+    .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
+    .action(async (_options, pubkey?: string) => {
+      await exportNbunk(pubkey);
+    })
+    .reset()
+    // Connect subcommand with complex URL handling
+    .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
+    .option("--pubkey <pubkey:string>", "Bunker public key")
+    .option("--relay <relay:string>", "Relay URL")
+    .option("--secret <secret:string>", "Connection secret")
+    .option("--persist", "Store the nbunksec (default behavior)", { default: true })
+    .option(
+      "--force-encrypted-storage",
+      "Force use of encrypted file storage instead of OS keychain",
+      { default: false },
+    )
+    .action(async (options, url?: string) => {
+      await connectBunkerAction(options, url);
+    })
+    .reset()
+    // Use subcommand
+    .command("use [pubkey:string]", "Configure current project to use a bunker")
+    .action(async (_options, pubkey?: string) => {
+      await useBunkerForProject(pubkey);
+    })
+    .reset()
+    // Remove subcommand
+    .command("remove [pubkey:string]", "Remove a bunker from storage")
+    .action(async (_options, pubkey?: string) => {
+      await removeBunker(pubkey);
+    })
+    .reset()
+    // Migrate subcommand
+    .command("migrate [...pubkeys:string]", "Rebuild index for existing keychain bunkers")
+    .action(async (_options, ...pubkeys: string[]) => {
+      await migrateBunkers(...pubkeys);
+    });
+
+  // Register the bunker command to the main program
+  nsyte.command("bunker", bunker);
+}
 
 /**  Helper to load display names for multiple pubkeys */
 async function loadDisplayNames(pubkeys: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (const pubkey of pubkeys) {
-    map.set(pubkey, truncateHash(npubEncode(pubkey)));
+    try {
+      // Validate pubkey length before encoding (should be 64 hex chars = 32 bytes)
+      if (pubkey.length === 64) {
+        map.set(pubkey, truncateHash(npubEncode(pubkey)));
+      } else {
+        // Invalid pubkey, just use truncated hex
+        log.debug(`Invalid pubkey length (${pubkey.length}): ${pubkey}`);
+        map.set(pubkey, pubkey.slice(0, 16) + "...");
+      }
+    } catch (error) {
+      log.debug(`Failed to encode pubkey ${pubkey}: ${error}`);
+      map.set(pubkey, pubkey.slice(0, 16) + "...");
+    }
   }
 
-  // Load all display names in parallel
+  // Load all display names in parallel, but only for valid pubkeys
+  const validPubkeys = pubkeys.filter((pk) => pk.length === 64);
   await Promise.all(
-    pubkeys.map((pk) => getUserDisplayName(pk, 1000).then((name) => map.set(pk, name))),
+    validPubkeys.map((pk) =>
+      getUserDisplayName(pk, 1000).then((name) => map.set(pk, name)).catch(() => {
+        // Ignore errors fetching display names
+      })
+    ),
   );
 
   return map;
 }
 
 /**
- * Handle bunker commands directly without going through setupProject
+ * Action handler for list subcommand - Cliffy compatible
  */
-export async function handleBunkerCommand(): Promise<void> {
+export async function listBunkers(): Promise<void> {
   try {
-    if (Deno.args.length === 1 || Deno.args.includes("-h") || Deno.args.includes("--help")) {
-      await showBunkerHelp();
-      Deno.exit(0);
+    log.debug("listBunkers: Starting");
+    const secretsManager = SecretsManager.getInstance();
+    log.debug("listBunkers: Got SecretsManager instance");
+    await secretsManager.initialize();
+    log.debug("listBunkers: SecretsManager initialized");
+    const pubkeys = await secretsManager.getAllPubkeys();
+    log.debug(`listBunkers: Got ${pubkeys.length} pubkeys`);
+
+    if (pubkeys.length === 0) {
+      console.log(colors.yellow("No bunkers found in system storage."));
       return;
     }
 
-    const subcommand = Deno.args[1];
-    const args = Deno.args.slice(2);
+    // Load display names for all pubkeys in parallel
+    const displayNamesMap = await loadDisplayNames(pubkeys);
 
-    switch (subcommand) {
-      case "list":
-        await listBunkers();
-        Deno.exit(0);
-        break;
-      case "import":
-        await importNbunk(args[0]);
-        break;
-      case "export":
-        await exportNbunk(args[0]);
-        Deno.exit(0);
-        break;
-      case "connect":
-        if (args.length > 0 && !args[0].startsWith("-")) {
-          // Check if --no-persist or --force-encrypted-storage is in remaining args
-          const noPersist = args.includes("--no-persist");
-          const forceEncrypted = args.includes("--force-encrypted-storage");
-          if (forceEncrypted) {
-            Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
-          }
-          await connectBunker(args[0], false, noPersist);
-        } else {
-          let pubkey = "";
-          let relay = "";
-          let secret = "";
-          let noPersist = false;
-          let forceEncrypted = false;
+    console.log(colors.cyan("\nStored Bunkers:"));
+    for (const pubkey of pubkeys) {
+      const nbunkString = await secretsManager.getNbunk(pubkey);
+      if (!nbunkString) continue;
 
-          for (let i = 0; i < args.length; i++) {
-            if (args[i] === "--pubkey" && i + 1 < args.length) {
-              pubkey = args[i + 1];
-              i++;
-            } else if (args[i] === "--relay" && i + 1 < args.length) {
-              relay = args[i + 1];
-              i++;
-            } else if (args[i] === "--secret" && i + 1 < args.length) {
-              secret = args[i + 1];
-              i++;
-            } else if (args[i] === "--no-persist") {
-              noPersist = true;
-            } else if (args[i] === "--force-encrypted-storage") {
-              forceEncrypted = true;
-            }
-          }
+      const displayName = displayNamesMap.get(pubkey) || pubkey;
 
-          if (forceEncrypted) {
-            Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
-          }
-
-          if (pubkey && relay) {
-            const url = `bunker://${pubkey}?relay=${encodeURIComponent(relay)}${
-              secret ? `&secret=${secret}` : ""
-            }`;
-            await connectBunker(url, false, noPersist);
-          } else {
-            await connectBunker(undefined, false, noPersist);
-          }
+      try {
+        const info = decodeBunkerInfo(nbunkString);
+        console.log(`- ${colors.green(displayName)}`);
+        if (displayName !== pubkey) {
+          console.log(`  ${colors.gray(`Pubkey: ${pubkey.slice(0, 16)}...${pubkey.slice(-8)}`)}`);
         }
-        break;
-      case "use":
-        await useBunkerForProject(args[0]);
-        Deno.exit(0);
-        break;
-      case "remove":
-        await removeBunker(args[0]);
-        Deno.exit(0);
-        break;
-      case "migrate":
-        await migrateBunkers(args);
-        Deno.exit(0);
-        break;
-      case "help":
-        showBunkerHelp();
-        Deno.exit(0);
-        break;
-      default:
-        console.log(colors.red(`Unknown bunker subcommand: ${subcommand}`));
-        showBunkerHelp();
-        Deno.exit(1);
-        break;
+        console.log(`  Relays: ${info.relays.join(", ")}`);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        log.debug(`Failed to decode nbunksec for ${pubkey.slice(0, 8)}...: ${errorMsg}`);
+        console.log(
+          `- ${colors.yellow(displayName)} ${colors.dim("(Corrupted or invalid nbunksec)")}`,
+        );
+      }
     }
 
-    setTimeout(() => {
-      Deno.exit(0);
-    }, 500);
+    // Try to read project config, but don't fail if it's invalid
+    try {
+      const config = readProjectFile();
+      if (config?.bunkerPubkey) {
+        const currentDisplayName = displayNamesMap.get(config.bunkerPubkey) || config.bunkerPubkey;
+        console.log(colors.cyan("\nCurrent project uses bunker:"));
+        console.log(`- ${colors.green(currentDisplayName)}`);
+        if (currentDisplayName !== config.bunkerPubkey) {
+          console.log(
+            `  ${
+              colors.gray(
+                `Pubkey: ${config.bunkerPubkey.slice(0, 16)}...${config.bunkerPubkey.slice(-8)}`,
+              )
+            }`,
+          );
+        }
+      } else {
+        console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
+      }
+    } catch (configError) {
+      // Config file might be invalid, that's okay for listing bunkers
+      log.debug(`Could not read project config: ${configError}`);
+      console.log(
+        colors.yellow("\nCurrent project configuration could not be read (may be invalid)."),
+      );
+    }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    log.error(`Error in bunker command: ${errorMessage}`);
+    log.error(`Error listing bunkers: ${errorMessage}`);
     console.error(colors.red(`Error: ${errorMessage}`));
     Deno.exit(1);
   }
 }
 
 /**
- * Show help information for the bunker command
- */
-export function showBunkerHelp() {
-  console.log(colors.cyan("\nBunker Command Help"));
-  console.log("Usage: nsyte bunker <action> [arguments]\n");
-  console.log(colors.cyan("Description:"));
-  console.log("  The bunker command allows you to manage NIP-46 bunker connections and nbunks.");
-  console.log("  Nbunks are encoded strings that contain all necessary information to connect to");
-  console.log("  a nostr bunker. They can be used for CI/CD workflows or shared access.\n");
-
-  console.log(colors.cyan("Available actions:"));
-  console.log("  list                     List all stored bunkers in the system");
-  console.log("  import <nbunksec>        Import a bunker from an nbunksec string");
-  console.log("  export <pubkey>          Export a bunker as an nbunksec string");
-  console.log("  connect <url>            Connect to a bunker URL and store as nbunksec");
-  console.log("  connect --pubkey <key> --relay <url> [--secret <secret>] [--no-persist]");
-  console.log("                           [--force-encrypted-storage]");
-  console.log(
-    "                           Connect using separate parameters (avoids shell escaping issues)",
-  );
-  console.log("                           --no-persist: Display nbunksec without storing it");
-  console.log("                           --force-encrypted-storage: Force use of encrypted file");
-  console.log(
-    "                                                      storage instead of OS keychain",
-  );
-  console.log("  use <pubkey>             Configure current project to use a bunker");
-  console.log("  remove <pubkey>          Remove a bunker from storage");
-  console.log("  migrate [pubkeys...]     Rebuild index for existing keychain bunkers");
-  console.log("  help                     Show this help information\n");
-
-  console.log(colors.cyan("Connection examples:"));
-  console.log("  nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example&secret=xxx'");
-  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --secret xxx");
-  console.log("  nsyte bunker connect --pubkey pubkey --relay wss://relay.example --no-persist");
-  console.log("  nsyte bunker connect 'bunker://...' --force-encrypted-storage\n");
-
-  console.log(colors.cyan("CI/CD Usage:"));
-  console.log("  1. Use 'nsyte ci' to get an nbunksec string");
-  console.log("  2. Add the nbunksec as a secret in your CI system");
-  console.log("  3. Use the nbunksec in CI with: nsyte upload ./dist --nbunksec ${NBUNK_SECRET}\n");
-
-  console.log(colors.cyan("More examples:"));
-  console.log("  nsyte bunker list");
-  console.log("  nsyte bunker import nbunksec1q...");
-  console.log("  nsyte bunker export");
-  console.log("  nsyte bunker use 3bf0c63...");
-  console.log("  nsyte bunker remove 3bf0c63...");
-  console.log("  nsyte upload ./dist --nbunksec nbunksec1q...");
-  console.log("");
-}
-
-/**
- * List all stored bunkers
- */
-export async function listBunkers(): Promise<void> {
-  log.debug("listBunkers: Starting");
-  const secretsManager = SecretsManager.getInstance();
-  log.debug("listBunkers: Got SecretsManager instance");
-  await secretsManager.initialize();
-  log.debug("listBunkers: SecretsManager initialized");
-  const pubkeys = await secretsManager.getAllPubkeys();
-  log.debug(`listBunkers: Got ${pubkeys.length} pubkeys`);
-
-  if (pubkeys.length === 0) {
-    console.log(colors.yellow("No bunkers found in system storage."));
-    Deno.exit(0);
-    return;
-  }
-
-  // Load display names for all pubkeys in parallel
-  const displayNamesMap = await loadDisplayNames(pubkeys);
-
-  console.log(colors.cyan("\nStored Bunkers:"));
-  for (const pubkey of pubkeys) {
-    const nbunkString = await secretsManager.getNbunk(pubkey);
-    if (!nbunkString) continue;
-
-    const displayName = displayNamesMap.get(pubkey) || pubkey;
-
-    try {
-      const info = decodeBunkerInfo(nbunkString);
-      console.log(`- ${colors.green(displayName)}`);
-      if (displayName !== pubkey) {
-        console.log(`  ${colors.gray(`Pubkey: ${pubkey.slice(0, 16)}...${pubkey.slice(-8)}`)}`);
-      }
-      console.log(`  Relays: ${info.relays.join(", ")}`);
-    } catch {
-      console.log(
-        `- ${colors.yellow(displayName)} (Error decoding nbunksec)`,
-      );
-    }
-  }
-
-  const config = readProjectFile();
-  if (config?.bunkerPubkey) {
-    const currentDisplayName = displayNamesMap.get(config.bunkerPubkey) || config.bunkerPubkey;
-    console.log(colors.cyan("\nCurrent project uses bunker:"));
-    console.log(`- ${colors.green(currentDisplayName)}`);
-    if (currentDisplayName !== config.bunkerPubkey) {
-      console.log(
-        `  ${
-          colors.gray(
-            `Pubkey: ${config.bunkerPubkey.slice(0, 16)}...${config.bunkerPubkey.slice(-8)}`,
-          )
-        }`,
-      );
-    }
-  } else {
-    console.log(colors.yellow("\nCurrent project is not configured to use any bunker."));
-  }
-}
-
-/**
- * Import a bunker from an nbunksec string
+ * Action handler for import subcommand - Cliffy compatible
  */
 export async function importNbunk(nbunkString?: string): Promise<void> {
   try {
@@ -288,7 +232,6 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
 
     if (!nbunkString) {
       console.log(colors.yellow("Import cancelled."));
-      Deno.exit(0);
       return;
     }
 
@@ -309,60 +252,105 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
     if (useForProject) {
       await useBunkerForProject(info.pubkey);
     }
+
+    // Exit with delay to allow async cleanup
+    setTimeout(() => {
+      Deno.exit(0);
+    }, 500);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.log(colors.red(`Failed to import nbunksec: ${errorMessage}`));
+    log.error(`Failed to import nbunksec: ${errorMessage}`);
+    console.error(colors.red(`Failed to import nbunksec: ${errorMessage}`));
     Deno.exit(1);
   }
 }
 
 /**
- * Export a bunker as an nbunksec string
+ * Action handler for export subcommand - Cliffy compatible
  */
 export async function exportNbunk(pubkey?: string): Promise<void> {
-  const secretsManager = SecretsManager.getInstance();
+  try {
+    const secretsManager = SecretsManager.getInstance();
 
-  if (!pubkey) {
-    const pubkeys = await secretsManager.getAllPubkeys();
+    if (!pubkey) {
+      const pubkeys = await secretsManager.getAllPubkeys();
 
-    if (pubkeys.length === 0) {
-      console.log(colors.yellow("No bunkers found in system storage."));
-      Deno.exit(0);
+      if (pubkeys.length === 0) {
+        console.log(colors.yellow("No bunkers found in system storage."));
+        return;
+      }
+
+      // Load display names for better UX
+      const displayNamesMap = await loadDisplayNames(pubkeys);
+
+      const options = pubkeys.map((key) => ({
+        name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
+        value: key,
+      }));
+
+      const result = await Select.prompt<string>({
+        message: "Select a bunker to export:",
+        options,
+      });
+
+      pubkey = result;
+    }
+
+    if (!pubkey) {
+      console.log(colors.red("No pubkey selected."));
       return;
     }
 
-    // Load display names for better UX
-    const displayNamesMap = await loadDisplayNames(pubkeys);
+    const nbunkString = await secretsManager.getNbunk(pubkey);
+    if (!nbunkString) {
+      console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+      return;
+    }
 
-    const options = pubkeys.map((key) => ({
-      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key,
-    }));
-
-    const result = await Select.prompt<string>({
-      message: "Select a bunker to export:",
-      options,
-    });
-
-    pubkey = result;
+    console.log(colors.cyan("\nNbunk string for selected bunker:"));
+    console.log(nbunkString);
+    console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error exporting nbunk: ${errorMessage}`);
+    console.error(colors.red(`Error: ${errorMessage}`));
+    Deno.exit(1);
   }
+}
 
-  if (!pubkey) {
-    console.log(colors.red("No pubkey selected."));
-    Deno.exit(0);
-    return;
+/**
+ * Action handler for connect subcommand - Cliffy compatible
+ */
+export async function connectBunkerAction(
+  options: ConnectBunkerOptions,
+  url?: string,
+): Promise<void> {
+  try {
+    // Handle --force-encrypted-storage flag
+    if (options.forceEncryptedStorage) {
+      Deno.env.set("NSYTE_FORCE_ENCRYPTED_STORAGE", "true");
+    }
+
+    // If pubkey and relay are provided, construct bunker URL
+    if (options.pubkey && options.relay) {
+      url = `bunker://${options.pubkey}?relay=${encodeURIComponent(options.relay)}${
+        options.secret ? `&secret=${options.secret}` : ""
+      }`;
+    }
+
+    // Call the core connect function
+    await connectBunker(url, false, !options.persist);
+
+    // Exit with delay to allow async cleanup
+    setTimeout(() => {
+      Deno.exit(0);
+    }, 500);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error connecting to bunker: ${errorMessage}`);
+    console.error(colors.red(`Error: ${errorMessage}`));
+    Deno.exit(1);
   }
-
-  const nbunkString = await secretsManager.getNbunk(pubkey);
-  if (!nbunkString) {
-    console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
-    Deno.exit(0);
-    return;
-  }
-
-  console.log(colors.cyan("\nNbunk string for selected bunker:"));
-  console.log(nbunkString);
-  console.log(colors.yellow("\nStore this securely. It contains sensitive key material."));
 }
 
 /**
@@ -573,140 +561,147 @@ export async function connectBunker(
 }
 
 /**
- * Configure the current project to use a specific bunker
+ * Action handler for use subcommand - Cliffy compatible
  */
 export async function useBunkerForProject(pubkey?: string): Promise<void> {
-  const secretsManager = SecretsManager.getInstance();
+  try {
+    const secretsManager = SecretsManager.getInstance();
 
-  if (!pubkey) {
-    const pubkeys = await secretsManager.getAllPubkeys();
+    if (!pubkey) {
+      const pubkeys = await secretsManager.getAllPubkeys();
 
-    if (pubkeys.length === 0) {
-      console.log(colors.yellow("No bunkers found in system storage."));
-      Deno.exit(0);
+      if (pubkeys.length === 0) {
+        console.log(colors.yellow("No bunkers found in system storage."));
+        return;
+      }
+
+      // Load display names for better UX
+      const displayNamesMap = await loadDisplayNames(pubkeys);
+
+      const options = pubkeys.map((key) => ({
+        name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
+        value: key,
+      }));
+
+      const result = await Select.prompt<string>({
+        message: "Select a bunker to use for this project:",
+        options,
+      });
+
+      pubkey = result;
+    }
+
+    if (!pubkey) {
+      console.log(colors.red("No pubkey selected."));
       return;
     }
 
-    // Load display names for better UX
-    const displayNamesMap = await loadDisplayNames(pubkeys);
+    const nbunkString = await secretsManager.getNbunk(pubkey);
+    if (!nbunkString) {
+      console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+      return;
+    }
 
-    const options = pubkeys.map((key) => ({
-      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key,
-    }));
+    const config = readProjectFile();
+    if (!config) {
+      console.log(
+        colors.red("No project configuration found. Initialize a project first with 'nsyte init'."),
+      );
+      return;
+    }
 
-    const result = await Select.prompt<string>({
-      message: "Select a bunker to use for this project:",
-      options,
-    });
+    config.bunkerPubkey = pubkey;
+    writeProjectFile(config);
 
-    pubkey = result;
-  }
-
-  if (!pubkey) {
-    console.log(colors.red("No pubkey selected."));
-    Deno.exit(0);
-    return;
-  }
-
-  const nbunkString = await secretsManager.getNbunk(pubkey);
-  if (!nbunkString) {
-    console.log(colors.red(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
-    Deno.exit(0);
-    return;
-  }
-
-  const config = readProjectFile();
-  if (!config) {
+    // Show friendly name in confirmation message
+    const displayName = await getUserDisplayName(pubkey, 1000);
     console.log(
-      colors.red("No project configuration found. Initialize a project first with 'nsyte init'."),
+      colors.green(`Project configured to use bunker: ${displayName}`),
     );
-    Deno.exit(0);
-    return;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error configuring bunker for project: ${errorMessage}`);
+    console.error(colors.red(`Error: ${errorMessage}`));
+    Deno.exit(1);
   }
-
-  config.bunkerPubkey = pubkey;
-  writeProjectFile(config);
-
-  // Show friendly name in confirmation message
-  const displayName = await getUserDisplayName(pubkey, 1000);
-  console.log(
-    colors.green(`Project configured to use bunker: ${displayName}`),
-  );
 }
 
 /**
- * Remove a bunker from storage
+ * Action handler for remove subcommand - Cliffy compatible
  */
 export async function removeBunker(pubkey?: string): Promise<void> {
-  const secretsManager = SecretsManager.getInstance();
+  try {
+    const secretsManager = SecretsManager.getInstance();
 
-  if (!pubkey) {
-    const pubkeys = await secretsManager.getAllPubkeys();
+    if (!pubkey) {
+      const pubkeys = await secretsManager.getAllPubkeys();
 
-    if (pubkeys.length === 0) {
-      console.log(colors.yellow("No bunkers found in system storage."));
-      Deno.exit(0);
+      if (pubkeys.length === 0) {
+        console.log(colors.yellow("No bunkers found in system storage."));
+        return;
+      }
+
+      // Load display names for better UX
+      const displayNamesMap = await loadDisplayNames(pubkeys);
+
+      const options = pubkeys.map((key) => ({
+        name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
+        value: key,
+      }));
+
+      const result = await Select.prompt<string>({
+        message: "Select a bunker to remove:",
+        options,
+      });
+
+      pubkey = result;
+    }
+
+    if (!pubkey) {
+      console.log(colors.red("No pubkey selected."));
       return;
     }
 
-    // Load display names for better UX
-    const displayNamesMap = await loadDisplayNames(pubkeys);
+    // Get display name for confirmation message
+    const displayName = await getUserDisplayName(pubkey, 1000);
 
-    const options = pubkeys.map((key) => ({
-      name: displayNamesMap.get(key) || `${key.slice(0, 8)}...${key.slice(-4)}`,
-      value: key,
-    }));
-
-    const result = await Select.prompt<string>({
-      message: "Select a bunker to remove:",
-      options,
+    const confirm = await Confirm.prompt({
+      message: `Are you sure you want to remove bunker: ${displayName}?`,
+      default: false,
     });
 
-    pubkey = result;
-  }
-
-  if (!pubkey) {
-    console.log(colors.red("No pubkey selected."));
-    Deno.exit(0);
-    return;
-  }
-
-  // Get display name for confirmation message
-  const displayName = await getUserDisplayName(pubkey, 1000);
-
-  const confirm = await Confirm.prompt({
-    message: `Are you sure you want to remove bunker: ${displayName}?`,
-    default: false,
-  });
-
-  if (!confirm) {
-    console.log(colors.yellow("Operation cancelled."));
-    Deno.exit(0);
-    return;
-  }
-
-  const deleted = await secretsManager.deleteNbunk(pubkey);
-
-  if (deleted) {
-    console.log(colors.green(`Bunker ${displayName} removed from system storage.`));
-
-    const config = readProjectFile();
-    if (config?.bunkerPubkey === pubkey) {
-      const removeFromProject = await Confirm.prompt({
-        message:
-          "This bunker is used by the current project. Remove it from project configuration?",
-        default: true,
-      });
-
-      if (removeFromProject) {
-        delete config.bunkerPubkey;
-        writeProjectFile(config);
-        console.log(colors.green("Bunker removed from project configuration."));
-      }
+    if (!confirm) {
+      console.log(colors.yellow("Operation cancelled."));
+      return;
     }
-  } else {
-    console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+
+    const deleted = await secretsManager.deleteNbunk(pubkey);
+
+    if (deleted) {
+      console.log(colors.green(`Bunker ${displayName} removed from system storage.`));
+
+      const config = readProjectFile();
+      if (config?.bunkerPubkey === pubkey) {
+        const removeFromProject = await Confirm.prompt({
+          message:
+            "This bunker is used by the current project. Remove it from project configuration?",
+          default: true,
+        });
+
+        if (removeFromProject) {
+          delete config.bunkerPubkey;
+          writeProjectFile(config);
+          console.log(colors.green("Bunker removed from project configuration."));
+        }
+      }
+    } else {
+      console.log(colors.yellow(`No bunker found with pubkey ${pubkey.slice(0, 8)}...`));
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    log.error(`Error removing bunker: ${errorMessage}`);
+    console.error(colors.red(`Error: ${errorMessage}`));
+    Deno.exit(1);
   }
 }
 
@@ -783,9 +778,18 @@ async function findConfigPubkeys(): Promise<string[]> {
 }
 
 /**
- * Migrate existing keychain bunkers to the new indexed system
+ * Action handler for migrate subcommand - Cliffy compatible
  */
-export async function migrateBunkers(pubkeys?: string[]): Promise<void> {
+export async function migrateBunkers(...pubkeys: string[]): Promise<void> {
+  // Convert rest params to array or undefined for legacy compatibility
+  const pubkeyArray = pubkeys.length > 0 ? pubkeys : undefined;
+  return migrateBunkersImpl(pubkeyArray);
+}
+
+/**
+ * Migrate existing keychain bunkers to the new indexed system (implementation)
+ */
+async function migrateBunkersImpl(pubkeys?: string[]): Promise<void> {
   const secretsManager = SecretsManager.getInstance();
   await secretsManager.initialize();
 
