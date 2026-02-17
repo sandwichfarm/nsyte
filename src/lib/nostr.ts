@@ -676,6 +676,80 @@ export async function createAppHandlerEvent(
 }
 
 /**
+ * Create a kind 0 profile metadata event
+ * Replaces the entire profile with the provided content (NIP-01)
+ */
+export async function createProfileEvent(
+  signer: ISigner,
+  profile: Partial<ProfileContent>,
+): Promise<NostrEvent> {
+  // Build the profile content object
+  const profileContent: Partial<ProfileContent> = {};
+  
+  if (profile.name) profileContent.name = profile.name;
+  if (profile.display_name) profileContent.display_name = profile.display_name;
+  if (profile.about) profileContent.about = profile.about;
+  if (profile.picture) profileContent.picture = profile.picture;
+  if (profile.banner) profileContent.banner = profile.banner;
+  if (profile.website) profileContent.website = profile.website;
+  if (profile.nip05) profileContent.nip05 = profile.nip05;
+  if (profile.lud16) profileContent.lud16 = profile.lud16;
+  if (profile.lud06) profileContent.lud06 = profile.lud06;
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: kinds.Metadata,
+    created_at: unixNow(),
+    tags: [],
+    content: JSON.stringify(profileContent),
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a kind 10002 relay list event (NIP-65)
+ * All relays are marked as outbox (write) relays only
+ */
+export async function createRelayListEvent(
+  signer: ISigner,
+  relays: string[],
+): Promise<NostrEvent> {
+  // Add all relays as outbox (write) relays
+  // NIP-65: ["r", <relay-url>, "write"]
+  const tags: string[][] = relays.map((relay) => ["r", relay, "write"]);
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: kinds.RelayList,
+    created_at: unixNow(),
+    tags,
+    content: "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
+ * Create a kind 10063 Blossom server list event
+ */
+export async function createServerListEvent(
+  signer: ISigner,
+  servers: string[],
+): Promise<NostrEvent> {
+  // Add servers as tags
+  // Format: ["server", <server-url>]
+  const tags: string[][] = servers.map((server) => ["server", server]);
+
+  const eventTemplate: NostrEventTemplate = {
+    kind: BLOSSOM_SERVER_LIST_KIND,
+    created_at: unixNow(),
+    tags,
+    content: "",
+  };
+
+  return await signer.signEvent(eventTemplate);
+}
+
+/**
  * Create a NIP-89 recommendation event (kind 31989)
  * This is published by users to recommend an app for handling specific event kinds
  */

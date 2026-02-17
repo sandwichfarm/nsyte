@@ -16,6 +16,21 @@ export type ProjectConfig = {
   relays: string[];
   servers: string[];
   publishAppHandler?: boolean;
+  publishProfile?: boolean; // Publish kind 0 profile metadata (root sites only)
+  publishRelayList?: boolean; // Publish kind 10002 relay list (root sites only)
+  publishServerList?: boolean; // Publish kind 10063 Blossom server list (root sites only)
+  profile?: {
+    // Profile metadata for kind 0 events
+    name?: string;
+    display_name?: string;
+    about?: string;
+    picture?: string;
+    banner?: string;
+    website?: string;
+    nip05?: string;
+    lud16?: string;
+    lud06?: string;
+  };
   fallback?: string;
   gatewayHostnames?: string[];
   id?: string | "" | null; // Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)

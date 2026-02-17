@@ -72,6 +72,9 @@ export interface DeployCommandOptions {
   concurrency: number;
   fallback?: string;
   publishAppHandler: boolean;
+  publishProfile: boolean;
+  publishRelayList: boolean;
+  publishServerList: boolean;
   handlerKinds?: string;
   nonInteractive: boolean;
 }
@@ -143,6 +146,15 @@ export function registerDeployCommand(program: Command): void {
       "--handler-kinds <kinds:string>",
       "Event kinds this nsite can handle (comma separated).",
     )
+    .option("--publish-profile", "Publish profile metadata (Kind 0) - root sites only.", {
+      default: false,
+    })
+    .option("--publish-relay-list", "Publish relay list (Kind 10002) - root sites only.", {
+      default: false,
+    })
+    .option("--publish-server-list", "Publish Blossom server list (Kind 10063) - root sites only.", {
+      default: false,
+    })
     .option(
       "--fallback <file:string>",
       "An HTML file to reference as 404.html (creates path mapping with same hash)",
@@ -1619,6 +1631,9 @@ async function maybePublishMetadata(
   // Use the centralized metadata publisher
   await publishMetadata(config, signer, publishToRelays, statusDisplay, {
     publishAppHandler: shouldPublishAppHandler,
+    publishProfile: options.publishProfile || config.publishProfile || false,
+    publishRelayList: options.publishRelayList || config.publishRelayList || false,
+    publishServerList: options.publishServerList || config.publishServerList || false,
     handlerKinds: options.handlerKinds,
   });
 

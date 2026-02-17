@@ -40,6 +40,69 @@
       "description": "Whether to publish NIP-89 app handler events",
       "default": false
     },
+    "publishProfile": {
+      "type": "boolean",
+      "description": "Whether to publish kind 0 profile metadata events (root sites only)",
+      "default": false
+    },
+    "publishRelayList": {
+      "type": "boolean",
+      "description": "Whether to publish kind 10002 relay list events (root sites only)",
+      "default": false
+    },
+    "publishServerList": {
+      "type": "boolean",
+      "description": "Whether to publish kind 10063 Blossom server list events (root sites only)",
+      "default": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "Profile metadata for kind 0 events",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Your name"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Your display name"
+        },
+        "about": {
+          "type": "string",
+          "description": "Description about yourself"
+        },
+        "picture": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to your avatar image"
+        },
+        "banner": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to your banner/header image"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "description": "Your website URL"
+        },
+        "nip05": {
+          "type": "string",
+          "description": "Your NIP-05 identifier (e.g., user@domain.com)",
+          "pattern": "^[^@]+@[^@]+$"
+        },
+        "lud16": {
+          "type": "string",
+          "description": "Your Lightning address (e.g., user@getalby.com)",
+          "pattern": "^[^@]+@[^@]+$"
+        },
+        "lud06": {
+          "type": "string",
+          "description": "Legacy Lightning address (LNURL)"
+        }
+      },
+      "additionalProperties": false
+    },
     "fallback": {
       "type": "string",
       "description": "HTML file to use as 404.html for client-side routing"
@@ -193,6 +256,21 @@
         "name": "My Nostr Viewer",
         "description": "A viewer for notes and articles",
         "icon": "https://example.com/logo.png"
+      }
+    },
+    {
+      "relays": ["wss://relay.damus.io", "wss://nos.lol"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "publishProfile": true,
+      "publishRelayList": true,
+      "publishServerList": true,
+      "profile": {
+        "name": "Alice",
+        "display_name": "Alice",
+        "about": "Decentralization enthusiast",
+        "picture": "https://example.com/avatar.jpg",
+        "nip05": "alice@example.com",
+        "lud16": "alice@getalby.com"
       }
     }
   ]

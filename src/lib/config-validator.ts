@@ -53,7 +53,11 @@ export function validateConfig(config: unknown): ValidationResult {
     const cfg = config as {
       id?: string | null;
       publishAppHandler?: boolean;
+      publishProfile?: boolean;
+      publishRelayList?: boolean;
+      publishServerList?: boolean;
       appHandler?: { id?: string };
+      profile?: Record<string, unknown>;
     };
     const isRootSite = cfg.id === null || cfg.id === "" || cfg.id === undefined;
     const hasAppHandler = cfg.appHandler && cfg.publishAppHandler === true;
@@ -63,6 +67,36 @@ export function validateConfig(config: unknown): ValidationResult {
         path: "/appHandler/id",
         message:
           "is required for root sites (sites without an 'id' field). Root sites must specify 'appHandler.id' to publish app handlers.",
+      });
+    }
+
+    // Custom validation: metadata publishing only allowed for root sites
+    const wantsToPublishMetadata =
+      cfg.publishProfile === true ||
+      cfg.publishRelayList === true ||
+      cfg.publishServerList === true;
+
+    if (!isRootSite && wantsToPublishMetadata) {
+      const requested = [];
+      if (cfg.publishProfile) requested.push("publishProfile");
+      if (cfg.publishRelayList) requested.push("publishRelayList");
+      if (cfg.publishServerList) requested.push("publishServerList");
+
+      errors.push({
+        path: `/${requested[0]}`,
+        message:
+          `Publishing profile, relay list, and server list is only allowed for root sites. Named sites cannot override user-level metadata. Remove ${
+            requested.join(", ")
+          } from your config or set 'id' to null/empty string to make this a root site.`,
+      });
+    }
+
+    // Custom validation: profile object required when publishProfile is enabled
+    if (cfg.publishProfile && (!cfg.profile || Object.keys(cfg.profile).length === 0)) {
+      errors.push({
+        path: "/profile",
+        message:
+          "is required when 'publishProfile' is true. Add a 'profile' object with at least one field (name, about, picture, etc.).",
       });
     }
   }

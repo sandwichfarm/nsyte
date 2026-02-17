@@ -3,7 +3,13 @@ import type { ISigner } from "applesauce-signers";
 import type { ProjectConfig } from "../config.ts";
 import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
-import { createAppHandlerEvent, publishEventsToRelays } from "../nostr.ts";
+import {
+  createAppHandlerEvent,
+  createProfileEvent,
+  createRelayListEvent,
+  createServerListEvent,
+  publishEventsToRelays,
+} from "../nostr.ts";
 
 const log = createLogger("metadata-publisher");
 
@@ -12,6 +18,9 @@ const log = createLogger("metadata-publisher");
  */
 export interface PublishOptions {
   publishAppHandler?: boolean;
+  publishProfile?: boolean;
+  publishRelayList?: boolean;
+  publishServerList?: boolean;
   handlerKinds?: string;
 }
 
@@ -142,6 +151,117 @@ export async function publishAppHandler(
 }
 
 /**
+ * Publish kind 0 profile metadata
+ */
+export async function publishProfile(
+  config: ProjectConfig,
+  signer: ISigner,
+  relays: string[],
+  statusDisplay: StatusDisplay,
+): Promise<void> {
+  statusDisplay.update("Publishing profile (kind 0)...");
+
+  try {
+    if (!config.profile || Object.keys(config.profile).length === 0) {
+      throw new Error("No profile data configured");
+    }
+
+    const pubkey = await signer.getPublicKey();
+    log.debug(`Creating profile event for ${npubEncode(pubkey)}`);
+
+    // Create and sign the event
+    const event = await createProfileEvent(signer, config.profile);
+
+    // Publish to relays
+    await publishEventsToRelays(relays, [event]);
+
+    statusDisplay.success(
+      `Profile published successfully to ${relays.length} relay(s)`,
+    );
+    log.info(`Published profile: ${JSON.stringify(config.profile)}`);
+  } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    statusDisplay.error(`Failed to publish profile: ${message}`);
+    log.error(`Profile publication error: ${message}`);
+    throw e; // Re-throw to allow caller to handle
+  }
+}
+
+/**
+ * Publish kind 10002 relay list
+ */
+export async function publishRelayList(
+  config: ProjectConfig,
+  signer: ISigner,
+  relays: string[],
+  statusDisplay: StatusDisplay,
+): Promise<void> {
+  statusDisplay.update("Publishing relay list (kind 10002)...");
+
+  try {
+    if (!config.relays || config.relays.length === 0) {
+      throw new Error("No relays configured");
+    }
+
+    const pubkey = await signer.getPublicKey();
+    log.debug(`Creating relay list event for ${npubEncode(pubkey)}`);
+
+    // Create and sign the event (all relays as outbox/write)
+    const event = await createRelayListEvent(signer, config.relays);
+
+    // Publish to relays
+    await publishEventsToRelays(relays, [event]);
+
+    statusDisplay.success(
+      `Relay list published successfully to ${relays.length} relay(s)`,
+    );
+    log.info(`Published ${config.relays.length} relays to relay list`);
+  } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    statusDisplay.error(`Failed to publish relay list: ${message}`);
+    log.error(`Relay list publication error: ${message}`);
+    throw e; // Re-throw to allow caller to handle
+  }
+}
+
+/**
+ * Publish kind 10063 Blossom server list
+ */
+export async function publishServerList(
+  config: ProjectConfig,
+  signer: ISigner,
+  relays: string[],
+  statusDisplay: StatusDisplay,
+): Promise<void> {
+  statusDisplay.update("Publishing Blossom server list (kind 10063)...");
+
+  try {
+    if (!config.servers || config.servers.length === 0) {
+      throw new Error("No Blossom servers configured");
+    }
+
+    const pubkey = await signer.getPublicKey();
+    log.debug(`Creating server list event for ${npubEncode(pubkey)}`);
+
+    // Create and sign the event
+    const event = await createServerListEvent(signer, config.servers);
+
+    // Publish to relays
+    await publishEventsToRelays(relays, [event]);
+
+    statusDisplay.success(
+      `Blossom server list published successfully to ${relays.length} relay(s)`,
+    );
+    log.info(`Published ${config.servers.length} servers to server list`);
+  } catch (e: unknown) {
+    const message = getErrorMessage(e);
+    statusDisplay.error(`Failed to publish server list: ${message}`);
+    log.error(`Server list publication error: ${message}`);
+    throw e; // Re-throw to allow caller to handle
+  }
+}
+
+/**
  * Publish all configured metadata
  */
 export async function publishMetadata(
@@ -154,20 +274,68 @@ export async function publishMetadata(
   try {
     // Check both command-line options AND config settings
     const shouldPublishAppHandler = options.publishAppHandler || config.publishAppHandler || false;
+    const shouldPublishProfile = options.publishProfile || config.publishProfile || false;
+    const shouldPublishRelayList = options.publishRelayList || config.publishRelayList || false;
+    const shouldPublishServerList = options.publishServerList || config.publishServerList || false;
 
     log.debug(
-      `Publish flags - combined: appHandler=${shouldPublishAppHandler}`,
+      `Publish flags - combined: appHandler=${shouldPublishAppHandler}, profile=${shouldPublishProfile}, relayList=${shouldPublishRelayList}, serverList=${shouldPublishServerList}`,
     );
 
-    if (!shouldPublishAppHandler) {
+    const hasAnyPublishing = shouldPublishAppHandler || shouldPublishProfile ||
+      shouldPublishRelayList || shouldPublishServerList;
+
+    if (!hasAnyPublishing) {
       log.debug("No metadata publishing requested");
       return;
     }
 
+    // Validate root site restriction for user-level metadata
+    const isRootSite = config.id === null || config.id === "" || config.id === undefined;
+    const wantsUserMetadata = shouldPublishProfile || shouldPublishRelayList ||
+      shouldPublishServerList;
+
+    if (!isRootSite && wantsUserMetadata) {
+      const message =
+        "Profile, relay list, and server list can only be published from root sites (id must be null or empty)";
+      statusDisplay.error(message);
+      log.error(message);
+      return;
+    }
+
+    // Publish each type if requested - each allowed to fail independently
     if (shouldPublishAppHandler) {
-      await publishAppHandler(config, signer, relays, statusDisplay, {
-        handlerKinds: options.handlerKinds,
-      });
+      try {
+        await publishAppHandler(config, signer, relays, statusDisplay, {
+          handlerKinds: options.handlerKinds,
+        });
+      } catch (e) {
+        log.error(`App handler publishing failed: ${getErrorMessage(e)}`);
+      }
+    }
+
+    if (shouldPublishProfile) {
+      try {
+        await publishProfile(config, signer, relays, statusDisplay);
+      } catch (e) {
+        log.error(`Profile publishing failed: ${getErrorMessage(e)}`);
+      }
+    }
+
+    if (shouldPublishRelayList) {
+      try {
+        await publishRelayList(config, signer, relays, statusDisplay);
+      } catch (e) {
+        log.error(`Relay list publishing failed: ${getErrorMessage(e)}`);
+      }
+    }
+
+    if (shouldPublishServerList) {
+      try {
+        await publishServerList(config, signer, relays, statusDisplay);
+      } catch (e) {
+        log.error(`Server list publishing failed: ${getErrorMessage(e)}`);
+      }
     }
   } catch (e: unknown) {
     const errMsg = `Error during metadata publishing: ${getErrorMessage(e)}`;
