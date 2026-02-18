@@ -1,5 +1,5 @@
 {
-  "bunkerPubkey": "test-selection",
+  "bunkerPubkey": "9c08bc9679ca77197f3e6a28876b77c5cc4b7a9dd268d9a3cffd7f1eab667cfb",
   "fallback": "/index.html",
   "relays": [
     "wss://relay.nsite.lol",
