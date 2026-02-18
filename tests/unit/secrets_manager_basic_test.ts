@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { getSystemConfigDir } from "../../src/lib/secrets/utils.ts";
 import { join } from "jsr:@std/path";
-import { ensureDir } from "jsr:@std/fs/ensure-dir";
+import { ensureDirSync } from "jsr:@std/fs/ensure-dir";
 
 const originalEnv = Deno.env.toObject();
 
@@ -29,7 +29,7 @@ describe("Secrets Manager - Basic Operations", () => {
     (manager as any).storageBackend = null;
     (manager as any).initialized = true;
     const nsiteDir = join(tempDir, ".nsite");
-    ensureDir(nsiteDir);
+    ensureDirSync(nsiteDir);
     (manager as any).secretsPath = join(nsiteDir, "secrets.json");
   });
 
@@ -151,7 +151,11 @@ describe("Secrets Manager - Basic Operations", () => {
   });
 });
 
-describe("System Directory Detection", () => {
+describe({
+  name: "System Directory Detection",
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, () => {
   beforeEach(() => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       Deno.env.set(key, value);

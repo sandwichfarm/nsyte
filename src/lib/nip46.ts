@@ -10,7 +10,6 @@ import { kinds } from "applesauce-core/helpers";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
-import { pool } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
@@ -26,8 +25,15 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   kinds.EventDeletion, // NIP-09 event deletion
 ]);
 
-// Connect the signer to the global pool
-NostrConnectSigner.pool = pool;
+// Lazy init: connect the signer to the global pool (deferred to avoid circular import)
+let poolAssigned = false;
+async function ensurePoolAssigned() {
+  if (!poolAssigned) {
+    const { pool } = await import("./nostr.ts");
+    NostrConnectSigner.pool = pool;
+    poolAssigned = true;
+  }
+}
 
 /**
  * Helper function to render a QR code boolean array with a quiet zone to the console.
@@ -368,6 +374,7 @@ export async function storeBunkerUrl(
 export async function importFromNbunk(
   nbunkString: string,
 ): Promise<NostrConnectSigner> {
+  await ensurePoolAssigned();
   try {
     const info = decodeBunkerInfo(nbunkString);
     const clientKey = hexToBytes(info.local_key);
@@ -446,6 +453,7 @@ export async function initiateNostrConnect(
   appRelays: string[],
   connectTimeoutMs = 120000, // 2 minutes
 ): Promise<NostrConnectSigner> {
+  await ensurePoolAssigned();
   log.debug(
     `Initiating Nostr Connect with app name: ${appName}, relays: ${
       appRelays.join(

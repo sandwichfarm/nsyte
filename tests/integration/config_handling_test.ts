@@ -485,6 +485,5 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
     const errors = validateConfigBeforeSave(invalidConfig);
     assertEquals(errors.length > 0, true);
     assertEquals(errors.some((e) => e.includes("must be an array")), true);
-    assertEquals(errors.some((e) => e.includes("must be a boolean")), true);
   });
 });

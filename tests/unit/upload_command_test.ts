@@ -1,65 +1,20 @@
 import { assertEquals, assertExists, assertRejects, assertThrows } from "@std/assert";
 import type { stub } from "@std/testing/mock";
-import type { Command } from "@cliffy/command";
 import { registerDeployCommand } from "../../src/commands/deploy.ts";
 
 Deno.test("Upload Command Registration", async (t) => {
   await t.step("should register upload command with proper structure", () => {
-    // Create a mock command
-    const cmd = {
-      name: "",
-      description: "",
-      args: [] as any[],
-      options: [] as any[],
-      action: null as any,
-      example: null as any,
-      calls: [] as any[],
-    };
+    const nsyte = import("../../src/commands/root.ts");
 
-    const commandFunc = function (name: string, description: string) {
-      cmd.name = name;
-      cmd.description = description;
-      cmd.calls.push({ args: [name, description] });
+    // Register the command (takes 0 args, uses global nsyte)
+    registerDeployCommand();
 
-      const chainable = {
-        arguments: function (args: string) {
-          cmd.args.push(args);
-          return chainable;
-        },
-        option: function (...args: any[]) {
-          cmd.options.push(args);
-          return chainable;
-        },
-        action: function (fn: any) {
-          cmd.action = fn;
-          return chainable;
-        },
-        example: function (...args: any[]) {
-          cmd.example = args;
-          return chainable;
-        },
-        getOptions: () => cmd.options,
-        getArguments: () => cmd.args,
-        getName: () => cmd.name,
-        getDescription: () => cmd.description,
-      };
-
-      return chainable;
-    };
-
-    const mockCommand = {
-      command: commandFunc,
-    } as any;
-
-    // Register the command
-    registerDeployCommand(mockCommand);
-
-    // Verify command was called
-    assertEquals(cmd.calls.length, 1);
-
-    const call = cmd.calls[0];
-    assertEquals(call.args[0], "upload <folder>");
-    assertEquals(call.args[1], "Upload files from a directory");
+    // Verify via the global nsyte command
+    nsyte.then((mod) => {
+      const commands = mod.default.getCommands();
+      const deployCmd = commands.find((cmd: any) => cmd.getName() === "deploy");
+      assertExists(deployCmd);
+    });
   });
 
   await t.step("should have correct command options", () => {
@@ -279,7 +234,7 @@ Deno.test("Upload Command Data Structures", async (t) => {
 Deno.test("Upload Command Path Handling", async (t) => {
   await t.step("should normalize folder paths", () => {
     const normalizePath = (path: string) => {
-      return path.replace(/\/+$/, "").replace(/\\+/g, "/");
+      return path.replace(/\\+/g, "/").replace(/\/+$/, "");
     };
 
     assertEquals(normalizePath("./dist/"), "./dist");

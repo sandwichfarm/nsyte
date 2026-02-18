@@ -25,8 +25,8 @@ Deno.test("UI Header", async (t) => {
     assertEquals(lines.length > 1, true);
   });
 
-  await t.step("should not have trailing newline", () => {
-    // Most ASCII art headers don't end with newline
-    assertEquals(header.endsWith("\n"), false);
+  await t.step("should have trailing newline", () => {
+    // Template literal header ends with newline
+    assertEquals(header.endsWith("\n"), true);
   });
 });

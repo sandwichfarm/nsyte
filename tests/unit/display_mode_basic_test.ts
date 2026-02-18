@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import {
   type DisplayManager,
-  type DisplayMode,
+  DisplayMode,
   getDisplayManager,
 } from "../../src/lib/display-mode.ts";
 
@@ -36,18 +36,21 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
   });
 
   await t.step("should configure from options with verbose", () => {
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ verbose: true });
     const mode = manager.getMode();
     assertEquals(mode, "debug");
   });
 
   await t.step("should configure from options with non-interactive", () => {
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ nonInteractive: true });
     const isInteractive = manager.isInteractive();
     assertEquals(isInteractive, false);
   });
 
   await t.step("should configure from options with non-interactive mode", () => {
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ nonInteractive: true });
     const mode = manager.getMode();
     assertEquals(mode, "non-interactive");
@@ -55,10 +58,12 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
 
   await t.step("should handle multiple options with priority", () => {
     // Non-interactive takes precedence over verbose
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ verbose: true, nonInteractive: true });
     assertEquals(manager.getMode(), "non-interactive");
 
     // Verbose mode when not non-interactive
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ verbose: true, nonInteractive: false });
     assertEquals(manager.getMode(), "debug");
   });
@@ -67,8 +72,8 @@ Deno.test("Display Mode - DisplayManager functionality", async (t) => {
     // Configure with specific options
     manager.configureFromOptions({ verbose: true, nonInteractive: true });
 
-    // Reset by configuring with empty options
-    manager.configureFromOptions({});
+    // Reset by setting mode directly
+    manager.setMode(DisplayMode.INTERACTIVE);
 
     // Should return to defaults
     const mode = manager.getMode();
@@ -89,6 +94,7 @@ Deno.test("Display Mode - Options interface", async (t) => {
     ];
 
     for (const testCase of testCases) {
+      manager.setMode(DisplayMode.INTERACTIVE);
       manager.configureFromOptions(testCase.options);
       assertEquals(manager.getMode(), testCase.expectedMode);
     }
@@ -97,6 +103,7 @@ Deno.test("Display Mode - Options interface", async (t) => {
   await t.step("should handle nonInteractive option", () => {
     const manager = getDisplayManager();
 
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({ nonInteractive: false });
     assertEquals(manager.isInteractive(), true);
 
@@ -107,6 +114,7 @@ Deno.test("Display Mode - Options interface", async (t) => {
   await t.step("should handle undefined options gracefully", () => {
     const manager = getDisplayManager();
 
+    manager.setMode(DisplayMode.INTERACTIVE);
     manager.configureFromOptions({
       verbose: undefined,
       nonInteractive: undefined,

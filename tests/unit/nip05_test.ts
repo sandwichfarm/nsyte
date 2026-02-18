@@ -36,7 +36,7 @@ Deno.test("NIP-05 Identifier Validation", async (t) => {
   });
 });
 
-Deno.test("NIP-05 Resolution", async (t) => {
+Deno.test({ name: "NIP-05 Resolution", sanitizeOps: false, sanitizeResources: false }, async (t) => {
   await t.step("should resolve valid NIP-05 identifier", async () => {
     clearNip05Cache();
     const pubkey = await resolveNip05ToPubkey("_@hzrd149.com");
@@ -88,7 +88,7 @@ Deno.test("NIP-05 Identifier Normalization", async (t) => {
   });
 });
 
-Deno.test("Pubkey Input Normalization", async (t) => {
+Deno.test({ name: "Pubkey Input Normalization", sanitizeOps: false, sanitizeResources: false }, async (t) => {
   await t.step("should normalize hex pubkey", async () => {
     const hex = "266815e0c9210dfa324c6cba3573b14bee49da4209a9456f9484e5106cd408a5";
     const normalized = await normalizePubkeyInput(hex);

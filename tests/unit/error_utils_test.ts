@@ -52,10 +52,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
     const emptyError = new Error();
     assertEquals(getErrorMessage(emptyError), "");
 
-    // Test with objects without toString
+    // Test with objects without toString (null prototype)
     const objWithoutToString = Object.create(null);
     objWithoutToString.prop = "value";
-    assertEquals(getErrorMessage(objWithoutToString), "[object Object]");
+    assertEquals(getErrorMessage(objWithoutToString), "[unknown error]");
 
     // Test with circular references
     const circularObj: any = { a: 1 };
@@ -170,6 +170,13 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
   });
 
   await t.step("handleError - all option combinations", () => {
+    const mockLogger = {
+      error: spy(() => {}),
+      info: spy(() => {}),
+      debug: spy(() => {}),
+      warn: spy(() => {}),
+    };
+
     const exitStub = stub(Deno, "exit", () => {});
     const consoleErrorSpy = spy(console, "error");
 
@@ -177,6 +184,7 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       // Test exit with default code
       handleError("Exit default", new Error("exit error"), {
         exit: true,
+        logger: mockLogger as any,
       });
       assertEquals(exitStub.calls.length, 1);
       assertEquals(exitStub.calls[0].args[0], 1);
@@ -185,6 +193,7 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       handleError("Exit zero", new Error("exit error"), {
         exit: true,
         exitCode: 0,
+        logger: mockLogger as any,
       });
       assertEquals(exitStub.calls.length, 2);
       assertEquals(exitStub.calls[1].args[0], 0);
@@ -195,6 +204,7 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
         exitCode: 255,
         showConsole: true,
         color: false,
+        logger: mockLogger as any,
       });
       assertEquals(exitStub.calls.length, 3);
       assertEquals(exitStub.calls[2].args[0], 255);
@@ -253,13 +263,22 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
   });
 
   await t.step("withErrorHandling - error cases with options", async () => {
+    const mockLogger = {
+      error: spy(() => {}),
+      info: spy(() => {}),
+      debug: spy(() => {}),
+      warn: spy(() => {}),
+    };
+
     const exitStub = stub(Deno, "exit", () => {});
     const consoleErrorSpy = spy(console, "error");
 
     try {
-      // Test basic error
+      // Test basic error (use mock logger to prevent default logger from writing to console.error)
       const result1 = await withErrorHandling("Basic error", async () => {
         throw new Error("Async error");
+      }, {
+        logger: mockLogger as any,
       });
       assertEquals(result1, undefined);
 
@@ -269,17 +288,19 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       }, {
         showConsole: true,
         color: false,
+        logger: mockLogger as any,
       });
       assertEquals(result2, undefined);
       assertEquals(consoleErrorSpy.calls.length, 1);
       assertEquals(consoleErrorSpy.calls[0].args[0], "Error: Console error: String error thrown");
 
-      // Test with exit
+      // Test with exit (use mock logger)
       const result3 = await withErrorHandling("Exit error", async () => {
         throw new Error("Fatal error");
       }, {
         exit: true,
         exitCode: 99,
+        logger: mockLogger as any,
       });
       assertEquals(result3, undefined);
       assertEquals(exitStub.calls.length, 1);

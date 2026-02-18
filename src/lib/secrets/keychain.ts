@@ -581,3 +581,8 @@ export async function getKeychainProvider(): Promise<KeychainProvider | null> {
 
   return provider;
 }
+
+// Test-only exports for unit testing internal classes
+export const _MacOSKeychain = MacOSKeychain;
+export const _WindowsCredentialManager = WindowsCredentialManager;
+export const _LinuxSecretService = LinuxSecretService;

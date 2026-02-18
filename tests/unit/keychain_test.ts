@@ -1,29 +1,20 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { restore, stub } from "@std/testing/mock";
 import {
+  _LinuxSecretService as LinuxSecretServiceClass,
+  _MacOSKeychain as MacOSKeychainClass,
+  _WindowsCredentialManager as WindowsCredentialManagerClass,
   getKeychainProvider,
   type KeychainCredential,
   type KeychainProvider,
 } from "../../src/lib/secrets/keychain.ts";
 
-// Mock implementations to test internal classes
-async function getMacOSKeychainClass() {
-  const module = await import("../../src/lib/secrets/keychain.ts");
-  return (module as any).MacOSKeychain;
-}
-
-async function getWindowsCredentialManagerClass() {
-  const module = await import("../../src/lib/secrets/keychain.ts");
-  return (module as any).WindowsCredentialManager;
-}
-
-async function getLinuxSecretServiceClass() {
-  const module = await import("../../src/lib/secrets/keychain.ts");
-  return (module as any).LinuxSecretService;
-}
+// Capture the truly original Deno.build at module load time,
+// before any test files can modify it.
+const ORIGINAL_DENO_BUILD = Deno.build;
 
 Deno.test("MacOSKeychain", async (t) => {
-  const MacOSKeychain = await getMacOSKeychainClass();
+  const MacOSKeychain = MacOSKeychainClass;
 
   await t.step("isAvailable", async () => {
     const keychain = new MacOSKeychain();
@@ -207,84 +198,21 @@ Deno.test("MacOSKeychain", async (t) => {
   await t.step("list", async () => {
     const keychain = new MacOSKeychain();
 
-    // Mock successful list with dump output
-    const dumpOutput = `
-keychain: "/Users/test/Library/Keychains/login.keychain-db"
-class: "genp"
-attributes:
-    0x00000007 <blob>="test-service"
-    "acct"<blob>="test-account1"
-    "svce"<blob>="test-service"
-class: "genp"
-attributes:
-    0x00000007 <blob>="other-service"
-    "acct"<blob>="other-account"
-    "svce"<blob>="other-service"
-class: "genp"
-attributes:
-    0x00000007 <blob>="test-service"
-    "acct"<blob>="test-account2"
-    "svce"<blob>="test-service"
-`;
-
-    const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
-      if (options.args.includes("dump-keychain")) {
-        return {
-          output: () =>
-            Promise.resolve({
-              code: 0,
-              stdout: new TextEncoder().encode(dumpOutput),
-              stderr: new Uint8Array(),
-            }),
-        };
-      }
-      return {
-        output: () =>
-          Promise.resolve({ code: 1, stdout: new Uint8Array(), stderr: new Uint8Array() }),
-      };
-    });
-
+    // MacOSKeychain.list() now returns empty array always (dump-keychain removed)
     const accounts = await keychain.list("test-service");
-    assertEquals(accounts.length, 2);
-    assertEquals(accounts.includes("test-account1"), true);
-    assertEquals(accounts.includes("test-account2"), true);
-    assertEquals(accounts.includes("other-account"), false);
-
-    commandStub.restore();
-
-    // Mock failed list
-    const failedStub = stub(Deno, "Command", function (cmd: string, options: any) {
-      return {
-        output: () =>
-          Promise.resolve({ code: 1, stdout: new Uint8Array(), stderr: new Uint8Array() }),
-      };
-    });
-
-    const failed = await keychain.list("test-service");
-    assertEquals(failed, []);
-
-    failedStub.restore();
-
-    // Mock exception
-    const errorStub = stub(Deno, "Command", function () {
-      throw new Error("Command failed");
-    });
-
-    const errorCase = await keychain.list("test-service");
-    assertEquals(errorCase, []);
-
-    errorStub.restore();
+    assertEquals(accounts, []);
   });
 });
 
 Deno.test("WindowsCredentialManager", async (t) => {
-  const WindowsCredentialManager = await getWindowsCredentialManagerClass();
+  const WindowsCredentialManager = WindowsCredentialManagerClass;
 
   await t.step("isAvailable", async () => {
     const manager = new WindowsCredentialManager();
 
     // Mock Windows OS
-    const osStub = stub(Deno.build, "os", "windows");
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "windows" };
 
     // Mock successful where command
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
@@ -298,13 +226,13 @@ Deno.test("WindowsCredentialManager", async (t) => {
     assertEquals(available, true);
 
     commandStub.restore();
-    osStub.restore();
+    (Deno as any).build = originalBuild;
 
     // Mock non-Windows OS
-    const nonWindowsStub = stub(Deno.build, "os", "darwin");
+    (Deno as any).build = { ...originalBuild, os: "darwin" };
     const notWindows = await manager.isAvailable();
     assertEquals(notWindows, false);
-    nonWindowsStub.restore();
+    (Deno as any).build = originalBuild;
   });
 
   await t.step("formatTargetName", () => {
@@ -403,12 +331,16 @@ Currently stored credentials:
 });
 
 Deno.test("LinuxSecretService", async (t) => {
-  const LinuxSecretService = await getLinuxSecretServiceClass();
+  const LinuxSecretService = LinuxSecretServiceClass;
 
   await t.step("isAvailable", async () => {
     const service = new LinuxSecretService();
 
-    // Mock successful which command
+    // Set required DBUS_SESSION_BUS_ADDRESS env var
+    const originalDbus = Deno.env.get("DBUS_SESSION_BUS_ADDRESS");
+    Deno.env.set("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus");
+
+    // Mock successful which command and secret-tool search
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
       return {
         output: () =>
@@ -420,6 +352,13 @@ Deno.test("LinuxSecretService", async (t) => {
     assertEquals(available, true);
 
     commandStub.restore();
+
+    // Restore DBUS env
+    if (originalDbus !== undefined) {
+      Deno.env.set("DBUS_SESSION_BUS_ADDRESS", originalDbus);
+    } else {
+      Deno.env.delete("DBUS_SESSION_BUS_ADDRESS");
+    }
   });
 
   await t.step("store", async () => {
@@ -537,8 +476,34 @@ attribute.service = test-service
 });
 
 Deno.test("getKeychainProvider", async (t) => {
+  // Helper to save/restore env vars that getKeychainProvider checks
+  const saveEnv = () => {
+    const saved = {
+      disableKeychain: Deno.env.get("NSYTE_DISABLE_KEYCHAIN"),
+      testMode: Deno.env.get("NSYTE_TEST_MODE"),
+    };
+    // Clear the env vars so getKeychainProvider doesn't short-circuit
+    Deno.env.delete("NSYTE_DISABLE_KEYCHAIN");
+    Deno.env.delete("NSYTE_TEST_MODE");
+    return saved;
+  };
+  const restoreEnv = (saved: { disableKeychain?: string; testMode?: string }) => {
+    if (saved.disableKeychain !== undefined) {
+      Deno.env.set("NSYTE_DISABLE_KEYCHAIN", saved.disableKeychain);
+    } else {
+      Deno.env.delete("NSYTE_DISABLE_KEYCHAIN");
+    }
+    if (saved.testMode !== undefined) {
+      Deno.env.set("NSYTE_TEST_MODE", saved.testMode);
+    } else {
+      Deno.env.delete("NSYTE_TEST_MODE");
+    }
+  };
+
   await t.step("returns MacOSKeychain on darwin", async () => {
-    const osStub = stub(Deno.build, "os", "darwin");
+    const savedEnv = saveEnv();
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "darwin" };
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
       return {
         output: () =>
@@ -549,12 +514,15 @@ Deno.test("getKeychainProvider", async (t) => {
     const provider = await getKeychainProvider();
     assertExists(provider);
 
-    osStub.restore();
+    (Deno as any).build = originalBuild;
     commandStub.restore();
+    restoreEnv(savedEnv);
   });
 
   await t.step("returns WindowsCredentialManager on windows", async () => {
-    const osStub = stub(Deno.build, "os", "windows");
+    const savedEnv = saveEnv();
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "windows" };
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
       return {
         output: () =>
@@ -565,12 +533,17 @@ Deno.test("getKeychainProvider", async (t) => {
     const provider = await getKeychainProvider();
     assertExists(provider);
 
-    osStub.restore();
+    (Deno as any).build = originalBuild;
     commandStub.restore();
+    restoreEnv(savedEnv);
   });
 
   await t.step("returns LinuxSecretService on linux", async () => {
-    const osStub = stub(Deno.build, "os", "linux");
+    const savedEnv = saveEnv();
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "linux" };
+    const originalDbus = Deno.env.get("DBUS_SESSION_BUS_ADDRESS");
+    Deno.env.set("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus");
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
       return {
         output: () =>
@@ -581,21 +554,32 @@ Deno.test("getKeychainProvider", async (t) => {
     const provider = await getKeychainProvider();
     assertExists(provider);
 
-    osStub.restore();
+    (Deno as any).build = originalBuild;
     commandStub.restore();
+    if (originalDbus !== undefined) {
+      Deno.env.set("DBUS_SESSION_BUS_ADDRESS", originalDbus);
+    } else {
+      Deno.env.delete("DBUS_SESSION_BUS_ADDRESS");
+    }
+    restoreEnv(savedEnv);
   });
 
   await t.step("returns null on unsupported platform", async () => {
-    const osStub = stub(Deno.build, "os", "freebsd" as any);
+    const savedEnv = saveEnv();
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "freebsd" as any };
 
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
 
-    osStub.restore();
+    (Deno as any).build = originalBuild;
+    restoreEnv(savedEnv);
   });
 
   await t.step("returns null when provider is not available", async () => {
-    const osStub = stub(Deno.build, "os", "darwin");
+    const savedEnv = saveEnv();
+    const originalBuild = ORIGINAL_DENO_BUILD;
+    (Deno as any).build = { ...ORIGINAL_DENO_BUILD, os: "darwin" };
     const commandStub = stub(Deno, "Command", function (cmd: string, options: any) {
       return {
         output: () =>
@@ -606,8 +590,9 @@ Deno.test("getKeychainProvider", async (t) => {
     const provider = await getKeychainProvider();
     assertEquals(provider, null);
 
-    osStub.restore();
+    (Deno as any).build = originalBuild;
     commandStub.restore();
+    restoreEnv(savedEnv);
   });
 });
 

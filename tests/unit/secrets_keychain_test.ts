@@ -9,9 +9,8 @@ import {
 
 describe("keychain - comprehensive branch coverage", () => {
   let commandStub: any;
-  let buildStub: any;
   let envGetStub: any;
-  const originalBuildOS = Deno.build.os;
+  const originalBuild = Deno.build;
   const originalEnvGet = Deno.env.get;
 
   beforeEach(() => {
@@ -25,32 +24,37 @@ describe("keychain - comprehensive branch coverage", () => {
   });
 
   afterEach(() => {
+    (Deno as any).build = originalBuild;
     restore();
   });
 
   const mockOS = (os: string) => {
-    if (buildStub) buildStub.restore();
-    buildStub = stub(Deno, "build", {
-      ...Deno.build,
+    (Deno as any).build = {
+      ...originalBuild,
       os: os as typeof Deno.build.os,
-    });
+    };
   };
 
   const mockCommand = (
     expectedCmd: string,
     responses: Record<string, { code: number; stdout?: string; stderr?: string }>,
   ) => {
-    if (commandStub) commandStub.restore();
+    if (commandStub) {
+      try {
+        commandStub.restore();
+      } catch { /* already restored */ }
+    }
 
     commandStub = stub(
       Deno,
       "Command",
-      class MockCommand {
-        constructor(public cmd: string, public options?: any) {}
+      function MockCommand(this: any, cmd: string, options?: any) {
+        this.cmd = cmd;
+        this.options = options;
 
-        async output() {
-          const args = this.options?.args || [];
-          const key = `${this.cmd}:${args.join(":")}`;
+        this.output = async () => {
+          const args = options?.args || [];
+          const key = `${cmd}:${args.join(":")}`;
 
           // Check for exact match first
           if (responses[key]) {
@@ -79,9 +83,9 @@ describe("keychain - comprehensive branch coverage", () => {
             stdout: new Uint8Array(),
             stderr: new TextEncoder().encode("Command not found"),
           };
-        }
+        };
 
-        spawn() {
+        this.spawn = () => {
           const stdin = {
             getWriter: () => ({
               write: async () => {},
@@ -93,7 +97,7 @@ describe("keychain - comprehensive branch coverage", () => {
             stdin,
             output: async () => this.output(),
           };
-        }
+        };
       } as any,
     );
   };
@@ -390,43 +394,9 @@ describe("keychain - comprehensive branch coverage", () => {
     });
 
     describe("list", () => {
-      it("should list accounts successfully", async () => {
-        const dumpOutput = `
-keychain: "/Users/test/Library/Keychains/login.keychain-db"
-class: "genp"
-attributes:
-    svce<blob>="test-service"
-    acct<blob>="account1"
-class: "genp"
-attributes:
-    svce<blob>="test-service"
-    acct<blob>="account2"
-class: "genp"
-attributes:
-    svce<blob>="other-service"
-    acct<blob>="account3"
-`;
-
+      it("should always return empty array (dump-keychain removed)", async () => {
         mockCommand("security", {
           "which:security": { code: 0 },
-          "security:find-generic-password": { code: 1 }, // Not found with empty account
-          "security:dump-keychain": { code: 0, stdout: dumpOutput },
-        });
-
-        const provider = await getKeychainProvider();
-        assertExists(provider);
-
-        const accounts = await provider.list("test-service");
-        assertEquals(accounts.length, 2);
-        assertEquals(accounts.includes("account1"), true);
-        assertEquals(accounts.includes("account2"), true);
-      });
-
-      it("should handle dump-keychain failure", async () => {
-        mockCommand("security", {
-          "which:security": { code: 0 },
-          "security:find-generic-password": { code: 1 },
-          "security:dump-keychain": { code: 1 },
         });
 
         const provider = await getKeychainProvider();
@@ -434,45 +404,6 @@ attributes:
 
         const accounts = await provider.list("test-service");
         assertEquals(accounts, []);
-      });
-
-      it("should handle list exception", async () => {
-        mockCommand("which", {
-          "which:security": { code: 0 },
-        });
-
-        const provider = await getKeychainProvider();
-        assertExists(provider);
-
-        commandStub.restore();
-        commandStub = stub(Deno, "Command", () => {
-          throw new Error("Command error");
-        });
-
-        const accounts = await provider.list("test-service");
-        assertEquals(accounts, []);
-      });
-
-      it("should remove duplicate accounts", async () => {
-        const dumpOutput = `
-svce<blob>="test-service"
-acct<blob>="account1"
-svce<blob>="test-service"
-acct<blob>="account1"
-`;
-
-        mockCommand("security", {
-          "which:security": { code: 0 },
-          "security:find-generic-password": { code: 1 },
-          "security:dump-keychain": { code: 0, stdout: dumpOutput },
-        });
-
-        const provider = await getKeychainProvider();
-        assertExists(provider);
-
-        const accounts = await provider.list("test-service");
-        assertEquals(accounts.length, 1);
-        assertEquals(accounts[0], "account1");
       });
     });
   });

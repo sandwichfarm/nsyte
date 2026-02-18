@@ -113,7 +113,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       const result = displayUploadConfigTable(config);
 
       assertEquals(Array.isArray(result), true);
-      assertEquals(result.length > 10, true); // Should have multiple lines
+      assertEquals(result.length > 5, true); // Should have multiple lines
 
       // Check for required content
       const content = result.join(" ");

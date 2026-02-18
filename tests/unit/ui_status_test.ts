@@ -1,9 +1,15 @@
 import { assertEquals } from "@std/assert";
 import { stub } from "@std/testing/mock";
+import { DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
 import { StatusDisplay } from "../../src/ui/status.ts";
 
 Deno.test("UI Status - StatusDisplay", async (t) => {
   let consoleLogStub: any;
+
+  // Force non-interactive mode so StatusDisplay uses console.log instead of Deno.stdout.writeSync
+  const manager = getDisplayManager();
+  const originalMode = manager.getMode();
+  manager.setMode(DisplayMode.NON_INTERACTIVE);
 
   await t.step("should create status display instance", () => {
     const status = new StatusDisplay();
@@ -65,8 +71,9 @@ Deno.test("UI Status - StatusDisplay", async (t) => {
     status.success("");
     status.error("");
 
-    // Should still log even with empty messages
-    assertEquals(consoleLogStub.calls.length, 3);
+    // update("") and success("") log, but error("") triggers early return in complete()
+    // because !success && !message evaluates to true (empty string is falsy)
+    assertEquals(consoleLogStub.calls.length, 2);
 
     consoleLogStub.restore();
   });
@@ -143,4 +150,7 @@ Deno.test("UI Status - StatusDisplay", async (t) => {
 
     consoleLogStub.restore();
   });
+
+  // Restore original display mode
+  manager.setMode(originalMode);
 });
