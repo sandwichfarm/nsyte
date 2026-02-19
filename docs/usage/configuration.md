@@ -175,34 +175,34 @@ nsyte automatically ignores:
 
 ## Configuration Management
 
-### Viewing Configuration
+### Interactive Editor
 
-To view your current configuration:
-
-```bash
-nsyte config show
-```
-
-### Updating Configuration
-
-You can update your configuration in several ways:
-
-1. Using the CLI:
+Use the TUI-based configuration editor:
 
 ```bash
-nsyte config set relays wss://relay1,wss://relay2
+nsyte config
 ```
 
-2. Editing the file directly:
+This provides an interactive interface for navigating and editing all configuration fields, with
+validation and bunker integration.
 
-```bash
-# Edit .nsite/config.json
+### Manual Editing
+
+Edit `.nsite/config.json` directly with any text editor. Use the JSON schema for editor support:
+
+```json
+{
+  "$schema": "https://nsyte.run/schemas/config.schema.json"
+}
 ```
 
-3. Using environment variables:
+### Environment Variables
+
+Override configuration with environment variables:
 
 ```bash
 export NSITE_RELAYS=wss://relay1,wss://relay2
+export NSITE_SERVERS=https://server1,https://server2
 ```
 
 ## Best Practices

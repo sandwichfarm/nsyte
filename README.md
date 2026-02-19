@@ -84,14 +84,17 @@ deno task compile:all
 | `nsyte`                 | Interactive setup wizard                                        |
 | `nsyte init`            | Initialize configuration                                        |
 | `nsyte deploy <dir>`    | Deploy files                                                    |
-| `nsyte ls`              | List published files                                            |
+| `nsyte list`            | List published files for a site                                 |
+| `nsyte sites`           | List all root and named sites for a pubkey                      |
 | `nsyte browse`          | Interactive TUI browser for files                               |
-| `nsyte download <dir>`  | Download files                                                  |
+| `nsyte download`        | Download files                                                  |
 | `nsyte run`             | Run resolver server with npub subdomains                        |
-| `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default) |
+| `nsyte serve -d <dir>`  | Serve local nsite files from directory (current dir is default) |
 | `nsyte debug <npub>`    | Debug an nsite by checking relays and servers                   |
 | `nsyte validate`        | Validate configuration file                                     |
-| `nsyte purge`           | Remove published files                                          |
+| `nsyte purge`           | Remove published site manifest from relays                      |
+| `nsyte config`          | Interactive TUI configuration editor                            |
+| `nsyte announce`        | Publish app handler announcements                               |
 | `nsyte ci`              | Generate CI/CD credentials (nbunksec)                           |
 | `nsyte bunker <action>` | Manage NIP-46 bunkers                                           |
 
@@ -108,54 +111,39 @@ nsyte deploy ./dist --force --concurrency 8 --verbose
 nsyte deploy ./dist --publish-profile --publish-relay-list --publish-server-list
 
 # With NIP-89 app handler
-nsyte deploy ./dist --app-handler --handler-kinds "1,30023"
+nsyte deploy ./dist --publish-app-handler --handler-kinds "1,30023"
 ```
 
-### Purging Files
+### Purging Sites
 
-The `purge` command removes published files from relays and optionally from Blossom servers:
+The `purge` command removes a site manifest from relays and optionally deletes blobs from Blossom
+servers:
 
 ```bash
-# Interactive purge (prompts for what to purge)
+# Purge root site (with confirmation prompt)
 nsyte purge
 
-# Purge all published files
-nsyte purge --all
+# Purge a named site
+nsyte purge --name blog
 
-# Purge specific files using glob patterns
-nsyte purge --paths "*.html" --paths "/static/*"
-
-# Purge all files and their blobs from Blossom servers
-nsyte purge --all --include-blobs
+# Purge and also delete blobs from Blossom servers
+nsyte purge --include-blobs
 
 # Non-interactive purge (skip confirmation)
-nsyte purge --all --yes
+nsyte purge --yes
+
+# Purge with custom relays and servers
+nsyte purge --relays wss://relay1.com,wss://relay2.com --servers https://server1.com
 ```
 
 #### Purge Options
 
-- `--all`: Remove all published files for your pubkey
-- `--paths <pattern>`: Remove files matching glob patterns (supports wildcards `*` and `?`)
+- `-d, --name <name>`: Site identifier for named sites (kind 35128). Omit to purge root site
 - `--include-blobs`: Also delete blobs from Blossom servers
-- `--yes`: Skip confirmation prompts
-- `--relays <relays>`: Override relays to use (comma-separated)
-- `--servers <servers>`: Override Blossom servers to use (comma-separated)
-
-#### Pattern Examples
-
-```bash
-# Remove all HTML files
-nsyte purge --paths "*.html"
-
-# Remove all files in a directory
-nsyte purge --paths "/static/*"
-
-# Remove all CSS files recursively
-nsyte purge --paths "**/*.css"
-
-# Remove specific files
-nsyte purge --paths "/index.html" --paths "/about.html"
-```
+- `-y, --yes`: Skip confirmation prompts
+- `-r, --relays <relays>`: Override relays to use (comma-separated)
+- `-s, --servers <servers>`: Override Blossom servers for blob deletion (comma-separated)
+- `--sec <secret>`: Secret for signing (nsec, nbunksec, bunker:// URL, or hex key)
 
 **Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests,
 and it may take time for deletions to propagate.
@@ -333,7 +321,7 @@ nsyte ci
 
 # Add the nbunksec to your CI/CD secrets (e.g., NBUNK_SECRET)
 # Then use in your pipeline:
-nsyte deploy ./dist --nbunksec ${NBUNK_SECRET}
+nsyte deploy ./dist --sec ${NBUNK_SECRET}
 ```
 
 **Security Best Practices:**
@@ -350,9 +338,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v1
-      - run: nsyte deploy ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
+      - run: nsyte deploy ./dist --sec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ## Configuration
@@ -449,7 +437,10 @@ announcements, allowing your nsite to be discovered as a viewer for specific Nos
 
 ```bash
 # Publish app handler for specific event kinds
-nsyte deploy ./dist --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy ./dist --publish-app-handler --handler-kinds "1,30023,30311"
+
+# Or use the standalone announce command
+nsyte announce --publish-app-handler
 ```
 
 When enabled, other Nostr clients can suggest your nsite when users encounter the specified event
@@ -488,7 +479,7 @@ nsyte bunker remove <pubkey>
 nsyte bunker migrate
 ```
 
-### Upload Command Options
+### Deploy Command Options
 
 ```
 --force            Force re-upload of all files
@@ -496,7 +487,7 @@ nsyte bunker migrate
 --verbose          Show detailed progress
 --concurrency <n>  Number of parallel uploads (default: 4)
 --fallback <file>  HTML file to use as 404.html
---nbunksec <string>   nbunksec string for authentication
+--sec <secret>     Secret for signing (auto-detects: nsec, nbunksec, bunker:// URL, or hex key)
 ```
 
 ### Deep Linking in SPAs

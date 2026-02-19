@@ -18,10 +18,11 @@ nsyte browse [options]
 
 - `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays
   from project config or default discovery relays
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing delete operations
-- `-p, --pubkey <npub>` — The public key to browse files for (if not using private key)
-- `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
+  64-char hex)
+- `-p, --pubkey <npub>` — The public key to browse files for (npub, hex, or NIP-05 identifier)
+- `--use-fallback-relays` — Include default nsyte relays in addition to configured/user relays
+- `--use-fallbacks` — Enable all fallbacks (currently only relays for this command)
 
 ## Examples
 
@@ -37,10 +38,10 @@ Browse files for a specific public key:
 nsyte browse --pubkey npub1... --relays wss://relay.example
 ```
 
-Browse files using a private key:
+Browse files using a secret:
 
 ```bash
-nsyte browse --privatekey nsec1...
+nsyte browse --sec nsec1...
 ```
 
 ## Keyboard Shortcuts
@@ -88,11 +89,10 @@ nsyte browse --privatekey nsec1...
 
 Delete operations require authentication. The browse command supports:
 
-1. **Private key** — Use `--privatekey` with an nsec or hex key
-2. **Bunker** — Use `--bunker` with a bunker URL
-3. **nbunksec** — Use `--sec` with an encoded bunker secret
-4. **Project config** — Uses authentication from `.nsite/config.json`
-5. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to
+1. **`--sec` flag** — Accepts any format: nsec, nbunksec, bunker:// URL, or 64-char hex key
+   (auto-detected)
+2. **Project config** — Uses authentication from `.nsite/config.json`
+3. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to
    delete
 
 ## Features
@@ -143,7 +143,7 @@ The interface adapts to terminal size changes, adjusting the number of visible f
 
 ## See Also
 
-- [`nsyte ls`](ls.md) - List files in a simple text format
+- [`nsyte list`](ls.md) - List files in a simple text format
 - [`nsyte deploy`](deploy.md) - Deploy files to the network
-- [`nsyte purge`](purge.md) - Remove files using command-line options
+- [`nsyte purge`](purge.md) - Remove a site manifest
 - [`nsyte download`](download.md) - Download files from the network

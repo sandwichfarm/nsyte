@@ -1,59 +1,93 @@
 ---
-title: ls
+title: list
 description: List files available on the nostr network
 ---
 
-# ls
+# list
 
-List files available on the nostr network for a given public key. This command shows which files
-have been published to nostr relays and indicates which files would be ignored based on local
+List files available on the nostr network for a given public key. Shows which files have been
+published via site manifest events and indicates which files would be ignored based on local
 `.nsite-ignore` rules.
+
+**Aliases:** `ls`
 
 ## Usage
 
 ```bash
-nsyte ls [options]
+nsyte list [path] [options]
 ```
+
+- `[path]` (optional): Filter files by path prefix
 
 ## Options
 
 - `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays
   from project config or default discovery relays
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for authentication
-- `-p, --pubkey <npub>` — The public key to list files for (if not using private key)
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
+  64-char hex)
+- `-p, --pubkey <npub>` — The public key to list files for (npub, hex, or NIP-05 identifier like
+  `name@domain.com`)
+- `-d, --name <name>` — Site identifier for named sites (kind 35128). If not provided, lists root
+  site (kind 15128)
+- `--use-fallback-relays` — Include default nsyte relays in addition to configured/user relays
+- `--use-fallbacks` — Enable all fallbacks (currently only relays for this command)
 
 ## Examples
 
 List files using project config:
 
 ```bash
-nsyte ls
+nsyte list
 ```
 
 List files for a specific public key:
 
 ```bash
-nsyte ls --pubkey npub1... --relays wss://relay.example
+nsyte list --pubkey npub1... --relays wss://relay.example
 ```
 
-List files using a private key:
+List files using a NIP-05 identifier:
 
 ```bash
-nsyte ls --privatekey nsec1...
+nsyte list --pubkey user@domain.com
+```
+
+List files for a named site:
+
+```bash
+nsyte list --name blog
+```
+
+Filter files by path:
+
+```bash
+nsyte list /assets
 ```
 
 ## Authentication
 
-The `ls` command supports multiple authentication methods:
+The `list` command supports multiple authentication methods:
 
-1. **Explicit pubkey** - Use `--pubkey` to list files for any public key
-2. **Private key** - Use `--privatekey` to authenticate with your private key
-3. **Project bunker** - Uses the bunker configured in `.nsite/config.json`
-4. **Interactive mode** - If no key is provided, you'll be prompted to:
-   - Generate a new private key
-   - Enter an existing private key
-   - Use an existing NSEC bunker
-   - Connect to a new NSEC bunker (redirects to `nsyte bunker connect`)
+1. **Explicit pubkey** — Use `--pubkey` to list files for any public key (supports npub, hex, or
+   NIP-05 identifiers)
+2. **Secret** — Use `--sec` with any supported format (nsec, nbunksec, bunker:// URL, or hex key)
+3. **Project bunker** — Uses the bunker configured in `.nsite/config.json`
+4. **Interactive mode** — If no key is provided, you'll be prompted
+
+## Root Sites vs Named Sites
+
+By default, `list` shows files for the root site (kind 15128). To list files for a named site, use
+the `-d, --name` flag:
+
+```bash
+# List root site files
+nsyte list
+
+# List files for named site "blog"
+nsyte list --name blog
+```
+
+To see all sites (both root and named) for a pubkey, use [`nsyte sites`](sites.md) instead.
 
 ## Ignore Rules
 

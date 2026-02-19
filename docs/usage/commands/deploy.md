@@ -20,9 +20,8 @@ nsyte deploy <folder> [options]
 - `-f, --force` — Force publishing even if no changes were detected (default: false)
 - `-s, --servers <servers>` — The blossom servers to use (comma separated)
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
-- `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
+  64-char hex)
 - `-p, --purge` — Delete online file events that are not used anymore (default: false)
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
@@ -32,8 +31,11 @@ nsyte deploy <folder> [options]
   false)
 - `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
-- `--fallback <file>` — An HTML file to copy and publish as 404.html
+- `--fallback <file>` — An HTML file to reference as 404.html (creates path mapping with same hash)
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
+- `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
+- `--use-fallback-servers` — Include default blossom servers in addition to configured servers
+- `--use-fallbacks` — Enable both fallback relays and servers
 
 ## Examples
 
@@ -64,7 +66,7 @@ nsyte deploy dist --publish-profile --publish-relay-list --publish-server-list
 Deploy with app handler announcement:
 
 ```bash
-nsyte deploy dist --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy dist --publish-app-handler --handler-kinds "1,30023,30311"
 ```
 
 ## How it Works
@@ -82,10 +84,9 @@ The deploy command:
 The deploy command requires authentication to sign nostr events. You can provide authentication
 through:
 
-1. **Private key**: Use `--privatekey` with an nsec or hex key
-2. **Bunker**: Use `--bunker` with a bunker URL
-3. **nbunksec**: Use `--sec` with an encoded bunker secret
-4. **Project config**: If configured during `nsyte init`
+1. **`--sec` flag**: Accepts any format — nsec, nbunksec, bunker:// URL, or 64-char hex key
+   (auto-detected)
+2. **Project config**: If configured during `nsyte init` (bunker or private key)
 
 ## Performance
 
@@ -153,7 +154,8 @@ nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
 ## See Also
 
 - [`nsyte init`](init.md) - Initialize a new nsyte project
-- [`nsyte ls`](ls.md) - List deployed files
+- [`nsyte list`](ls.md) - List deployed files
+- [`nsyte sites`](sites.md) - List all sites for a pubkey
 - [`nsyte browse`](browse.md) - Interactive file browser
-- [`nsyte purge`](purge.md) - Remove deployed files
+- [`nsyte purge`](purge.md) - Remove a site manifest
 - [`nsyte serve`](serve.md) - Serve files locally for testing

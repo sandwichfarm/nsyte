@@ -60,16 +60,21 @@ nav:
   - Commands:
       - Overview: usage/commands.md
       - init: usage/commands/init.md
-      - upload: usage/commands/upload.md
+      - deploy: usage/commands/deploy.md
+      - list: usage/commands/ls.md
+      - sites: usage/commands/sites.md
+      - browse: usage/commands/browse.md
       - download: usage/commands/download.md
-      - ls: usage/commands/ls.md
       - serve: usage/commands/serve.md
       - run: usage/commands/run.md
       - validate: usage/commands/validate.md
+      - config: usage/commands/config.md
       - debug: usage/commands/debug.md
       - purge: usage/commands/purge.md
+      - announce: usage/commands/announce.md
       - ci: usage/commands/ci.md
       - bunker: usage/commands/bunker.md
+      - upload (deprecated): usage/commands/upload.md
   - Guides:
       - Deployment: guides/deployment.md
       - Security:

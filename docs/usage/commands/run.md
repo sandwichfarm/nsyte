@@ -23,11 +23,14 @@ nsyte run [npub] [options]
 
 - `-p, --port <port>`: Port number to run the resolver on (default: 6798)
 - `-r, --relays <relays>`: Comma-separated list of nostr relays to use
-- `-k, --privatekey <nsec>`: Private key for signing operations
-- `-b, --bunker <url>`: NIP-46 bunker URL for signing
-- `--sec <nbunksec>`: nbunksec string for authentication
-- `-c, --cache-dir <dir>`: Directory to cache downloaded files
+- `--sec <secret>`: Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
+  64-char hex)
+- `-c, --cache-dir <dir>`: Directory to cache downloaded files (default: `/tmp/nsyte`)
+- `--no-cache`: Disable file caching entirely
 - `--no-open`: Don't automatically open browser
+- `--use-fallback-relays`: Include default nsyte relays in addition to configured/user relays
+- `--use-fallback-servers`: Include default blossom servers in addition to configured/user servers
+- `--use-fallbacks`: Enable both fallback relays and servers
 
 ## Examples
 
@@ -128,17 +131,11 @@ nsyte run
 nsyte run --relays wss://relay.nsite.lol,wss://relay.damus.io
 ```
 
-### Blossom Server Configuration
+### Blossom Server Discovery
 
-Configure which blossom servers to use for file retrieval:
-
-```bash
-# Use default servers
-nsyte run
-
-# Use specific servers
-nsyte run --servers https://cdn.hzrd149.com,https://cdn.sovbit.host
-```
+The resolver automatically discovers blossom servers from site manifest events (server tags) and
+the user's kind 10063 server list. Use `--use-fallback-servers` to also include default nsyte
+servers.
 
 ## Features
 
@@ -202,7 +199,7 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["deno", "run", "--allow-net", "--allow-read", "nsyte", "run", "--host", "0.0.0.0"]
+CMD ["deno", "run", "--allow-net", "--allow-read", "nsyte", "run", "--port", "3000"]
 ```
 
 ### systemd Service
@@ -216,7 +213,7 @@ After=network.target
 Type=simple
 User=nsyte
 WorkingDirectory=/opt/nsyte
-ExecStart=/usr/local/bin/nsyte run --host 0.0.0.0 --port 3000
+ExecStart=/usr/local/bin/nsyte run --port 3000
 Restart=always
 
 [Install]
@@ -281,4 +278,4 @@ Monitor these metrics:
 - [`nsyte serve`](serve.md) - Serve local files for development
 - [`nsyte deploy`](deploy.md) - Deploy files to create nsites
 - [`nsyte debug`](debug.md) - Debug nsite configuration and connectivity
-- [`nsyte ls`](ls.md) - List published nsite files
+- [`nsyte list`](ls.md) - List published nsite files

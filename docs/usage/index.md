@@ -50,25 +50,24 @@ Common options:
 
 ### Listing Published Files
 
-To see what files are currently published:
+To see what files are currently published for your site:
 
 ```bash
-nsyte ls
+nsyte list
 ```
 
-This will show:
+To see all sites (root and named) for a pubkey:
 
-- File paths
-- Upload dates
-- File sizes
-- Status (if available)
+```bash
+nsyte sites
+```
 
 ### Downloading Files
 
 To download your published files:
 
 ```bash
-nsyte download ./backup
+nsyte download --output ./backup
 ```
 
 This is useful for:
@@ -77,22 +76,19 @@ This is useful for:
 - Migrating to a different setup
 - Verifying published content
 
-### Purging Files
+### Purging Sites
 
-To remove published files from relays and optionally from Blossom servers:
+To remove a site manifest from relays and optionally delete blobs from Blossom servers:
 
 ```bash
-# Interactive purge (prompts for what to purge)
+# Purge root site (with confirmation)
 nsyte purge
 
-# Purge all published files
-nsyte purge --all
+# Purge a named site
+nsyte purge --name blog
 
-# Purge specific files using patterns
-nsyte purge --paths "*.html" --paths "/static/*"
-
-# Purge files and their blobs from Blossom servers
-nsyte purge --all --include-blobs
+# Purge and delete blobs from Blossom servers
+nsyte purge --include-blobs
 ```
 
 This is useful for:
@@ -100,7 +96,6 @@ This is useful for:
 - Removing old/unwanted content
 - Cleaning up after testing
 - Managing storage space on servers
-- Removing sensitive content
 
 **Note**: Creates NIP-09 delete events. Some relays may not honor delete requests.
 

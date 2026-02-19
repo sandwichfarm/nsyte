@@ -73,11 +73,14 @@ Add the `appHandler` configuration to your `.nsite/config.json`:
 You can also publish handler announcements via command line:
 
 ```bash
-# Publish handler announcement with command line options
-nsyte deploy ./site --app-handler --handler-kinds "1,30023,30311"
+# Publish handler announcement during deploy
+nsyte deploy ./site --publish-app-handler --handler-kinds "1,30023,30311"
 
-# Or use the config file
-nsyte deploy ./site --app-handler
+# Or use the config file setting
+nsyte deploy ./site --publish-app-handler
+
+# Or use the standalone announce command
+nsyte announce --publish-app-handler
 ```
 
 ## Common Event Kinds
