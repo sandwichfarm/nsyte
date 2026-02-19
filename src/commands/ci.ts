@@ -12,9 +12,9 @@
  */
 
 import { colors } from "@cliffy/ansi/colors";
-import { Command } from "@cliffy/command";
 import { createLogger } from "../lib/logger.ts";
 import { connectBunker } from "./bunker.ts";
+import nsyte from "./root.ts";
 
 const log = createLogger("ci");
 
@@ -33,7 +33,7 @@ export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
     // The connectBunker function with noPersist=true will display the nbunksec
     // and additional usage instructions
     console.log(colors.cyan("\nUsage in CI/CD:"));
-    console.log("  nsyte upload ./dist --nbunksec ${NBUNK_SECRET}");
+    console.log("  nsyte upload ./dist --sec ${NBUNK_SECRET}");
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Error creating nbunksec: ${errorMessage}`);
@@ -52,8 +52,8 @@ export async function createNbunksecForCI(bunkerUrl?: string): Promise<void> {
 /**
  * Register the CI command with the CLI
  */
-export function registerCICommand(program: Command): void {
-  program
+export function registerCICommand(): void {
+  nsyte
     .command("ci")
     .description("Create an nbunksec string for CI/CD use (ephemeral, never stored to disk)")
     .arguments("[url:string]")

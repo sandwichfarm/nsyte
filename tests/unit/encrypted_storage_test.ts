@@ -1,6 +1,6 @@
-import { assert, assertEquals, assertExists } from "std/assert/mod.ts";
-import { join } from "std/path/mod.ts";
-import { ensureDirSync, existsSync } from "std/fs/mod.ts";
+import { assert, assertEquals, type assertExists } from "@std/assert";
+import { join } from "jsr:@std/path";
+import { ensureDirSync, existsSync } from "jsr:@std/fs";
 import { EncryptedStorage } from "../../src/lib/secrets/encrypted-storage.ts";
 
 // Test utilities
@@ -26,17 +26,23 @@ function mockEnvironment() {
     HOME: Deno.env.get("HOME"),
     USER: Deno.env.get("USER"),
     USERNAME: Deno.env.get("USERNAME"),
+    XDG_CONFIG_HOME: Deno.env.get("XDG_CONFIG_HOME"),
   };
 
   // Set test environment
   Deno.env.set("HOME", TEST_DIR);
   Deno.env.set("USER", "testuser");
+  // Remove XDG_CONFIG_HOME so getSystemConfigDir uses HOME/.config
+  Deno.env.delete("XDG_CONFIG_HOME");
 
   return () => {
     // Restore original environment
     if (originalEnv.HOME) Deno.env.set("HOME", originalEnv.HOME);
     if (originalEnv.USER) Deno.env.set("USER", originalEnv.USER);
     if (originalEnv.USERNAME) Deno.env.set("USERNAME", originalEnv.USERNAME);
+    if (originalEnv.XDG_CONFIG_HOME) {
+      Deno.env.set("XDG_CONFIG_HOME", originalEnv.XDG_CONFIG_HOME);
+    }
   };
 }
 
@@ -238,7 +244,7 @@ Deno.test("Platform Config Directory Handling", async () => {
         expectedPath = join(TEST_DIR, "AppData", "Roaming", "nsite");
         break;
       default:
-        expectedPath = join(TEST_DIR, ".config", "nsyte");
+        expectedPath = join(TEST_DIR, ".config", "nsite");
     }
 
     assert(existsSync(expectedPath), `Config directory should exist at ${expectedPath}`);

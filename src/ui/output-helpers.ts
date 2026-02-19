@@ -53,9 +53,6 @@ export function displayUploadConfigTable(config: {
   purge: boolean;
   concurrency: number;
   fallback?: string;
-  publishRelayList: boolean;
-  publishServerList: boolean;
-  publishProfile: boolean;
 }): string[] {
   const lines = [];
 
@@ -67,24 +64,6 @@ export function displayUploadConfigTable(config: {
   lines.push(formatConfigValue("Purge Old Files", config.purge, config.purge === false));
   lines.push(formatConfigValue("Concurrency", config.concurrency, config.concurrency === 4));
   lines.push(formatConfigValue("404 Fallback", config.fallback || "None", !config.fallback));
-  lines.push(formatConfigValue("Publish", "", false));
-  lines.push(
-    formatConfigValue(
-      "  - Relay List",
-      config.publishRelayList ? "Yes" : "No",
-      !config.publishRelayList,
-    ),
-  );
-  lines.push(
-    formatConfigValue(
-      "  - Server List",
-      config.publishServerList ? "Yes" : "No",
-      !config.publishServerList,
-    ),
-  );
-  lines.push(
-    formatConfigValue("  - Profile", config.publishProfile ? "Yes" : "No", !config.publishProfile),
-  );
   lines.push("");
 
   return lines;

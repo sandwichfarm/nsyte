@@ -1,4 +1,4 @@
-import { type Stub, stub } from "std/testing/mock.ts";
+import { type Stub, stub } from "@std/testing/mock";
 import type { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import type { ProjectConfig } from "../../src/lib/config.ts";
 
@@ -58,8 +58,6 @@ export function createTestConfig(overrides: Partial<ProjectConfig> = {}): Projec
   return {
     relays: [],
     servers: [],
-    publishServerList: false,
-    publishRelayList: false,
     ...overrides,
   };
 }

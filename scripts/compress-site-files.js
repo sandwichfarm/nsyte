@@ -7,23 +7,31 @@
  * Example: node compress.js ./public
  */
 
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import zlib from 'node:zlib';
-import { promisify } from 'node:util';
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 
 const gzip = promisify(zlib.gzip);
 const brotli = promisify(zlib.brotliCompress);
 
 const BROTLI_OPTS = {
-  params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } // max compression
+  params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 }, // max compression
 };
 
 const TARGET_EXT = new Set([
-  '.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt', '.wasm',
+  ".html",
+  ".css",
+  ".js",
+  ".mjs",
+  ".json",
+  ".svg",
+  ".txt",
+  ".wasm",
 ]);
 
-const root = path.resolve(process.argv[2] || './dist');
+const root = path.resolve(process.argv[2] || "./dist");
 
 async function* walk(dir) {
   for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
@@ -34,8 +42,8 @@ async function* walk(dir) {
 }
 
 async function compressFile(file) {
-  if (file.endsWith('.gz') || file.endsWith('.br')) return; // already done
-  if (!TARGET_EXT.has(path.extname(file))) return;          // skip binaries
+  if (file.endsWith(".gz") || file.endsWith(".br")) return; // already done
+  if (!TARGET_EXT.has(path.extname(file))) return; // skip binaries
 
   const src = await fs.readFile(file);
 
@@ -45,7 +53,7 @@ async function compressFile(file) {
   // Write .br
   await fs.writeFile(`${file}.br`, await brotli(src, BROTLI_OPTS));
 
-  console.log('compressed', path.relative(root, file));
+  console.log("compressed", path.relative(root, file));
 }
 
 (async () => {
@@ -53,9 +61,9 @@ async function compressFile(file) {
     for await (const file of walk(root)) {
       await compressFile(file);
     }
-    console.log('✔ Done');
+    console.log("✔ Done");
   } catch (err) {
-    console.error('Compression failed:', err);
+    console.error("Compression failed:", err);
     process.exit(1);
   }
 })();

@@ -7,7 +7,12 @@ const log = createLogger("error-utils");
  * Extracts a readable error message from an unknown error type
  */
 export function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  try {
+    return String(error);
+  } catch {
+    return "[unknown error]";
+  }
 }
 
 /**

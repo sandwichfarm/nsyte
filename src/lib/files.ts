@@ -7,6 +7,8 @@ import { globToRegExp } from "@std/path/glob-to-regexp";
 import { createLogger } from "./logger.ts";
 import type { FileEntry } from "./nostr.ts";
 
+export type { FileEntry };
+
 const log = createLogger("files");
 
 export const DEFAULT_IGNORE_PATTERNS = [
@@ -35,7 +37,7 @@ export async function getLocalFiles(
 
   // --- Load and parse .nsyte-ignore rules from CWD ---
   const ignoreFilePath = join(cwd, ".nsyte-ignore");
-  let ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
+  const ignorePatterns: string[] = [...DEFAULT_IGNORE_PATTERNS];
   let foundIgnoreFile = false;
 
   if (existsSync(ignoreFilePath)) {

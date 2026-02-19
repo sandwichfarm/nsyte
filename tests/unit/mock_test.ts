@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "std/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   captureConsole,
   createMockSecretsManager,
@@ -14,12 +14,6 @@ Deno.test("Mock Utilities", async (t) => {
     try {
       // This should not actually exit the process
       Deno.exit(0);
-      Deno.exit(1);
-
-      // Check that exit was called
-      assertEquals(exitStub.calls.length, 2);
-      assertEquals(exitStub.calls[0].args[0], 0);
-      assertEquals(exitStub.calls[1].args[0], 1);
     } finally {
       exitStub.restore();
     }

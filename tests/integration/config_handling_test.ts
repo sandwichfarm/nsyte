@@ -1,6 +1,5 @@
-import { assertEquals, assertExists, assertRejects, assertThrows } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
-import type { Profile, ProjectConfig } from "../../src/lib/config.ts";
+import { assertEquals, assertExists } from "@std/assert";
+import type { ProjectConfig } from "../../src/lib/config.ts";
 
 Deno.test("Configuration Handling - Validation", async (t) => {
   await t.step("should validate relay URLs", () => {
@@ -47,62 +46,44 @@ Deno.test("Configuration Handling - Validation", async (t) => {
     assertEquals(validateServerUrl("ftp://wrong-protocol.com"), false);
   });
 
-  await t.step("should validate profile data", () => {
-    const validateProfile = (profile: Profile) => {
+  await t.step("should validate metadata fields", () => {
+    const validateMetadata = (config: ProjectConfig) => {
       const errors: string[] = [];
 
-      if (profile.name && profile.name.length > 100) {
-        errors.push("Name too long (max 100 characters)");
+      if (config.title && config.title.length > 200) {
+        errors.push("Title too long (max 200 characters)");
       }
 
-      if (profile.about && profile.about.length > 500) {
-        errors.push("About too long (max 500 characters)");
+      if (config.description && config.description.length > 1000) {
+        errors.push("Description too long (max 1000 characters)");
       }
 
-      if (profile.website) {
-        try {
-          new URL(profile.website);
-        } catch {
-          errors.push("Invalid website URL");
-        }
-      }
-
-      if (profile.picture) {
-        try {
-          new URL(profile.picture);
-        } catch {
-          errors.push("Invalid picture URL");
-        }
-      }
-
-      if (profile.nip05 && !profile.nip05.includes("@")) {
-        errors.push("Invalid NIP-05 format (should be name@domain)");
+      if (config.id && typeof config.id === "string" && config.id.length > 100) {
+        errors.push("ID too long (max 100 characters)");
       }
 
       return errors;
     };
 
-    // Valid profile
-    const validProfile: Profile = {
-      name: "John Doe",
-      about: "Software developer",
-      website: "https://johndoe.com",
-      picture: "https://example.com/avatar.jpg",
-      nip05: "john@johndoe.com",
+    // Valid metadata
+    const validConfig: ProjectConfig = {
+      relays: ["wss://relay.example.com"],
+      servers: ["https://server.example.com"],
+      id: "my-site",
+      title: "My Site",
+      description: "A test site",
     };
-    assertEquals(validateProfile(validProfile), []);
+    assertEquals(validateMetadata(validConfig), []);
 
-    // Invalid profile
-    const invalidProfile: Profile = {
-      name: "x".repeat(101), // Too long
-      website: "not-a-url",
-      picture: "also-not-a-url",
-      nip05: "invalid-nip05",
+    // Invalid metadata
+    const invalidConfig: ProjectConfig = {
+      relays: ["wss://relay.example.com"],
+      servers: ["https://server.example.com"],
+      title: "x".repeat(201), // Too long
     };
-    const errors = validateProfile(invalidProfile);
+    const errors = validateMetadata(invalidConfig);
     assertEquals(errors.length > 0, true);
-    assertEquals(errors.some((e) => e.includes("Name too long")), true);
-    assertEquals(errors.some((e) => e.includes("Invalid website URL")), true);
+    assertEquals(errors.some((e) => e.includes("Title too long")), true);
   });
 });
 
@@ -113,8 +94,6 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       const newConfig: ProjectConfig = {
         relays: [],
         servers: [],
-        publishServerList: false,
-        publishRelayList: false,
       };
 
       // Migrate relays
@@ -137,12 +116,25 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       }
 
       // Migrate publish settings
-      newConfig.publishServerList = Boolean(oldConfig.publishServerList);
-      newConfig.publishRelayList = Boolean(oldConfig.publishRelayList);
 
-      // Migrate profile
+      // Migrate metadata (from old profile if present)
       if (oldConfig.profile && typeof oldConfig.profile === "object") {
-        newConfig.profile = { ...oldConfig.profile };
+        if (oldConfig.profile.name) {
+          newConfig.title = oldConfig.profile.name;
+        }
+        if (oldConfig.profile.about) {
+          newConfig.description = oldConfig.profile.about;
+        }
+      }
+      // Also check for direct metadata fields
+      if (oldConfig.siteIdentifier) {
+        newConfig.id = oldConfig.siteIdentifier;
+      }
+      if (oldConfig.siteTitle) {
+        newConfig.title = oldConfig.siteTitle;
+      }
+      if (oldConfig.siteDescription) {
+        newConfig.description = oldConfig.siteDescription;
       }
 
       return newConfig;
@@ -153,16 +145,15 @@ Deno.test("Configuration Handling - Migration", async (t) => {
       relay: "wss://old-relay.com", // Single relay (old format)
       servers: ["https://server1.com", "https://server2.com"],
       bunkerPubkey: "pubkey123",
-      publishServerList: true,
-      profile: { name: "Test User" },
+      profile: { name: "Test User", about: "Test description" },
     };
 
     const migrated = migrateConfig(oldConfig);
     assertEquals(migrated.relays, ["wss://old-relay.com"]);
     assertEquals(migrated.servers, ["https://server1.com", "https://server2.com"]);
     assertEquals(migrated.bunkerPubkey, "pubkey123");
-    assertEquals(migrated.publishServerList, true);
-    assertEquals(migrated.profile?.name, "Test User");
+    assertEquals(migrated.title, "Test User");
+    assertEquals(migrated.description, "Test description");
 
     // Test migration with array format
     const newFormatConfig = {
@@ -190,8 +181,6 @@ Deno.test("Configuration Handling - Migration", async (t) => {
     const baseConfig: ProjectConfig = {
       relays: ["wss://relay.com"],
       servers: ["https://server.com"],
-      publishServerList: true,
-      publishRelayList: false,
     };
 
     const versionedConfig = addVersionToConfig(baseConfig);
@@ -222,11 +211,9 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
 
       // Override publish settings
       if (env.NSITE_PUBLISH_RELAYS) {
-        overriddenConfig.publishRelayList = env.NSITE_PUBLISH_RELAYS.toLowerCase() === "true";
       }
 
       if (env.NSITE_PUBLISH_SERVERS) {
-        overriddenConfig.publishServerList = env.NSITE_PUBLISH_SERVERS.toLowerCase() === "true";
       }
 
       // Override bunker pubkey
@@ -240,8 +227,6 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
     const baseConfig: ProjectConfig = {
       relays: ["wss://default-relay.com"],
       servers: ["https://default-server.com"],
-      publishServerList: false,
-      publishRelayList: false,
     };
 
     const env = {
@@ -255,9 +240,7 @@ Deno.test("Configuration Handling - Environment Override", async (t) => {
 
     assertEquals(overriddenConfig.relays, ["wss://env-relay1.com", "wss://env-relay2.com"]);
     assertEquals(overriddenConfig.servers, ["https://env-server.com"]);
-    assertEquals(overriddenConfig.publishRelayList, true);
     assertEquals(overriddenConfig.bunkerPubkey, "env-pubkey");
-    assertEquals(overriddenConfig.publishServerList, false); // Not overridden
   });
 
   await t.step("should validate environment overrides", () => {
@@ -334,9 +317,6 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
           "https://blossom.hzrd149.com",
           "https://cdn.satellite.earth",
         ],
-        publishServerList: true,
-        publishRelayList: true,
-        publishProfile: false,
       };
     };
 
@@ -346,8 +326,6 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
     assertEquals(defaultConfig.relays.length > 0, true);
     assertExists(defaultConfig.servers);
     assertEquals(defaultConfig.servers.length > 0, true);
-    assertEquals(typeof defaultConfig.publishServerList, "boolean");
-    assertEquals(typeof defaultConfig.publishRelayList, "boolean");
 
     // Validate default relay URLs
     for (const relay of defaultConfig.relays) {
@@ -366,8 +344,6 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         return {
           relays: ["wss://relay.nostr.band"],
           servers: ["https://blossom.hzrd149.com"],
-          publishServerList: true,
-          publishRelayList: true,
         };
       }
 
@@ -375,25 +351,22 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
       return {
         relays: configData.relays || ["wss://relay.nostr.band"],
         servers: configData.servers || [],
-        publishServerList: configData.publishServerList ?? true,
-        publishRelayList: configData.publishRelayList ?? true,
         bunkerPubkey: configData.bunkerPubkey,
-        profile: configData.profile,
+        id: configData.id,
+        title: configData.title,
+        description: configData.description,
       };
     };
 
     // Test with no config
     const fallbackConfig = loadConfigWithFallback();
     assertEquals(fallbackConfig.relays.length, 1);
-    assertEquals(fallbackConfig.publishServerList, true);
 
     // Test with partial config
     const partialConfig = loadConfigWithFallback({
       relays: ["wss://custom-relay.com"],
-      publishServerList: false,
     });
     assertEquals(partialConfig.relays, ["wss://custom-relay.com"]);
-    assertEquals(partialConfig.publishServerList, false);
     assertEquals(partialConfig.servers, []); // Default empty array
   });
 });
@@ -494,14 +467,6 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
         }
       }
 
-      // Validate boolean flags
-      if (typeof config.publishServerList !== "boolean") {
-        errors.push("publishServerList must be a boolean");
-      }
-      if (typeof config.publishRelayList !== "boolean") {
-        errors.push("publishRelayList must be a boolean");
-      }
-
       return errors;
     };
 
@@ -509,8 +474,6 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
     const validConfig: ProjectConfig = {
       relays: ["wss://relay.com"],
       servers: ["https://server.com"],
-      publishServerList: true,
-      publishRelayList: false,
     };
     assertEquals(validateConfigBeforeSave(validConfig), []);
 
@@ -518,12 +481,9 @@ Deno.test("Configuration Handling - File Operations", async (t) => {
     const invalidConfig = {
       relays: "not-an-array",
       servers: ["invalid-url"],
-      publishServerList: "not-a-boolean",
-      publishRelayList: false,
     } as any;
     const errors = validateConfigBeforeSave(invalidConfig);
     assertEquals(errors.length > 0, true);
     assertEquals(errors.some((e) => e.includes("must be an array")), true);
-    assertEquals(errors.some((e) => e.includes("must be a boolean")), true);
   });
 });

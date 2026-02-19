@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, assertMatch } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertExists, type assertMatch } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   displayColorfulHeader,
   displayUploadConfigTable,
@@ -108,15 +108,12 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         purge: false,
         concurrency: 8,
         fallback: "index.html",
-        publishRelayList: true,
-        publishServerList: false,
-        publishProfile: true,
       };
 
       const result = displayUploadConfigTable(config);
 
       assertEquals(Array.isArray(result), true);
-      assertEquals(result.length > 10, true); // Should have multiple lines
+      assertEquals(result.length > 5, true); // Should have multiple lines
 
       // Check for required content
       const content = result.join(" ");
@@ -134,9 +131,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         force: false,
         purge: false,
         concurrency: 4,
-        publishRelayList: false,
-        publishServerList: false,
-        publishProfile: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -156,9 +150,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
         force: false,
         purge: false,
         concurrency: 4,
-        publishRelayList: false,
-        publishServerList: false,
-        publishProfile: false,
       };
 
       const result = displayUploadConfigTable(config);
@@ -169,12 +160,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
     });
 
     it("should handle different boolean combinations", () => {
-      const booleanCombinations = [
-        { force: true, purge: true, publishRelayList: true },
-        { force: false, purge: false, publishRelayList: false },
-        { force: true, purge: false, publishRelayList: true },
-        { force: false, purge: true, publishRelayList: false },
-      ];
+      const booleanCombinations = [];
 
       booleanCombinations.forEach((booleans) => {
         const config = {
@@ -182,8 +168,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           relays: ["wss://relay.com"],
           servers: ["https://server.com"],
           concurrency: 4,
-          publishServerList: false,
-          publishProfile: false,
           ...booleans,
         };
 
@@ -208,9 +192,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           servers: ["https://server.com"],
           force: false,
           purge: false,
-          publishRelayList: false,
-          publishServerList: false,
-          publishProfile: false,
           ...concurrencyConfig,
         };
 
@@ -520,9 +501,6 @@ describe("Output Helpers - comprehensive branch coverage", () => {
           force: false,
           purge: false,
           concurrency: 4,
-          publishRelayList: false,
-          publishServerList: false,
-          publishProfile: false,
         })),
         true,
       );

@@ -1,5 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import { UploadProgress } from "../lib/upload.ts";
+import type { UploadProgress } from "../lib/upload.ts";
 
 const PROGRESS_BAR_WIDTH = 30;
 const PROGRESS_CHAR = "█";
@@ -53,7 +53,7 @@ interface ProgressData {
   completed: number;
   failed: number;
   inProgress: number;
-   skipped?: number;
+  skipped?: number;
   serverStats?: {
     [filename: string]: {
       successCount: number;

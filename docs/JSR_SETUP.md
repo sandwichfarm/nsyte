@@ -1,6 +1,7 @@
 # JSR Publishing Setup
 
-This guide explains how to set up automatic publishing to JSR (JavaScript Registry) when creating releases.
+This guide explains how to set up automatic publishing to JSR (JavaScript Registry) when creating
+releases.
 
 ## Prerequisites
 
@@ -19,7 +20,8 @@ This guide explains how to set up automatic publishing to JSR (JavaScript Regist
    - Repository: `nsyte`
 4. Click "Save"
 
-This enables OIDC (OpenID Connect) authentication, allowing GitHub Actions to publish without requiring a separate token.
+This enables OIDC (OpenID Connect) authentication, allowing GitHub Actions to publish without
+requiring a separate token.
 
 ### 2. Verify GitHub Actions Permissions
 
@@ -31,7 +33,8 @@ permissions:
   id-token: write # Required for OIDC authentication with JSR
 ```
 
-The `id-token: write` permission is crucial - it allows GitHub Actions to authenticate with JSR using OIDC.
+The `id-token: write` permission is crucial - it allows GitHub Actions to authenticate with JSR
+using OIDC.
 
 ### 3. Package Configuration
 
@@ -60,12 +63,14 @@ The workflow automatically updates the version to match the Git tag when publish
 ### Package Already Exists Error
 
 If you get an error that the package already exists with that version:
+
 - JSR doesn't allow republishing the same version
 - Increment your version number and create a new tag
 
 ### Authentication Errors
 
 If authentication fails:
+
 1. Verify the GitHub repository is linked in JSR settings
 2. Ensure the workflow has `id-token: write` permission
 3. Check that your JSR scope and package name match `deno.json`

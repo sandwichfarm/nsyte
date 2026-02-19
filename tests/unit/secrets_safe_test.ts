@@ -1,9 +1,9 @@
 // Import test setup FIRST to block all system access
 import "../test-setup-global.ts";
 
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
-import { restore, type Stub, stub } from "std/testing/mock.ts";
+import { assertEquals, assertExists } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, type Stub, type stub } from "@std/testing/mock";
 
 import { createMockSecretsManager } from "../mocks/secrets-manager.ts";
 

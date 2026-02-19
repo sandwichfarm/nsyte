@@ -13,90 +13,53 @@ self.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-import { Command } from "@cliffy/command";
-import { colors } from "@cliffy/ansi/colors";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
-import { registerDeployCommand } from "./commands/deploy.ts";
-import { registerLsCommand } from "./commands/ls.ts";
+import { registerAnnounceCommand } from "./commands/announce.ts";
 import { registerBrowseCommand } from "./commands/browse.ts";
-import { registerDownloadCommand } from "./commands/download.ts";
 import { registerCICommand } from "./commands/ci.ts";
+import { registerConfigCommand } from "./commands/config.ts";
+import { registerDebugCommand } from "./commands/debug.ts";
+import { registerDeployCommand } from "./commands/deploy.ts";
+import { registerDownloadCommand } from "./commands/download.ts";
 import { registerInitCommand } from "./commands/init.ts";
+import { registerListCommand } from "./commands/list.ts";
+import { registerPurgeCommand } from "./commands/purge.ts";
 import { registerRunCommand } from "./commands/run.ts";
 import { registerServeCommand } from "./commands/serve.ts";
-import { registerPurgeCommand } from "./commands/purge.ts";
-import { validateCommand } from "./commands/validate.ts";
-import { registerDebugCommand } from "./commands/debug.ts";
-import { registerAnnounceCommand } from "./commands/announce.ts";
-import { registerConfigCommand } from "./commands/config.ts";
-import { setupProject } from "./lib/config.ts";
+import { registerSitesCommand } from "./commands/sites.ts";
+import { registerValidateCommand } from "./commands/validate.ts";
+import nsyte from "./commands/root.ts";
 import { cleanupConfigFiles } from "./lib/config-cleanup.ts";
 import { createLogger } from "./lib/logger.ts";
-import { header } from "./ui/header.ts";
-import { version } from "./version.ts";
+import { pool } from "./lib/nostr.ts";
 
-import { registerBunkerCommand } from "./commands/bunker-cliffy.ts";
-import { handleBunkerCommand } from "./commands/bunker.ts";
+import { registerBunkerCommand } from "./commands/bunker.ts";
 
 const log = createLogger("cli");
 
-const nsite = new Command()
-  .name("nsyte")
-  .version(version)
-  .description("Publish your site to nostr and blossom servers")
-  .action(async () => {
-    // Just show help when no command is provided
-    await nsite.showHelp();
-  });
-
 // Register all commands
-registerInitCommand(nsite);
-registerDeployCommand(nsite);
-registerLsCommand(nsite);
-registerBrowseCommand(nsite);
-registerDownloadCommand(nsite);
-registerCICommand(nsite);
-registerRunCommand(nsite);
-registerServeCommand(nsite);
-registerPurgeCommand(nsite);
-validateCommand(nsite);
-registerDebugCommand(nsite);
-registerAnnounceCommand(nsite);
-registerConfigCommand(nsite);
-registerBunkerCommand(nsite);
-
-/**
- * Display the nsyte header in a random color
- */
-function displayColorfulHeader() {
-  const colorFunctions = [
-    colors.red,
-    colors.green,
-    colors.blue,
-    colors.yellow,
-    colors.magenta,
-    colors.cyan,
-    colors.brightRed,
-    colors.brightGreen,
-    colors.brightBlue,
-    colors.brightYellow,
-    colors.brightMagenta,
-    colors.brightCyan,
-  ];
-
-  const randomColorFn = colorFunctions[Math.floor(Math.random() * colorFunctions.length)];
-
-  console.log(randomColorFn(header));
-}
+registerInitCommand();
+registerDeployCommand();
+registerListCommand();
+registerSitesCommand();
+registerBrowseCommand();
+registerDownloadCommand();
+registerCICommand();
+registerRunCommand();
+registerServeCommand();
+registerPurgeCommand();
+registerValidateCommand();
+registerDebugCommand();
+registerAnnounceCommand();
+registerConfigCommand();
+registerBunkerCommand();
 
 /**
  * Main function - the entry point for the command line
  */
 async function main() {
   try {
-    displayColorfulHeader();
-
     // Clean up any invalid config files on startup
     try {
       const currentDir = Deno.cwd();
@@ -108,16 +71,15 @@ async function main() {
       log.debug(`Config cleanup check failed: ${error}`);
     }
 
-    // Intercept bunker commands before cliffy to preserve control flow
-    // The bunker command requires complex async handling that doesn't work well
-    // with cliffy's execution model. We register it with cliffy for help display
-    // but handle execution directly to maintain proper timeout and cleanup behavior.
-    if (Deno.args.length > 0 && Deno.args[0] === "bunker") {
-      await handleBunkerCommand(false);
-      return;
-    }
+    await nsyte.parse(Deno.args);
 
-    await nsite.parse(Deno.args);
+    // Close relays after command execution
+    log.debug("Closing relays");
+    await Promise.all(Array.from(pool.relays.values()).map((r) => r.close()));
+    log.debug("Relays closed");
+
+    // TODO: This should be removed once we figure out what is keeping the process alive
+    Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`CLI error: ${errorMessage}`);

@@ -1,42 +1,47 @@
 import { colors } from "@cliffy/ansi/colors";
-import { Confirm, Input, Secret, Select } from "@cliffy/prompt";
+import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
-import { dirname, join } from "@std/path";
+import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
+import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
-import { validateConfigWithFeedback, formatValidationErrors } from "./config-validator.ts";
 
 const log = createLogger("config");
-
-export interface Profile {
-  name?: string;
-  about?: string;
-  picture?: string;
-  display_name?: string;
-  website?: string;
-  nip05?: string;
-  lud16?: string;
-  banner?: string;
-}
 
 export type ProjectConfig = {
   bunkerPubkey?: string; // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
-  profile?: Profile;
-  publishServerList: boolean;
-  publishRelayList: boolean;
-  publishProfile?: boolean;
   publishAppHandler?: boolean;
+  publishProfile?: boolean; // Publish kind 0 profile metadata (root sites only)
+  publishRelayList?: boolean; // Publish kind 10002 relay list (root sites only)
+  publishServerList?: boolean; // Publish kind 10063 Blossom server list (root sites only)
+  profile?: {
+    // Profile metadata for kind 0 events
+    name?: string;
+    display_name?: string;
+    about?: string;
+    picture?: string;
+    banner?: string;
+    website?: string;
+    nip05?: string;
+    lud16?: string;
+    lud06?: string;
+  };
   fallback?: string;
   gatewayHostnames?: string[];
+  id?: string | "" | null; // Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)
+  title?: string; // Optional site title for manifest
+  description?: string; // Optional site description for manifest
   appHandler?: {
+    id?: string; // Optional unique identifier for this handler (defaults to site id)
     kinds: number[]; // Event kinds this nsite can handle/display
     name?: string; // Optional app name for the handler
     description?: string; // Optional description
+    icon?: string; // Optional app icon URL
     platforms?: {
       web?: {
         patterns?: Array<{
@@ -50,18 +55,6 @@ export type ProjectConfig = {
       windows?: string;
       linux?: string;
     };
-  };
-  publishFileMetadata?: boolean; // NIP-94 file metadata events
-  application?: {
-    // NIP-82 Software Application metadata
-    id?: string; // Reverse-domain identifier (e.g., "com.example.app")
-    summary?: string; // Short description
-    icon?: string; // Icon URL
-    images?: string[]; // Additional image URLs
-    tags?: string[]; // Descriptive tags
-    repository?: string; // Source code repository URL
-    platforms?: string[]; // Platform identifiers (e.g., "web", "android", "ios")
-    license?: string; // SPDX license ID
   };
 };
 
@@ -82,7 +75,6 @@ export const popularRelays = [
   "wss://nos.lol",
   "wss://nostr-pub.wellorder.net",
   "wss://relay.damus.io",
-  "wss://relay.nostr.band",
 ];
 
 export const popularBlossomServers = [
@@ -95,13 +87,25 @@ export const popularBlossomServers = [
 export const defaultConfig: ProjectConfig = {
   relays: [],
   servers: [],
-  publishServerList: false,
-  publishRelayList: false,
   gatewayHostnames: [
     "nsite.lol",
   ],
   // appHandler is optional and not included by default
 };
+
+/**
+ * Resolve the configuration file path
+ * @param customPath - Optional custom path to config file (can be relative or absolute)
+ * @returns Absolute path to the config file
+ */
+function resolveConfigPath(customPath?: string): string {
+  if (customPath) {
+    // If custom path is provided, resolve it relative to CWD
+    return isAbsolute(customPath) ? customPath : resolve(Deno.cwd(), customPath);
+  }
+  // Default: .nsite/config.json in CWD
+  return join(Deno.cwd(), configDir, projectFile);
+}
 
 /**
  * Sanitize a bunker URL for storage by removing the secret parameter
@@ -135,12 +139,17 @@ function sanitizeBunkerUrl(url: string): string {
 
 /**
  * Write project configuration to file
+ * @param config - The project configuration to write
+ * @param configPath - Optional custom path to config file
  */
-export function writeProjectFile(config: ProjectConfig): void {
+export function writeProjectFile(config: ProjectConfig, configPath?: string): void {
   const cwd = Deno.cwd();
-  
-  // Prevent writing config in test environments or temp directories
-  if (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/")) {
+
+  // Prevent writing config in test environments or temp directories (only for default path)
+  if (
+    !configPath &&
+    (cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/"))
+  ) {
     // Skip logging in test environments to avoid noise
     if (!cwd.includes("nsyte-test-")) {
       log.warn("Attempting to write config in temporary directory, skipping...");
@@ -148,7 +157,7 @@ export function writeProjectFile(config: ProjectConfig): void {
     return;
   }
 
-  const projectPath = join(cwd, configDir, projectFile);
+  const projectPath = resolveConfigPath(configPath);
 
   try {
     // Validate the file extension to prevent accidental YAML file creation
@@ -194,10 +203,13 @@ export function writeProjectFile(config: ProjectConfig): void {
 
 /**
  * Read project configuration from file
+ * @param configPath - Optional custom path to config file
+ * @param validateSchema - Whether to validate the config against the schema (default: true)
+ * @returns The project configuration or null if not found
  */
-export function readProjectFile(validateSchema = true): ProjectConfig | null {
+export function readProjectFile(configPath?: string, validateSchema = true): ProjectConfig | null {
+  const projectPath = resolveConfigPath(configPath);
   const cwd = Deno.cwd();
-  const projectPath = join(cwd, configDir, projectFile);
 
   // Check for common config file mistakes
   const configDirPath = join(cwd, configDir);
@@ -205,10 +217,12 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
     // Check for YAML files that shouldn't exist
     const yamlPath = join(configDirPath, "config.yaml");
     const ymlPath = join(configDirPath, "config.yml");
-    
+
     if (fileExists(yamlPath) || fileExists(ymlPath)) {
       console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
-      console.error(colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."));
+      console.error(
+        colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."),
+      );
       console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
     }
   }
@@ -221,7 +235,7 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
 
     const fileContent = Deno.readTextFileSync(projectPath);
     let config: unknown;
-    
+
     try {
       config = JSON.parse(fileContent);
     } catch (e) {
@@ -230,44 +244,48 @@ export function readProjectFile(validateSchema = true): ProjectConfig | null {
       console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
       throw new Error("Invalid JSON in configuration file");
     }
-    
+
     // Validate configuration if requested
     if (validateSchema) {
       const validation = validateConfigWithFeedback(config);
-      
+
       if (!validation.valid) {
         console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
         console.error(formatValidationErrors(validation.errors));
-        
+
         if (validation.suggestions.length > 0) {
           console.log(colors.yellow("\nSuggestions:"));
-          validation.suggestions.forEach(s => console.log(`  - ${s}`));
+          validation.suggestions.forEach((s) => console.log(`  - ${s}`));
         }
-        
-        console.log(colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."));
-        
+
+        console.log(
+          colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."),
+        );
+
         throw new Error("Invalid configuration format");
       }
-      
+
       if (validation.warnings.length > 0) {
         console.warn(colors.yellow("Configuration warnings:"));
-        validation.warnings.forEach(w => console.warn(`  - ${w}`));
+        validation.warnings.forEach((w) => console.warn(`  - ${w}`));
       }
     }
-    
+
     return config as ProjectConfig;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to read project file: ${errorMessage}`);
-    
+
     // Re-throw validation errors so they can be handled properly
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
-    
+
     return null;
   }
 }
@@ -290,19 +308,25 @@ function fileExists(filePath: string): boolean {
 /**
  * Setup project interactively
  * @param skipInteractive If true, will return a basic configuration without prompting
+ * @param configPath - Optional custom path to config file
  */
-export async function setupProject(skipInteractive = false): Promise<ProjectContext> {
+export async function setupProject(
+  skipInteractive = false,
+  configPath?: string,
+): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let privateKey: string | undefined;
-  
+
   try {
-    config = readProjectFile();
+    config = readProjectFile(configPath);
   } catch (error) {
     // If there's a validation error, don't proceed with setup
-    if (error instanceof Error && (
-      error.message === "Invalid configuration format" || 
-      error.message === "Invalid JSON in configuration file"
-    )) {
+    if (
+      error instanceof Error && (
+        error.message === "Invalid configuration format" ||
+        error.message === "Invalid JSON in configuration file"
+      )
+    ) {
       throw error;
     }
     // For other errors, continue with setup
@@ -315,8 +339,6 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
       config = {
         relays: [],
         servers: [],
-        publishRelayList: false,
-        publishServerList: false,
       };
       log.debug("Running in non-interactive mode with no existing configuration");
       return { config, privateKey: undefined };
@@ -326,7 +348,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
     const setupResult = await interactiveSetup();
     config = setupResult.config;
     privateKey = setupResult.privateKey;
-    writeProjectFile(config);
+    writeProjectFile(config, configPath);
   }
 
   // In non-interactive mode, don't proceed with key setup prompts
@@ -342,7 +364,7 @@ export async function setupProject(skipInteractive = false): Promise<ProjectCont
 
   // Only proceed with interactive key setup if we're in interactive mode
   if (!config.bunkerPubkey && !privateKey) {
-    const keyResult = await selectKeySource(config);
+    const keyResult = await selectKeySource(config, configPath);
     config = keyResult.config;
     privateKey = keyResult.privateKey;
   }
@@ -392,10 +414,7 @@ async function connectToBunkerWithURI(): Promise<NostrConnectSigner> {
   return NostrConnectSigner.fromBunkerURI(bunkerUrl);
 }
 
-async function newBunker(
-  config: ProjectConfig,
-  secretsManager: SecretsManager,
-): Promise<NostrConnectSigner | undefined> {
+async function newBunker(): Promise<NostrConnectSigner | undefined> {
   let signer: NostrConnectSigner | null = null;
 
   const choice = await Select.prompt<string>({
@@ -437,6 +456,7 @@ async function newBunker(
 
 async function selectKeySource(
   existingConfig?: ProjectConfig,
+  configPath?: string,
 ): Promise<{ config: ProjectConfig; privateKey?: string }> {
   console.log(colors.yellow("No key configuration found. Let's set that up:"));
 
@@ -453,8 +473,6 @@ async function selectKeySource(
   const secretsManager = SecretsManager.getInstance();
   const existingBunkers = await secretsManager.getAllPubkeys();
   const hasBunkers = existingBunkers.length > 0;
-
-  let nbunkString: string | undefined;
 
   // Prepare options based on whether bunkers exist
   const keyOptions = [
@@ -496,7 +514,7 @@ async function selectKeySource(
     });
     // Note: privateKey is returned but not stored in config, so no config change
   } else if (keyChoice === "new_bunker") {
-    const signer = await newBunker(config, secretsManager);
+    const signer = await newBunker();
     if (signer) {
       config.bunkerPubkey = await signer.getPublicKey();
       const nbunkString = getNbunkString(signer);
@@ -533,7 +551,7 @@ async function selectKeySource(
 
   // Only write config if it actually changed
   if (configChanged || !existingConfig) {
-    writeProjectFile(config);
+    writeProjectFile(config, configPath);
     console.log(colors.green("Key configuration set up successfully!"));
   } else {
     console.log(colors.green("Key configuration completed."));
@@ -696,12 +714,43 @@ Generated and stored nbunksec string.`));
     );
   }
 
-  const projectName = await Input.prompt({
-    message: "Enter website or project name:",
+  // Ask if this is a root site or named site
+  const siteType = await Select.prompt<string>({
+    message: "What type of site are you creating?",
+    options: [
+      { name: "Root site (hosted by npub) - e.g., npub1xxxx.nsite", value: "root" },
+      { name: "Named site (subdomain) - e.g., blog.npub1xxx.nsite", value: "named" },
+    ],
   });
 
-  const projectAbout = await Input.prompt({
-    message: "Enter website or project description:",
+  let siteId: string | null | undefined;
+  if (siteType === "named") {
+    const identifier = await Input.prompt({
+      message: "Enter site identifier (subdomain name) (required):",
+      validate: (input: string) => {
+        const trimmed = input.trim();
+        if (!trimmed) {
+          return "Site identifier is required";
+        }
+        // Validate identifier: alphanumeric, hyphens, underscores only
+        if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+          return "Site identifier can only contain letters, numbers, hyphens, and underscores";
+        }
+        return true;
+      },
+    });
+    siteId = identifier.trim();
+  } else {
+    // Root site: set id to null or empty string
+    siteId = null;
+  }
+
+  const siteTitle = await Input.prompt({
+    message: "Enter site title (optional):",
+  });
+
+  const siteDescription = await Input.prompt({
+    message: "Enter site description (optional):",
   });
 
   console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
@@ -710,33 +759,13 @@ Generated and stored nbunksec string.`));
   console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
 
-  const publishProfile = await Confirm.prompt({
-    message: "Publish profile information to nostr?",
-    default: true,
-  });
-
-  const publishRelayList = await Confirm.prompt({
-    message: "Publish relay list to nostr?",
-    default: true,
-  });
-
-  const publishServerList = await Confirm.prompt({
-    message: "Publish blossom server list to nostr?",
-    default: true,
-  });
-
   const config: ProjectConfig = {
     bunkerPubkey,
     relays,
     servers,
-    profile: {
-      name: projectName,
-      display_name: projectName,
-      about: projectAbout,
-    },
-    publishProfile,
-    publishRelayList,
-    publishServerList,
+    id: siteId,
+    title: siteTitle || undefined,
+    description: siteDescription || undefined,
   };
 
   return { config, privateKey };

@@ -1,38 +1,32 @@
 import { colors } from "@cliffy/ansi/colors";
-import type { Command } from "@cliffy/command";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
-import { validateConfigWithFeedback, formatValidationErrors } from "../lib/config-validator.ts";
-import { createLogger } from "../lib/logger.ts";
-
-const log = createLogger("validate");
-
-export interface ValidateCommandOptions {
-  file?: string;
-  schema?: boolean;
-}
+import { formatValidationErrors, validateConfigWithFeedback } from "../lib/config-validator.ts";
+import nsyte from "./root.ts";
 
 /**
  * Validate command - checks configuration file against schema
  */
-export const validateCommand = (program: Command) => {
-  program
+export function registerValidateCommand() {
+  return nsyte
     .command("validate")
     .alias("val")
     .description("Validate nsyte configuration file")
     .option("-f, --file <path>", "Path to config file (default: .nsite/config.json)")
     .option("-s, --schema", "Show the JSON schema location", { default: false })
-    .action(async (options: ValidateCommandOptions) => {
+    .action(async (options) => {
       if (options.schema) {
         console.log(colors.cyan("JSON Schema Location:"));
         console.log("  Local: src/schemas/config.schema.json");
         console.log("  URL: https://nsyte.run/schemas/config.schema.json");
-        console.log("\nYou can use this schema with VS Code or other editors for auto-completion and validation.");
+        console.log(
+          "\nYou can use this schema with VS Code or other editors for auto-completion and validation.",
+        );
         return;
       }
 
       const configPath = options.file || join(Deno.cwd(), ".nsite", "config.json");
-      
+
       // Check if file exists
       if (!existsSync(configPath)) {
         console.error(colors.red(`Configuration file not found: ${configPath}`));
@@ -46,7 +40,7 @@ export const validateCommand = (program: Command) => {
         // Read the configuration file
         const fileContent = await Deno.readTextFile(configPath);
         let config: unknown;
-        
+
         try {
           config = JSON.parse(fileContent);
         } catch (e) {
@@ -60,63 +54,53 @@ export const validateCommand = (program: Command) => {
 
         if (validation.valid) {
           console.log(colors.green("✓ Configuration is valid!\n"));
-          
+
           // Display summary
           const cfg = config as any;
           console.log(colors.cyan("Configuration Summary:"));
           console.log(`  Relays: ${cfg.relays?.length || 0}`);
           console.log(`  Servers: ${cfg.servers?.length || 0}`);
-          
-          if (cfg.profile?.name) {
-            console.log(`  Profile: ${cfg.profile.name}`);
+
+          if (cfg.title) {
+            console.log(`  Title: ${cfg.title}`);
           }
-          
+          if (cfg.description) {
+            console.log(`  Description: ${cfg.description}`);
+          }
+
           if (cfg.publishAppHandler && cfg.appHandler) {
             console.log(`  App Handler: Enabled (${cfg.appHandler.kinds?.length || 0} kinds)`);
           }
-          
-          if (cfg.application?.id) {
-            console.log(`  Application: ${cfg.application.id}`);
-          }
-          
-          if (cfg.publishFileMetadata) {
-            console.log(`  File Metadata: Enabled`);
-          }
-          
+
           // Show warnings if any
           if (validation.warnings.length > 0) {
             console.log(colors.yellow("\nWarnings:"));
-            validation.warnings.forEach(w => console.log(`  - ${w}`));
+            validation.warnings.forEach((w) => console.log(`  - ${w}`));
           }
-          
+
           // Provide helpful tips
           console.log(colors.dim("\nTips:"));
-          if (!cfg.profile) {
-            console.log(colors.dim("  - Add a 'profile' section to publish your project metadata"));
+          if (!cfg.appHandler) {
+            console.log(colors.dim("  - Consider adding 'appHandler' for better discoverability"));
           }
-          if (!cfg.appHandler && !cfg.application) {
-            console.log(colors.dim("  - Consider adding 'appHandler' or 'application' for better discoverability"));
-          }
-          
         } else {
           console.error(colors.red("✗ Configuration is invalid!\n"));
           console.error(colors.red("Errors:"));
           console.error(formatValidationErrors(validation.errors));
-          
+
           if (validation.suggestions.length > 0) {
             console.log(colors.yellow("\nSuggestions:"));
-            validation.suggestions.forEach(s => console.log(`  - ${s}`));
+            validation.suggestions.forEach((s) => console.log(`  - ${s}`));
           }
-          
+
           console.log(colors.dim("\nFor schema reference, run: nsyte validate --schema"));
-          
+
           Deno.exit(1);
         }
-        
       } catch (error) {
         console.error(colors.red("Error reading configuration:"));
         console.error(`  ${error instanceof Error ? error.message : String(error)}`);
         Deno.exit(1);
       }
     });
-};
+}

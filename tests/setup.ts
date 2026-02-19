@@ -3,7 +3,7 @@
  * Import this at the beginning of test files that need mocking
  */
 
-import { stub } from "std/testing/mock.ts";
+import type { stub } from "@std/testing/mock";
 
 // Automatically mock keychain access for all tests
 // We'll do this in each test that needs it to avoid top-level issues
@@ -20,12 +20,12 @@ export {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-} from "std/assert/mod.ts";
+} from "@std/assert";
 
 // Export test utilities from std
-export { afterEach, beforeEach, describe, it } from "std/testing/bdd.ts";
+export { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 
-export { restore, type Spy, spy, type Stub, stub } from "std/testing/mock.ts";
+export { restore, type Spy, spy, type Stub, stub } from "@std/testing/mock";
 
 // Test data generators
 export function generateTestPubkey(index: number = 0): string {

@@ -20,17 +20,24 @@ Here's a basic configuration file with all available options:
 ```json
 {
   "bunkerPubkey": "abc123...",
-  "relays": ["wss://relay1", "wss://relay2"],
-  "servers": ["https://server1", "https://server2"],
-  "profile": {
-    "name": "My Site",
-    "about": "Description"
-  },
-  "publishServerList": true,
+  "relays": ["wss://relay.damus.io", "wss://nos.lol"],
+  "servers": ["https://blossom.server"],
+  "publishProfile": true,
   "publishRelayList": true,
-  "fallback": "/index.html",
+  "publishServerList": true,
+  "profile": {
+    "name": "My Name",
+    "display_name": "Display Name",
+    "about": "Description of myself",
+    "picture": "https://example.com/avatar.jpg",
+    "banner": "https://example.com/banner.jpg",
+    "website": "https://mysite.com",
+    "nip05": "me@mysite.com",
+    "lud16": "me@getalby.com"
+  },
+  "publishAppHandler": true,
   "appHandler": {
-    "enabled": true,
+    "id": "my-app-handler",
     "kinds": [1, 30023],
     "name": "My Event Viewer",
     "description": "Views notes and articles",
@@ -42,7 +49,8 @@ Here's a basic configuration file with all available options:
         ]
       }
     }
-  }
+  },
+  "fallback": "/index.html"
 }
 ```
 
@@ -57,22 +65,67 @@ Here's a basic configuration file with all available options:
 
 - `relays`: Array of WebSocket URLs for nostr relays
 - `servers`: Array of HTTP(S) URLs for blossom servers
-- `publishServerList`: Whether to publish the server list (default: true)
-- `publishRelayList`: Whether to publish the relay list (default: true)
+- `publishRelayList`: Whether to publish the relay list as kind 10002 (default: false, **root sites
+  only**)
+- `publishServerList`: Whether to publish the Blossom server list as kind 10063 (default: false,
+  **root sites only**)
 
-### Profile
+### Profile Metadata
 
-- `profile.name`: Your site's name
-- `profile.about`: A description of your site
+- `publishProfile`: Whether to publish profile metadata as kind 0 (default: false, **root sites
+  only**)
+- `profile.name`: Your name
+- `profile.display_name`: Your display name
+- `profile.about`: A description about yourself
+- `profile.picture`: URL to your avatar image
+- `profile.banner`: URL to your banner/header image
+- `profile.website`: Your website URL
+- `profile.nip05`: Your NIP-05 identifier (e.g., `user@domain.com`)
+- `profile.lud16`: Your Lightning address for receiving payments (e.g., `user@getalby.com`)
+- `profile.lud06`: Legacy Lightning address (LNURL)
 
 ### Routing
 
 - `fallback`: The HTML file to use for client-side routing (e.g., `/index.html` for SPAs)
 
+### Root Site Only Metadata
+
+Profile, relay list, and server list are **user-level metadata** and can only be published from
+**root sites** (where `id` is `null`, `""`, or unset). Named sites cannot publish these to prevent
+conflicts.
+
+**Root site** (can publish user metadata):
+
+```json
+{
+  "id": null,
+  "publishProfile": true,
+  "publishRelayList": true,
+  "publishServerList": true,
+  "profile": {
+    "name": "My Name"
+  }
+}
+```
+
+**Named site** (cannot publish user metadata):
+
+```json
+{
+  "id": "blog",
+  "publishProfile": true // ❌ ERROR - not allowed for named sites
+}
+```
+
+If you try to publish user-level metadata from a named site, you'll get a validation error during
+`nsyte deploy`.
+
 ### NIP-89 App Handler
 
-- `appHandler.enabled`: Whether to publish app handler announcement (default: false)
+- `publishAppHandler`: Whether to publish app handler announcement (default: false)
+- `appHandler.id`: Unique identifier for this handler (required for root sites)
 - `appHandler.kinds`: Array of event kind numbers this nsite can handle
+
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description of what your handler does
 - `appHandler.platforms`: Platform-specific handler configurations
@@ -84,10 +137,6 @@ Here's a basic configuration file with all available options:
   - `platforms.macos`: macOS app URL scheme or bundle identifier
   - `platforms.windows`: Windows app protocol or executable path
   - `platforms.linux`: Linux app command or desktop file
-
-### NIP-94 File Metadata
-
-- `publishFileMetadata`: Whether to publish NIP-94 file metadata events for releases (default: false)
 
 ## Environment Variables
 

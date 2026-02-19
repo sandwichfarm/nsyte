@@ -1,14 +1,13 @@
 import { join } from "@std/path";
 import { createLogger } from "../logger.ts";
-import { ensureSystemConfigDir, fileExists } from "./utils.ts";
-import { getKeychainProvider, KeychainProvider } from "./keychain.ts";
 import { EncryptedStorage } from "./encrypted-storage.ts";
+import { getKeychainProvider, type KeychainProvider } from "./keychain.ts";
+import { ensureSystemConfigDir, fileExists } from "./utils.ts";
 
 const log = createLogger("secrets-manager");
 
 const SECRETS_FILENAME = "secrets.json";
 const SERVICE_NAME = "nsyte";
-const BUNDLE_ACCOUNT = "bunker-bundle"; // Single keychain entry for all bunkers
 
 /**
  * Interface for the secrets storage file (legacy)
@@ -81,7 +80,7 @@ class EncryptedBackend implements StorageBackend {
  * Class that manages system-wide secrets for nsite
  */
 export class SecretsManager {
-  private static instance: SecretsManager;
+  private static instance: SecretsManager | null = null;
   private secretsPath: string | null = null;
   private storageBackend: StorageBackend | null = null;
   private initialized = false;
@@ -104,7 +103,7 @@ export class SecretsManager {
    * Reset the singleton instance (for testing purposes)
    */
   public static resetInstance(): void {
-    SecretsManager.instance = null as any;
+    SecretsManager.instance = null;
   }
 
   /**
@@ -125,7 +124,7 @@ export class SecretsManager {
     // Try to initialize secure storage backend
     const forceEncrypted = Deno.env.get("NSYTE_FORCE_ENCRYPTED_STORAGE") === "true";
     const keychainProvider = !forceEncrypted ? await getKeychainProvider() : null;
-    
+
     if (keychainProvider) {
       log.debug("Using native keychain for secure storage");
       this.storageBackend = new KeychainBackend(keychainProvider);
@@ -149,7 +148,7 @@ export class SecretsManager {
 
     // Check for legacy secrets that need migration
     await this.migrateLegacySecrets();
-    
+
     // Rebuild index for existing keychain entries
     await this.rebuildKeychainIndex();
 
@@ -169,27 +168,27 @@ export class SecretsManager {
 
     try {
       log.debug("Checking if keychain index needs to be rebuilt");
-      
+
       // Initialize encrypted storage to check/build index
       const encryptedStorage = new EncryptedStorage();
       if (!await encryptedStorage.initialize()) {
         log.warn("Could not initialize encrypted storage for index");
         return;
       }
-      
+
       const encryptedBackend = new EncryptedBackend(encryptedStorage);
       const indexedPubkeys = await encryptedBackend.list();
-      
+
       // Try to find known pubkeys in keychain by checking common patterns
       // Since we can't list the keychain, we'll check for known pubkeys from config files
       const knownPubkeys = new Set<string>();
-      
+
       // Check project configs for bunker pubkeys
       const projectPaths = [
         Deno.cwd(),
         join(Deno.env.get("HOME") || "", "Develop"),
       ];
-      
+
       for (const basePath of projectPaths) {
         try {
           // Look for .nsite directories
@@ -210,10 +209,16 @@ export class SecretsManager {
           // Ignore directories we can't read
         }
       }
-      
+
       // Also check for a migration marker file
-      const migrationMarkerPath = join(Deno.env.get("HOME") || "", "Library", "Application Support", "nsyte", ".index-migration-done");
-      
+      const migrationMarkerPath = join(
+        Deno.env.get("HOME") || "",
+        "Library",
+        "Application Support",
+        "nsyte",
+        ".index-migration-done",
+      );
+
       try {
         await Deno.stat(migrationMarkerPath);
         // Migration already done
@@ -222,18 +227,18 @@ export class SecretsManager {
       } catch {
         // Migration not done yet, continue
       }
-      
+
       // Since we can't list keychain entries on macOS without full access,
       // we'll use a different approach: prompt the user to run a one-time migration
       if (knownPubkeys.size > 0 || indexedPubkeys.length === 0) {
         log.warn("Keychain index needs to be rebuilt for multiple bunker support");
         log.warn("Run 'nsyte bunker migrate' to rebuild the index with your existing bunkers");
-        
+
         // Skip automatic index rebuilding to avoid hanging during normal operations
         // The user should run 'nsyte bunker migrate' manually
         log.debug("Skipping automatic index rebuilding to avoid keychain access delays");
       }
-      
+
       // Don't create marker yet - wait for full migration
     } catch (error) {
       log.error(`Failed to rebuild keychain index: ${error}`);
@@ -335,7 +340,7 @@ export class SecretsManager {
         const success = await this.storageBackend.store(pubkey, nbunksec);
         if (success) {
           log.debug(`Stored nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
-          
+
           // If using keychain backend, also store in encrypted storage for indexing
           if (this.storageBackend instanceof KeychainBackend) {
             log.debug("Also storing in encrypted storage for indexing");
@@ -400,7 +405,7 @@ export class SecretsManager {
         log.debug("getAllPubkeys: Using storage backend to list");
         let pubkeys = await this.storageBackend.list();
         log.debug(`getAllPubkeys: Storage backend returned ${pubkeys.length} pubkeys`);
-        
+
         // If keychain returns empty but we're using keychain backend,
         // also check encrypted storage as a fallback for the list
         if (pubkeys.length === 0 && this.storageBackend instanceof KeychainBackend) {
@@ -415,7 +420,7 @@ export class SecretsManager {
             }
           }
         }
-        
+
         return pubkeys;
       } else if (this.legacyMode) {
         // Fallback to legacy storage
@@ -443,7 +448,7 @@ export class SecretsManager {
         const success = await this.storageBackend.delete(pubkey);
         if (success) {
           log.debug(`Deleted nbunksec for pubkey ${pubkey.slice(0, 8)}...`);
-          
+
           // If using keychain backend, also delete from encrypted storage index
           if (this.storageBackend instanceof KeychainBackend) {
             log.debug("Also deleting from encrypted storage index");

@@ -22,18 +22,16 @@ nsyte deploy <folder> [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
 - `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
 - `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--nbunksec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
 - `-p, --purge` — Delete online file events that are not used anymore (default: false)
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
-- `--publish-server-list` — Publish the list of blossom servers (Kind 10063) (default: false)
-- `--publish-relay-list` — Publish the list of nostr relays (Kind 10002) (default: false)
-- `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
-- `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
+- `--publish-profile` — Publish profile metadata (Kind 0) - **root sites only** (default: false)
+- `--publish-relay-list` — Publish relay list (Kind 10002) - **root sites only** (default: false)
+- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default:
+  false)
+- `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
-- `--publish-file-metadata` — Publish NIP-94 file metadata events for releases (default: false)
-- `--version <version>` — Version tag for the release (required when using --publish-file-metadata)
-- `--release-artifacts <paths>` — Comma-separated paths to existing archives to publish as release artifacts
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -69,16 +67,6 @@ Deploy with app handler announcement:
 nsyte deploy dist --app-handler --handler-kinds "1,30023,30311"
 ```
 
-### Deploying Releases
-
-Deploy with release artifacts:
-
-```bash
-nsyte deploy dist --publish-file-metadata --version v1.0.0
-
-nsyte deploy dist --publish-file-metadata --version v1.0.0 --release-artifacts dist.tar.gz,dist.zip
-```
-
 ## How it Works
 
 The deploy command:
@@ -91,11 +79,12 @@ The deploy command:
 
 ## Authentication
 
-The deploy command requires authentication to sign nostr events. You can provide authentication through:
+The deploy command requires authentication to sign nostr events. You can provide authentication
+through:
 
 1. **Private key**: Use `--privatekey` with an nsec or hex key
 2. **Bunker**: Use `--bunker` with a bunker URL
-3. **nbunksec**: Use `--nbunksec` with an encoded bunker secret
+3. **nbunksec**: Use `--sec` with an encoded bunker secret
 4. **Project config**: If configured during `nsyte init`
 
 ## Performance
@@ -106,20 +95,53 @@ The deploy command requires authentication to sign nostr events. You can provide
 
 ## Metadata Publishing
 
-### Profile (Kind 0)
-Use `--publish-profile` to publish a nostr profile for your npub. This helps with discovery.
+**Important**: Profile, relay list, and server list can only be published from **root sites** (where
+`id` is `null` or empty in your config). These are user-level metadata and cannot be published from
+named sites to prevent conflicts.
 
-### Relay List (Kind 10002)
-Use `--publish-relay-list` to publish your preferred relays. This helps clients know where to find your content.
+### Profile (Kind 0) - Root Sites Only
 
-### Server List (Kind 10063)
-Use `--publish-server-list` to publish your Blossom servers. This helps clients know where to download files.
+Use `--publish-profile` to publish your Nostr profile metadata. Configure the profile data in your
+`.nsite/config.json`:
+
+```json
+{
+  "id": null,
+  "publishProfile": true,
+  "profile": {
+    "name": "Your Name",
+    "about": "Description",
+    "picture": "https://example.com/avatar.jpg"
+  }
+}
+```
+
+### Relay List (Kind 10002) - Root Sites Only
+
+Use `--publish-relay-list` to publish your outbox relays (NIP-65). This publishes all relays from
+your config as write-only (outbox) relays:
+
+```bash
+nsyte deploy dist --publish-relay-list
+```
+
+### Server List (Kind 10063) - Root Sites Only
+
+Use `--publish-server-list` to publish your Blossom servers. This helps clients know where to
+download your media files:
+
+```bash
+nsyte deploy dist --publish-server-list
+```
 
 ### App Handler (Kind 31990)
-Use `--app-handler` to announce your nsite as a NIP-89 application handler. Specify which event kinds your app can handle with `--handler-kinds`.
 
-### File Metadata (Kind 1063)
-Use `--publish-file-metadata` with `--version` to publish release metadata. This is useful for distributing software releases.
+Use `--publish-app-handler` to announce your nsite as a NIP-89 application handler. This works for
+both root and named sites. Specify which event kinds your app can handle with `--handler-kinds`:
+
+```bash
+nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
+```
 
 ## Error Handling
 

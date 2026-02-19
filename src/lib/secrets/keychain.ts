@@ -55,13 +55,13 @@ class MacOSKeychain implements KeychainProvider {
         stdout: "piped",
         stderr: "piped",
       });
-      
+
       const result = await process.output();
       if (result.code === 0) {
         log.debug("Keychain unlocked for session");
         return true;
       }
-      
+
       // If it fails, it might prompt for password
       return false;
     } catch {
@@ -155,7 +155,8 @@ class MacOSKeychain implements KeychainProvider {
     }
   }
 
-  async list(service: string): Promise<string[]> {
+  // deno-lint-ignore require-await
+  async list(): Promise<string[]> {
     try {
       // Since macOS security command doesn't have a proper way to list all items for a service
       // without requesting full keychain access, we'll return an empty array here.
@@ -383,7 +384,7 @@ class LinuxSecretService implements KeychainProvider {
         stderr: "piped",
       });
       const testResult = await testProcess.output();
-      
+
       // Exit codes 0 or 1 are OK (0=found secrets, 1=no secrets found but service works)
       if (testResult.code === 0 || testResult.code === 1) {
         log.debug("Linux Secret Service is available and accessible");
@@ -429,10 +430,12 @@ class LinuxSecretService implements KeychainProvider {
         if (stdout) {
           log.error(`stdout: ${stdout}`);
         }
-        
+
         // Common error patterns
         if (error.includes("No such interface")) {
-          log.error("Hint: Secret Service interface not available. Is GNOME Keyring or KDE Wallet running?");
+          log.error(
+            "Hint: Secret Service interface not available. Is GNOME Keyring or KDE Wallet running?",
+          );
         } else if (error.includes("Cannot autolaunch D-Bus")) {
           log.error("Hint: D-Bus session not available. Are you running in a desktop session?");
         } else if (error.includes("secret-tool: command not found")) {
@@ -578,3 +581,8 @@ export async function getKeychainProvider(): Promise<KeychainProvider | null> {
 
   return provider;
 }
+
+// Test-only exports for unit testing internal classes
+export const _MacOSKeychain = MacOSKeychain;
+export const _WindowsCredentialManager = WindowsCredentialManager;
+export const _LinuxSecretService = LinuxSecretService;

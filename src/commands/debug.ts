@@ -1,25 +1,157 @@
-import { Command } from "@cliffy/command";
-import { createLogger } from "../lib/logger.ts";
-import { hexToBytes } from "@noble/hashes/utils";
-import { nip19, type NostrEvent } from "nostr-tools";
 import { colors } from "@cliffy/ansi/colors";
+import nsyte from "./root.ts";
+import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
+import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { decodePointer, type Filter, type NostrEvent, npubEncode } from "applesauce-core/helpers";
 import { RelayPool } from "applesauce-relay/pool";
-import { schnorr } from "@noble/curves/secp256k1";
-import { encodeHex } from "@std/encoding/hex";
-import {
-  fetchEventsWithTimer,
-  fetchKind0Event,
-  fetchRelayListEvents,
-  fetchServerListEvents,
-  fetchNsiteEvents,
-  fetchAppHandlerEvents,
-  fetchIndexHtmlEvent,
-} from "../lib/debug-helpers.ts";
+import { lastValueFrom, timer } from "rxjs";
+import { takeUntil } from "rxjs/operators";
 import { checkBlossomServers } from "../lib/blossom-checker.ts";
-import { USER_BLOSSOM_SERVER_LIST_KIND, NSITE_KIND } from "../lib/nostr.ts";
-import { readProjectFile } from "../lib/config.ts";
+import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
+import { createLogger } from "../lib/logger.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 
 const logger = createLogger("debug");
+
+// Debug helper functions - only used by debug command
+async function fetchEventsWithTimer(
+  pool: RelayPool,
+  relays: string[],
+  filter: Filter,
+  timeout: number = 5000,
+): Promise<NostrEvent[]> {
+  try {
+    const store = new EventStore();
+    const events = await lastValueFrom(
+      pool
+        .request(relays, filter)
+        .pipe(
+          simpleTimeout(timeout),
+          mapEventsToStore(store),
+          mapEventsToTimeline(),
+          takeUntil(timer(timeout)), // Force completion even if a relay never sends EOSE
+        ),
+    );
+    return events;
+  } catch (error) {
+    logger.debug(
+      `Timeout or error fetching events: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return [];
+  }
+}
+
+async function fetchKind0Event(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  logger.debug(`Fetching kind 0 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [0],
+    authors: [pubkey],
+    limit: 1,
+  });
+
+  return events.length > 0 ? events[0] : null;
+}
+
+async function fetchRelayListEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kind 10002 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [10002],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchServerListEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kind ${BLOSSOM_SERVER_LIST_KIND} for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [BLOSSOM_SERVER_LIST_KIND],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchNsiteEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(
+    `Fetching site manifest events (kinds ${NSITE_ROOT_SITE_KIND}, ${NSITE_NAME_SITE_KIND}) for ${pubkey}`,
+  );
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+    authors: [pubkey],
+    // No limit - fetch all events
+  }, 15000); // Longer timeout for potentially many events
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchAppHandlerEvents(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent[]> {
+  logger.debug(`Fetching kinds 31989, 31990 for ${pubkey}`);
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [31989, 31990],
+    authors: [pubkey],
+    limit: 20,
+  });
+
+  // Sort by created_at descending
+  return events.sort((a, b) => b.created_at - a.created_at);
+}
+
+async function fetchIndexHtmlEvent(
+  pool: RelayPool,
+  relays: string[],
+  pubkey: string,
+): Promise<NostrEvent | null> {
+  logger.debug(`Fetching site manifest events containing /index.html for ${pubkey}`);
+  // Fetch all manifest events and find one with /index.html in path tags
+  const events = await fetchEventsWithTimer(pool, relays, {
+    kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+    authors: [pubkey],
+    limit: 10,
+  });
+
+  // Find manifest event that has /index.html in its path tags
+  for (const event of events) {
+    const pathTags = event.tags.filter((tag) => tag[0] === "path");
+    const hasIndexHtml = pathTags.some((tag) => {
+      if (tag.length >= 2) {
+        const path = tag[1];
+        return path === "/index.html" || path === "index.html";
+      }
+      return false;
+    });
+    if (hasIndexHtml) {
+      return event;
+    }
+  }
+
+  return null;
+}
 
 function prettyPrintEvent(event: NostrEvent, title: string): void {
   console.log("\n" + colors.bold(colors.cyan(`=== ${title} ===`)));
@@ -29,7 +161,7 @@ function prettyPrintEvent(event: NostrEvent, title: string): void {
 interface DebugResult {
   success: boolean;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 interface DebugReport {
@@ -38,7 +170,7 @@ interface DebugReport {
   relays: {
     provided: string[];
     found: string[];
-    kind10002?: any;
+    kind10002?: NostrEvent;
   };
   profile: DebugResult;
   nsiteEvents: DebugResult;
@@ -53,23 +185,27 @@ interface CollectedEvents {
   indexHtmlNsite?: NostrEvent;
 }
 
-export function registerDebugCommand(program: Command): void {
-  program
+export function registerDebugCommand(): void {
+  nsyte
     .command("debug")
     .description("Debug an nsite by checking relays, blossom servers, and event kinds")
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "Comma-separated list of relay URLs")
     .option("-v, --verbose", "Show detailed debug information", { default: false })
-    .option("--show-events", "Pretty print events (kind 0, 10002, server list, and index.html nsite event)", { default: false })
-    .action(async (options, npub?: string) => {
+    .option(
+      "--show-events",
+      "Pretty print events (kind 0, 10002, server list, and index.html nsite event)",
+      { default: false },
+    )
+    .action(async (options: any, npub?: string) => {
       try {
         logger.info("Starting nsite debug...");
-        
+
         // Load config if available
-        let config: any = null;
+        let config: ProjectConfig | null = null;
         try {
-          config = readProjectFile(false);
-        } catch (e) {
+          config = readProjectFile(options.config, false);
+        } catch (_e) {
           logger.debug("No config file found, continuing without it");
         }
 
@@ -78,7 +214,7 @@ export function registerDebugCommand(program: Command): void {
         if (npub) {
           targetNpub = npub;
         } else if (config?.bunkerPubkey) {
-          targetNpub = nip19.npubEncode(config.bunkerPubkey);
+          targetNpub = npubEncode(config.bunkerPubkey);
           logger.info(`Using npub from bunker config: ${targetNpub}`);
         } else {
           console.error(colors.red("Error: No npub provided and no bunkerPubkey in config"));
@@ -88,13 +224,15 @@ export function registerDebugCommand(program: Command): void {
         // Validate npub
         let pubkey: string;
         try {
-          const decoded = nip19.decode(targetNpub);
+          const decoded = decodePointer(targetNpub);
           if (decoded.type !== "npub") {
             throw new Error("Invalid npub format");
           }
           pubkey = decoded.data as string;
         } catch (e) {
-          console.error(colors.red(`Error: Invalid npub: ${e instanceof Error ? e.message : String(e)}`));
+          console.error(
+            colors.red(`Error: Invalid npub: ${e instanceof Error ? e.message : String(e)}`),
+          );
           Deno.exit(1);
         }
 
@@ -116,12 +254,12 @@ export function registerDebugCommand(program: Command): void {
           pubkey,
           relays: {
             provided: relays,
-            found: []
+            found: [],
           },
           profile: { success: false, message: "Not checked" },
           nsiteEvents: { success: false, message: "Not checked" },
           blossomServers: { success: false, message: "Not checked" },
-          appHandlers: { success: false, message: "Not checked" }
+          appHandlers: { success: false, message: "Not checked" },
         };
 
         console.log("\n" + colors.bold("=== NSITE DEBUG REPORT ==="));
@@ -135,21 +273,21 @@ export function registerDebugCommand(program: Command): void {
 
         // Step 1: Check profile (kind 0)
         console.log(colors.yellow("1. Checking profile (kind 0)..."));
-        
+
         // Use specialized profile relays for better results
         const profileRelays = [
           "wss://purplepag.es",
           "wss://user.kindpag.es",
-          ...relays
+          ...relays,
         ];
-        
+
         const profileEvent = await fetchKind0Event(pool, profileRelays, pubkey);
         if (profileEvent) {
           collectedEvents.profile = profileEvent;
           report.profile = {
             success: true,
             message: "Profile found",
-            details: JSON.parse(profileEvent.content)
+            details: JSON.parse(profileEvent.content),
           };
           console.log(colors.green("✓ Profile found"));
           if (options.verbose) {
@@ -158,38 +296,38 @@ export function registerDebugCommand(program: Command): void {
         } else {
           report.profile = {
             success: false,
-            message: "Profile not found on any relay"
+            message: "Profile not found on any relay",
           };
           console.log(colors.red("✗ Profile not found"));
         }
 
         // Step 2: Check relay list (kind 10002)
         console.log("\n" + colors.yellow("2. Checking relay list (kind 10002)..."));
-        
+
         // Use specialized relay list relays
         const relayListRelays = [
           "wss://purplepag.es",
           "wss://user.kindpag.es",
           "wss://relay.nsite.lol",
-          ...relays
+          ...relays,
         ];
-        
+
         const relayListEvents = await fetchRelayListEvents(pool, relayListRelays, pubkey);
         if (relayListEvents.length > 0) {
           const latestRelayList = relayListEvents[0];
           collectedEvents.relayList = latestRelayList;
-          const relayTags = latestRelayList.tags.filter(tag => tag[0] === "r");
-          const foundRelays = relayTags.map(tag => tag[1]);
+          const relayTags = latestRelayList.tags.filter((tag) => tag[0] === "r");
+          const foundRelays = relayTags.map((tag) => tag[1]);
           report.relays.found = foundRelays;
           report.relays.kind10002 = latestRelayList;
-          
+
           console.log(colors.green(`✓ Found ${foundRelays.length} relays in kind 10002`));
           if (options.verbose) {
-            foundRelays.forEach(relay => {
+            foundRelays.forEach((relay) => {
               console.log(colors.gray(`  - ${relay}`));
             });
           }
-          
+
           // Use found relays for subsequent checks if available
           if (foundRelays.length > 0) {
             relays = [...new Set([...relays, ...foundRelays])];
@@ -204,94 +342,116 @@ export function registerDebugCommand(program: Command): void {
         console.log(colors.gray("Fetching nsite events for blob verification..."));
         const nsiteRelays = [
           "wss://relay.nsite.lol",
-          ...relays
+          ...relays,
         ];
         const nsiteEvents = await fetchNsiteEvents(pool, nsiteRelays, pubkey);
-        
+
         // Step 3: Check blossom servers
         console.log("\n" + colors.yellow("3. Checking blossom servers..."));
-        
+
         // First check config servers
         if (config?.servers && config.servers.length > 0) {
           console.log(colors.cyan(`Checking ${config.servers.length} servers from config...`));
-          
+
           const serverResults = await checkBlossomServers(config.servers, nsiteEvents);
-          
+
           let workingServers = 0;
-          serverResults.forEach(result => {
+          serverResults.forEach((result) => {
             if (result.available) {
               workingServers++;
               let message = `  ✓ ${result.url} - Available`;
-              
+
               if (result.filesChecked !== undefined) {
                 message += ` (${result.filesFound}/${result.filesChecked} files found)`;
-                
+
                 if (result.hashVerification) {
                   if (result.hashVerification.valid) {
                     message += colors.green(` ✓ Hash verified`);
                     if (options.verbose) {
-                      message += colors.gray(` [${result.hashVerification.hash.substring(0, 8)}...]`);
+                      message += colors.gray(
+                        ` [${result.hashVerification.hash.substring(0, 8)}...]`,
+                      );
                     }
                   } else {
                     message += colors.red(` ✗ Hash mismatch!`);
                     if (options.verbose) {
-                      message += colors.red(` Expected: ${result.hashVerification.expectedHash.substring(0, 8)}..., Got: ${result.hashVerification.hash.substring(0, 8)}...`);
+                      message += colors.red(
+                        ` Expected: ${
+                          result.hashVerification.expectedHash.substring(0, 8)
+                        }..., Got: ${result.hashVerification.hash.substring(0, 8)}...`,
+                      );
                     }
                   }
                 }
               }
-              
+
               console.log(colors.green(message));
             } else {
               console.log(colors.red(`  ✗ ${result.url} - ${result.error}`));
             }
           });
-          
+
           report.blossomServers = {
             success: workingServers > 0,
             message: `${workingServers}/${config.servers.length} config servers available`,
-            details: serverResults
+            details: serverResults,
           };
-          
+
           if (workingServers === 0) {
-            console.log(colors.red("  ⚠ No blossom servers are available - blobs cannot be served!"));
+            console.log(
+              colors.red("  ⚠ No blossom servers are available - blobs cannot be served!"),
+            );
           }
         } else {
           report.blossomServers = {
             success: false,
-            message: "No blossom servers configured"
+            message: "No blossom servers configured",
           };
           console.log(colors.red("✗ No blossom servers configured"));
         }
-        
+
         // Also check if user published a server list (kind 10063) for reference
         console.log(colors.gray("  Checking for published server list (kind 10063)..."));
         const serverListEvents = await fetchServerListEvents(pool, relayListRelays, pubkey);
         if (serverListEvents.length > 0) {
           const latestServerList = serverListEvents[0];
           collectedEvents.serverList = latestServerList;
-          const serverTags = latestServerList.tags.filter(tag => tag[0] === "server");
-          const publishedServers = serverTags.map(tag => tag[1]);
-          console.log(colors.gray(`  ℹ Found published server list with ${publishedServers.length} servers`));
-          
+          const serverTags = latestServerList.tags.filter((tag: string[]) => tag[0] === "server");
+          const publishedServers = serverTags.map((tag: string[]) => tag[1]);
+          console.log(
+            colors.gray(`  ℹ Found published server list with ${publishedServers.length} servers`),
+          );
+
           // Compare with config (normalize URLs for comparison)
           if (config?.servers) {
             const normalizeUrl = (url: string) => new URL(url).toString();
-            
+
             const configServersNormalized = config.servers.map(normalizeUrl);
             const publishedServersNormalized = publishedServers.map(normalizeUrl);
-            
+
             const configServersSet = new Set(configServersNormalized);
             const publishedServersSet = new Set(publishedServersNormalized);
-            
-            const onlyInConfig = config.servers.filter((s: string) => !publishedServersSet.has(normalizeUrl(s)));
-            const onlyInPublished = publishedServers.filter((s: string) => !configServersSet.has(normalizeUrl(s)));
-            
+
+            const onlyInConfig = config.servers.filter((s: string) =>
+              !publishedServersSet.has(normalizeUrl(s))
+            );
+            const onlyInPublished = publishedServers.filter((s: string) =>
+              !configServersSet.has(normalizeUrl(s))
+            );
+
             if (onlyInConfig.length > 0) {
-              console.log(colors.yellow(`  ⚠ Servers in config but not published: ${onlyInConfig.join(", ")}`));
+              console.log(
+                colors.yellow(
+                  `  ⚠ Servers in config but not published: ${onlyInConfig.join(", ")}`,
+                ),
+              );
             }
             if (onlyInPublished.length > 0) {
-              console.log(colors.yellow(`  ⚠ Servers published but not in config: ${onlyInPublished.join(", ")}`));
+              console.log(
+                colors.yellow(
+                  `  ⚠ Servers published but not in config: ${onlyInPublished.join(", ")}`,
+                ),
+              );
             }
             if (onlyInConfig.length === 0 && onlyInPublished.length === 0) {
               console.log(colors.green("  ✓ Config and published server lists match"));
@@ -301,41 +461,70 @@ export function registerDebugCommand(program: Command): void {
           console.log(colors.gray("  ℹ No published server list (kind 10063) found"));
         }
 
-        // Step 4: Check nsite events (kind 34128)
-        console.log("\n" + colors.yellow("4. Checking nsite events (kind 34128)..."));
+        // Step 4: Check site manifest events (kinds 15128, 35128)
+        console.log(
+          "\n" +
+            colors.yellow(
+              `4. Checking site manifest events (kinds ${NSITE_ROOT_SITE_KIND}, ${NSITE_NAME_SITE_KIND})...`,
+            ),
+        );
         if (nsiteEvents.length > 0) {
-          console.log(colors.green(`✓ Found ${nsiteEvents.length} nsite file events`));
-          
-          // Find index.html event
-          const indexHtmlEvent = nsiteEvents.find(event => {
-            const pathTag = event.tags.find(tag => tag[0] === "d");
-            return pathTag && (pathTag[1] === "/index.html" || pathTag[1] === "index.html");
+          console.log(colors.green(`✓ Found ${nsiteEvents.length} site manifest event(s)`));
+
+          // Count total files across all manifests
+          let totalFiles = 0;
+          for (const manifestEvent of nsiteEvents) {
+            const pathTags = manifestEvent.tags.filter((tag) => tag[0] === "path");
+            totalFiles += pathTags.length;
+          }
+          console.log(colors.gray(`  Total files across all manifests: ${totalFiles}`));
+
+          // Find manifest event containing index.html
+          const indexHtmlEvent = nsiteEvents.find((event) => {
+            const pathTags = event.tags.filter((tag) => tag[0] === "path");
+            return pathTags.some((tag) => {
+              if (tag.length >= 2) {
+                const path = tag[1];
+                return path === "/index.html" || path === "index.html";
+              }
+              return false;
+            });
           });
-          
+
           if (indexHtmlEvent) {
             collectedEvents.indexHtmlNsite = indexHtmlEvent;
           }
-          
+
           if (options.verbose) {
-            console.log(colors.gray("  Recent files:"));
-            nsiteEvents.slice(0, 5).forEach(event => {
-              const pathTag = event.tags.find(tag => tag[0] === "d");
-              const path = pathTag ? pathTag[1] : "unknown";
-              console.log(colors.gray(`  - ${path}`));
+            console.log(colors.gray("  Manifest events:"));
+            nsiteEvents.slice(0, 5).forEach((event) => {
+              const siteIdentifier = event.tags.find((tag) => tag[0] === "d")?.[1];
+              const pathTags = event.tags.filter((tag) => tag[0] === "path");
+              const siteType = siteIdentifier ? `named site "${siteIdentifier}"` : "root site";
+              console.log(colors.gray(`  - ${siteType} (${pathTags.length} files)`));
+              // Show first few paths
+              pathTags.slice(0, 3).forEach((tag) => {
+                if (tag.length >= 2) {
+                  console.log(colors.gray(`    - ${tag[1]}`));
+                }
+              });
+              if (pathTags.length > 3) {
+                console.log(colors.gray(`    ... and ${pathTags.length - 3} more files`));
+              }
             });
           }
-          
+
           report.nsiteEvents = {
             success: true,
-            message: `Found ${nsiteEvents.length} file events`,
-            details: { count: nsiteEvents.length }
+            message: `Found ${nsiteEvents.length} manifest event(s) with ${totalFiles} total files`,
+            details: { count: nsiteEvents.length, totalFiles },
           };
         } else {
           report.nsiteEvents = {
             success: false,
-            message: "No nsite events found"
+            message: "No site manifest events found",
           };
-          console.log(colors.red("✗ No nsite events found"));
+          console.log(colors.red("✗ No site manifest events found"));
           console.log(colors.yellow("  ⚠ No files have been uploaded to this nsite"));
         }
 
@@ -343,9 +532,9 @@ export function registerDebugCommand(program: Command): void {
         console.log("\n" + colors.yellow("5. Checking app handler events..."));
         const appHandlerEvents = await fetchAppHandlerEvents(pool, relays, pubkey);
         if (appHandlerEvents.length > 0) {
-          const kind31989 = appHandlerEvents.filter(e => e.kind === 31989);
-          const kind31990 = appHandlerEvents.filter(e => e.kind === 31990);
-          
+          const kind31989 = appHandlerEvents.filter((e) => e.kind === 31989);
+          const kind31990 = appHandlerEvents.filter((e) => e.kind === 31990);
+
           console.log(colors.green(`✓ Found ${appHandlerEvents.length} app handler events`));
           if (kind31989.length > 0) {
             console.log(colors.gray(`  - ${kind31989.length} app recommendations (kind 31989)`));
@@ -353,19 +542,19 @@ export function registerDebugCommand(program: Command): void {
           if (kind31990.length > 0) {
             console.log(colors.gray(`  - ${kind31990.length} app announcements (kind 31990)`));
           }
-          
+
           report.appHandlers = {
             success: true,
             message: `Found ${appHandlerEvents.length} app handler events`,
             details: {
               kind31989: kind31989.length,
-              kind31990: kind31990.length
-            }
+              kind31990: kind31990.length,
+            },
           };
         } else {
           report.appHandlers = {
             success: false,
-            message: "No app handler events found"
+            message: "No app handler events found",
           };
           console.log(colors.yellow("⚠ No app handler events found"));
           console.log(colors.gray("  This is optional - app handlers help with nsite discovery"));
@@ -374,19 +563,19 @@ export function registerDebugCommand(program: Command): void {
         // Show events if requested
         if (options.showEvents) {
           console.log("\n" + colors.bold("=== EVENT DETAILS ==="));
-          
+
           if (collectedEvents.profile) {
             prettyPrintEvent(collectedEvents.profile, "Profile Event (Kind 0)");
           }
-          
+
           if (collectedEvents.relayList) {
             prettyPrintEvent(collectedEvents.relayList, "Relay List Event (Kind 10002)");
           }
-          
+
           if (collectedEvents.serverList) {
             prettyPrintEvent(collectedEvents.serverList, "Server List Event (Kind 10063)");
           }
-          
+
           // Fetch index.html event if not already found
           if (!collectedEvents.indexHtmlNsite) {
             console.log(colors.gray("\nFetching /index.html event..."));
@@ -395,9 +584,12 @@ export function registerDebugCommand(program: Command): void {
               collectedEvents.indexHtmlNsite = indexHtmlEvent;
             }
           }
-          
+
           if (collectedEvents.indexHtmlNsite) {
-            prettyPrintEvent(collectedEvents.indexHtmlNsite, "index.html Nsite Event (Kind 34128)");
+            prettyPrintEvent(
+              collectedEvents.indexHtmlNsite,
+              "Site Manifest Event (contains /index.html)",
+            );
           } else {
             console.log("\n" + colors.yellow("Note: No /index.html file found in nsite events"));
           }
@@ -405,18 +597,18 @@ export function registerDebugCommand(program: Command): void {
 
         // Summary
         console.log("\n" + colors.bold("=== SUMMARY ==="));
-        
+
         const criticalIssues: string[] = [];
         const warnings: string[] = [];
-        
+
         if (!report.profile.success) {
           warnings.push("No profile found (kind 0)");
         }
-        
+
         if (report.relays.found.length === 0) {
           criticalIssues.push("No relay list found (kind 10002) - cannot discover user's relays");
         }
-        
+
         if (!report.blossomServers.success) {
           if (report.blossomServers.message.includes("No blossom server list")) {
             criticalIssues.push("No blossom server list found (kind 10063) - cannot serve blobs");
@@ -424,28 +616,32 @@ export function registerDebugCommand(program: Command): void {
             criticalIssues.push("All blossom servers are unavailable - blobs cannot be served");
           }
         }
-        
+
         if (!report.nsiteEvents.success) {
-          warnings.push("No nsite events found (kind 34128) - no files uploaded yet");
+          warnings.push(
+            "No site manifest events found (kinds 15128, 35128) - no files uploaded yet",
+          );
         }
-        
+
         if (!report.appHandlers.success) {
           warnings.push("No app handler events found - optional for discovery");
         }
 
         if (criticalIssues.length === 0 && warnings.length === 0) {
-          console.log(colors.green("✓ All checks passed! The nsite appears to be properly configured."));
+          console.log(
+            colors.green("✓ All checks passed! The nsite appears to be properly configured."),
+          );
         } else {
           if (criticalIssues.length > 0) {
             console.log(colors.red("\nCritical Issues:"));
-            criticalIssues.forEach(issue => {
+            criticalIssues.forEach((issue) => {
               console.log(colors.red(`  ✗ ${issue}`));
             });
           }
-          
+
           if (warnings.length > 0) {
             console.log(colors.yellow("\nWarnings:"));
-            warnings.forEach(warning => {
+            warnings.forEach((warning) => {
               console.log(colors.yellow(`  ⚠ ${warning}`));
             });
           }
@@ -454,12 +650,13 @@ export function registerDebugCommand(program: Command): void {
         // Close relay pool connections
         // pool.close();
         console.log("\n" + colors.gray("Debug complete."));
-        
+
         Deno.exit(criticalIssues.length > 0 ? 1 : 0);
-        
       } catch (error) {
         logger.error(`Debug command failed: ${error}`);
-        console.error(colors.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+        console.error(
+          colors.red(`Error: ${error instanceof Error ? error.message : String(error)}`),
+        );
         Deno.exit(1);
       }
     });

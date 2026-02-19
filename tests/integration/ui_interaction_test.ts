@@ -1,5 +1,4 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { stub } from "std/testing/mock.ts";
+import { assertEquals } from "@std/assert";
 
 Deno.test("UI Interactions - Progress Display", async (t) => {
   await t.step("should format progress bar correctly", () => {

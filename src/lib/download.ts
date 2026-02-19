@@ -1,8 +1,8 @@
-import { dirname, join } from "@std/path";
 import { ensureDir } from "@std/fs/ensure-dir";
+import { dirname, join } from "@std/path";
+import { ProgressRenderer } from "../ui/progress.ts";
 import { createLogger } from "./logger.ts";
 import { type FileEntry, listRemoteFiles } from "./nostr.ts";
-import { ProgressRenderer } from "../ui/progress.ts";
 import type { ByteArray } from "./types.ts";
 
 const log = createLogger("download");
@@ -54,11 +54,17 @@ export class DownloadService {
   /**
    * Fetch file list from relays for a given pubkey
    */
-  async fetchFileList(relays: string[], pubkey: string): Promise<FileEntry[]> {
+  async fetchFileList(
+    relays: string[],
+    pubkey: string,
+    site?: string,
+  ): Promise<FileEntry[]> {
     log.debug(
-      `Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...`,
+      `Fetching file list from ${relays.length} relays for pubkey: ${pubkey.slice(0, 8)}...${
+        site ? ` (site: ${site})` : ""
+      }`,
     );
-    return await listRemoteFiles(relays, pubkey);
+    return await listRemoteFiles(relays, pubkey, site);
   }
 
   /**

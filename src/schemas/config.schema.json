@@ -5,6 +5,11 @@
   "description": "Schema for nsyte project configuration files (.nsite/config.json)",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for this configuration file",
+      "format": "uri"
+    },
     "bunkerPubkey": {
       "type": "string",
       "description": "Public key reference for NIP-46 bunker connection",
@@ -30,72 +35,73 @@
       },
       "uniqueItems": true
     },
-    "profile": {
-      "type": "object",
-      "description": "Nostr profile metadata (NIP-01)",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Profile name"
-        },
-        "about": {
-          "type": "string",
-          "description": "Profile description/bio"
-        },
-        "picture": {
-          "type": "string",
-          "format": "uri",
-          "description": "Profile picture URL"
-        },
-        "display_name": {
-          "type": "string",
-          "description": "Display name"
-        },
-        "website": {
-          "type": "string",
-          "format": "uri",
-          "description": "Website URL"
-        },
-        "nip05": {
-          "type": "string",
-          "description": "NIP-05 identifier (e.g., user@domain.com)"
-        },
-        "lud16": {
-          "type": "string",
-          "description": "Lightning address"
-        },
-        "banner": {
-          "type": "string",
-          "format": "uri",
-          "description": "Banner image URL"
-        }
-      },
-      "additionalProperties": false
-    },
-    "publishServerList": {
-      "type": "boolean",
-      "description": "Whether to publish server list (kind 10063) to Nostr",
-      "default": false
-    },
-    "publishRelayList": {
-      "type": "boolean",
-      "description": "Whether to publish relay list (kind 10002) to Nostr",
-      "default": false
-    },
-    "publishProfile": {
-      "type": "boolean",
-      "description": "Whether to publish profile metadata (kind 0) to Nostr",
-      "default": false
-    },
-    "publishFileMetadata": {
-      "type": "boolean",
-      "description": "Whether to publish NIP-94 file metadata for release artifacts",
-      "default": false
-    },
     "publishAppHandler": {
       "type": "boolean",
       "description": "Whether to publish NIP-89 app handler events",
       "default": false
+    },
+    "publishProfile": {
+      "type": "boolean",
+      "description": "Whether to publish kind 0 profile metadata events (root sites only)",
+      "default": false
+    },
+    "publishRelayList": {
+      "type": "boolean",
+      "description": "Whether to publish kind 10002 relay list events (root sites only)",
+      "default": false
+    },
+    "publishServerList": {
+      "type": "boolean",
+      "description": "Whether to publish kind 10063 Blossom server list events (root sites only)",
+      "default": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "Profile metadata for kind 0 events",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Your name"
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Your display name"
+        },
+        "about": {
+          "type": "string",
+          "description": "Description about yourself"
+        },
+        "picture": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to your avatar image"
+        },
+        "banner": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to your banner/header image"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri",
+          "description": "Your website URL"
+        },
+        "nip05": {
+          "type": "string",
+          "description": "Your NIP-05 identifier (e.g., user@domain.com)",
+          "pattern": "^[^@]+@[^@]+$"
+        },
+        "lud16": {
+          "type": "string",
+          "description": "Your Lightning address (e.g., user@getalby.com)",
+          "pattern": "^[^@]+@[^@]+$"
+        },
+        "lud06": {
+          "type": "string",
+          "description": "Legacy Lightning address (LNURL)"
+        }
+      },
+      "additionalProperties": false
     },
     "fallback": {
       "type": "string",
@@ -111,10 +117,39 @@
       "default": ["nsite.lol"],
       "uniqueItems": true
     },
+    "id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "string",
+          "enum": [""]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional site title for the manifest event"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional site description for the manifest event"
+    },
     "appHandler": {
       "type": "object",
       "description": "NIP-89 app handler configuration",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Optional unique identifier for this handler (defaults to site id). Used as the 'd' tag in kind 31990 events.",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
         "kinds": {
           "type": "array",
           "description": "Event kinds this nsite can handle/display",
@@ -131,7 +166,12 @@
         },
         "description": {
           "type": "string",
-          "description": "Optional description of what the handler does"
+          "description": "Optional description of what the app handler does"
+        },
+        "icon": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional app icon URL (will be included as 'picture' in the app handlers metadata)"
         },
         "platforms": {
           "type": "object",
@@ -191,66 +231,6 @@
       },
       "required": ["kinds"],
       "additionalProperties": false
-    },
-    "application": {
-      "type": "object",
-      "description": "NIP-82 software application metadata",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Reverse-domain identifier (e.g., com.example.app)",
-          "pattern": "^[a-zA-Z][a-zA-Z0-9._-]*$"
-        },
-        "summary": {
-          "type": "string",
-          "description": "Short description (no markdown)",
-          "maxLength": 280
-        },
-        "icon": {
-          "type": "string",
-          "format": "uri",
-          "description": "Icon URL"
-        },
-        "images": {
-          "type": "array",
-          "description": "Additional image URLs (screenshots, etc.)",
-          "items": {
-            "type": "string",
-            "format": "uri"
-          }
-        },
-        "tags": {
-          "type": "array",
-          "description": "Descriptive tags for the application",
-          "items": {
-            "type": "string"
-          },
-          "uniqueItems": true
-        },
-        "repository": {
-          "type": "string",
-          "format": "uri",
-          "description": "Source code repository URL (must be git-cloneable)",
-          "pattern": "^https?://.*\\.git$|^https?://github\\.com/|^https?://gitlab\\.com/|^https?://codeberg\\.org/"
-        },
-        "platforms": {
-          "type": "array",
-          "description": "Supported platforms",
-          "items": {
-            "type": "string",
-            "enum": ["web", "linux", "windows", "macos", "android", "ios"]
-          },
-          "uniqueItems": true,
-          "minItems": 1
-        },
-        "license": {
-          "type": "string",
-          "description": "SPDX license identifier",
-          "examples": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "ISC", "MPL-2.0"]
-        }
-      },
-      "required": ["id"],
-      "additionalProperties": false
     }
   },
   "required": ["relays", "servers"],
@@ -258,24 +238,14 @@
   "examples": [
     {
       "relays": ["wss://relay.damus.io", "wss://nos.lol"],
-      "servers": ["https://cdn.hzrd149.com"],
-      "publishServerList": true,
-      "publishRelayList": true
+      "servers": ["https://cdn.hzrd149.com"]
     },
     {
       "relays": ["wss://relay.damus.io"],
       "servers": ["https://cdn.hzrd149.com"],
-      "profile": {
-        "name": "My Project",
-        "about": "A decentralized application"
-      },
-      "publishProfile": true,
-      "publishFileMetadata": true,
-      "application": {
-        "id": "com.example.myapp",
-        "summary": "A powerful decentralized app",
-        "platforms": ["web", "linux", "windows"]
-      }
+      "id": "blog",
+      "title": "My Blog",
+      "description": "A blog about decentralized applications"
     },
     {
       "relays": ["wss://relay.damus.io"],
@@ -284,7 +254,23 @@
       "appHandler": {
         "kinds": [1, 30023],
         "name": "My Nostr Viewer",
-        "description": "A viewer for notes and articles"
+        "description": "A viewer for notes and articles",
+        "icon": "https://example.com/logo.png"
+      }
+    },
+    {
+      "relays": ["wss://relay.damus.io", "wss://nos.lol"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "publishProfile": true,
+      "publishRelayList": true,
+      "publishServerList": true,
+      "profile": {
+        "name": "Alice",
+        "display_name": "Alice",
+        "about": "Decentralization enthusiast",
+        "picture": "https://example.com/avatar.jpg",
+        "nip05": "alice@example.com",
+        "lud16": "alice@getalby.com"
       }
     }
   ]

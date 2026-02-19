@@ -1,15 +1,30 @@
-import type { NostrEvent } from "nostr-tools";
-import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { getTagValue, pool } from "./nostr.ts";
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import { type Filter, type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { lastValueFrom } from "rxjs";
-import { createLogger } from "./logger.ts";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
-import type { FileEntryWithSources } from "../commands/ls.ts";
-import { fetchServerListEvents } from "./debug-helpers.ts";
-import { extractServersFromEvent } from "./utils.ts";
+import { createLogger } from "./logger.ts";
+import {
+  getManifestFiles,
+  getManifestTitle,
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+} from "./manifest.ts";
+import type { FileEntryWithSources } from "./nostr.ts";
+import { fetchServerListEvents, getUserOutboxes, pool, store } from "./nostr.ts";
+import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 
 const log = createLogger("browse-loader");
-const NSITE_KIND = 34128;
+
+/**
+ * Represents a site (root or named) for browsing
+ */
+export interface SiteInfo {
+  event: NostrEvent;
+  type: "root" | "named";
+  identifier?: string;
+  title?: string;
+  fileCount: number;
+}
 
 // Simple circuit breaker to avoid hammering consistently failing servers
 const serverFailureCount = new Map<string, number>();
@@ -30,36 +45,131 @@ function recordServerSuccess(server: string): void {
   serverFailureCount.delete(server);
 }
 
-function getTagValues(event: NostrEvent, tagName: string): string[] {
-  return event.tags
-    .filter((tag: string[]) => tag[0] === tagName && tag.length > 1)
-    .map((tag: string[]) => tag[1]);
+/**
+ * Fetch all sites (root + named) for a pubkey
+ */
+export async function fetchAllSites(
+  relays: string[],
+  pubkey: string,
+): Promise<SiteInfo[]> {
+  renderLoadingScreen("Discovering user relays...", "Fetching kind 10002");
+  const mergedRelays = relaySet(relays, await getUserOutboxes(pubkey));
+
+  renderLoadingScreen("Fetching sites...", `Querying ${mergedRelays.length} relays`);
+
+  let events: NostrEvent[] = [];
+
+  try {
+    events = await lastValueFrom(
+      pool
+        .request(mergedRelays, {
+          kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+          authors: [pubkey],
+        })
+        .pipe(
+          simpleTimeout(12000),
+          mapEventsToStore(store),
+          mapEventsToTimeline(),
+        ),
+      { defaultValue: [] },
+    );
+  } catch (error) {
+    log.debug(`Error fetching sites: ${error}`);
+  }
+
+  if (events.length === 0) {
+    return [];
+  }
+
+  renderLoadingScreen("Processing sites...", `${events.length} manifest events found`);
+
+  // Group sites: keep latest root site and latest of each named site
+  const sites: SiteInfo[] = [];
+  let latestRootSite: NostrEvent | null = null;
+  const namedSitesMap = new Map<string, NostrEvent>();
+
+  for (const event of events) {
+    if (event.kind === NSITE_ROOT_SITE_KIND) {
+      if (!latestRootSite || event.created_at > latestRootSite.created_at) {
+        latestRootSite = event;
+      }
+    } else if (event.kind === NSITE_NAME_SITE_KIND) {
+      const identifier = event.tags.find((tag) => tag[0] === "d")?.[1];
+      if (identifier) {
+        const existing = namedSitesMap.get(identifier);
+        if (!existing || event.created_at > existing.created_at) {
+          namedSitesMap.set(identifier, event);
+        }
+      }
+    }
+  }
+
+  // Add root site if exists
+  if (latestRootSite) {
+    const files = getManifestFiles(latestRootSite);
+    sites.push({
+      event: latestRootSite,
+      type: "root",
+      title: getManifestTitle(latestRootSite) || "Root Site",
+      fileCount: files.length,
+    });
+  }
+
+  // Add named sites
+  for (const [identifier, event] of namedSitesMap.entries()) {
+    const files = getManifestFiles(event);
+    sites.push({
+      event,
+      type: "named",
+      identifier,
+      title: getManifestTitle(event) || identifier,
+      fileCount: files.length,
+    });
+  }
+
+  return sites;
 }
 
 export async function listRemoteFilesWithProgress(
   relays: string[],
   pubkey: string,
   checkBlossomServers = true,
+  siteIdentifier?: string | null, // null = root site, undefined = all sites, string = specific named site
 ): Promise<FileEntryWithSources[]> {
+  // First, fetch kind 10002 to get user's preferred relays
+  renderLoadingScreen("Discovering user relays...", "Fetching kind 10002");
+  const mergedRelays = relaySet(relays, await getUserOutboxes(pubkey));
+
   const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
   let completedRelays = 0;
   let totalEvents = 0;
 
-  renderLoadingScreen("Connecting to relays...", `0 / ${relays.length} relays`);
+  renderLoadingScreen("Connecting to relays...", `0 / ${mergedRelays.length} relays`);
 
   // Subscribe to each relay individually to track sources
-  const promises = relays.map(async (relay) => {
+  const promises = mergedRelays.map(async (relay) => {
     try {
       log.debug(`Connecting to relay: ${relay}`);
-      const store = new EventStore();
+
+      // Build filter based on site selection
+      const filter: Filter = { authors: [pubkey] };
+
+      if (siteIdentifier === null) {
+        // Fetch only root site
+        filter.kinds = [NSITE_ROOT_SITE_KIND];
+      } else if (siteIdentifier === undefined) {
+        // Fetch all sites (both root and named)
+        filter.kinds = [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND];
+      } else {
+        // Fetch specific named site
+        filter.kinds = [NSITE_NAME_SITE_KIND];
+        filter["#d"] = [siteIdentifier];
+      }
 
       // Add a race condition with manual timeout to handle EOSE issues
       const requestPromise = lastValueFrom(
         pool
-          .request([relay], {
-            kinds: [NSITE_KIND],
-            authors: [pubkey],
-          })
+          .request([relay], filter)
           .pipe(
             simpleTimeout(8000),
             mapEventsToStore(store),
@@ -95,7 +205,7 @@ export async function listRemoteFilesWithProgress(
       completedRelays++;
       renderLoadingScreen(
         "Loading files from relays...",
-        `${completedRelays} / ${relays.length} relays • ${totalEvents} events found`,
+        `${completedRelays} / ${mergedRelays.length} relays • ${totalEvents} events found`,
       );
     }
   });
@@ -103,34 +213,43 @@ export async function listRemoteFilesWithProgress(
   await Promise.all(promises);
 
   if (eventMap.size === 0) {
-    log.warn(`No file events found for user ${pubkey} from any relays`);
+    log.warn(`No site manifest events found for user ${pubkey} from any relays`);
     return [];
   }
 
-  renderLoadingScreen("Processing files...", `${eventMap.size} events`);
+  renderLoadingScreen("Processing files...", `${eventMap.size} manifest events`);
 
   const fileEntries: FileEntryWithSources[] = [];
   const now = Math.floor(Date.now() / 1000);
 
+  // Parse path tags from each manifest event
   for (const [eventId, { event, foundOnRelays }] of eventMap) {
-    const path = getTagValue(event, "d");
-    const sha256 = getTagValue(event, "x");
+    // Extract all path tags from the manifest
+    const pathTags = event.tags.filter((tag) => tag[0] === "path");
 
-    if (path && sha256) {
-      fileEntries.push({
-        path,
-        sha256,
-        eventId,
-        event,
-        foundOnRelays: Array.from(foundOnRelays),
-        availableOnServers: [], // Will be populated with actual availability check
-      });
+    for (const pathTag of pathTags) {
+      // Path tag format: ["path", "/absolute/path", "sha256hash"]
+      if (pathTag.length >= 3) {
+        const path = pathTag[1];
+        const sha256 = pathTag[2];
+
+        if (path && sha256) {
+          fileEntries.push({
+            path,
+            sha256,
+            eventId,
+            event,
+            foundOnRelays: Array.from(foundOnRelays),
+            availableOnServers: [], // Will be populated with actual availability check
+          });
+        }
+      }
     }
   }
 
   renderLoadingScreen("Deduplicating files...", `${fileEntries.length} files`);
 
-  // Deduplicate by path, keeping the newest event
+  // Deduplicate by path, keeping the newest manifest event version
   const uniqueFiles = fileEntries.reduce((acc, current) => {
     const existingIndex = acc.findIndex((file) => file.path === current.path);
     const currentTs = Math.min(current.event?.created_at ?? 0, now);
@@ -142,10 +261,11 @@ export async function listRemoteFilesWithProgress(
 
       const existingTs = Math.min(existing.event?.created_at ?? 0, now);
 
+      // Keep the most recent manifest version
       if (existingTs < currentTs) {
         acc[existingIndex] = current;
       } else {
-        // Merge relay sources
+        // Merge relay sources if same timestamp
         const mergedRelays = new Set([...existing.foundOnRelays, ...current.foundOnRelays]);
         existing.foundOnRelays = Array.from(mergedRelays);
       }
@@ -154,22 +274,38 @@ export async function listRemoteFilesWithProgress(
     }
   }, [] as FileEntryWithSources[]);
 
-  log.info(`Found ${uniqueFiles.length} unique remote files for user ${pubkey}`);
+  log.info(
+    `Found ${uniqueFiles.length} unique remote files for user ${pubkey} from ${eventMap.size} manifest event(s)`,
+  );
 
-  // Fetch user's blossom server list
-  renderLoadingScreen("Fetching server list...", "Loading user preferences");
+  // Extract servers from manifest events first (per NIP-XX spec)
+  renderLoadingScreen("Extracting server list...", "Loading server preferences");
   let userServers: string[] = [];
 
-  try {
-    const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
-    if (serverListEvents.length > 0) {
-      // Get the most recent server list event
-      const latestEvent = serverListEvents[0];
-      userServers = extractServersFromEvent(latestEvent);
-      log.debug(`Found ${userServers.length} blossom servers in user's server list`);
+  // Get all manifest events sorted by created_at (most recent first)
+  const manifestEvents = Array.from(eventMap.values())
+    .map((entry) => entry.event)
+    .sort((a, b) => b.created_at - a.created_at);
+
+  // Extract servers from manifest events (prioritized per NIP-XX)
+  userServers = extractServersFromManifestEvents(manifestEvents);
+  if (userServers.length > 0) {
+    log.debug(`Found ${userServers.length} blossom servers in manifest event(s)`);
+  }
+
+  // Fall back to kind 10063 server list event if no servers found in manifests
+  if (userServers.length === 0) {
+    try {
+      const serverListEvents = await fetchServerListEvents(mergedRelays, pubkey);
+      if (serverListEvents.length > 0) {
+        // Get the most recent server list event
+        const latestEvent = serverListEvents[0];
+        userServers = extractServersFromEvent(latestEvent);
+        log.debug(`Found ${userServers.length} blossom servers in user's server list (kind 10063)`);
+      }
+    } catch (error) {
+      log.debug(`Failed to fetch server list: ${error}`);
     }
-  } catch (error) {
-    log.debug(`Failed to fetch server list: ${error}`);
   }
 
   // Check blossom server availability if requested
@@ -218,21 +354,34 @@ export async function checkBlossomServersForFiles(
   files: FileEntryWithSources[],
   onProgress?: (checkedCount: number, totalCount: number) => void,
   userServers?: string[],
+  manifestEvents?: NostrEvent[],
 ): Promise<void> {
   // Use provided server list or fetch it
   let servers: string[] = userServers || [];
 
   if (!userServers) {
-    try {
-      const serverListEvents = await fetchServerListEvents(pool, relays, pubkey);
-      if (serverListEvents.length > 0) {
-        // Get the most recent server list event
-        const latestEvent = serverListEvents[0];
-        servers = extractServersFromEvent(latestEvent);
-        log.debug(`Found ${servers.length} blossom servers in user's server list`);
+    // First, try to extract servers from manifest events (prioritized per NIP-XX)
+    if (manifestEvents && manifestEvents.length > 0) {
+      const sortedManifestEvents = [...manifestEvents].sort((a, b) => b.created_at - a.created_at);
+      servers = extractServersFromManifestEvents(sortedManifestEvents);
+      if (servers.length > 0) {
+        log.debug(`Found ${servers.length} blossom servers in manifest event(s)`);
       }
-    } catch (error) {
-      log.debug(`Failed to fetch server list: ${error}`);
+    }
+
+    // Fall back to kind 10063 server list event if no servers found in manifests
+    if (servers.length === 0) {
+      try {
+        const serverListEvents = await fetchServerListEvents(relays, pubkey);
+        if (serverListEvents.length > 0) {
+          // Get the most recent server list event
+          const latestEvent = serverListEvents[0];
+          servers = extractServersFromEvent(latestEvent);
+          log.debug(`Found ${servers.length} blossom servers in user's server list (kind 10063)`);
+        }
+      } catch (error) {
+        log.debug(`Failed to fetch server list: ${error}`);
+      }
     }
   }
 

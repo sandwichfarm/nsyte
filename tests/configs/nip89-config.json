@@ -6,14 +6,8 @@
   "servers": [
     "https://cdn.hzrd149.com"
   ],
-  "profile": {
-    "name": "My Event Viewer",
-    "about": "A viewer for various Nostr event types",
-    "picture": "https://example.com/logo.png"
-  },
-  "publishProfile": true,
-  "publishRelayList": true,
-  "publishServerList": true,
+  "title": "My Event Viewer",
+  "description": "A viewer for various Nostr event types",
   "publishAppHandler": true,
   "appHandler": {
     "kinds": [1, 30023, 30311, 1063],

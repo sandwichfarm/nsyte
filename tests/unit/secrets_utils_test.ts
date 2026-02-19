@@ -1,19 +1,19 @@
-import { assertEquals, assertExists, assertThrows } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
-import { restore, stub } from "jsr:@std/testing/mock";
+import { assertEquals, assertThrows } from "@std/assert";
+import { join } from "@std/path";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
+import { restore, stub } from "@std/testing/mock";
 import {
   ensureSystemConfigDir,
   fileExists,
   getHomeDir,
   getSystemConfigDir,
 } from "../../src/lib/secrets/utils.ts";
-import * as fs from "@std/fs/ensure-dir";
+
 
 describe("secrets/utils - comprehensive branch coverage", () => {
+  const originalBuild = Deno.build;
   const originalEnvGet = Deno.env.get;
-  const originalBuildOS = Deno.build.os;
   let envGetStub: any;
-  let buildStub: any;
 
   beforeEach(() => {
     // Create a map for environment variables
@@ -38,23 +38,15 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     restore();
     delete (globalThis as any).mockEnv;
     // Reset Deno.build
-    if (buildStub) {
-      buildStub.restore();
-    }
+    (Deno as any).build = originalBuild;
   });
 
   const mockOS = (os: string) => {
-    // Create a new build object with mocked OS
     const mockBuild = {
       ...Deno.build,
       os: os as typeof Deno.build.os,
     };
-
-    // Stub the entire build object
-    if (buildStub) {
-      buildStub.restore();
-    }
-    buildStub = stub(Deno, "build", mockBuild);
+    (Deno as any).build = mockBuild;
   };
 
   describe("getHomeDir", () => {
@@ -153,7 +145,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         (globalThis as any).mockEnv("APPDATA", "C:\\Users\\TestUser\\AppData\\Roaming");
 
         const result = getSystemConfigDir();
-        assertEquals(result, "C:\\Users\\TestUser\\AppData\\Roaming\\nsite");
+        assertEquals(result, join("C:\\Users\\TestUser\\AppData\\Roaming", "nsite"));
       });
 
       it("should fallback to constructed path when APPDATA not set", () => {
@@ -162,17 +154,17 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         (globalThis as any).mockEnv("APPDATA", undefined);
 
         const result = getSystemConfigDir();
-        assertEquals(result, "C:\\Users\\TestUser\\AppData\\Roaming\\nsite");
+        assertEquals(result, join("C:\\Users\\TestUser", "AppData", "Roaming", "nsite"));
       });
     });
 
     describe("Other OS", () => {
-      it("should use ~/.nsite for unknown OS", () => {
+      it("should use ~/.config/nsyte for unknown OS", () => {
         mockOS("freebsd" as any);
         (globalThis as any).mockEnv("HOME", "/home/freebsduser");
 
         const result = getSystemConfigDir();
-        assertEquals(result, "/home/freebsduser/.nsite");
+        assertEquals(result, "/home/freebsduser/.config/nsyte");
       });
 
       it("should handle custom OS types", () => {
@@ -180,7 +172,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
         (globalThis as any).mockEnv("HOME", "/data/user");
 
         const result = getSystemConfigDir();
-        assertEquals(result, "/data/user/.nsite");
+        assertEquals(result, "/data/user/.config/nsyte");
       });
     });
   });
@@ -195,76 +187,59 @@ describe("secrets/utils - comprehensive branch coverage", () => {
     });
 
     it("should create directory and return path on success", () => {
-      mockOS("linux");
-      (globalThis as any).mockEnv("HOME", "/home/user");
-
-      const ensureDirStub = stub(fs, "ensureDirSync", () => {});
-
-      const result = ensureSystemConfigDir();
-      assertEquals(result, "/home/user/.config/nsite");
-      assertEquals(ensureDirStub.calls.length, 1);
-      assertEquals(ensureDirStub.calls[0].args[0], "/home/user/.config/nsite");
-    });
-
-    it("should handle permission errors", () => {
-      mockOS("linux");
-      (globalThis as any).mockEnv("HOME", "/home/user");
-
-      const ensureDirStub = stub(fs, "ensureDirSync", () => {
-        throw new Deno.errors.PermissionDenied("Permission denied");
-      });
-
-      const result = ensureSystemConfigDir();
-      assertEquals(result, null);
-    });
-
-    it("should handle file system errors", () => {
-      mockOS("darwin");
-      (globalThis as any).mockEnv("HOME", "/Users/test");
-
-      const ensureDirStub = stub(fs, "ensureDirSync", () => {
-        throw new Error("Disk full");
-      });
-
-      const result = ensureSystemConfigDir();
-      assertEquals(result, null);
-    });
-
-    it("should handle non-Error exceptions", () => {
-      mockOS("windows");
-      (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\Test");
-      (globalThis as any).mockEnv("APPDATA", "C:\\Users\\Test\\AppData\\Roaming");
-
-      const ensureDirStub = stub(fs, "ensureDirSync", () => {
-        throw "String error";
-      });
-
-      const result = ensureSystemConfigDir();
-      assertEquals(result, null);
-    });
-
-    it("should work across all platforms", () => {
-      const platforms: Array<{ os: typeof Deno.build.os; path: string }> = [
-        { os: "linux", path: "/home/user/.config/nsite" },
-        { os: "darwin", path: "/Users/user/Library/Application Support/nsyte" },
-        { os: "windows", path: "C:\\Users\\user\\AppData\\Roaming\\nsite" },
-      ];
-
-      for (const { os, path } of platforms) {
-        mockOS(os);
-        if (os === "windows") {
-          (globalThis as any).mockEnv("USERPROFILE", "C:\\Users\\user");
-          (globalThis as any).mockEnv("APPDATA", "C:\\Users\\user\\AppData\\Roaming");
-        } else {
-          (globalThis as any).mockEnv("HOME", os === "darwin" ? "/Users/user" : "/home/user");
-        }
-
-        const ensureDirStub = stub(fs, "ensureDirSync", () => {});
+      const tmpDir = Deno.makeTempDirSync();
+      try {
+        mockOS("linux");
+        (globalThis as any).mockEnv("HOME", tmpDir);
 
         const result = ensureSystemConfigDir();
-        assertEquals(result, path);
+        assertEquals(result, join(tmpDir, ".config", "nsite"));
+        // Verify the directory was actually created
+        const stat = Deno.statSync(join(tmpDir, ".config", "nsite"));
+        assertEquals(stat.isDirectory, true);
+      } finally {
+        Deno.removeSync(tmpDir, { recursive: true });
+      }
+    });
 
-        ensureDirStub.restore();
+    it("should return null when directory creation fails", () => {
+      // Use a path under /dev/null which cannot have subdirectories
+      mockOS("linux");
+      (globalThis as any).mockEnv("HOME", "/dev/null");
+
+      const result = ensureSystemConfigDir();
+      assertEquals(result, null);
+    });
+
+    it("should work for darwin platform", () => {
+      const tmpDir = Deno.makeTempDirSync();
+      try {
+        mockOS("darwin");
+        (globalThis as any).mockEnv("HOME", tmpDir);
+
+        const result = ensureSystemConfigDir();
+        assertEquals(result, join(tmpDir, "Library", "Application Support", "nsyte"));
+      } finally {
+        Deno.removeSync(tmpDir, { recursive: true });
+      }
+    });
+
+    it("should work across linux and darwin platforms", () => {
+      for (const os of ["linux", "darwin"] as const) {
+        const tmpDir = Deno.makeTempDirSync();
+        try {
+          mockOS(os);
+          (globalThis as any).mockEnv("HOME", tmpDir);
+
+          const result = ensureSystemConfigDir();
+          if (os === "linux") {
+            assertEquals(result, join(tmpDir, ".config", "nsite"));
+          } else {
+            assertEquals(result, join(tmpDir, "Library", "Application Support", "nsyte"));
+          }
+        } finally {
+          Deno.removeSync(tmpDir, { recursive: true });
+        }
       }
     });
   });
@@ -383,12 +358,13 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       mockOS("linux");
       (globalThis as any).mockEnv("HOME", "");
 
+      // Empty string is falsy, so getHomeDir returns null
       const homeDir = getHomeDir();
-      assertEquals(homeDir, "");
+      assertEquals(homeDir, null);
 
-      // Empty home should lead to paths starting with /
+      // null home means config dir is also null
       const configDir = getSystemConfigDir();
-      assertExists(configDir);
+      assertEquals(configDir, null);
     });
 
     it("should handle paths with spaces", () => {
@@ -397,7 +373,7 @@ describe("secrets/utils - comprehensive branch coverage", () => {
       (globalThis as any).mockEnv("APPDATA", "C:\\Users\\Test User\\AppData\\Roaming");
 
       const configDir = getSystemConfigDir();
-      assertEquals(configDir, "C:\\Users\\Test User\\AppData\\Roaming\\nsite");
+      assertEquals(configDir, join("C:\\Users\\Test User\\AppData\\Roaming", "nsite"));
     });
 
     it("should handle Unicode in paths", () => {

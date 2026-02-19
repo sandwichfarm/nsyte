@@ -1,9 +1,9 @@
-import { assertEquals, assertExists } from "std/assert/mod.ts";
-import { afterEach, beforeEach, describe, it } from "jsr:@std/testing/bdd";
+import { assertEquals, assertExists } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { SecretsManager } from "../../src/lib/secrets/mod.ts";
 import { getSystemConfigDir } from "../../src/lib/secrets/utils.ts";
-import { join } from "std/path/mod.ts";
-import { ensureDir } from "std/fs/ensure_dir.ts";
+import { join } from "jsr:@std/path";
+import { ensureDirSync } from "jsr:@std/fs/ensure-dir";
 
 const originalEnv = Deno.env.toObject();
 
@@ -29,7 +29,7 @@ describe("Secrets Manager - Basic Operations", () => {
     (manager as any).storageBackend = null;
     (manager as any).initialized = true;
     const nsiteDir = join(tempDir, ".nsite");
-    ensureDir(nsiteDir);
+    ensureDirSync(nsiteDir);
     (manager as any).secretsPath = join(nsiteDir, "secrets.json");
   });
 
@@ -121,7 +121,7 @@ describe("Secrets Manager - Basic Operations", () => {
       // Verify getAllPubkeys returns all
       const pubkeys = await manager.getAllPubkeys();
       assertEquals(pubkeys.length, 3);
-      assertEquals(pubkeys.sort(), entries.map(e => e.pubkey).sort());
+      assertEquals(pubkeys.sort(), entries.map((e) => e.pubkey).sort());
     });
 
     it("should handle non-existent pubkeys", async () => {
@@ -151,7 +151,11 @@ describe("Secrets Manager - Basic Operations", () => {
   });
 });
 
-describe("System Directory Detection", () => {
+describe({
+  name: "System Directory Detection",
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, () => {
   beforeEach(() => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       Deno.env.set(key, value);

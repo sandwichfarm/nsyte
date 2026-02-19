@@ -10,7 +10,7 @@ Deno.env.set("NSYTE_TEST_MODE", "true");
 console.log("🔒 Test environment: Keychain access BLOCKED");
 
 // Mock the keychain module at the module level to prevent ANY native calls
-const originalDynamicImport = globalThis.import;
+const originalDynamicImport = (globalThis as any).import;
 (globalThis as any).import = async (specifier: string) => {
   if (specifier.includes("secrets/keychain")) {
     console.log("🚫 Blocked keychain import, returning mock");

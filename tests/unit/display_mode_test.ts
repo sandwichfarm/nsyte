@@ -1,4 +1,4 @@
-import { assertEquals } from "std/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
 
 Deno.test("DisplayMode enum", async (t) => {
