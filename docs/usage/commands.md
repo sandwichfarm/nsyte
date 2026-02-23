@@ -13,11 +13,13 @@ in detail on its own page.
 ### Project Management
 
 - [`nsyte init`](commands/init.md) — Initialize a new nsyte project with configuration
+- [`nsyte config`](commands/config.md) — Interactive configuration editor
 - [`nsyte validate`](commands/validate.md) — Validate your nsyte configuration file
 
 ### File Operations
 
 - [`nsyte deploy`](commands/deploy.md) — Deploy files to nostr relays and blossom servers
+- [`nsyte sites`](commands/sites.md) — List all published sites for a pubkey
 - [`nsyte ls`](commands/ls.md) — List published files
 - [`nsyte browse`](commands/browse.md) — Interactive TUI browser for managing files
 - [`nsyte download`](commands/download.md) — Download published files
@@ -28,6 +30,7 @@ in detail on its own page.
 - [`nsyte serve`](commands/serve.md) — Serve files locally for development
 - [`nsyte run`](commands/run.md) — Run resolver server with npub subdomains
 - [`nsyte debug`](commands/debug.md) — Debug nsites by checking relays and servers
+- [`nsyte announce`](commands/announce.md) — Publish app handler events
 
 ### Authentication
 
@@ -44,16 +47,21 @@ These options are available for all commands:
 
 - `--help` — Show help information
 - `--version` — Show version information
-- `--verbose` — Enable verbose output
-- `--quiet` — Suppress all output except errors
+- `-c, --config <path>` — Path to config file (default: `.nsite/config.json`)
 
 ## Authentication Options
 
-Many commands support these authentication options:
+Many commands support unified authentication:
 
-- `-k, --privatekey <nsec>` — Private key (nsec/hex) for signing
-- `-b, --bunker <url>` — NIP-46 bunker URL for signing
-- `--sec <nbunksec>` — NIP-46 bunker encoded as nbunksec
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker://, or 64-char hex)
+
+The `--sec` flag automatically detects the format of your secret:
+- `nsec1...` - Nostr private key (bech32)
+- `nbunksec...` - Encoded bunker credentials  
+- `bunker://...` - Bunker URL with relay and optional secret
+- 64-character hex string - Raw private key
+
+If not provided, commands will use the bunker configured in `.nsite/config.json` or prompt for authentication.
 
 ## Configuration
 
@@ -68,20 +76,11 @@ Use `nsyte init` to create a new configuration or `nsyte validate` to check an e
 
 ## Environment Variables
 
-- `NSITE_CONFIG` — Path to configuration file (default: `.nsite/config.json`)
-- `NSITE_RELAYS` — Comma-separated list of relay URLs
-- `NSITE_SERVERS` — Comma-separated list of server URLs
-- `NSITE_BUNKER` — Bunker connection string
-- `NSITE_NBUNKSEC` — nbunksec string for authentication
-
-## Exit Codes
-
-- `0` — Success
-- `1` — General error
-- `2` — Configuration error
-- `3` — Authentication error
-- `4` — Network error
-- `5` — File system error
+- `LOG_LEVEL` — Logging level: `none`, `error`, `warn`, `info`, `debug` (default: `info`)
+- `NSITE_DISPLAY_MODE` — Display mode: `interactive`, `non-interactive`, `debug` (default: `interactive`)
+- `NSYTE_DISABLE_KEYCHAIN` — Disable native keychain, use encrypted file storage (set to `true`)
+- `NSYTE_TEST_MODE` — Enable test mode, disables keychain (set to `true`)
+- `NSYTE_FORCE_ENCRYPTED_STORAGE` — Force encrypted file storage instead of OS keychain (set to `true`)
 
 ## Getting Started
 
@@ -140,6 +139,6 @@ nsyte deploy ./dist --sec $NSYTE_NBUNKSEC
 
 ## See Also
 
-- [Getting Started Guide](../getting-started.md)
 - [Configuration Reference](../configuration.md)
-- [Troubleshooting](../troubleshooting.md)
+- [Security Guide](../guides/security.md)
+- [CI/CD Guide](../guides/ci-cd.md)

@@ -1,6 +1,6 @@
-# Testing in nsite-cli
+# Testing in nsyte
 
-This directory contains all tests for the nsite-cli project. Tests are organized using Deno's
+This directory contains all tests for the nsyte project. Tests are organized using Deno's
 testing framework.
 
 ## Test Structure

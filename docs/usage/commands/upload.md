@@ -1,77 +1,37 @@
 ---
-title: upload
-description: Upload files from a directory to relays and blossom servers
+title: upload (DEPRECATED)
+description: Legacy command - use deploy instead
 ---
 
-# upload
+# upload (DEPRECATED)
 
-> **⚠️ DEPRECATED**: The `upload` command has been renamed to [`deploy`](deploy.md). Please use
-> [`nsyte deploy`](deploy.md) instead. The `upload` command will be removed in a future version.
->
-> **[→ View the deploy documentation](deploy.md)**
+⚠️ **This command is deprecated and will be removed in a future version.**
 
-Upload files from a directory to configured relays and blossom servers.
+Please use [`deploy`](deploy.md) instead.
 
-## Usage
+## Migration
 
-```bash
-nsyte upload <folder> [options]
-```
-
-- `<folder>`: The directory to upload (required)
-
-## Options
-
-- `-f, --force` — Force publishing even if no changes were detected (default: false)
-- `-s, --servers <servers>` — The blossom servers to use (comma separated)
-- `-r, --relays <relays>` — The nostr relays to use (comma separated)
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
-- `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
-- `-p, --purge` — Delete online file events that are not used anymore (default: false)
-- `-v, --verbose` — Verbose output (default: false)
-- `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
-- `--publish-server-list` — Publish the list of blossom servers (Kind 10063) (default: false)
-- `--publish-relay-list` — Publish the list of nostr relays (Kind 10002) (default: false)
-- `--publish-profile` — Publish the app profile for the npub (Kind 0) (default: false)
-- `--app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
-- `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
-- `--fallback <file>` — An HTML file to copy and publish as 404.html
-- `-i, --non-interactive` — Run in non-interactive mode (default: false)
-
-## Examples
-
-Upload the `dist` directory:
+The `upload` command has been renamed to `deploy` with identical functionality:
 
 ```bash
+# Old (deprecated)
 nsyte upload dist
+
+# New (recommended)
+nsyte deploy dist
 ```
 
-Upload with custom relays and servers:
+All options and behaviors are the same. Simply replace `upload` with `deploy` in your commands and scripts.
 
-```bash
-nsyte upload dist --relays wss://relay.example --servers https://server.example
-```
+## Why the Change?
 
-Force upload and purge deleted files:
+The command was renamed to better reflect its purpose: deploying complete sites rather than just uploading files. The `deploy` command handles:
 
-```bash
-nsyte upload dist --force --purge
-```
+- Uploading files to blossom servers
+- Publishing events to nostr relays
+- Publishing metadata (profile, relay lists, app handlers)
+- Managing site manifests
 
-Publish profile and relay/server lists:
+## See Also
 
-```bash
-nsyte upload dist --publish-profile --publish-relay-list --publish-server-list
-```
-
-Publish NIP-89 app handler announcement:
-
-```bash
-nsyte upload dist --app-handler --handler-kinds "1,30023,30311"
-```
-
-## Next Steps
-
-- [Check deployment status](../../guides/deployment.md)
-- [Configure relays and servers](../configuration.md#relays-and-servers)
+- [`nsyte deploy`](deploy.md) - Deploy files to nostr relays and blossom servers

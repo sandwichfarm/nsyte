@@ -12,15 +12,21 @@ have been published to nostr relays and indicates which files would be ignored b
 ## Usage
 
 ```bash
-nsyte ls [options]
+nsyte ls [path] [options]
 ```
+
+## Arguments
+
+- `[path]` — Optional path filter. Can be a directory (e.g., `docs/`) or specific file (e.g., `docs/index.html`)
 
 ## Options
 
-- `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays
-  from project config or default discovery relays
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for authentication
-- `-p, --pubkey <npub>` — The public key to list files for (if not using private key)
+- `-r, --relays <relays>` — The nostr relays to use (comma-separated). If not specified, uses relays from project config or default discovery relays
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `-p, --pubkey <npub>` — The public key to list files for (npub, hex, or NIP-05)
+- `-d, --name <name>` — Site identifier for named sites. If not provided, lists root site
+- `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
+- `--use-fallbacks` — Enable all fallback options (relays)
 
 ## Examples
 
@@ -36,24 +42,38 @@ List files for a specific public key:
 nsyte ls --pubkey npub1... --relays wss://relay.example
 ```
 
-List files using a private key:
+List files in a specific directory:
 
 ```bash
-nsyte ls --privatekey nsec1...
+nsyte ls docs/
+```
+
+List a specific file:
+
+```bash
+nsyte ls docs/index.html
+```
+
+List files from a named site:
+
+```bash
+nsyte ls -d blog
+```
+
+Use fallback relays for better discovery:
+
+```bash
+nsyte ls --use-fallbacks
 ```
 
 ## Authentication
 
 The `ls` command supports multiple authentication methods:
 
-1. **Explicit pubkey** - Use `--pubkey` to list files for any public key
-2. **Private key** - Use `--privatekey` to authenticate with your private key
+1. **Explicit pubkey** - Use `--pubkey` to list files for any public key (no signing required)
+2. **Unified secret** - Use `--sec` with any supported format (nsec, nbunksec, bunker://, hex)
 3. **Project bunker** - Uses the bunker configured in `.nsite/config.json`
-4. **Interactive mode** - If no key is provided, you'll be prompted to:
-   - Generate a new private key
-   - Enter an existing private key
-   - Use an existing NSEC bunker
-   - Connect to a new NSEC bunker (redirects to `nsyte bunker connect`)
+4. **Interactive mode** - If no key is provided, you'll be prompted to select an authentication method
 
 ## Ignore Rules
 

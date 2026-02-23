@@ -18,20 +18,20 @@ nsyte deploy <folder> [options]
 ## Options
 
 - `-f, --force` — Force publishing even if no changes were detected (default: false)
-- `-s, --servers <servers>` — The blossom servers to use (comma separated)
-- `-r, --relays <relays>` — The nostr relays to use (comma separated)
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing
-- `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `-s, --servers <servers>` — The blossom servers to use (comma-separated)
+- `-r, --relays <relays>` — The nostr relays to use (comma-separated)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
 - `-p, --purge` — Delete online file events that are not used anymore (default: false)
+- `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
+- `--use-fallback-servers` — Include default blossom servers in addition to configured servers
+- `--use-fallbacks` — Enable both fallback relays and servers
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
 - `--publish-profile` — Publish profile metadata (Kind 0) - **root sites only** (default: false)
 - `--publish-relay-list` — Publish relay list (Kind 10002) - **root sites only** (default: false)
-- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default:
-  false)
+- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default: false)
 - `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
-- `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma separated)
+- `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma-separated)
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
 
@@ -64,7 +64,13 @@ nsyte deploy dist --publish-profile --publish-relay-list --publish-server-list
 Deploy with app handler announcement:
 
 ```bash
-nsyte deploy dist --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy dist --publish-app-handler --handler-kinds "1,30023,30311"
+```
+
+Deploy with fallback relays and servers:
+
+```bash
+nsyte deploy dist --use-fallbacks
 ```
 
 ## How it Works
@@ -82,10 +88,14 @@ The deploy command:
 The deploy command requires authentication to sign nostr events. You can provide authentication
 through:
 
-1. **Private key**: Use `--privatekey` with an nsec or hex key
-2. **Bunker**: Use `--bunker` with a bunker URL
-3. **nbunksec**: Use `--sec` with an encoded bunker secret
-4. **Project config**: If configured during `nsyte init`
+1. **Unified `--sec` flag**: Auto-detects format (nsec, nbunksec, bunker://, or hex private key)
+2. **Project config**: Uses bunker configured during `nsyte init`
+
+The `--sec` flag accepts multiple formats:
+- `nsec1...` - Nostr private key (bech32)
+- `nbunksec...` - Encoded bunker credentials
+- `bunker://...` - Bunker URL with relay and optional secret
+- 64-character hex string - Raw private key
 
 ## Performance
 

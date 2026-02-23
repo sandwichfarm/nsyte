@@ -208,19 +208,22 @@ export NSITE_RELAYS=wss://relay1,wss://relay2
 ## Best Practices
 
 1. **Security**
-   - Never commit `.nsite/config.json` to version control
+   - Never commit `.nsite/config.json` to version control if it contains sensitive data
    - Use bunker authentication for better security
+   - Use encrypted storage or OS keychain for bunker credentials
    - Rotate keys periodically
 
 2. **Performance**
    - Use multiple relays for redundancy
    - Choose relays close to your users
    - Use CDN servers when possible
+   - Enable caching in production deployments
 
 3. **Maintenance**
    - Keep your configuration in version control (excluding sensitive data)
    - Document your configuration choices
    - Review and update regularly
+   - Use `nsyte validate` to check configuration before deployment
 
 ## Troubleshooting
 
