@@ -8,7 +8,7 @@ import { handleError } from "../lib/error-utils.ts";
 import { NsiteGatewayServer } from "../lib/gateway.ts";
 import { createLogger } from "../lib/logger.ts";
 import { resolveRelays, type ResolverOptions, resolveServers } from "../lib/resolver-utils.ts";
-import { NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 
 const log = createLogger("run");
 
@@ -109,6 +109,9 @@ export function registerRunCommand(): void {
     .action(async (options: RunOptions, siteIdentifier?: string) => {
       const port = options.port || 6798;
 
+      // Load project config early so it can inform the default target site
+      const projectConfig = readProjectFile(options.config);
+
       // Parse site identifier if provided
       let targetSite: AddressPointer | null = null;
       if (siteIdentifier) {
@@ -118,10 +121,23 @@ export function registerRunCommand(): void {
           console.log(colors.red(`✗ ${error instanceof Error ? error.message : String(error)}`));
           Deno.exit(1);
         }
+      } else if (projectConfig?.bunkerPubkey) {
+        // Default to the local .nsite/config.json site when available
+        const siteId = projectConfig.id;
+        const isNamedSite = siteId && siteId.length > 0;
+        targetSite = {
+          pubkey: projectConfig.bunkerPubkey,
+          kind: isNamedSite ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
+          identifier: isNamedSite ? siteId! : "",
+        };
+        console.log(
+          colors.cyan(
+            `Using site from .nsite/config.json (${projectConfig.bunkerPubkey.slice(0, 8)}...)`,
+          ),
+        );
       } else {
-        // Default site
+        // Fall back to demo site
         const defaultPubkey = "1805301ca7c1ad2f9349076cf282f905b3c1e540e88675e14b95856c40b75e33";
-
         targetSite = {
           pubkey: defaultPubkey,
           kind: NSITE_ROOT_SITE_KIND,
@@ -156,7 +172,6 @@ export function registerRunCommand(): void {
       const profileRelays = ["wss://user.kindpag.es", "wss://purplepag.es"];
       // Default relays that actually host nsite file events (optional fallback)
       const defaultFileRelays = ["wss://relay.nsite.lol", "wss://relay.nosto.re"];
-      const projectConfig = readProjectFile(options.config);
       let allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       let allowFallbackServers = options.useFallbacks || options.useFallbackServers || false;
 
