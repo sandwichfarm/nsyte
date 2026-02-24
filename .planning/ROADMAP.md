@@ -43,7 +43,11 @@ Plans:
   2. `nsyte-deploy/SKILL.md` covers `nsyte init`, the auth decision tree (env var > nsec > bunker), `nsyte deploy [path]`, output interpretation, and error recovery for relay/Blossom failures
   3. Pre-flight scripts in `scripts/` exist for prerequisite checking (Deno runtime, network access)
   4. `references/nostr-concepts.md` is referenced from the deploy skill for domain vocabulary
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Write nsyte-setup skill body and pre-flight validation scripts
+- [ ] 02-02-PLAN.md — Write nsyte-deploy skill body and fix nostr-concepts references
 
 ### Phase 3: Config and Auth Skills
 **Goal**: An agent can manage nsyte configuration, set up NIP-46 bunker authentication, and configure non-interactive CI/CD deployment — without ambiguity between the interactive and non-interactive code paths
@@ -75,6 +79,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffolding | 2/2 | Complete    | 2026-02-24 |
-| 2. Install and Deploy Skills | 0/? | Not started | - |
+| 2. Install and Deploy Skills | 0/2 | Planning complete | - |
 | 3. Config and Auth Skills | 0/? | Not started | - |
 | 4. Validation | 0/? | Not started | - |
