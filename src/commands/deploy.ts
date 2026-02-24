@@ -885,7 +885,7 @@ async function scanLocalFiles(state: DeploymentState): Promise<FileEntry[]> {
 
   if (ignoredFilePaths.length > 0) {
     const ignoreMsg =
-      `Ignored ${ignoredFilePaths.length} files/directories based on .nsiteignore rules (or default ignores).`;
+      `Ignored ${ignoredFilePaths.length} files/directories based on .nsyte-ignore rules (or default ignores).`;
     if (displayManager.isInteractive()) log.info(ignoreMsg);
     else console.log(colors.yellow(ignoreMsg));
     if (options.verbose) {

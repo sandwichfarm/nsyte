@@ -81,7 +81,7 @@ nsyte browse --privatekey nsec1...
 - **Server indicators** — Colored symbols show which Blossom servers have the file
 - **Selected files** — Highlighted with bright magenta background
 - **Focused file** — Highlighted with darker magenta background
-- **Ignored files** — Shown in red (based on `.nsite-ignore` rules)
+- **Ignored files** — Shown in red (based on `.nsyte-ignore` rules)
 - **Deleting files** — Shown in red during deletion
 
 ## Authentication

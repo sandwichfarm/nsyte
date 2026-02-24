@@ -151,7 +151,7 @@ The serve command respects these configuration options from `.nsite/config.json`
 
 - `fallback`: File to serve for 404 errors (enables SPA routing)
 - Source directory settings
-- File ignore patterns (from `.nsite-ignore`)
+- File ignore patterns (from `.nsyte-ignore`)
 
 ## Comparison with Other Servers
 
