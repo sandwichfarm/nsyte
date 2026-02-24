@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Agents can discover nsyte and use it end-to-end without prior knowledge
-**Current focus:** Phase 3.1 — Cross-Reference Fixes
+**Current focus:** Phase 4 — Validation
 
 ## Current Position
 
-Phase: 3.1 of 4 (Cross-Reference Fixes)
-Plan: 1 of 1 in current phase — COMPLETE
-Status: Complete
-Last activity: 2026-02-24 — Plan 03.1-01 complete
+Phase: 4 of 4 (Validation)
+Plan: 1 of 2 in current phase — COMPLETE
+Status: In Progress
+Last activity: 2026-02-24 — Plan 04-01 complete
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [████████░░] 80%
 | Phase 03 P02 | 2 min | 2 tasks | 2 files |
 | Phase 03 P01 | 2 min | 2 tasks | 1 file |
 | Phase 03.1-cross-reference-fixes P01 | 2 | 2 tasks | 3 files |
+| Phase 04-validation P01 | 1 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - [Phase 03, 03-01]: Interactive Config Editing section leads with TTY constraint before keyboard reference
 - [Phase 03.1-cross-reference-fixes]: nsyte bunker connect is the correct subcommand — nsyte bunker add does not exist; corrected in nostr-concepts.md, nsyte-auth/SKILL.md, and nsyte-deploy/SKILL.md
 - [Phase 03.1-cross-reference-fixes]: nsyte init is documented in nsyte-setup skill — nsyte-auth prerequisites now reference nsyte-setup instead of nsyte-config
+- [Phase 04-validation]: SKILL.md descriptions must include Nostr/decentralized context vocabulary for agent skill discovery
+- [Phase 04-validation]: Real relay URLs in SKILL.md examples replaced with wss://relay.example.com placeholder (no-real-credentials policy)
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24T12:32:49Z
-Stopped at: Completed 03.1-01-PLAN.md — cross-reference fixes for nsyte bunker connect and nsyte-setup prerequisite
+Last session: 2026-02-24T12:57:33Z
+Stopped at: Completed 04-01-PLAN.md — SPEC-04 SKILL.md vocabulary compliance
 Resume file: None

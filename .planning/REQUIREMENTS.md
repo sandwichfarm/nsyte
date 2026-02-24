@@ -30,7 +30,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **SPEC-01**: All skills have valid SKILL.md frontmatter with `name` and `description` fields
 - [x] **SPEC-02**: Directory names match skill `name` fields exactly
 - [ ] **SPEC-03**: All SKILL.md bodies are under 500 lines / 5000 tokens
-- [ ] **SPEC-04**: All descriptions are third-person with specific activation trigger keywords
+- [x] **SPEC-04**: All descriptions are third-person with specific activation trigger keywords
 - [x] **SPEC-05**: Skills placed in `.agents/skills/` directory for cross-agent discovery
 
 ## v2 Requirements
@@ -68,7 +68,7 @@ Requirements for initial release. Each maps to roadmap phases.
 | SPEC-01 | Phase 1 | Complete (01-01) |
 | SPEC-02 | Phase 1 | Complete (01-01) |
 | SPEC-03 | Phase 4 | Pending |
-| SPEC-04 | Phase 4 | Pending |
+| SPEC-04 | Phase 4 | Complete |
 | SPEC-05 | Phase 1 | Complete (01-01) |
 
 **Coverage:**
