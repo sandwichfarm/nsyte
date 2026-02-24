@@ -71,7 +71,7 @@ After initialization, your project will have this structure:
 .
 ├── .nsite/
 │   └── config.json
-├── .nsite-ignore
+├── .nsyte-ignore
 └── README.md
 ```
 

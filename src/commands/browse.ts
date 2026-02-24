@@ -122,7 +122,7 @@ export function registerBrowseCommand(): void {
 
           // Load ignore rules
           const cwd = Deno.cwd();
-          const ignoreFilePath = join(cwd, ".nsite-ignore");
+          const ignoreFilePath = join(cwd, ".nsyte-ignore");
           let ignoreRules: IgnoreRule[] = parseIgnorePatterns(DEFAULT_IGNORE_PATTERNS);
 
           if (existsSync(ignoreFilePath)) {
@@ -133,7 +133,7 @@ export function registerBrowseCommand(): void {
               );
               ignoreRules = parseIgnorePatterns([...DEFAULT_IGNORE_PATTERNS, ...customPatterns]);
             } catch (error) {
-              log.warn(`Failed to read .nsite-ignore file: ${error}`);
+              log.warn(`Failed to read .nsyte-ignore file: ${error}`);
             }
           }
 

@@ -7,7 +7,7 @@ description: List files available on the nostr network
 
 List files available on the nostr network for a given public key. This command shows which files
 have been published to nostr relays and indicates which files would be ignored based on local
-`.nsite-ignore` rules.
+`.nsyte-ignore` rules.
 
 ## Usage
 
@@ -60,7 +60,7 @@ The `ls` command supports multiple authentication methods:
 Files marked in red in the output would be ignored during upload based on:
 
 - Default ignore patterns (`.git/**`, `node_modules/**`, etc.)
-- Custom patterns in `.nsite-ignore` file
+- Custom patterns in `.nsyte-ignore` file
 - Implicit dotfile ignoring (except `.well-known/`)
 
 This helps you understand which remote files would not be re-deployed in a subsequent `nsyte deploy`

@@ -22,7 +22,7 @@ export const DEFAULT_IGNORE_PATTERNS = [
 ];
 
 /**
- * Get all files from a local directory, honoring .nsite-ignore using Deno std lib
+ * Get all files from a local directory, honoring .nsyte-ignore using Deno std lib
  * Returns both the files to include and the paths of those ignored.
  */
 export async function getLocalFiles(
@@ -33,7 +33,7 @@ export async function getLocalFiles(
   const includedFiles: FileEntry[] = [];
   const ignoredFilePaths: string[] = [];
   const normalizedDir = normalize(dirPath).replace(/\/$/, ""); // Target directory for upload
-  const cwd = Deno.cwd(); // Current working directory (where .nsite-ignore lives)
+  const cwd = Deno.cwd(); // Current working directory (where .nsyte-ignore lives)
 
   // --- Load and parse .nsyte-ignore rules from CWD ---
   const ignoreFilePath = join(cwd, ".nsyte-ignore");
@@ -76,7 +76,7 @@ export async function getLocalFiles(
       })
     ) {
       // --- Ignore Check Logic ---
-      // 1. Get path relative to CWD (where .nsite-ignore is)
+      // 1. Get path relative to CWD (where .nsyte-ignore is)
       const pathRelativeToCwd = relative(cwd, entry.path);
       const isDir = entry.isDirectory;
       // 2. Format path for matching (add trailing slash for dirs)
@@ -123,7 +123,7 @@ export async function getLocalFiles(
 
     log.info(
       `Scan complete: ${includedFiles.length} files included, ${ignoredFilePaths.length} ignored.` +
-        (foundIgnoreFile ? ` (Used .nsite-ignore from CWD)` : ""),
+        (foundIgnoreFile ? ` (Used .nsyte-ignore from CWD)` : ""),
     );
 
     return {
@@ -175,7 +175,7 @@ export function parseIgnorePatterns(patterns: string[]): IgnoreRule[] {
       // Safely get error message
       const errorMessage = e instanceof Error ? e.message : String(e);
       log.warn(
-        `Invalid pattern in .nsite-ignore, skipping: "${
+        `Invalid pattern in .nsyte-ignore, skipping: "${
           patterns[patterns.indexOf(pattern)]
         }" - Error: ${errorMessage}`,
       );

@@ -150,7 +150,7 @@ You can also configure nsyte using environment variables:
 
 ## Ignoring Files
 
-Create a `.nsite-ignore` file in your project root to specify files and directories that should be
+Create a `.nsyte-ignore` file in your project root to specify files and directories that should be
 excluded from uploads. This uses standard glob syntax:
 
 ```
@@ -169,7 +169,7 @@ nsyte automatically ignores:
 - `.git/**`
 - `.DS_Store`
 - `node_modules/**`
-- `.nsite-ignore`
+- `.nsyte-ignore`
 - `.nsite/config.json`
 - `.vscode/**`
 
