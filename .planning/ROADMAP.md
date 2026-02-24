@@ -74,7 +74,10 @@ Plans:
   1. `nostr-concepts.md` references `nsyte bunker connect` (not `nsyte bunker add`) at all occurrences
   2. `nsyte-auth/SKILL.md` prerequisites reference `nsyte-setup` (not `nsyte-config`) for `nsyte init` guidance
   3. No broken CLI command references remain in any skill file
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 03.1-01-PLAN.md — Fix CLI command references in nostr-concepts.md and skill cross-reference in nsyte-auth/SKILL.md
 
 ### Phase 4: Validation
 **Goal**: Every shipped skill is spec-compliant, within token budget, and has descriptions that activate the correct skill for representative user queries without the user naming the skill
@@ -97,5 +100,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4
 | 1. Scaffolding | 2/2 | Complete    | 2026-02-24 |
 | 2. Install and Deploy Skills | 2/2 | Complete   | 2026-02-24 |
 | 3. Config and Auth Skills | 2/2 | Complete    | 2026-02-24 |
-| 3.1. Cross-Reference Fixes | 0/? | Not started | - |
+| 3.1. Cross-Reference Fixes | 0/1 | Not started | - |
 | 4. Validation | 0/? | Not started | - |
