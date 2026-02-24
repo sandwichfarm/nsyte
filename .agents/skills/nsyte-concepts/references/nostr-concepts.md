@@ -22,7 +22,7 @@ A pubkey (public key) is the primary identifier for a Nostr user. It is a 64-cha
 
 nsyte uses the pubkey to identify site ownership. The pubkey is associated with every event the user publishes, so Nostr clients know which site belongs to which user.
 
-**For agents:** The pubkey is stored in `.nsite/config.json` under the `pubkey` field. Do not confuse pubkey (public, safe to share) with nsec/private key (secret, must never be exposed). If the config is missing a pubkey, the user must run `nsyte init` or `nsyte bunker add` to establish an identity. Always use the value from config — never ask the user to type their pubkey manually.
+**For agents:** The pubkey is stored in `.nsite/config.json` under the `pubkey` field. Do not confuse pubkey (public, safe to share) with nsec/private key (secret, must never be exposed). If the config is missing a pubkey, the user must run `nsyte init` or `nsyte bunker connect` to establish an identity. Always use the value from config — never ask the user to type their pubkey manually.
 
 **Example format:** `a1b2c3d4e5f6...` (64 hex chars) or `npub1abc...` (bech32)
 
@@ -56,7 +56,7 @@ NIP-46 is a Nostr protocol extension for remote signing. Instead of holding a pr
 
 This is the preferred authentication method for CI/CD pipelines and non-interactive environments because it avoids storing private keys in environment variables, files, or shell history.
 
-**For agents:** To set up bunker auth the user runs `nsyte bunker add <connection-string>` where the connection string is a `bunker://` URI provided by their Nostr signer app (e.g., Nsec.app, Amber, or another NIP-46-compatible signer). Once configured, nsyte uses bunker auth automatically for subsequent commands. If a user reports authentication errors in CI, check whether a bunker connection is configured before suggesting other approaches. Do not ask the user to paste their private key as an alternative — bunker auth is specifically designed to avoid that.
+**For agents:** To set up bunker auth the user runs `nsyte bunker connect <connection-string>` where the connection string is a `bunker://` URI provided by their Nostr signer app (e.g., Nsec.app, Amber, or another NIP-46-compatible signer). Once configured, nsyte uses bunker auth automatically for subsequent commands. If a user reports authentication errors in CI, check whether a bunker connection is configured before suggesting other approaches. Do not ask the user to paste their private key as an alternative — bunker auth is specifically designed to avoid that.
 
 **Example bunker URI format:** `bunker://pubkey@relay.example.com?secret=token` (all values are placeholders)
 
