@@ -58,7 +58,11 @@ Plans:
   2. `nsyte-auth/SKILL.md` covers `nsyte bunker` and NIP-46 setup with explicit step-by-step instructions for connecting to a remote signer
   3. `nsyte-ci/SKILL.md` covers `nsyte ci` with non-interactive patterns: env var auth, `--ci` flag behavior, and exit codes
   4. Config and CI skills do not cross-contaminate instructions (interactive vs. non-interactive paths are clearly separated)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Write nsyte-config skill body (interactive TUI editing + scriptable validation)
+- [ ] 03-02-PLAN.md — Write nsyte-auth and nsyte-ci skill bodies (bunker auth + CI/CD deployment)
 
 ### Phase 4: Validation
 **Goal**: Every shipped skill is spec-compliant, within token budget, and has descriptions that activate the correct skill for representative user queries without the user naming the skill
