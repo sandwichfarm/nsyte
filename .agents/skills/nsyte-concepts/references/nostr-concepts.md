@@ -22,7 +22,7 @@ A pubkey (public key) is the primary identifier for a Nostr user. It is a 64-cha
 
 nsyte uses the pubkey to identify site ownership. The pubkey is associated with every event the user publishes, so Nostr clients know which site belongs to which user.
 
-**For agents:** The pubkey is stored in `.nsite/config.json` under the `pubkey` field. Do not confuse pubkey (public, safe to share) with nsec/private key (secret, must never be exposed). If the config is missing a pubkey, the user must run `nsyte login` or `nsyte bunker add` to establish an identity. Always use the value from config — never ask the user to type their pubkey manually.
+**For agents:** The pubkey is stored in `.nsite/config.json` under the `pubkey` field. Do not confuse pubkey (public, safe to share) with nsec/private key (secret, must never be exposed). If the config is missing a pubkey, the user must run `nsyte init` or `nsyte bunker add` to establish an identity. Always use the value from config — never ask the user to type their pubkey manually.
 
 **Example format:** `a1b2c3d4e5f6...` (64 hex chars) or `npub1abc...` (bech32)
 
@@ -32,7 +32,7 @@ nsyte uses the pubkey to identify site ownership. The pubkey is associated with 
 
 An nsec (Nostr secret key) or private key is the cryptographic secret that allows a user to sign Nostr events. It is a 64-character hex string or a bech32-encoded string starting with `nsec1`. Anyone who has the private key has full control of the associated Nostr identity.
 
-**For agents:** NEVER log, print, commit to source control, or pass the private key as a visible CLI argument. Shell history can capture CLI arguments — advise the user to use `nsyte login` for interactive key input rather than passing the key as a flag. nsyte stores keys securely via the OS keychain or an encrypted fallback at `.nsite/.secrets.enc`. If a user needs to authenticate, direct them to `nsyte login` (interactive) or NIP-46 bunker auth for non-interactive environments. If you see what looks like an nsec or 64-char hex key in any file other than an encrypted store, flag it as a security concern.
+**For agents:** NEVER log, print, commit to source control, or pass the private key as a visible CLI argument. Shell history can capture CLI arguments — advise the user to use `nsyte init` for interactive key setup rather than passing the key as a flag. nsyte stores keys securely via the OS keychain or an encrypted fallback at `.nsite/.secrets.enc`. If a user needs to authenticate, direct them to `nsyte init` (interactive) or NIP-46 bunker auth for non-interactive environments. If you see what looks like an nsec or 64-char hex key in any file other than an encrypted store, flag it as a security concern.
 
 **Example format:** `nsec1abc...` (bech32) or a 64-character hex string — never include real values in documentation.
 
