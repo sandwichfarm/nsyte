@@ -27,11 +27,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Spec Compliance
 
-- [ ] **SPEC-01**: All skills have valid SKILL.md frontmatter with `name` and `description` fields
-- [ ] **SPEC-02**: Directory names match skill `name` fields exactly
+- [x] **SPEC-01**: All skills have valid SKILL.md frontmatter with `name` and `description` fields
+- [x] **SPEC-02**: Directory names match skill `name` fields exactly
 - [ ] **SPEC-03**: All SKILL.md bodies are under 500 lines / 5000 tokens
 - [ ] **SPEC-04**: All descriptions are third-person with specific activation trigger keywords
-- [ ] **SPEC-05**: Skills placed in `.agents/skills/` directory for cross-agent discovery
+- [x] **SPEC-05**: Skills placed in `.agents/skills/` directory for cross-agent discovery
 
 ## v2 Requirements
 
@@ -65,11 +65,11 @@ Requirements for initial release. Each maps to roadmap phases.
 | CONF-01 | Phase 3 | Pending |
 | CONF-02 | Phase 3 | Pending |
 | CONF-03 | Phase 3 | Pending |
-| SPEC-01 | Phase 1 | Pending |
-| SPEC-02 | Phase 1 | Pending |
+| SPEC-01 | Phase 1 | Complete (01-01) |
+| SPEC-02 | Phase 1 | Complete (01-01) |
 | SPEC-03 | Phase 4 | Pending |
 | SPEC-04 | Phase 4 | Pending |
-| SPEC-05 | Phase 1 | Pending |
+| SPEC-05 | Phase 1 | Complete (01-01) |
 
 **Coverage:**
 - v1 requirements: 14 total
@@ -78,4 +78,4 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ---
 *Requirements defined: 2026-02-24*
-*Last updated: 2026-02-24 after roadmap creation*
+*Last updated: 2026-02-24 after 01-01 completion (SPEC-01, SPEC-02, SPEC-05 complete)*

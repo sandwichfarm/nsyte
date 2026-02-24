@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 1 of 4 (Scaffolding)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-24 — Roadmap created
+Plan: 1 of ? in current phase
+Status: Executing
+Last activity: 2026-02-24 — Plan 01-01 complete
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 5 min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-scaffolding | 1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 5 min
+- Trend: baseline
 
 *Updated after each plan completion*
 
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - Multiple skills over single skill: Agents load only what's relevant; better progressive disclosure
 - Skills live in nsyte repo: Ship with CLI, versioned together, single source of truth
 - Cover all v1 commands: Install, deploy, config, CI, auth — full lifecycle without gaps
+- nsyte-deploy gets disable-model-invocation: true to prevent autonomous deployment without user approval
+- nsyte-concepts gets user-invocable: false — background domain knowledge, not user-facing workflow
+- Skill name field must be byte-for-byte identical to parent directory name (no aliases)
 
 ### Pending Todos
 
@@ -59,5 +62,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Roadmap created, STATE.md initialized — ready to plan Phase 1
+Stopped at: Completed 01-01-PLAN.md — six skill directory stubs created, ready for Plan 02
 Resume file: None

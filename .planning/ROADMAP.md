@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Create six skill directories with spec-compliant SKILL.md frontmatter stubs
+- [x] 01-01-PLAN.md — Create six skill directories with spec-compliant SKILL.md frontmatter stubs
 - [ ] 01-02-PLAN.md — Write nostr-concepts.md reference content and validate all skills with skills-ref
 
 ### Phase 2: Install and Deploy Skills
@@ -74,7 +74,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffolding | 0/? | Not started | - |
+| 1. Scaffolding | 1/2 | In Progress | - |
 | 2. Install and Deploy Skills | 0/? | Not started | - |
 | 3. Config and Auth Skills | 0/? | Not started | - |
 | 4. Validation | 0/? | Not started | - |
