@@ -12,7 +12,7 @@ Four phases build the Agent Skills package from the ground up: first establish a
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Scaffolding** - Establish the `.agents/skills/` directory structure and shared Nostr/Blossom reference content; all skill directories pass `skills-ref validate` before any body content is written
+- [x] **Phase 1: Scaffolding** - Establish the `.agents/skills/` directory structure and shared Nostr/Blossom reference content; all skill directories pass `skills-ref validate` before any body content is written (completed 2026-02-24)
 - [ ] **Phase 2: Install and Deploy Skills** - Write the install skill (prerequisite chain root) and deploy skill (primary value-delivery workflow), including auth decision tree and error recovery
 - [ ] **Phase 3: Config and Auth Skills** - Write the config, CI/CD, and bunker auth skills covering non-interactive and NIP-46 setup patterns
 - [ ] **Phase 4: Validation** - Verify every skill meets token budget, description quality, and spec compliance; confirm cross-agent discovery works
@@ -74,7 +74,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffolding | 2/2 | Complete | 2026-02-24 |
+| 1. Scaffolding | 2/2 | Complete    | 2026-02-24 |
 | 2. Install and Deploy Skills | 0/? | Not started | - |
 | 3. Config and Auth Skills | 0/? | Not started | - |
 | 4. Validation | 0/? | Not started | - |
