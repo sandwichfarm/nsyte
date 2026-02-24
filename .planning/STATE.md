@@ -69,5 +69,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-02-PLAN.md — nsyte-deploy SKILL.md written, nostr-concepts.md fixed, nsyte-concepts SKILL.md body added
+Stopped at: Completed 02-01-PLAN.md — nsyte-setup SKILL.md body written, check-deno.ts and check-network.ts pre-flight scripts created
 Resume file: None

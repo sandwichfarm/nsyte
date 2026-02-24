@@ -46,8 +46,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Write nsyte-setup skill body and pre-flight validation scripts
-- [ ] 02-02-PLAN.md — Write nsyte-deploy skill body and fix nostr-concepts references
+- [x] 02-01-PLAN.md — Write nsyte-setup skill body and pre-flight validation scripts
+- [x] 02-02-PLAN.md — Write nsyte-deploy skill body and fix nostr-concepts references
 
 ### Phase 3: Config and Auth Skills
 **Goal**: An agent can manage nsyte configuration, set up NIP-46 bunker authentication, and configure non-interactive CI/CD deployment — without ambiguity between the interactive and non-interactive code paths
