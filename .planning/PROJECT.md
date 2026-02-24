@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Adding Agent Skills (agentskills.io) to nsyte so that AI agents can discover and effectively use nsyte for deploying and managing static sites on the Nostr network. Multiple skills will cover the full CLI lifecycle — from installation through deployment and site management — shipped alongside the CLI in the nsyte repo.
+Agent Skills (agentskills.io) for nsyte, enabling AI agents to discover and use nsyte for deploying and managing static sites on the Nostr network. Six skills cover the core CLI lifecycle — installation, deployment, configuration, authentication, and CI/CD — shipped alongside the CLI in the nsyte repo.
 
 ## Core Value
 
@@ -17,14 +17,18 @@ Agents can discover nsyte and use it end-to-end without prior knowledge — inst
 - ✓ Multiple auth methods (private key, NIP-46 bunker) — existing
 - ✓ Multi-platform binaries (Linux, macOS, Windows) — existing
 - ✓ CI/CD integration support — existing
+- ✓ Agent Skills directory structure in `.agents/skills/` — v1.0
+- ✓ Six skills covering install, deploy, config, auth, CI, and domain concepts — v1.0
+- ✓ Installation guidance skill detecting and guiding multi-platform install — v1.0
+- ✓ All skills follow agentskills.io spec (SKILL.md frontmatter, scripts, references) — v1.0
+- ✓ Progressive disclosure — lightweight descriptions for discovery, full instructions on activation — v1.0
+- ✓ Pre-flight validation scripts for Deno runtime and network access — v1.0
+- ✓ Token budget compliance (all SKILL.md bodies under 500 lines) — v1.0
+- ✓ Third-person descriptions with Nostr context vocabulary for agent discovery — v1.0
 
 ### Active
 
-- [ ] Agent Skills directory structure in the nsyte repo
-- [ ] Individual skills for each nsyte command/capability area
-- [ ] Installation guidance skill (detect if installed, guide install if needed)
-- [ ] Skills follow the agentskills.io specification (SKILL.md with frontmatter, optional scripts/references/assets)
-- [ ] Progressive disclosure — lightweight metadata for discovery, full instructions on activation
+(None — next milestone requirements defined via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -32,15 +36,15 @@ Agents can discover nsyte and use it end-to-end without prior knowledge — inst
 - MCP server integration — separate concern from Agent Skills
 - Modifying nsyte's CLI interface — skills describe existing capabilities
 - Agent-specific implementations — skills are agent-agnostic per the spec
+- Single monolithic skill — violates progressive disclosure, exceeds token budget
 
 ## Context
 
 - nsyte is a Deno/TypeScript CLI for deploying static sites to the Nostr network using Blossom file storage
 - Agent Skills is an open format (agentskills.io) for giving AI agents new capabilities — supported by Claude Code, Cursor, Gemini CLI, VS Code, and many others
-- A skill is a directory with a SKILL.md file (YAML frontmatter + markdown instructions), plus optional scripts/, references/, and assets/ directories
-- Skills use progressive disclosure: metadata (~100 tokens) loaded at startup, full instructions (<5000 tokens recommended) loaded on activation, resources loaded on demand
-- The nsyte CLI has 15 commands covering the full site lifecycle
-- Nostr concepts (relays, events, pubkeys, NIP-46) need clear explanation in skill instructions since agents won't have domain knowledge
+- Shipped v1.0 with 904 lines of deliverable content across 6 skills, 1 reference doc, and 2 pre-flight scripts
+- All 6 skills pass `skills-ref validate` with zero errors and zero warnings
+- Tech stack: Markdown (SKILL.md), TypeScript/Deno (pre-flight scripts)
 
 ## Constraints
 
@@ -53,10 +57,15 @@ Agents can discover nsyte and use it end-to-end without prior knowledge — inst
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Multiple skills over single skill | Agents load only what's relevant; better progressive disclosure | — Pending |
-| Skills live in nsyte repo | Ship with CLI, versioned together, single source of truth | — Pending |
-| Include installation guidance | Agents may encounter nsyte for the first time via skills | — Pending |
-| Cover all commands | Full lifecycle support — no gaps for agents to fall into | — Pending |
+| Multiple skills over single skill | Agents load only what's relevant; better progressive disclosure | ✓ Good — 6 focused skills, largest 194 lines |
+| Skills live in nsyte repo | Ship with CLI, versioned together, single source of truth | ✓ Good — `.agents/skills/` alongside CLI source |
+| Include installation guidance | Agents may encounter nsyte for the first time via skills | ✓ Good — nsyte-setup covers detect + install + init |
+| nsyte-deploy gets disable-model-invocation | Prevent autonomous deployment without user approval | ✓ Good — safety gate for destructive operations |
+| nsyte-concepts gets user-invocable: false | Background domain knowledge, not user-facing workflow | ✓ Good — loaded on-demand by other skills |
+| Binary install path as recommended | No Deno runtime dependency required for end users | ✓ Good — simplest install path documented first |
+| Pre-flight scripts report-only (exit 0/1) | Never install or modify system without user consent | ✓ Good — agents check prerequisites, guide user |
+| Separate auth and CI skills | Interactive bunker management vs headless deploy are distinct workflows | ✓ Good — no cross-contamination of instruction paths |
+| --sec is the only auth flag (not --nbunksec) | nbunksec1 is a credential format passed to --sec | ✓ Good — corrected vs README.md's incorrect examples |
 
 ---
-*Last updated: 2026-02-24 after initialization*
+*Last updated: 2026-02-24 after v1.0 milestone*
