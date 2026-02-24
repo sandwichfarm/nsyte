@@ -9,15 +9,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Setup
 
-- [ ] **SETUP-01**: Agent can detect if nsyte is installed and guide multi-platform installation via `nsyte-install` skill
-- [ ] **SETUP-02**: Agent can initialize a project with config and auth selection via `nsyte-init` skill
-- [ ] **SETUP-03**: Pre-flight validation scripts in `scripts/` for prerequisite checking
+- [x] **SETUP-01**: Agent can detect if nsyte is installed and guide multi-platform installation via `nsyte-install` skill
+- [x] **SETUP-02**: Agent can initialize a project with config and auth selection via `nsyte-init` skill
+- [x] **SETUP-03**: Pre-flight validation scripts in `scripts/` for prerequisite checking
 
 ### Deployment
 
-- [ ] **DEPL-01**: Agent can deploy a static site to Nostr/Blossom via `nsyte-deploy` skill
-- [ ] **DEPL-02**: Shared Nostr domain vocabulary available in `references/nostr-concepts.md`
-- [ ] **DEPL-03**: Error recovery guidance included in deploy skill for common failures (relay unavailable, auth errors, Blossom rejection)
+- [x] **DEPL-01**: Agent can deploy a static site to Nostr/Blossom via `nsyte-deploy` skill
+- [x] **DEPL-02**: Shared Nostr domain vocabulary available in `references/nostr-concepts.md`
+- [x] **DEPL-03**: Error recovery guidance included in deploy skill for common failures (relay unavailable, auth errors, Blossom rejection)
 
 ### Config & Auth
 
@@ -56,12 +56,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETUP-01 | Phase 2 | Pending |
-| SETUP-02 | Phase 2 | Pending |
-| SETUP-03 | Phase 2 | Pending |
-| DEPL-01 | Phase 2 | Pending |
-| DEPL-02 | Phase 2 | Pending |
-| DEPL-03 | Phase 2 | Pending |
+| SETUP-01 | Phase 2 | Complete |
+| SETUP-02 | Phase 2 | Complete |
+| SETUP-03 | Phase 2 | Complete |
+| DEPL-01 | Phase 2 | Complete |
+| DEPL-02 | Phase 2 | Complete |
+| DEPL-03 | Phase 2 | Complete |
 | CONF-01 | Phase 3 | Pending |
 | CONF-02 | Phase 3 | Pending |
 | CONF-03 | Phase 3 | Pending |
