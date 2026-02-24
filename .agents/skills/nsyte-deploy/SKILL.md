@@ -156,7 +156,7 @@ Symptom: Deploy fails immediately with signing or authentication error
 
 Decision tree:
 1. Using `--sec`? Verify the value format is one of: nsec1..., nbunksec1..., bunker://..., 64-char hex
-2. Using stored bunker? Re-connect: `nsyte bunker add <connection-string>`
+2. Using stored bunker? Re-connect: `nsyte bunker connect '<bunker://...>'`
 3. nbunksec may have expired — generate a new one from your signer app
 
 ### Config missing
