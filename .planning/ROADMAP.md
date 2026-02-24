@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Install and Deploy Skills** - Write the install skill (prerequisite chain root) and deploy skill (primary value-delivery workflow), including auth decision tree and error recovery (completed 2026-02-24)
 - [x] **Phase 3: Config and Auth Skills** - Write the config, CI/CD, and bunker auth skills covering non-interactive and NIP-46 setup patterns (completed 2026-02-24)
 - [x] **Phase 3.1: Cross-Reference Fixes** - INSERTED: Fix incorrect CLI commands and skill cross-references identified by milestone audit (completed 2026-02-24)
-- [ ] **Phase 4: Validation** - Verify every skill meets token budget, description quality, and spec compliance; confirm cross-agent discovery works
+- [x] **Phase 4: Validation** - Verify every skill meets token budget, description quality, and spec compliance; confirm cross-agent discovery works (completed 2026-02-24)
 
 ## Phase Details
 
@@ -105,4 +105,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4
 | 2. Install and Deploy Skills | 2/2 | Complete   | 2026-02-24 |
 | 3. Config and Auth Skills | 2/2 | Complete    | 2026-02-24 |
 | 3.1. Cross-Reference Fixes | 0/1 | Complete    | 2026-02-24 |
-| 4. Validation | 1/2 | In Progress|  |
+| 4. Validation | 2/2 | Complete   | 2026-02-24 |
