@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Agents can discover nsyte and use it end-to-end without prior knowledge
-**Current focus:** Phase 2 — Install and Deploy Skills
+**Current focus:** Phase 3 — Config and Auth Skills
 
 ## Current Position
 
-Phase: 2 of 4 (Install and Deploy Skills)
-Plan: 2 of 2 in current phase
+Phase: 3 of 4 (Config and Auth Skills)
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-24 — Plan 02-02 complete
+Last activity: 2026-02-24 — Plan 03-02 complete
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -36,6 +36,8 @@ Progress: [████░░░░░░] 40%
 
 *Updated after each plan completion*
 
+| Phase 03 P02 | 2 min | 2 tasks | 2 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -56,6 +58,9 @@ Recent decisions affecting current work:
 - Auth documented as --sec flag only (Priority 1) with stored bunker as Priority 2 — no standalone env var auth path
 - nbunksec1... is a credential format value passed to --sec, not a --nbunksec flag
 - nsyte-concepts SKILL.md body added in Phase 2 (minimal, points to references file)
+- [Phase 03]: nsyte-auth covers only interactive bunker management — no CI/deploy content
+- [Phase 03]: nsyte-ci covers only credential generation and headless deploy — no bunker management
+- [Phase 03]: --nbunksec flag documented only as a warning (does not exist); --sec is the correct flag
 
 ### Pending Todos
 
@@ -69,5 +74,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02-01-PLAN.md — nsyte-setup SKILL.md body written, check-deno.ts and check-network.ts pre-flight scripts created
+Stopped at: Completed 03-02-PLAN.md — nsyte-auth and nsyte-ci SKILL.md bodies written
 Resume file: None
