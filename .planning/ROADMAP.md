@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Scaffolding** - Establish the `.agents/skills/` directory structure and shared Nostr/Blossom reference content; all skill directories pass `skills-ref validate` before any body content is written (completed 2026-02-24)
 - [x] **Phase 2: Install and Deploy Skills** - Write the install skill (prerequisite chain root) and deploy skill (primary value-delivery workflow), including auth decision tree and error recovery (completed 2026-02-24)
-- [ ] **Phase 3: Config and Auth Skills** - Write the config, CI/CD, and bunker auth skills covering non-interactive and NIP-46 setup patterns
+- [x] **Phase 3: Config and Auth Skills** - Write the config, CI/CD, and bunker auth skills covering non-interactive and NIP-46 setup patterns (completed 2026-02-24)
 - [ ] **Phase 4: Validation** - Verify every skill meets token budget, description quality, and spec compliance; confirm cross-agent discovery works
 
 ## Phase Details
@@ -84,5 +84,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Scaffolding | 2/2 | Complete    | 2026-02-24 |
 | 2. Install and Deploy Skills | 2/2 | Complete   | 2026-02-24 |
-| 3. Config and Auth Skills | 1/2 | In Progress|  |
+| 3. Config and Auth Skills | 2/2 | Complete   | 2026-02-24 |
 | 4. Validation | 0/? | Not started | - |

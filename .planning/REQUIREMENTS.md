@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Config & Auth
 
-- [ ] **CONF-01**: Agent can manage nsyte configuration and settings via `nsyte-config` skill
+- [x] **CONF-01**: Agent can manage nsyte configuration and settings via `nsyte-config` skill
 - [x] **CONF-02**: Agent can set up non-interactive CI/CD deployment via `nsyte-ci` skill
 - [x] **CONF-03**: Agent can guide NIP-46 bunker auth setup via dedicated `nsyte-auth` skill
 
@@ -62,7 +62,7 @@ Requirements for initial release. Each maps to roadmap phases.
 | DEPL-01 | Phase 2 | Complete |
 | DEPL-02 | Phase 2 | Complete |
 | DEPL-03 | Phase 2 | Complete |
-| CONF-01 | Phase 3 | Pending |
+| CONF-01 | Phase 3 | Complete |
 | CONF-02 | Phase 3 | Complete |
 | CONF-03 | Phase 3 | Complete |
 | SPEC-01 | Phase 1 | Complete (01-01) |

@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 3 of 4 (Config and Auth Skills)
-Plan: 2 of 3 in current phase
+Plan: 3 of 3 in current phase
 Status: Executing
-Last activity: 2026-02-24 — Plan 03-02 complete
+Last activity: 2026-02-24 — Plan 03-01 complete
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Progress: [██████░░░░] 60%
 *Updated after each plan completion*
 
 | Phase 03 P02 | 2 min | 2 tasks | 2 files |
+| Phase 03 P01 | 2 min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - [Phase 03]: nsyte-auth covers only interactive bunker management — no CI/deploy content
 - [Phase 03]: nsyte-ci covers only credential generation and headless deploy — no bunker management
 - [Phase 03]: --nbunksec flag documented only as a warning (does not exist); --sec is the correct flag
+- [Phase 03, 03-01]: nsyte-config SKILL.md bunkerPubkey warning placed in both table row and standalone block for emphasis
+- [Phase 03, 03-01]: Interactive Config Editing section leads with TTY constraint before keyboard reference
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 03-02-PLAN.md — nsyte-auth and nsyte-ci SKILL.md bodies written
+Last session: 2026-02-24T11:42:31Z
+Stopped at: Completed 03-01-PLAN.md — nsyte-config SKILL.md body written with full schema reference, TTY constraint, and validation docs
 Resume file: None
