@@ -83,7 +83,7 @@ The interactive prompts will ask for:
    - Connect a NIP-46 bunker (for hardware signers or shared keys)
 
 2. **Relay configuration** — enter one or more relay WebSocket URLs
-   (e.g., `wss://relay.damus.io`). Press Enter after each; leave blank when done.
+   (e.g., `wss://relay.example.com`). Press Enter after each; leave blank when done.
 
 3. **Blossom server configuration** — enter one or more Blossom server HTTP URLs
    (e.g., `https://blossom.primal.net`). Press Enter after each; leave blank when done.

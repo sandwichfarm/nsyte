@@ -24,7 +24,7 @@ nsyte bunker connect
 
 1. Run the command with no URL
 2. Choose **"Scan QR Code (Nostr Connect)"** from the prompt
-3. Enter a relay URL (default: `wss://relay.nsec.app`)
+3. Enter a relay URL (default: `wss://relay.example.com`)
 4. A QR code is displayed in the terminal
 5. Scan the QR code with your signer app (Amber, nsec.app, etc.)
 6. Approve the connection request in the signer app
@@ -33,7 +33,7 @@ nsyte bunker connect
 ### Method 2: Bunker URL
 
 ```bash
-nsyte bunker connect 'bunker://pubkey?relay=wss://relay.nsec.app&secret=xxx'
+nsyte bunker connect 'bunker://pubkey?relay=wss://relay.example.com&secret=xxx'
 ```
 
 1. Get the `bunker://...` URL from your signer app

@@ -24,7 +24,7 @@ nsyte ci
 
 **Direct URL (single-quote required):**
 ```bash
-nsyte ci 'bunker://pubkey?relay=wss://relay.nsec.app&secret=xxx'
+nsyte ci 'bunker://pubkey?relay=wss://relay.example.com&secret=xxx'
 ```
 
 **CRITICAL:** The `nbunksec1...` string is printed **once** and **never stored to disk**.
