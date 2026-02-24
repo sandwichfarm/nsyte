@@ -19,27 +19,26 @@ const log = createLogger("purge");
 import type { ISigner } from "applesauce-signers";
 import { handleError } from "../lib/error-utils.ts";
 
+const DELETE_AUTH_BATCH_SIZE = 20;
+
 /**
- * Create a Blossom delete authorization for multiple blobs
+ * Sign a batch delete authorization covering up to DELETE_AUTH_BATCH_SIZE hashes.
+ * Returns the full Authorization header value: "Nostr <base64-encoded-event>".
  */
-async function createBlossomAuth(blobSha256s: string[], signer: ISigner): Promise<string> {
+async function createBatchDeleteAuth(blobSha256s: string[], signer: ISigner): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
 
   const tags: string[][] = [
     ["t", "delete"],
     ["expiration", (currentTime + 3600).toString()],
+    ...blobSha256s.map((hash) => ["x", hash]),
   ];
-
-  // Add all blob hashes
-  for (const hash of blobSha256s) {
-    tags.push(["x", hash]);
-  }
 
   const authTemplate = {
     kind: 24242,
     created_at: currentTime,
     tags,
-    content: "",
+    content: "Delete blobs via nsyte",
   };
 
   const authEvent = await signer.signEvent(authTemplate);
@@ -48,25 +47,35 @@ async function createBlossomAuth(blobSha256s: string[], signer: ISigner): Promis
 }
 
 /**
- * Create a Blossom delete authorization for a single blob
+ * Build a map of sha256 → Authorization header by signing batch delete tokens
+ * (up to DELETE_AUTH_BATCH_SIZE hashes per token).
  */
-async function createSingleBlossomAuth(blobSha256: string, signer: ISigner): Promise<string> {
-  const currentTime = Math.floor(Date.now() / 1000);
+async function buildDeleteAuthMap(
+  hashes: string[],
+  signer: ISigner,
+): Promise<Map<string, string>> {
+  const authMap = new Map<string, string>();
 
-  const authTemplate = {
-    kind: 24242,
-    created_at: currentTime,
-    tags: [
-      ["t", "delete"],
-      ["x", blobSha256],
-      ["expiration", (currentTime + 3600).toString()],
-    ],
-    content: "",
-  };
+  for (let i = 0; i < hashes.length; i += DELETE_AUTH_BATCH_SIZE) {
+    const batch = hashes.slice(i, i + DELETE_AUTH_BATCH_SIZE);
+    log.debug(
+      `Signing batch delete auth token ${Math.floor(i / DELETE_AUTH_BATCH_SIZE) + 1}/${
+        Math.ceil(hashes.length / DELETE_AUTH_BATCH_SIZE)
+      } for ${batch.length} blobs`,
+    );
+    const authHeader = await createBatchDeleteAuth(batch, signer);
+    for (const hash of batch) {
+      authMap.set(hash, authHeader);
+    }
+  }
 
-  const authEvent = await signer.signEvent(authTemplate);
-  const encodedEvent = encodeBase64(JSON.stringify(authEvent));
-  return `Nostr ${encodedEvent}`;
+  log.info(
+    `Signed ${
+      Math.ceil(hashes.length / DELETE_AUTH_BATCH_SIZE)
+    } batch delete auth token(s) for ${hashes.length} blobs`,
+  );
+
+  return authMap;
 }
 
 /**
@@ -239,22 +248,17 @@ export function registerPurgeCommand() {
               let deletedCount = 0;
               let failedCount = 0;
 
-              // Convert Set to Array for batch auth
+              // Pre-sign batch delete auth tokens before the server loop so we
+              // only need ceil(n / DELETE_AUTH_BATCH_SIZE) signer calls total.
               const hashArray = Array.from(blobHashes);
+              const deleteAuthMap = await buildDeleteAuthMap(hashArray, signer);
 
               for (const server of servers) {
                 console.log(colors.cyan(`\nDeleting from ${server}...`));
 
-                // Try batch deletion first
-                let useBatchAuth = true;
-                const batchAuthHeader = await createBlossomAuth(hashArray, signer);
-
                 for (const hash of blobHashes) {
                   try {
-                    // Use batch auth or create individual auth
-                    const authHeader = useBatchAuth
-                      ? batchAuthHeader
-                      : await createSingleBlossomAuth(hash, signer);
+                    const authHeader = deleteAuthMap.get(hash)!;
 
                     const response = await fetch(`${server}/${hash}`, {
                       method: "DELETE",
@@ -269,57 +273,15 @@ export function registerPurgeCommand() {
                     } else if (response.status === 404) {
                       console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
                     } else {
-                      // If batch auth failed, try individual auth
-                      if (
-                        useBatchAuth &&
-                        (response.status === 400 || response.status === 401 ||
-                          response.status === 500)
-                      ) {
-                        log.debug(
-                          `Batch auth failed for ${server}, falling back to individual auth`,
-                        );
-                        useBatchAuth = false;
-
-                        // Retry with individual auth
-                        const individualAuthHeader = await createSingleBlossomAuth(hash, signer);
-                        const retryResponse = await fetch(`${server}/${hash}`, {
-                          method: "DELETE",
-                          headers: {
-                            "Authorization": individualAuthHeader,
-                          },
-                        });
-
-                        if (retryResponse.ok) {
-                          deletedCount++;
-                          console.log(
-                            colors.green(
-                              `  ✓ Deleted ${hash.substring(0, 8)}... (individual auth)`,
-                            ),
-                          );
-                        } else if (retryResponse.status === 404) {
-                          console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
-                        } else {
-                          failedCount++;
-                          const errorText = await retryResponse.text().catch(() => "");
-                          console.log(
-                            colors.red(
-                              `  ✗ Failed to delete ${
-                                hash.substring(0, 8)
-                              }... (${retryResponse.status}${errorText ? `: ${errorText}` : ""})`,
-                            ),
-                          );
-                        }
-                      } else {
-                        failedCount++;
-                        const errorText = await response.text().catch(() => "");
-                        console.log(
-                          colors.red(
-                            `  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${
-                              errorText ? `: ${errorText}` : ""
-                            })`,
-                          ),
-                        );
-                      }
+                      failedCount++;
+                      const errorText = await response.text().catch(() => "");
+                      console.log(
+                        colors.red(
+                          `  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${
+                            errorText ? `: ${errorText}` : ""
+                          })`,
+                        ),
+                      );
                     }
                   } catch (error) {
                     failedCount++;
@@ -474,22 +436,17 @@ export function registerPurgeCommand() {
           let deletedCount = 0;
           let failedCount = 0;
 
-          // Convert Set to Array for batch auth
+          // Pre-sign batch delete auth tokens before the server loop so we
+          // only need ceil(n / DELETE_AUTH_BATCH_SIZE) signer calls total.
           const hashArray = Array.from(blobHashes);
+          const deleteAuthMap = await buildDeleteAuthMap(hashArray, signer);
 
           for (const server of servers) {
             console.log(colors.cyan(`\nDeleting from ${server}...`));
 
-            // Try batch deletion first
-            let useBatchAuth = true;
-            const batchAuthHeader = await createBlossomAuth(hashArray, signer);
-
             for (const hash of blobHashes) {
               try {
-                // Use batch auth or create individual auth
-                const authHeader = useBatchAuth
-                  ? batchAuthHeader
-                  : await createSingleBlossomAuth(hash, signer);
+                const authHeader = deleteAuthMap.get(hash)!;
 
                 const response = await fetch(`${server}/${hash}`, {
                   method: "DELETE",
@@ -504,52 +461,15 @@ export function registerPurgeCommand() {
                 } else if (response.status === 404) {
                   console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
                 } else {
-                  // If batch auth failed, try individual auth
-                  if (
-                    useBatchAuth &&
-                    (response.status === 400 || response.status === 401 || response.status === 500)
-                  ) {
-                    log.debug(`Batch auth failed for ${server}, falling back to individual auth`);
-                    useBatchAuth = false;
-
-                    // Retry with individual auth
-                    const individualAuthHeader = await createSingleBlossomAuth(hash, signer);
-                    const retryResponse = await fetch(`${server}/${hash}`, {
-                      method: "DELETE",
-                      headers: {
-                        "Authorization": individualAuthHeader,
-                      },
-                    });
-
-                    if (retryResponse.ok) {
-                      deletedCount++;
-                      console.log(
-                        colors.green(`  ✓ Deleted ${hash.substring(0, 8)}... (individual auth)`),
-                      );
-                    } else if (retryResponse.status === 404) {
-                      console.log(colors.dim(`  - Not found ${hash.substring(0, 8)}...`));
-                    } else {
-                      failedCount++;
-                      const errorText = await retryResponse.text().catch(() => "");
-                      console.log(
-                        colors.red(
-                          `  ✗ Failed to delete ${
-                            hash.substring(0, 8)
-                          }... (${retryResponse.status}${errorText ? `: ${errorText}` : ""})`,
-                        ),
-                      );
-                    }
-                  } else {
-                    failedCount++;
-                    const errorText = await response.text().catch(() => "");
-                    console.log(
-                      colors.red(
-                        `  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${
-                          errorText ? `: ${errorText}` : ""
-                        })`,
-                      ),
-                    );
-                  }
+                  failedCount++;
+                  const errorText = await response.text().catch(() => "");
+                  console.log(
+                    colors.red(
+                      `  ✗ Failed to delete ${hash.substring(0, 8)}... (${response.status}${
+                        errorText ? `: ${errorText}` : ""
+                      })`,
+                    ),
+                  );
                 }
               } catch (error) {
                 failedCount++;

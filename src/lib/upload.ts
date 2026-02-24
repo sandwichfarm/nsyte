@@ -1,4 +1,5 @@
 import type { ISigner } from "applesauce-signers";
+import { encodeBase64 } from "@std/encoding/base64";
 import { createLogger } from "./logger.ts";
 import { publishEventsToRelays } from "./nostr.ts";
 import type { FileEntry, NostrEventTemplate } from "./nostr.ts";
@@ -15,6 +16,7 @@ const RETRY_BASE_DELAY_MS = 500;
 const VERIFY_RETRY_DELAY_MS = 300;
 
 const DEFAULT_CONCURRENCY = 4;
+const UPLOAD_AUTH_BATCH_SIZE = 20;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -170,29 +172,36 @@ export type UploadResponse = {
 };
 
 /**
- * Sign a blob upload authorization
+ * Sign a batch blob upload authorization covering up to UPLOAD_AUTH_BATCH_SIZE hashes.
+ * Returns the full Authorization header value: "Nostr <base64-encoded-event>".
  */
-async function createUploadAuth(signer: Signer, blobSha256: string): Promise<string> {
+async function createBatchUploadAuth(signer: Signer, blobSha256s: string[]): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
+
+  const xTags: string[][] = blobSha256s.map((hash) => ["x", hash]);
 
   const authTemplate: NostrEventTemplate = {
     kind: 24242,
     created_at: currentTime,
     tags: [
       ["t", "upload"],
-      ["x", blobSha256],
+      ...xTags,
       ["expiration", (currentTime + 3600).toString()],
       ["client", "nsyte"],
     ],
-    content: "Upload blob via nsyte",
+    content: "Upload blobs via nsyte",
   };
 
+  const label = blobSha256s.length === 1
+    ? `sign upload auth for ${blobSha256s[0].substring(0, 8)}...`
+    : `sign batch upload auth for ${blobSha256s.length} blobs`;
+
   const signedEvent = await signEventWithRetry(
-    `sign upload auth for ${blobSha256.substring(0, 8)}...`,
+    label,
     () => signer.signEvent(authTemplate),
   );
 
-  return JSON.stringify(signedEvent);
+  return `Nostr ${encodeBase64(JSON.stringify(signedEvent))}`;
 }
 
 /**
@@ -201,7 +210,7 @@ async function createUploadAuth(signer: Signer, blobSha256: string): Promise<str
 async function uploadToServer(
   server: string,
   file: FileEntry,
-  signer: Signer,
+  authHeader: string,
 ): Promise<{ success: boolean; alreadyExists: boolean; error?: string }> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
@@ -230,10 +239,7 @@ async function uploadToServer(
       lastModified: Date.now(),
     });
 
-    const auth = await createUploadAuth(signer, blobSha256);
-
-    const base64Auth = btoa(auth);
-    const authHeader = { Authorization: `Nostr ${base64Auth}` };
+    const headers = { Authorization: authHeader };
 
     try {
       const uploadLabel = `PUT upload ${file.path} to ${server}`;
@@ -247,7 +253,7 @@ async function uploadToServer(
             `${serverUrl}upload`,
             {
               method: "PUT",
-              headers: authHeader,
+              headers: headers,
               body: fileObj,
             },
             FETCH_TIMEOUT_MS,
@@ -397,6 +403,33 @@ export async function processUploads(
 
   const userPubkey = await getPublicKeyWithRetry(signer);
 
+  // Pre-sign batch upload auth tokens (up to UPLOAD_AUTH_BATCH_SIZE hashes per token).
+  // This avoids one signer call per file — instead we sign ceil(n/UPLOAD_AUTH_BATCH_SIZE) tokens.
+  const allHashes = files
+    .map((f) => f.sha256)
+    .filter((h): h is string => typeof h === "string" && h.length > 0);
+
+  const authTokenMap = new Map<string, string>();
+
+  for (let i = 0; i < allHashes.length; i += UPLOAD_AUTH_BATCH_SIZE) {
+    const batchHashes = allHashes.slice(i, i + UPLOAD_AUTH_BATCH_SIZE);
+    log.debug(
+      `Signing batch upload auth token ${Math.floor(i / UPLOAD_AUTH_BATCH_SIZE) + 1}/${
+        Math.ceil(allHashes.length / UPLOAD_AUTH_BATCH_SIZE)
+      } for ${batchHashes.length} blobs`,
+    );
+    const authHeader = await createBatchUploadAuth(signer, batchHashes);
+    for (const hash of batchHashes) {
+      authTokenMap.set(hash, authHeader);
+    }
+  }
+
+  log.info(
+    `Signed ${
+      Math.ceil(allHashes.length / UPLOAD_AUTH_BATCH_SIZE)
+    } batch auth token(s) for ${allHashes.length} files`,
+  );
+
   const results: UploadResponse[] = [];
   const queue = [...files];
 
@@ -413,7 +446,7 @@ export async function processUploads(
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
         try {
-          return await uploadFile(file, baseDir, servers, signer, relays, userPubkey);
+          return await uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey);
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -508,7 +541,7 @@ async function uploadFile(
   file: FileEntry,
   baseDir: string,
   servers: string[],
-  signer: Signer,
+  authTokenMap: Map<string, string>,
   relays: string[],
   userPubkey: string,
   retryCount = 0,
@@ -532,10 +565,15 @@ async function uploadFile(
       throw new Error("File data or SHA-256 hash missing");
     }
 
+    const authHeader = authTokenMap.get(file.sha256);
+    if (!authHeader) {
+      throw new Error(`No auth token found for blob ${file.sha256.substring(0, 8)}...`);
+    }
+
     const uploadResults = await Promise.all(
       servers.map(async (server) => {
         try {
-          const outcome = await uploadToServer(server, file, signer);
+          const outcome = await uploadToServer(server, file, authHeader);
 
           serverResults[server] = {
             success: outcome.success || outcome.alreadyExists,
@@ -609,7 +647,7 @@ async function uploadFile(
         `Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`,
       );
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      return uploadFile(file, baseDir, servers, signer, relays, userPubkey, retryCount + 1);
+      return uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey, retryCount + 1);
     }
 
     return {
