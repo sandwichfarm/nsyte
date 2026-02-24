@@ -88,7 +88,11 @@ Plans:
   2. Every skill description is written in third person and includes both action vocabulary (deploy, publish, host, install) and context vocabulary (Nostr, decentralized, static site)
   3. No SKILL.md contains real private keys, real pubkeys, or real relay URLs in examples — only placeholders
   4. `skills-ref validate` passes for all skills with no warnings or errors
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Update descriptions with context vocabulary and replace real relay URLs with placeholders
+- [ ] 04-02-PLAN.md — Run full validation suite and mark SPEC-03/SPEC-04 complete
 
 ## Progress
 
@@ -101,4 +105,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4
 | 2. Install and Deploy Skills | 2/2 | Complete   | 2026-02-24 |
 | 3. Config and Auth Skills | 2/2 | Complete    | 2026-02-24 |
 | 3.1. Cross-Reference Fixes | 0/1 | Complete    | 2026-02-24 |
-| 4. Validation | 0/? | Not started | - |
+| 4. Validation | 0/2 | Not started | - |
