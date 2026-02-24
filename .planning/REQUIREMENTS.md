@@ -16,14 +16,14 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Deployment
 
 - [x] **DEPL-01**: Agent can deploy a static site to Nostr/Blossom via `nsyte-deploy` skill
-- [x] **DEPL-02**: Shared Nostr domain vocabulary available in `references/nostr-concepts.md`
+- [ ] **DEPL-02**: Shared Nostr domain vocabulary available in `references/nostr-concepts.md`
 - [x] **DEPL-03**: Error recovery guidance included in deploy skill for common failures (relay unavailable, auth errors, Blossom rejection)
 
 ### Config & Auth
 
 - [x] **CONF-01**: Agent can manage nsyte configuration and settings via `nsyte-config` skill
 - [x] **CONF-02**: Agent can set up non-interactive CI/CD deployment via `nsyte-ci` skill
-- [x] **CONF-03**: Agent can guide NIP-46 bunker auth setup via dedicated `nsyte-auth` skill
+- [ ] **CONF-03**: Agent can guide NIP-46 bunker auth setup via dedicated `nsyte-auth` skill
 
 ### Spec Compliance
 
@@ -60,11 +60,11 @@ Requirements for initial release. Each maps to roadmap phases.
 | SETUP-02 | Phase 2 | Complete |
 | SETUP-03 | Phase 2 | Complete |
 | DEPL-01 | Phase 2 | Complete |
-| DEPL-02 | Phase 2 | Complete |
+| DEPL-02 | Phase 3.1 | Pending |
 | DEPL-03 | Phase 2 | Complete |
 | CONF-01 | Phase 3 | Complete |
 | CONF-02 | Phase 3 | Complete |
-| CONF-03 | Phase 3 | Complete |
+| CONF-03 | Phase 3.1 | Pending |
 | SPEC-01 | Phase 1 | Complete (01-01) |
 | SPEC-02 | Phase 1 | Complete (01-01) |
 | SPEC-03 | Phase 4 | Pending |

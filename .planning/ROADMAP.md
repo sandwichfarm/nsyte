@@ -15,6 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Scaffolding** - Establish the `.agents/skills/` directory structure and shared Nostr/Blossom reference content; all skill directories pass `skills-ref validate` before any body content is written (completed 2026-02-24)
 - [x] **Phase 2: Install and Deploy Skills** - Write the install skill (prerequisite chain root) and deploy skill (primary value-delivery workflow), including auth decision tree and error recovery (completed 2026-02-24)
 - [x] **Phase 3: Config and Auth Skills** - Write the config, CI/CD, and bunker auth skills covering non-interactive and NIP-46 setup patterns (completed 2026-02-24)
+- [ ] **Phase 3.1: Cross-Reference Fixes** - INSERTED: Fix incorrect CLI commands and skill cross-references identified by milestone audit
 - [ ] **Phase 4: Validation** - Verify every skill meets token budget, description quality, and spec compliance; confirm cross-agent discovery works
 
 ## Phase Details
@@ -64,6 +65,17 @@ Plans:
 - [ ] 03-01-PLAN.md — Write nsyte-config skill body (interactive TUI editing + scriptable validation)
 - [ ] 03-02-PLAN.md — Write nsyte-auth and nsyte-ci skill bodies (bunker auth + CI/CD deployment)
 
+### Phase 3.1: Cross-Reference Fixes
+**Goal**: All skill cross-references point to the correct skills and all CLI commands in documentation match actual nsyte CLI commands
+**Depends on**: Phase 3
+**Requirements**: DEPL-02, CONF-03
+**Gap Closure**: Closes gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. `nostr-concepts.md` references `nsyte bunker connect` (not `nsyte bunker add`) at all occurrences
+  2. `nsyte-auth/SKILL.md` prerequisites reference `nsyte-setup` (not `nsyte-config`) for `nsyte init` guidance
+  3. No broken CLI command references remain in any skill file
+**Plans**: TBD
+
 ### Phase 4: Validation
 **Goal**: Every shipped skill is spec-compliant, within token budget, and has descriptions that activate the correct skill for representative user queries without the user naming the skill
 **Depends on**: Phase 3
@@ -78,11 +90,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Scaffolding | 2/2 | Complete    | 2026-02-24 |
 | 2. Install and Deploy Skills | 2/2 | Complete   | 2026-02-24 |
 | 3. Config and Auth Skills | 2/2 | Complete    | 2026-02-24 |
+| 3.1. Cross-Reference Fixes | 0/? | Not started | - |
 | 4. Validation | 0/? | Not started | - |
