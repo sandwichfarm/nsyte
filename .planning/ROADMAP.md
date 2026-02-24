@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Create six skill directories with spec-compliant SKILL.md frontmatter stubs
-- [ ] 01-02-PLAN.md — Write nostr-concepts.md reference content and validate all skills with skills-ref
+- [x] 01-02-PLAN.md — Write nostr-concepts.md reference content and validate all skills with skills-ref
 
 ### Phase 2: Install and Deploy Skills
 **Goal**: An agent encountering nsyte for the first time can detect whether it is installed, install it on any platform, initialize a project, and complete a full deploy — guided entirely by two skills
@@ -74,7 +74,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffolding | 1/2 | In Progress | - |
+| 1. Scaffolding | 2/2 | Complete | 2026-02-24 |
 | 2. Install and Deploy Skills | 0/? | Not started | - |
 | 3. Config and Auth Skills | 0/? | Not started | - |
 | 4. Validation | 0/? | Not started | - |

@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 1 of 4 (Scaffolding)
-Plan: 1 of ? in current phase
+Plan: 2 of ? in current phase
 Status: Executing
-Last activity: 2026-02-24 — Plan 01-01 complete
+Last activity: 2026-02-24 — Plan 01-02 complete
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
+- Total plans completed: 2
+- Average duration: 3.5 min
 - Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-scaffolding | 1 | 5 min | 5 min |
+| 01-scaffolding | 2 | 7 min | 3.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min
-- Trend: baseline
+- Last 5 plans: 5 min, 2 min
+- Trend: fast
 
 *Updated after each plan completion*
 
@@ -48,6 +48,7 @@ Recent decisions affecting current work:
 - nsyte-deploy gets disable-model-invocation: true to prevent autonomous deployment without user approval
 - nsyte-concepts gets user-invocable: false — background domain knowledge, not user-facing workflow
 - Skill name field must be byte-for-byte identical to parent directory name (no aliases)
+- Custom SKILL.md behavioral flags must nest under metadata: key — skills-ref rejects unknown top-level frontmatter fields
 
 ### Pending Todos
 
@@ -62,5 +63,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 01-01-PLAN.md — six skill directory stubs created, ready for Plan 02
+Stopped at: Completed 01-02-PLAN.md — nostr-concepts.md written, all six skills pass skills-ref validate
 Resume file: None
