@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Agents can discover nsyte and use it end-to-end without prior knowledge
-**Current focus:** Phase 3 — Config and Auth Skills
+**Current focus:** Phase 3.1 — Cross-Reference Fixes
 
 ## Current Position
 
-Phase: 3 of 4 (Config and Auth Skills)
-Plan: 3 of 3 in current phase
-Status: Executing
-Last activity: 2026-02-24 — Plan 03-01 complete
+Phase: 3.1 of 4 (Cross-Reference Fixes)
+Plan: 1 of 1 in current phase — COMPLETE
+Status: Complete
+Last activity: 2026-02-24 — Plan 03.1-01 complete
 
-Progress: [███████░░░] 70%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [███████░░░] 70%
 
 | Phase 03 P02 | 2 min | 2 tasks | 2 files |
 | Phase 03 P01 | 2 min | 2 tasks | 1 file |
+| Phase 03.1-cross-reference-fixes P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,8 @@ Recent decisions affecting current work:
 - [Phase 03]: --nbunksec flag documented only as a warning (does not exist); --sec is the correct flag
 - [Phase 03, 03-01]: nsyte-config SKILL.md bunkerPubkey warning placed in both table row and standalone block for emphasis
 - [Phase 03, 03-01]: Interactive Config Editing section leads with TTY constraint before keyboard reference
+- [Phase 03.1-cross-reference-fixes]: nsyte bunker connect is the correct subcommand — nsyte bunker add does not exist; corrected in nostr-concepts.md, nsyte-auth/SKILL.md, and nsyte-deploy/SKILL.md
+- [Phase 03.1-cross-reference-fixes]: nsyte init is documented in nsyte-setup skill — nsyte-auth prerequisites now reference nsyte-setup instead of nsyte-config
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24T11:42:31Z
-Stopped at: Completed 03-01-PLAN.md — nsyte-config SKILL.md body written with full schema reference, TTY constraint, and validation docs
+Last session: 2026-02-24T12:32:49Z
+Stopped at: Completed 03.1-01-PLAN.md — cross-reference fixes for nsyte bunker connect and nsyte-setup prerequisite
 Resume file: None
