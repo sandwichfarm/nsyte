@@ -28,7 +28,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Each skill directory contains a SKILL.md whose `name` field exactly matches the directory name
   3. `skills-ref validate` passes for every skill skeleton without errors
   4. `references/nostr-concepts.md` exists and defines relays, pubkeys, Blossom servers, and NIP-46 in agent-readable form
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Create six skill directories with spec-compliant SKILL.md frontmatter stubs
+- [ ] 01-02-PLAN.md — Write nostr-concepts.md reference content and validate all skills with skills-ref
 
 ### Phase 2: Install and Deploy Skills
 **Goal**: An agent encountering nsyte for the first time can detect whether it is installed, install it on any platform, initialize a project, and complete a full deploy — guided entirely by two skills
