@@ -6,7 +6,7 @@ description: Sets up NIP-46 bunker authentication for nsyte, enabling remote sig
 ## Prerequisites
 
 - nsyte installed and in PATH (see `nsyte-setup` skill if not installed)
-- `.nsite/config.json` must exist — run `nsyte init` first (see `nsyte-config` skill)
+- `.nsite/config.json` must exist — run `nsyte init` first (see `nsyte-setup` skill)
 - An interactive terminal is required for all `nsyte bunker` commands — no pipe/CI support
 - For NIP-46 and bunker domain vocabulary, see the `nsyte-concepts` skill
 
