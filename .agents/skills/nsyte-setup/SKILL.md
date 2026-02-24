@@ -1,6 +1,6 @@
 ---
 name: nsyte-setup
-description: Installs nsyte and verifies the Deno runtime prerequisite. Use when the user wants to install nsyte, check if nsyte is installed, set up nsyte for the first time, or troubleshoot installation on Linux, macOS, or Windows.
+description: Installs nsyte, the CLI for deploying static sites to the decentralized Nostr network. Use when the user wants to install nsyte, check if nsyte is installed, set up nsyte for the first time, or troubleshoot installation on Linux, macOS, or Windows.
 ---
 
 ## Prerequisites
