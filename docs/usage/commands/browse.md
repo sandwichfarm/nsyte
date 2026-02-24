@@ -16,12 +16,11 @@ nsyte browse [options]
 
 ## Options
 
-- `-r, --relays <relays>` — The nostr relays to use (comma separated). If not specified, uses relays
-  from project config or default discovery relays
-- `-k, --privatekey <nsec>` — The private key (nsec/hex) to use for signing delete operations
-- `-p, --pubkey <npub>` — The public key to browse files for (if not using private key)
-- `-b, --bunker <url>` — The NIP-46 bunker URL to use for signing
-- `--sec <nbunksec>` — The NIP-46 bunker encoded as nbunksec
+- `-r, --relays <relays>` — Nostr relays to query (comma-separated)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `-p, --pubkey <npub>` — Public key to browse (npub, hex, or NIP-05 like name@domain.com)
+- `--use-fallback-relays` — Include default nsyte relays for better discovery
+- `--use-fallbacks` — Enable all fallback options (relays)
 
 ## Examples
 
@@ -37,10 +36,22 @@ Browse files for a specific public key:
 nsyte browse --pubkey npub1... --relays wss://relay.example
 ```
 
-Browse files using a private key:
+Browse files using authentication:
 
 ```bash
-nsyte browse --privatekey nsec1...
+nsyte browse --sec nsec1...
+```
+
+Browse with fallback relays:
+
+```bash
+nsyte browse --use-fallbacks
+```
+
+Browse using NIP-05 identifier:
+
+```bash
+nsyte browse -p alice@example.com
 ```
 
 ## Keyboard Shortcuts
@@ -48,31 +59,31 @@ nsyte browse --privatekey nsec1...
 ### Navigation
 
 - `↑/↓` — Navigate through files
-- `←/→` — Navigate between pages
+- `Enter` — Toggle detail view / Open directory
 - `i` — Switch identity (shows identity selection menu)
+- `s` — Switch site (when multiple sites are available)
 - `q` — Quit the browser
 
-### Selection
+### Selection & Filtering
 
-- `SPACE` — Select/deselect current file
-- `a` — Deselect all (visible when files are selected)
-- `s` — Toggle between viewing all files and selected files only
+- `Space` — Select/deselect current file (multi-select)
+- `/` — Enter filter mode to search files by path or hash
+- `ESC` — Clear filter / Exit detail view
 
 ### Actions
 
-- `ENTER` — View detailed information about the current file
-- `/` — Enter filter mode to search files
-- `DEL/BACKSPACE` — Delete selected files (requires confirmation)
+- `d` — Delete selected files (requires confirmation)
 
 ### Filter Mode
 
 - Type to filter files by name, path, or SHA256 hash
-- `ENTER` — Apply filter
-- `ESC` — Cancel filter
+- Real-time filtering as you type
+- `ESC` — Exit filter mode
 
 ### Delete Confirmation
 
 - Type `yes` to confirm deletion
+- Requires authentication for signing delete events
 - `ESC` — Cancel deletion
 
 ## Visual Indicators
@@ -88,12 +99,9 @@ nsyte browse --privatekey nsec1...
 
 Delete operations require authentication. The browse command supports:
 
-1. **Private key** — Use `--privatekey` with an nsec or hex key
-2. **Bunker** — Use `--bunker` with a bunker URL
-3. **nbunksec** — Use `--sec` with an encoded bunker secret
-4. **Project config** — Uses authentication from `.nsite/config.json`
-5. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to
-   delete
+1. **Unified `--sec` flag** — Auto-detects format (nsec, nbunksec, bunker://, hex)
+2. **Project config** — Uses authentication from `.nsite/config.json`
+3. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to delete
 
 ## Features
 
@@ -111,6 +119,14 @@ nostr identity. You can:
 
 Press `i` at any time during browsing to switch to a different identity. The header will update to
 show the new identity.
+
+### Multi-Site Support
+
+When a pubkey has multiple sites (root site and named sites), you can switch between them:
+
+- Press `s` to open the site selection menu
+- Choose from available sites with their titles and file counts
+- The current site name is displayed in the header
 
 ### File Tree View
 
@@ -137,9 +153,20 @@ When deleting files, the browser:
 Delete operations show detailed error messages if any deletions fail, including specific relay or
 server errors.
 
-### Responsive Design
+### Propagation Display
 
-The interface adapts to terminal size changes, adjusting the number of visible files automatically.
+The browser shows which relays and blossom servers have each file:
+
+- **Relay indicators**: Colored triangles (𓅦) show relay propagation
+- **Server indicators**: Colored squares (🌸) show blossom server availability
+- **Background checking**: Automatically checks blossom server availability in the background
+- **Detail view**: Shows complete lists of relays and servers with colored indicators
+
+### Performance
+
+- **Throttled rendering**: Maximum 10 FPS to prevent screen tearing
+- **Background checks**: Non-blocking blossom server availability checks
+- **Responsive design**: Adapts to terminal size changes automatically
 
 ## See Also
 

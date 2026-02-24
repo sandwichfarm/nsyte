@@ -149,7 +149,7 @@ nsyte init --config .nsyte-prod.json
 
 ### Ignore Files
 
-Create `.nsyteignore` to exclude development files:
+Create `.nsite-ignore` to exclude development files:
 
 ```
 node_modules/
