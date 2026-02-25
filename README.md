@@ -34,7 +34,7 @@ censorship-resistant website hosting.
 ## Quick Start
 
 ```bash
-# Install from JSR
+# Install script
 curl -fsSL https://nsyte.run/get/install.sh | bash
 
 # Initialize project (interactive setup)
