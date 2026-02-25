@@ -150,7 +150,7 @@ You can also configure nsyte using environment variables:
 
 ## Ignoring Files
 
-Create a `.nsite-ignore` file in your project root to specify files and directories that should be
+Create a `.nsyte-ignore` file in your project root to specify files and directories that should be
 excluded from uploads. This uses standard glob syntax:
 
 ```
@@ -169,7 +169,7 @@ nsyte automatically ignores:
 - `.git/**`
 - `.DS_Store`
 - `node_modules/**`
-- `.nsite-ignore`
+- `.nsyte-ignore`
 - `.nsite/config.json`
 - `.vscode/**`
 
@@ -208,19 +208,22 @@ export NSITE_RELAYS=wss://relay1,wss://relay2
 ## Best Practices
 
 1. **Security**
-   - Never commit `.nsite/config.json` to version control
+   - Never commit `.nsite/config.json` to version control if it contains sensitive data
    - Use bunker authentication for better security
+   - Use encrypted storage or OS keychain for bunker credentials
    - Rotate keys periodically
 
 2. **Performance**
    - Use multiple relays for redundancy
    - Choose relays close to your users
    - Use CDN servers when possible
+   - Enable caching in production deployments
 
 3. **Maintenance**
    - Keep your configuration in version control (excluding sensitive data)
    - Document your configuration choices
    - Review and update regularly
+   - Use `nsyte validate` to check configuration before deployment
 
 ## Troubleshooting
 

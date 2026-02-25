@@ -16,91 +16,68 @@ nsyte purge [options]
 
 ## Options
 
-- `--all`: Remove all published files for your pubkey
-- `--paths <pattern>`: Remove files matching glob patterns (can be used multiple times)
-- `--include-blobs`: Also delete blobs from blossom servers
-- `--yes`: Skip confirmation prompts (non-interactive mode)
-- `--relays <relays>`: Override relays to use (comma-separated)
-- `--servers <servers>`: Override blossom servers to use (comma-separated)
-- `--sec <string>`: nbunksec string for authentication
-- `--help`: Show help information
+- `-r, --relays <relays>` — Nostr relays to publish delete events to (comma-separated)
+- `-s, --servers <servers>` — Blossom servers to delete blobs from (comma-separated)
+- `--include-blobs` — Also delete blobs from blossom servers (default: false)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `-d, --name <name>` — Site identifier for named sites. If not provided, deletes root site
+- `-y, --yes` — Skip confirmation prompts (default: false)
 
 ## Examples
 
-### Interactive Purge
+Purge root site with confirmation:
 
 ```bash
 nsyte purge
 ```
 
-Prompts you to choose what to purge from a list of published files.
-
-### Purge All Files
+Purge named site:
 
 ```bash
-nsyte purge --all
+nsyte purge -d blog
 ```
 
-Removes all published files for your pubkey.
-
-### Purge Specific Patterns
+Purge site and delete blobs from blossom servers:
 
 ```bash
-nsyte purge --paths "*.html" --paths "/static/*"
+nsyte purge --include-blobs
 ```
 
-Removes all HTML files and everything in the `/static/` directory.
-
-### Purge Files and Blobs
+Purge without confirmation (for CI/CD):
 
 ```bash
-nsyte purge --all --include-blobs
+nsyte purge -y
 ```
 
-Removes all files from relays AND deletes the actual blobs from blossom servers.
-
-### Non-Interactive Purge
+Purge with custom relays and servers:
 
 ```bash
-nsyte purge --all --yes
+nsyte purge -r wss://relay1.com,wss://relay2.com -s https://server1.com
 ```
 
-Purges all files without asking for confirmation (useful for CI/CD).
-
-### Purge with Custom Relays
+Purge named site including blobs:
 
 ```bash
-nsyte purge --all --relays wss://relay1.com,wss://relay2.com
+nsyte purge -d blog --include-blobs -y
 ```
 
-## Pattern Matching
+## How it Works
 
-The `--paths` option supports glob patterns:
+1. **Identifies site**: Determines which site to purge (root or named)
+2. **Fetches manifest**: Retrieves current site manifest from relays
+3. **Confirmation**: Shows preview of files to be deleted (first 5 + count)
+4. **Creates delete event**: Publishes NIP-09 Kind 5 delete event for the site manifest
+5. **Deletes blobs** (if `--include-blobs`): Attempts to delete blobs from blossom servers using BUD-04 auth
 
-### Wildcard Patterns
+## Blob Deletion
 
-- `*` matches any characters within a directory
-- `?` matches a single character
-- `**` matches directories recursively
+When using `--include-blobs`, nsyte attempts to delete the actual blob files from blossom servers:
 
-### Examples
+- **Batch deletion first**: Tries batch deletion with BUD-04 auth
+- **Individual fallback**: If batch fails, attempts individual file deletion with auth
+- **Best effort**: Some servers may not support deletion or may reject the request
 
-```bash
-# Remove all HTML files
-nsyte purge --paths "*.html"
-
-# Remove all files in a specific directory
-nsyte purge --paths "/assets/*"
-
-# Remove all CSS files recursively
-nsyte purge --paths "**/*.css"
-
-# Remove specific files
-nsyte purge --paths "/index.html" --paths "/about.html"
-
-# Remove all JavaScript files in any subdirectory
-nsyte purge --paths "**/js/*.js"
-```
+Note: Delete events only remove references from relays. Use `--include-blobs` to also remove the actual files from storage servers.
 
 ### Path Matching Rules
 

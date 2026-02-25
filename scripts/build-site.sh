@@ -47,7 +47,7 @@ fi
 .venv/docs/bin/mkdocs build
 
 echo "Do brotli and gz compression"
-./scripts/compress-site-files.js
+node scripts/compress-site-files.js
 
 echo "✅ Website built successfully!"
 echo ""

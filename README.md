@@ -34,7 +34,7 @@ censorship-resistant website hosting.
 ## Quick Start
 
 ```bash
-# Install from JSR
+# Install script
 curl -fsSL https://nsyte.run/get/install.sh | bash
 
 # Initialize project (interactive setup)
@@ -395,13 +395,13 @@ nsyte validate --file path/to/config.json
 nsyte validate --schema
 ```
 
-### Ignoring Files (`.nsite-ignore`)
+### Ignoring Files (`.nsyte-ignore`)
 
-Similar to `.gitignore`, you can create a `.nsite-ignore` file in the root of your project (the
+Similar to `.gitignore`, you can create a `.nsyte-ignore` file in the root of your project (the
 directory where you run the `nsyte` command) to specify files and directories that should be
 excluded from uploads.
 
-- Create a file named `.nsite-ignore`.
+- Create a file named `.nsyte-ignore`.
 - Add patterns using standard [glob syntax](https://en.wikipedia.org/wiki/Glob_(programming)), one
   pattern per line.
 - Lines starting with `#` are treated as comments.
@@ -416,12 +416,12 @@ By default, `nsyte` ignores the following patterns:
 .git/**
 .DS_Store
 node_modules/**
-.nsite-ignore
+.nsyte-ignore
 .nsite/config.json
 .vscode/**
 ```
 
-**Example `.nsite-ignore`:**
+**Example `.nsyte-ignore`:**
 
 ```
 # Ignore build artifacts

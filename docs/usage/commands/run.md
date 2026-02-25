@@ -17,17 +17,23 @@ nsyte run [npub] [options]
 
 ## Arguments
 
-- `npub` (optional): Specific npub to launch when accessing localhost (defaults to a demo npub)
+- `[npub]` (optional): Site identifier in various formats:
+  - `naddr1...` — NIP-19 naddr format (Kind 15128 or 35128)
+  - `<name>.npub1...` — Subdomain format for named sites (e.g., `blog.npub1...`)
+  - `npub1...` — Regular npub for root site (Kind 15128)
+  - If not provided, uses default demo site
 
 ## Options
 
-- `-p, --port <port>`: Port number to run the resolver on (default: 6798)
-- `-r, --relays <relays>`: Comma-separated list of nostr relays to use
-- `-k, --privatekey <nsec>`: Private key for signing operations
-- `-b, --bunker <url>`: NIP-46 bunker URL for signing
-- `--sec <nbunksec>`: nbunksec string for authentication
-- `-c, --cache-dir <dir>`: Directory to cache downloaded files
-- `--no-open`: Don't automatically open browser
+- `-r, --relays <relays>` — Nostr relays to query (comma-separated)
+- `-p, --port <port>` — Port number to run the resolver on (default: 6798)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `-c, --cache-dir <dir>` — Directory to cache files (default: `/tmp/nsyte` or `%TEMP%\nsyte`)
+- `--no-cache` — Disable file caching entirely
+- `--use-fallback-relays` — Include default nsyte relays for file discovery
+- `--use-fallback-servers` — Include default blossom servers for file downloads
+- `--use-fallbacks` — Enable both fallback relays and servers
+- `--no-open` — Don't automatically open browser
 
 ## Examples
 
@@ -47,6 +53,36 @@ can access any nsite at:
 
 ```bash
 nsyte run npub1abc123def456ghi789
+```
+
+### Launch with naddr
+
+```bash
+nsyte run naddr1...
+```
+
+### Launch Named Site
+
+```bash
+nsyte run blog.npub1abc123def456ghi789
+```
+
+### Custom Port and Cache
+
+```bash
+nsyte run -p 8080 -c /custom/cache
+```
+
+### Disable Cache
+
+```bash
+nsyte run --no-cache
+```
+
+### Don't Auto-Open Browser
+
+```bash
+nsyte run --no-open
 ```
 
 Starts the resolver and when you access localhost, it will redirect to the specified npub instead of
