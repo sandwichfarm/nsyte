@@ -35,8 +35,34 @@ import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
 import { type FilePathMapping, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
 import type { ByteArray } from "./types.ts";
+import type { PublishResponse } from "applesauce-relay/types";
 
 const log = createLogger("nostr");
+
+// --- Detailed publish result types ---
+
+/** Per-relay result from publishing a single event */
+export interface RelayPublishResult {
+  relay: string;
+  ok: boolean;
+  message?: string;
+}
+
+/** Aggregate result from publishing a single event across all relays */
+export interface EventPublishResult {
+  eventId: string;
+  relayResults: RelayPublishResult[];
+  anySuccess: boolean;
+  successCount: number;
+  failureCount: number;
+}
+
+/** Aggregate result from publishing multiple events */
+export interface PublishEventsResult {
+  eventResults: EventPublishResult[];
+  allEventsPublished: boolean;
+  totalFailedEvents: number;
+}
 
 // Create a global relay pool for connections
 export const pool = new RelayPool();
@@ -782,62 +808,99 @@ export async function createAppRecommendationEvent(
   return await signer.signEvent(eventTemplate);
 }
 
-/** Publish events to relays */
-export async function publishEventsToRelays(
+/** Publish events to relays with detailed per-relay results */
+export async function publishEventsToRelaysDetailed(
   relays: string[],
   events: NostrEvent[],
-): Promise<boolean> {
+): Promise<PublishEventsResult> {
   if (events.length === 0) {
     log.warn("No events to publish");
-    return false;
+    return { eventResults: [], allEventsPublished: false, totalFailedEvents: 0 };
   }
 
   if (relays.length === 0) {
     log.error("No relays provided for publishing");
-    return false;
+    return { eventResults: [], allEventsPublished: false, totalFailedEvents: 0 };
   }
 
   log.debug(`Publishing ${events.length} events to ${relays.length} relays`);
 
+  const eventResults: EventPublishResult[] = [];
+
   try {
-    const failed: NostrEvent[] = [];
-
     for (const event of events) {
-      try {
-        const results = await pool
-          .publish(relays, event, { retries: 1, timeout: 15 * 1000 });
-        log.debug(
-          `Published event ${event.id.substring(0, 8)}... to ${
-            relays.join(
-              ", ",
-            )
-          }`,
-        );
+      let relayResults: RelayPublishResult[];
 
-        const success = results.some((r) => r.ok);
-        if (!success) throw new Error(`Failed to publish any relay`);
+      try {
+        const results: PublishResponse[] = await pool
+          .publish(relays, event, { retries: 1, timeout: 15 * 1000 });
+
+        relayResults = results.map((r) => ({
+          relay: r.from,
+          ok: r.ok,
+          message: r.message,
+        }));
+
+        log.debug(
+          `Published event ${event.id.substring(0, 8)}... to ${relays.join(", ")}`,
+        );
       } catch (error: unknown) {
         const errorMessage = getErrorMessage(error);
         log.error(
           `Failed to publish to relay ${relays.join(", ")}: ${errorMessage}`,
         );
 
-        failed.push(event);
+        // All relays failed
+        relayResults = relays.map((relay) => ({
+          relay,
+          ok: false,
+          message: errorMessage,
+        }));
       }
+
+      const successCount = relayResults.filter((r) => r.ok).length;
+      const failureCount = relayResults.filter((r) => !r.ok).length;
+
+      eventResults.push({
+        eventId: event.id,
+        relayResults,
+        anySuccess: successCount > 0,
+        successCount,
+        failureCount,
+      });
     }
 
-    if (failed.length === 0) {
+    const totalFailedEvents = eventResults.filter((r) => !r.anySuccess).length;
+
+    if (totalFailedEvents === 0) {
       log.info(`Successfully published to ${relays.length} relays`);
-      return true;
     } else {
-      log.error(`Failed to publish ${failed.length} events`);
-      return false;
+      log.error(`Failed to publish ${totalFailedEvents} events`);
     }
+
+    return {
+      eventResults,
+      allEventsPublished: totalFailedEvents === 0,
+      totalFailedEvents,
+    };
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
     log.error(`Error publishing events: ${errorMessage}`);
-    return false;
+    return {
+      eventResults,
+      allEventsPublished: false,
+      totalFailedEvents: events.length,
+    };
   }
+}
+
+/** Publish events to relays (boolean convenience wrapper) */
+export async function publishEventsToRelays(
+  relays: string[],
+  events: NostrEvent[],
+): Promise<boolean> {
+  const result = await publishEventsToRelaysDetailed(relays, events);
+  return result.allEventsPublished;
 }
 
 /**

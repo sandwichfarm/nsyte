@@ -244,6 +244,39 @@ export function formatServerResults(
 }
 
 /**
+ * Format relay publish results as a table with ✓/✗ status per relay
+ */
+export function formatRelayPublishResults(
+  relayResults: Array<{ relay: string; ok: boolean; message?: string }>,
+): string {
+  const displayManager = getDisplayManager();
+
+  if (relayResults.length === 0) {
+    return "No relay results available";
+  }
+
+  if (displayManager.isNonInteractive()) {
+    return relayResults
+      .map((r) => `${r.relay}: ${r.ok ? "ok" : "failed"}${r.message ? ` (${r.message})` : ""}`)
+      .join(", ");
+  }
+
+  const rows: string[][] = [];
+
+  for (const result of relayResults) {
+    const status = result.ok ? colors.green("✓") : colors.red("✗");
+    const relayName = result.relay;
+    const detail = result.ok
+      ? colors.green("accepted")
+      : colors.red(result.message || "rejected");
+
+    rows.push([status, relayName, detail]);
+  }
+
+  return formatTable(rows);
+}
+
+/**
  * Format a summary title
  */
 export function formatSummaryTitle(text: string, success: boolean): string {
