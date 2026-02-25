@@ -27,6 +27,8 @@ describe("Bunker command - Cliffy integration", () => {
   let timerIds: number[] = [];
   const originalSetTimeout = globalThis.setTimeout;
   const originalClearTimeout = globalThis.clearTimeout;
+  let originalCwd: string;
+  let tempDir: string;
 
   // Mock SecretsManager instance
   const mockSecretsManagerInstance = {
@@ -38,6 +40,12 @@ describe("Bunker command - Cliffy integration", () => {
   };
 
   beforeEach(() => {
+    // Change to a temp directory so tests never read/write the real .nsite/config.json
+    // writeProjectFile already guards against writes in /tmp/ and /var/folders/
+    originalCwd = Deno.cwd();
+    tempDir = Deno.makeTempDirSync({ prefix: "nsyte-test-" });
+    Deno.chdir(tempDir);
+
     // Mock console methods
     consoleLogStub = stub(console, "log", () => {});
     consoleErrorStub = stub(console, "error", () => {});
@@ -70,7 +78,7 @@ describe("Bunker command - Cliffy integration", () => {
         const id = originalSetTimeout(() => {
           try {
             fn();
-          } catch (e) {
+          } catch (_e) {
             // Ignore errors in timer callbacks during tests
           }
         }, delay);
@@ -114,6 +122,14 @@ describe("Bunker command - Cliffy integration", () => {
 
     // Then call general restore
     restore();
+
+    // Restore original CWD and clean up temp dir
+    Deno.chdir(originalCwd);
+    try {
+      Deno.removeSync(tempDir, { recursive: true });
+    } catch {
+      // Best effort cleanup
+    }
   });
 
   describe("listBunkers", () => {

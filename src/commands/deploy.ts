@@ -24,14 +24,16 @@ import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import {
   createSiteManifestEvent,
+  type EventPublishResult,
   fetchUserRelayList,
   type FileEntry,
   getUserBlossomServers,
   getUserDisplayName,
   getUserOutboxes,
   listRemoteFiles,
-  publishEventsToRelays,
+  publishEventsToRelaysDetailed,
   purgeRemoteFiles,
+  type RelayPublishResult,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
@@ -42,6 +44,7 @@ import {
   formatFileSize,
   formatFileSummary,
   formatRelayList,
+  formatRelayPublishResults,
   formatSectionHeader,
   formatServerResults,
   formatTitle,
@@ -101,6 +104,42 @@ export interface FilePreparationResult {
   toTransfer: FileEntry[];
   existing: FileEntry[];
   toDelete: FileEntry[];
+}
+
+/** Result from publishing the site manifest event */
+export interface ManifestPublishResult {
+  /** Whether the manifest event was created (signed) successfully */
+  created: boolean;
+  /** Whether the manifest was published to at least one relay */
+  published: boolean;
+  /** The manifest event ID if created */
+  eventId?: string;
+  /** Per-relay publish results */
+  relayResults?: RelayPublishResult[];
+  /** Error message if creation or publishing failed */
+  error?: string;
+  /** Number of relays that accepted the manifest */
+  successCount: number;
+  /** Number of relays that rejected the manifest */
+  failureCount: number;
+}
+
+/** Result from the upload phase (file uploads + manifest publish) */
+export interface UploadPhaseResult {
+  uploadResponses: UploadResponse[];
+  manifestResult: ManifestPublishResult | null;
+}
+
+/** Result from the full deploy phase */
+export interface DeployPhaseResult {
+  /** Number of files that needed uploading */
+  filesRequiringUpload: number;
+  /** Number of files successfully uploaded */
+  filesUploaded: number;
+  /** Number of files that failed to upload */
+  filesFailed: number;
+  /** Manifest publish result */
+  manifestResult: ManifestPublishResult | null;
 }
 
 /**
@@ -300,7 +339,7 @@ export async function deployCommand(
       remoteFileEntries,
     );
 
-    await maybeProcessFiles(
+    const deployResult = await maybeProcessFiles(
       state as DeploymentState,
       toTransfer,
       toDelete,
@@ -321,13 +360,68 @@ export async function deployCommand(
     flushQueuedLogs();
     displayGatewayUrl(config, publisherPubkey);
 
-    return Deno.exit(0);
+    const exitCode = computeExitCode(deployResult);
+    return Deno.exit(exitCode);
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
     statusDisplay.error(`Deploy command failed: ${errorMessage}`);
     log.error(`Deploy command failed: ${errorMessage}`);
     return Deno.exit(1);
   }
+}
+
+/**
+ * Determine the exit code based on deploy results
+ *
+ * Exit 1 (failure) when:
+ * - Zero files uploaded when uploads were needed
+ * - Manifest couldn't be created (signing error)
+ * - Manifest published to zero relays
+ *
+ * Exit 0 (success) when:
+ * - Some files failed but manifest was published (site is functional)
+ * - Everything succeeded
+ * - No operations were needed
+ */
+function computeExitCode(result: DeployPhaseResult): number {
+  // No operations needed — nothing to do is success
+  if (result.filesRequiringUpload === 0 && result.manifestResult === null) {
+    return 0;
+  }
+
+  // Total upload failure: files needed uploading but none succeeded
+  if (result.filesRequiringUpload > 0 && result.filesUploaded === 0) {
+    console.log(colors.red("\nDeploy failed: no files were uploaded successfully."));
+    return 1;
+  }
+
+  // Check manifest results
+  if (result.manifestResult) {
+    const mr = result.manifestResult;
+
+    // Manifest creation failed (signing error)
+    if (!mr.created) {
+      console.log(
+        colors.red(`\nDeploy failed: manifest event could not be created${mr.error ? ` (${mr.error})` : ""}.`),
+      );
+      return 1;
+    }
+
+    // Manifest published to zero relays
+    if (mr.successCount === 0) {
+      console.log(colors.red("\nDeploy failed: manifest was not accepted by any relay."));
+      return 1;
+    }
+  }
+
+  // Some files failed but manifest was published — site is functional (partial success)
+  if (result.filesFailed > 0 && result.manifestResult?.published) {
+    log.warn(
+      `${result.filesFailed} file(s) failed to upload, but manifest was published. Site may be partially available.`,
+    );
+  }
+
+  return 0;
 }
 
 /**
@@ -1194,32 +1288,48 @@ async function maybeProcessFiles(
   toDelete: FileEntry[],
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
-): Promise<void> {
+): Promise<DeployPhaseResult> {
   const { statusDisplay, resolvedRelays } = state;
+
+  let filesUploaded = 0;
+  let filesFailed = 0;
+  let manifestResult: ManifestPublishResult | null = null;
 
   if (toTransfer.length > 0) {
     log.info("Processing files for upload...");
 
     try {
       const preparedFiles = await prepareFilesForUpload(state, toTransfer);
+      const uploadResult = await uploadFiles(state, preparedFiles, includedFiles, remoteFileEntries);
 
-      await uploadFiles(state, preparedFiles, includedFiles, remoteFileEntries);
+      filesUploaded = uploadResult.uploadResponses.filter((r) => r.success).length;
+      filesFailed = uploadResult.uploadResponses.filter((r) => !r.success).length;
+      manifestResult = uploadResult.manifestResult;
     } catch (e: unknown) {
       const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
       statusDisplay.error(errMsg);
       log.error(errMsg);
+      // All files failed due to thrown error
+      filesFailed = toTransfer.length;
     }
   } else {
     // Even if no files to upload, we may need to publish manifest with existing files
     // (e.g., when files were deleted or metadata changed)
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
-      await publishSiteManifest(state, includedFiles, remoteFileEntries, []);
+      manifestResult = await publishSiteManifest(state, includedFiles, remoteFileEntries, []);
     }
   }
 
   if (toDelete.length > 0) {
     await deleteRemovedFiles(state, toDelete);
   }
+
+  return {
+    filesRequiringUpload: toTransfer.length,
+    filesUploaded,
+    filesFailed,
+    manifestResult,
+  };
 }
 
 /**
@@ -1231,7 +1341,7 @@ async function publishSiteManifest(
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
   uploadResponses: UploadResponse[],
-): Promise<void> {
+): Promise<ManifestPublishResult> {
   const {
     statusDisplay,
     signer,
@@ -1343,7 +1453,7 @@ async function publishSiteManifest(
 
   if (fileMappings.length === 0) {
     log.warn("No files with hashes to include in manifest");
-    return;
+    return { created: false, published: false, error: "No files with hashes to include", successCount: 0, failureCount: 0 };
   }
 
   statusDisplay.update("Creating site manifest event...");
@@ -1391,11 +1501,24 @@ async function publishSiteManifest(
     console.log(colors.cyan(`  Event ID: ${manifestEvent.id}`));
     console.log("");
 
-    // Publish manifest event using discovered relays (from kind 10002)
+    // Publish manifest event using discovered relays (from kind 10002) with detailed results
     statusDisplay.update("Publishing site manifest event...");
-    const success = await publishEventsToRelays(resolvedRelays, [manifestEvent]);
+    const publishResult = await publishEventsToRelaysDetailed(resolvedRelays, [manifestEvent]);
 
-    if (success) {
+    // Extract per-relay results from the first (only) event result
+    const eventResult: EventPublishResult | undefined = publishResult.eventResults[0];
+    const relayResults = eventResult?.relayResults ?? [];
+    const successCount = eventResult?.successCount ?? 0;
+    const failureCount = eventResult?.failureCount ?? 0;
+
+    // Display per-relay results table
+    if (relayResults.length > 0) {
+      console.log(formatSectionHeader("Relay Manifest Publish Results"));
+      console.log(formatRelayPublishResults(relayResults));
+      console.log("");
+    }
+
+    if (publishResult.allEventsPublished) {
       console.log(colors.green(`✓ Site manifest event successfully published to relays`));
       if (siteId) {
         console.log(colors.cyan(`  Site: ${siteId} (named site)`));
@@ -1406,6 +1529,15 @@ async function publishSiteManifest(
 
       // Add to message collector
       messageCollector.addEventSuccess("site manifest", manifestEvent.id);
+
+      return {
+        created: true,
+        published: true,
+        eventId: manifestEvent.id,
+        relayResults,
+        successCount,
+        failureCount,
+      };
     } else {
       statusDisplay.error("Failed to publish site manifest event");
       console.log(colors.red(`✗ Failed to publish site manifest event to relays`));
@@ -1416,6 +1548,15 @@ async function publishSiteManifest(
         colors.yellow("Try running the deploy command again to republish the manifest."),
       );
       console.log("");
+
+      return {
+        created: true,
+        published: successCount > 0,
+        eventId: manifestEvent.id,
+        relayResults,
+        successCount,
+        failureCount,
+      };
     }
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
@@ -1423,6 +1564,14 @@ async function publishSiteManifest(
     log.error(`Error creating/publishing site manifest: ${errorMessage}`);
     console.log(colors.red(`✗ Error: ${errorMessage}`));
     console.log("");
+
+    return {
+      created: false,
+      published: false,
+      error: errorMessage,
+      successCount: 0,
+      failureCount: 0,
+    };
   }
 }
 
@@ -1434,7 +1583,7 @@ async function uploadFiles(
   preparedFiles: FileEntry[],
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
-): Promise<UploadResponse[]> {
+): Promise<UploadPhaseResult> {
   const {
     statusDisplay,
     messageCollector,
@@ -1447,7 +1596,7 @@ async function uploadFiles(
 
   if (preparedFiles.length === 0) {
     statusDisplay.error("No files could be loaded for upload.");
-    return [];
+    return { uploadResponses: [], manifestResult: null };
   }
 
   statusDisplay.update(`Uploading ${preparedFiles.length} files...`);
@@ -1475,6 +1624,8 @@ async function uploadFiles(
 
   progressRenderer.stop();
   setProgressMode(false);
+
+  let manifestResult: ManifestPublishResult | null = null;
 
   if (uploadResponses.length > 0) {
     const uploadedCount = uploadResponses.filter((r) => r.success).length;
@@ -1559,7 +1710,7 @@ async function uploadFiles(
     // Always publish manifest if there are any files, even if no uploads occurred
     // (e.g., when only metadata needs updating or files were deleted)
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
-      await publishSiteManifest(
+      manifestResult = await publishSiteManifest(
         state,
         includedFiles,
         remoteFileEntries,
@@ -1583,7 +1734,7 @@ async function uploadFiles(
     }
   }
 
-  return uploadResponses;
+  return { uploadResponses, manifestResult };
 }
 
 /**
