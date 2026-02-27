@@ -4,7 +4,7 @@ description: Deploy and manage censorship-resistant static websites on the Nostr
 license: MIT
 metadata:
   author: sandwichfarm
-  version: "0.21.0"
+  version: "0.22.0"
   repository: https://github.com/sandwichfarm/nsyte
 ---
 
