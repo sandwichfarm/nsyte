@@ -9,7 +9,10 @@ import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
 import { createLogger } from "../lib/logger.ts";
-import { fetchSiteManifestEvent } from "../lib/nostr.ts";
+import { pool } from "../lib/nostr.ts";
+import { lastValueFrom } from "rxjs";
+import { mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import type { NostrEvent } from "applesauce-core/helpers";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "../lib/utils.ts";
 import {
@@ -309,7 +312,7 @@ export function registerBrowseCommand(): void {
             const { checkBlossomServersForFiles, checkBlossomServersForFile } = await import(
               "../lib/browse-loader.ts"
             );
-            const { fetchServerListEvents } = await import("../lib/nostr.ts");
+            // fetchServerListEvents replaced with direct pool.request() to avoid eventLoader contention
 
             // Non-blocking function to check remaining files
             const checkBlossomServersWithYielding = async (
@@ -346,11 +349,16 @@ export function registerBrowseCommand(): void {
             state.status = "Loading server list...";
             throttledRender();
 
+            // Use the already-fetched manifest event from sites array (avoids re-fetching via eventLoader)
+            const selectedSite = selectedSiteIdentifier === null
+              ? sites.find((s) => s.type === "root")
+              : sites.find((s) => s.identifier === selectedSiteIdentifier);
+            const manifestEvent = selectedSite?.event ?? null;
+
             // Fire and forget - don't block
             let hasInitialBlossomCheck = false;
             (async () => {
               // First, try to get servers from manifest events (prioritized per NIP-XX)
-              const manifestEvent = await fetchSiteManifestEvent(relays, pubkey);
               const manifestEvents = manifestEvent ? [manifestEvent] : [];
               if (manifestEvents.length > 0) {
                 state.blossomServers = extractServersFromManifestEvents(manifestEvents);
@@ -365,9 +373,27 @@ export function registerBrowseCommand(): void {
                 }
               }
 
+              // Yield to event loop after manifest processing
+              await new Promise((r) => setTimeout(r, 0));
+
               // Fall back to kind 10063 server list event if no servers found in manifests
               if (state.blossomServers.length === 0) {
-                const serverListEvents = await fetchServerListEvents(relays, pubkey);
+                // Use direct pool.request() to avoid eventLoader contention with keypress events
+                const serverListEvents = await lastValueFrom(
+                  pool.request(relays, {
+                    kinds: [10063],
+                    authors: [pubkey],
+                    limit: 10,
+                  }).pipe(
+                    simpleTimeout(5000),
+                    mapEventsToTimeline(),
+                  ),
+                  { defaultValue: [] as NostrEvent[] },
+                ).catch(() => [] as NostrEvent[]);
+
+                // Yield to event loop after server list fetch
+                await new Promise((r) => setTimeout(r, 0));
+
                 if (serverListEvents.length > 0) {
                   const latestEvent = serverListEvents[0];
                   state.blossomServers = extractServersFromEvent(latestEvent);
@@ -410,6 +436,9 @@ export function registerBrowseCommand(): void {
                 state.blossomServers,
                 manifestEvents,
               );
+
+              // Yield to event loop after blossom check
+              await new Promise((r) => setTimeout(r, 0));
 
               // Then check remaining files in background without blocking
               const remainingFiles = [
