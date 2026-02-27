@@ -7,15 +7,42 @@
  * Exit 1: one or both endpoints are unreachable.
  */
 
-const RELAY_URL = "https://relay.damus.io";
+const RELAY_URL = "wss://relay.damus.io";
 const BLOSSOM_URL = "https://blossom.primal.net";
 
-async function checkEndpoint(url: string, label: string): Promise<boolean> {
+function checkRelay(url: string, label: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      console.error(`✗ ${label}: timed out after 5s`);
+      resolve(false);
+    }, 5000);
+
+    try {
+      const ws = new WebSocket(url);
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        console.log(`✓ ${label}: reachable (WebSocket open)`);
+        ws.close();
+        resolve(true);
+      };
+      ws.onerror = () => {
+        clearTimeout(timeout);
+        console.error(`✗ ${label}: unreachable`);
+        resolve(false);
+      };
+    } catch {
+      clearTimeout(timeout);
+      console.error(`✗ ${label}: unreachable`);
+      resolve(false);
+    }
+  });
+}
+
+async function checkHttp(url: string, label: string): Promise<boolean> {
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(5000),
     });
-    // Any HTTP response (including 4xx/5xx) means the server is reachable
     console.log(`✓ ${label}: reachable (HTTP ${response.status})`);
     return true;
   } catch (error) {
@@ -29,8 +56,10 @@ async function checkEndpoint(url: string, label: string): Promise<boolean> {
 }
 
 async function checkNetwork(): Promise<void> {
-  const relayOk = await checkEndpoint(RELAY_URL, "Relay connectivity: relay.damus.io");
-  const blossomOk = await checkEndpoint(BLOSSOM_URL, "Blossom connectivity: blossom.primal.net");
+  const [relayOk, blossomOk] = await Promise.all([
+    checkRelay(RELAY_URL, "Relay connectivity: relay.damus.io"),
+    checkHttp(BLOSSOM_URL, "Blossom connectivity: blossom.primal.net"),
+  ]);
 
   if (!relayOk || !blossomOk) {
     Deno.exit(1);
