@@ -5,6 +5,10 @@ const PROGRESS_BAR_WIDTH = 30;
 const PROGRESS_CHAR = "█";
 const INCOMPLETE_CHAR = "░";
 
+function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 /**
  * Format a progress bar with colored output
  */
@@ -187,8 +191,31 @@ export class ProgressRenderer {
     }
 
     const skipped = data.skipped ?? 0;
-    const progressText =
-      `[${bar}] ${percent}% | ${done}/${data.total} files | ${data.completed} succeeded, ${skipped} skipped, ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
+
+    // Build progress text with segments that can be dropped to fit terminal width
+    const segments = [
+      `[${bar}] ${percent}%`,
+      `${done}/${data.total} files`,
+      `${data.completed} ok, ${skipped} skip, ${data.failed} fail, ${data.inProgress} active`,
+      `${elapsed}s`,
+      `ETA: ${eta}`,
+    ];
+    if (serverInfo) segments.push(serverInfo);
+
+    let progressText = segments.join(" | ");
+
+    // Truncate to terminal width to prevent line wrapping, which breaks \r overwrite
+    try {
+      const { columns } = Deno.consoleSize();
+      if (columns > 0) {
+        while (segments.length > 1 && stripAnsi(segments.join(" | ")).length > columns) {
+          segments.pop();
+        }
+        progressText = segments.join(" | ");
+      }
+    } catch {
+      // consoleSize() throws if not a TTY — just write the full text
+    }
 
     Deno.stdout.writeSync(new TextEncoder().encode(progressText));
 
