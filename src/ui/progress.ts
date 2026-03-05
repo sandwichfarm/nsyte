@@ -176,10 +176,17 @@ export class ProgressRenderer {
       eta = etaSeconds <= 0 ? "0s" : `${etaSeconds}s`;
     }
 
-    const greenW = Math.floor((data.completed / data.total) * this.barLength);
-    const yellowW = Math.floor(((data.retrying ?? 0) / data.total) * this.barLength);
-    const redW = Math.floor((data.failed / data.total) * this.barLength);
-    const grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
+    let greenW = 0;
+    let yellowW = 0;
+    let redW = 0;
+    let grayW = this.barLength;
+
+    if (data.total > 0) {
+      greenW = Math.floor((data.completed / data.total) * this.barLength);
+      yellowW = Math.floor(((data.retrying ?? 0) / data.total) * this.barLength);
+      redW = Math.floor((data.failed / data.total) * this.barLength);
+      grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
+    }
 
     const bar = colors.green("█".repeat(greenW))
       + colors.yellow("█".repeat(yellowW))
@@ -192,7 +199,7 @@ export class ProgressRenderer {
       if (entries.length > 0) {
         const latestFile = entries[entries.length - 1];
         const [filename, stats] = latestFile;
-        serverInfo = ` | ${
+        serverInfo = `${
           colors.cyan(`${stats.successCount}/${stats.totalServers}`)
         } servers for ${filename.split("/").pop()}`;
       }

@@ -422,6 +422,8 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
   await t.step("should show retry count in progress text", () => {
     restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    // Stub consoleSize to return wide terminal so truncation doesn't drop segments
+    stub(Deno, "consoleSize", () => ({ columns: 300, rows: 50 }));
 
     const progress = new ProgressRenderer(10);
     progress.update({
