@@ -58,6 +58,7 @@ interface ProgressData {
   failed: number;
   inProgress: number;
   skipped?: number;
+  retrying?: number;
   serverStats?: {
     [filename: string]: {
       successCount: number;
@@ -175,8 +176,15 @@ export class ProgressRenderer {
       eta = etaSeconds <= 0 ? "0s" : `${etaSeconds}s`;
     }
 
-    const filledLength = Math.floor((percent * this.barLength) / 100);
-    const bar = "█".repeat(filledLength) + "░".repeat(this.barLength - filledLength);
+    const greenW = Math.floor((data.completed / data.total) * this.barLength);
+    const yellowW = Math.floor(((data.retrying ?? 0) / data.total) * this.barLength);
+    const redW = Math.floor((data.failed / data.total) * this.barLength);
+    const grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
+
+    const bar = colors.green("█".repeat(greenW))
+      + colors.yellow("█".repeat(yellowW))
+      + colors.red("█".repeat(redW))
+      + "░".repeat(grayW);
 
     let serverInfo = "";
     if (data.serverStats) {
@@ -191,12 +199,13 @@ export class ProgressRenderer {
     }
 
     const skipped = data.skipped ?? 0;
+    const retrying = data.retrying ?? 0;
 
     // Build progress text with segments that can be dropped to fit terminal width
     const segments = [
       `[${bar}] ${percent}%`,
       `${done}/${data.total} files`,
-      `${data.completed} ok, ${skipped} skip, ${data.failed} fail, ${data.inProgress} active`,
+      `${data.completed} ok, ${skipped} skip, ${retrying} retry, ${data.failed} fail, ${data.inProgress} active`,
       `${elapsed}s`,
       `ETA: ${eta}`,
     ];

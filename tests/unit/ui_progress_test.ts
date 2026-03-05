@@ -416,6 +416,144 @@ Deno.test("UI Progress - ProgressRenderer", async (t) => {
   });
 });
 
+Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t) => {
+  let stdoutStub: any;
+
+  await t.step("should show retry count in progress text", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 5,
+      failed: 1,
+      inProgress: 2,
+      retrying: 2,
+    });
+
+    let found = false;
+    for (let i = 0; i < stdoutStub.calls.length; i++) {
+      const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      if (output.includes("retry")) {
+        assertStringIncludes(output, "2 retry");
+        found = true;
+        break;
+      }
+    }
+    assertEquals(found, true, "Should find retry count in output");
+
+    stdoutStub.restore();
+  });
+
+  await t.step("should render green segments for completed files", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 10,
+      failed: 0,
+      inProgress: 0,
+    });
+
+    // All 30 bar chars should be green (ANSI green escape)
+    let found = false;
+    for (let i = 0; i < stdoutStub.calls.length; i++) {
+      const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      if (output.includes("█")) {
+        // Should contain green ANSI code and not contain red blocks
+        assertStringIncludes(output, "\x1b[32m"); // green
+        found = true;
+        break;
+      }
+    }
+    assertEquals(found, true, "Should find green bar segments");
+
+    stdoutStub.restore();
+  });
+
+  await t.step("should render red segments for failed files", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 5,
+      failed: 5,
+      inProgress: 0,
+    });
+
+    let found = false;
+    for (let i = 0; i < stdoutStub.calls.length; i++) {
+      const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      if (output.includes("█")) {
+        assertStringIncludes(output, "\x1b[31m"); // red
+        found = true;
+        break;
+      }
+    }
+    assertEquals(found, true, "Should find red bar segments");
+
+    stdoutStub.restore();
+  });
+
+  await t.step("should render yellow segments for retrying files", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 3,
+      failed: 0,
+      inProgress: 4,
+      retrying: 3,
+    });
+
+    let found = false;
+    for (let i = 0; i < stdoutStub.calls.length; i++) {
+      const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      if (output.includes("█")) {
+        assertStringIncludes(output, "\x1b[33m"); // yellow
+        found = true;
+        break;
+      }
+    }
+    assertEquals(found, true, "Should find yellow bar segments");
+
+    stdoutStub.restore();
+  });
+
+  await t.step("should default retrying to 0 when not provided", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 5,
+      failed: 0,
+      inProgress: 5,
+    });
+
+    let found = false;
+    for (let i = 0; i < stdoutStub.calls.length; i++) {
+      const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      if (output.includes("retry")) {
+        assertStringIncludes(output, "0 retry");
+        found = true;
+        break;
+      }
+    }
+    assertEquals(found, true, "Should show 0 retry when not provided");
+
+    stdoutStub.restore();
+  });
+});
+
 // Clean up
 Deno.test("Cleanup", () => {
   restore();
