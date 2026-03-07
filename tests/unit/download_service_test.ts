@@ -11,6 +11,9 @@ import {
 } from "../../src/lib/download.ts";
 import type { FileEntry } from "../../src/lib/nostr.ts";
 
+// sha256 of a zero-filled 1024-byte ArrayBuffer (used by default fetch mock)
+const ZERO_1024_HASH = "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef";
+
 describe("DownloadService - comprehensive branch coverage", () => {
   let fetchStub: any;
   let denoStatStub: any;
@@ -126,10 +129,10 @@ describe("DownloadService - comprehensive branch coverage", () => {
   describe("downloadFiles", () => {
     it("should download files in batches with default concurrency", async () => {
       const mockFiles: FileEntry[] = [
-        { path: "/file1.html", sha256: "hash1" },
-        { path: "/file2.css", sha256: "hash2" },
-        { path: "/file3.js", sha256: "hash3" },
-        { path: "/file4.png", sha256: "hash4" },
+        { path: "/file1.html", sha256: ZERO_1024_HASH },
+        { path: "/file2.css", sha256: ZERO_1024_HASH },
+        { path: "/file3.js", sha256: ZERO_1024_HASH },
+        { path: "/file4.png", sha256: ZERO_1024_HASH },
       ];
 
       const options: DownloadOptions = {
@@ -167,7 +170,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle download errors gracefully", async () => {
       const mockFiles: FileEntry[] = [
-        { path: "/file1.html", sha256: "hash1" },
+        { path: "/file1.html", sha256: ZERO_1024_HASH },
       ];
 
       // Mock fetch to throw error
@@ -191,8 +194,8 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle mixed success and failure results", async () => {
       const mockFiles: FileEntry[] = [
-        { path: "/success.html", sha256: "hash1" },
-        { path: "/failure.css", sha256: "hash2" },
+        { path: "/success.html", sha256: ZERO_1024_HASH },
+        { path: "/failure.css", sha256: ZERO_1024_HASH },
       ];
 
       let callCount = 0;
@@ -225,7 +228,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
   describe("downloadSingleFile", () => {
     it("should download a single file successfully", async () => {
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output" };
 
       const result = await service.downloadSingleFile(
@@ -266,7 +269,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       } as Deno.FileInfo));
 
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output", overwrite: false };
 
       const result = await service.downloadSingleFile(
@@ -314,7 +317,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       });
 
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output", overwrite: true };
 
       const result = await service.downloadSingleFile(
@@ -342,7 +345,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       });
 
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output" };
 
       const result = await service.downloadSingleFile(
@@ -362,7 +365,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
       });
 
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output" };
 
       const result = await service.downloadSingleFile(
@@ -379,7 +382,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
   describe("edge cases", () => {
     it("should handle files with special characters in path", async () => {
       const service = new DownloadService();
-      const file: FileEntry = { path: "/path with spaces/file (1).html", sha256: "hash123" };
+      const file: FileEntry = { path: "/path with spaces/file (1).html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output" };
 
       const result = await service.downloadSingleFile(
@@ -393,7 +396,7 @@ describe("DownloadService - comprehensive branch coverage", () => {
 
     it("should handle empty server list", async () => {
       const service = new DownloadService();
-      const file: FileEntry = { path: "/test.html", sha256: "hash123" };
+      const file: FileEntry = { path: "/test.html", sha256: ZERO_1024_HASH };
       const options: DownloadOptions = { output: "/test/output" };
 
       const result = await service.downloadSingleFile(file, [], options);
