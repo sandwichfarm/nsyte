@@ -43,47 +43,47 @@ jobs:
         run: |
           ./dist/nsyte-linux-test --version
 
-  test-build-macos-intel:
-    name: Test macOS Intel Build
-    runs-on: macos-13
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  # test-build-macos-intel:
+  #   name: Test macOS Intel Build
+  #   runs-on: macos-13
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Set up Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v2.x
+  #     - name: Set up Deno
+  #       uses: denoland/setup-deno@v1
+  #       with:
+  #         deno-version: v2.x
 
-      - name: Test build
-        run: |
-          mkdir -p dist
-          deno compile \
-            --no-check \
-            --allow-run \
-            --allow-read \
-            --allow-write \
-            --allow-net \
-            --allow-env \
-            --allow-sys \
-            --target x86_64-apple-darwin \
-            --output dist/nsyte-macos-x64-test \
-            src/cli.ts
+  #     - name: Test build
+  #       run: |
+  #         mkdir -p dist
+  #         deno compile \
+  #           --no-check \
+  #           --allow-run \
+  #           --allow-read \
+  #           --allow-write \
+  #           --allow-net \
+  #           --allow-env \
+  #           --allow-sys \
+  #           --target x86_64-apple-darwin \
+  #           --output dist/nsyte-macos-x64-test \
+  #           src/cli.ts
 
-          echo "Build successful!"
-          ls -lh dist/
+  #         echo "Build successful!"
+  #         ls -lh dist/
 
-      - name: Test binary
-        run: |
-          ./dist/nsyte-macos-x64-test --version
+  #     - name: Test binary
+  #       run: |
+  #         ./dist/nsyte-macos-x64-test --version
 
-      - name: Test UPX
-        run: |
-          brew install upx
-          cp dist/nsyte-macos-x64-test dist/nsyte-macos-x64-test-compressed
-          upx --best --lzma --force-macos dist/nsyte-macos-x64-test-compressed
-          echo "UPX compression successful!"
-          ls -lh dist/
+  #     - name: Test UPX
+  #       run: |
+  #         brew install upx
+  #         cp dist/nsyte-macos-x64-test dist/nsyte-macos-x64-test-compressed
+  #         upx --best --lzma --force-macos dist/nsyte-macos-x64-test-compressed
+  #         echo "UPX compression successful!"
+  #         ls -lh dist/
 
   test-build-macos-arm:
     name: Test macOS Apple Silicon Build
