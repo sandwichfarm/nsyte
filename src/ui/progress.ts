@@ -5,6 +5,10 @@ const PROGRESS_BAR_WIDTH = 30;
 const PROGRESS_CHAR = "█";
 const INCOMPLETE_CHAR = "░";
 
+function stripAnsi(text: string): string {
+  return text.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 /**
  * Format a progress bar with colored output
  */
@@ -54,6 +58,7 @@ interface ProgressData {
   failed: number;
   inProgress: number;
   skipped?: number;
+  retrying?: number;
   serverStats?: {
     [filename: string]: {
       successCount: number;
@@ -171,8 +176,22 @@ export class ProgressRenderer {
       eta = etaSeconds <= 0 ? "0s" : `${etaSeconds}s`;
     }
 
-    const filledLength = Math.floor((percent * this.barLength) / 100);
-    const bar = "█".repeat(filledLength) + "░".repeat(this.barLength - filledLength);
+    let greenW = 0;
+    let yellowW = 0;
+    let redW = 0;
+    let grayW = this.barLength;
+
+    if (data.total > 0) {
+      greenW = Math.floor((data.completed / data.total) * this.barLength);
+      yellowW = Math.floor(((data.retrying ?? 0) / data.total) * this.barLength);
+      redW = Math.floor((data.failed / data.total) * this.barLength);
+      grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
+    }
+
+    const bar = colors.green("█".repeat(greenW))
+      + colors.yellow("█".repeat(yellowW))
+      + colors.red("█".repeat(redW))
+      + "░".repeat(grayW);
 
     let serverInfo = "";
     if (data.serverStats) {
@@ -180,15 +199,39 @@ export class ProgressRenderer {
       if (entries.length > 0) {
         const latestFile = entries[entries.length - 1];
         const [filename, stats] = latestFile;
-        serverInfo = ` | ${
+        serverInfo = `${
           colors.cyan(`${stats.successCount}/${stats.totalServers}`)
         } servers for ${filename.split("/").pop()}`;
       }
     }
 
     const skipped = data.skipped ?? 0;
-    const progressText =
-      `[${bar}] ${percent}% | ${done}/${data.total} files | ${data.completed} succeeded, ${skipped} skipped, ${data.failed} failed, ${data.inProgress} in progress | Elapsed: ${elapsed}s | ETA: ${eta}${serverInfo}`;
+    const retrying = data.retrying ?? 0;
+
+    // Build progress text with segments that can be dropped to fit terminal width
+    const segments = [
+      `[${bar}] ${percent}%`,
+      `${done}/${data.total} files`,
+      `${data.completed} ok, ${skipped} skip, ${retrying} retry, ${data.failed} fail, ${data.inProgress} active`,
+      `${elapsed}s`,
+      `ETA: ${eta}`,
+    ];
+    if (serverInfo) segments.push(serverInfo);
+
+    let progressText = segments.join(" | ");
+
+    // Truncate to terminal width to prevent line wrapping, which breaks \r overwrite
+    try {
+      const { columns } = Deno.consoleSize();
+      if (columns > 0) {
+        while (segments.length > 1 && stripAnsi(segments.join(" | ")).length > columns) {
+          segments.pop();
+        }
+        progressText = segments.join(" | ");
+      }
+    } catch {
+      // consoleSize() throws if not a TTY — just write the full text
+    }
 
     Deno.stdout.writeSync(new TextEncoder().encode(progressText));
 

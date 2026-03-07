@@ -153,6 +153,7 @@ export interface UploadProgress {
   failed: number;
   inProgress: number;
   skipped: number;
+  retrying: number;
 }
 
 export type UploadResponse = {
@@ -395,6 +396,7 @@ export async function processUploads(
     failed: 0,
     inProgress: 0,
     skipped: 0,
+    retrying: 0,
   };
 
   if (progressCallback) {
@@ -446,7 +448,12 @@ export async function processUploads(
     const chunkResults = await Promise.all(
       chunk.map(async (file) => {
         try {
-          return await uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey);
+          return await uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey, 0, (delta) => {
+            progress.retrying += delta;
+            if (progressCallback) {
+              progressCallback({ ...progress });
+            }
+          });
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -545,6 +552,7 @@ async function uploadFile(
   relays: string[],
   userPubkey: string,
   retryCount = 0,
+  onRetry?: (delta: number) => void,
 ): Promise<UploadResponse> {
   // Ensure serverResults is visible in catch blocks
   const serverResults: {
@@ -647,7 +655,15 @@ async function uploadFile(
         `Retrying upload for ${file.path} (attempt ${retryCount + 1}/${MAX_RETRIES})`,
       );
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      return uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey, retryCount + 1);
+      onRetry?.(1);
+      try {
+        const result = await uploadFile(file, baseDir, servers, authTokenMap, relays, userPubkey, retryCount + 1, onRetry);
+        onRetry?.(-1);
+        return result;
+      } catch (e) {
+        onRetry?.(-1);
+        throw e;
+      }
     }
 
     return {

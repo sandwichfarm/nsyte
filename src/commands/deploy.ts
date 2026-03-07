@@ -1640,7 +1640,9 @@ async function uploadFiles(
     flushQueuedLogs();
     console.log("");
 
-    if (uploadedCount === preparedFiles.length) {
+    const allSucceeded = uploadedCount === preparedFiles.length &&
+      uploadResponses.length === preparedFiles.length;
+    if (allSucceeded) {
       const msg = `${uploadedCount} files uploaded successfully (${formatFileSize(uploadedSize)})`;
       progressRenderer.complete(true, msg);
     } else if (uploadedCount > 0) {
@@ -1670,11 +1672,14 @@ async function uploadFiles(
 
     if (uploadedCount > 0) {
       console.log(formatSectionHeader("Blobs Upload Results (Blossom)"));
-      if (uploadedCount === preparedFiles.length) {
+      if (allSucceeded) {
         console.log(colors.green(`✓ All ${uploadedCount} files successfully uploaded`));
       } else {
+        const failedCount = preparedFiles.length - uploadedCount;
         console.log(
-          colors.yellow(`${uploadedCount}/${preparedFiles.length} files successfully uploaded`),
+          colors.yellow(
+            `${uploadedCount}/${preparedFiles.length} blobs uploaded, ${failedCount} failed`,
+          ),
         );
       }
       messageCollector.printFileSuccessSummary();
@@ -1700,6 +1705,14 @@ async function uploadFiles(
       }
     }
     console.log(formatServerResults(serverResults));
+
+    const totalBlobs = uploadResponses.length;
+    const successBlobs = uploadResponses.filter((r) => r.success).length;
+    const pct = totalBlobs === 0 ? 100 : Math.round((successBlobs / totalBlobs) * 100);
+    const colorFn = pct === 100 ? colors.green : pct > 0 ? colors.yellow : colors.red;
+    console.log(
+      colorFn(`Overall: ${successBlobs}/${totalBlobs} blobs on at least one server (${pct}%)`),
+    );
     console.log("");
 
     // Create and publish site manifest event after all files are uploaded
