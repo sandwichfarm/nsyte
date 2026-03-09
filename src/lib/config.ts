@@ -147,7 +147,14 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
 
   // Prevent tests from ever writing to the real project config.
   // Detect test environment via Deno.env or CWD heuristics.
-  const isTestEnv = typeof Deno.env.get("DENO_TESTING") === "string" ||
+  let hasDenoTestingEnv = false;
+  try {
+    hasDenoTestingEnv = typeof Deno.env.get("DENO_TESTING") === "string";
+  } catch {
+    // If env access is not permitted, treat as non-test environment.
+    hasDenoTestingEnv = false;
+  }
+  const isTestEnv = hasDenoTestingEnv ||
     cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/");
 
   if (isTestEnv && !configPath) {
