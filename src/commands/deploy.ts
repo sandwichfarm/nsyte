@@ -295,7 +295,7 @@ export async function deployCommand(
     }, 5000);
     const resolvedRelays = relaySet(userPreferences.outboxes, manifestRelays);
     // For uploads, use only the servers from CLI --servers or config (source of truth).
-    // The user's kind 10063 server list and manifest servers are for downloading, not uploading.
+    // Do not augment this with servers discovered from the user's kind 10063 preferences.
     const resolvedServers = manifestServers;
 
     // Validate resolved configuration
