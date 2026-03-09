@@ -6,7 +6,6 @@
 // Set environment variables to block all system access
 Deno.env.set("NSYTE_DISABLE_KEYCHAIN", "true");
 Deno.env.set("NSYTE_TEST_MODE", "true");
-Deno.env.set("DENO_TESTING", "true");
 
 console.log("🔒 Test environment: Keychain access BLOCKED");
 
