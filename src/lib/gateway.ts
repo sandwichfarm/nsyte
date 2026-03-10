@@ -38,6 +38,28 @@ import type { ByteArray } from "./types.ts";
 const log = createLogger("gateway");
 
 /**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(str: string | undefined): string {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+/**
+ * Security headers applied to all responses
+ */
+function securityHeaders(): Record<string, string> {
+  return {
+    "Content-Security-Policy":
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src * data: blob:; media-src * data: blob:; font-src * data:; connect-src 'self' wss: https:; frame-src 'none'; object-src 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  };
+}
+
+/**
  * Options for configuring the NsiteGatewayServer
  */
 export interface GatewayServerOptions {
@@ -154,7 +176,12 @@ export class NsiteGatewayServer {
     } else {
       console.log(colors.gray(`http://localhost:${port}\n`));
     }
-    console.log(colors.gray(`Press Ctrl+C to stop the server\n`));
+    console.log(
+      colors.yellow(
+        `\n⚠ Security note: All nsites share the same localhost origin. localStorage/sessionStorage data is not isolated between sites.`,
+      ),
+    );
+    console.log(colors.gray(`\nPress Ctrl+C to stop the server\n`));
 
     // Open browser automatically unless disabled
     if (!noOpen) {
@@ -174,7 +201,9 @@ export class NsiteGatewayServer {
     Deno.addSignalListener("SIGTERM", cleanup);
 
     // Start server using Deno.serve
-    this.serverController = Deno.serve({ port }, (req) => this.handleRequest(req));
+    this.serverController = Deno.serve({ port, hostname: "127.0.0.1" }, (req) =>
+      this.handleRequest(req)
+    );
     await this.serverController.finished;
   }
 
@@ -209,7 +238,7 @@ export class NsiteGatewayServer {
         console.log(colors.red(`✗ No target site configured - ${elapsed}ms`));
         return new Response("No target site configured", {
           status: 400,
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain", ...securityHeaders() },
         });
       }
       const redirectUrl = targetIdentifier
@@ -222,6 +251,7 @@ export class NsiteGatewayServer {
         headers: {
           "Location": redirectUrl,
           "Cache-Control": "no-cache",
+          ...securityHeaders(),
         },
       });
     }
@@ -236,7 +266,7 @@ export class NsiteGatewayServer {
         "Invalid request. Use npub subdomain (e.g., npub123.localhost or blog.npub123.localhost)",
         {
           status: 400,
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain", ...securityHeaders() },
         },
       );
     }
@@ -245,9 +275,9 @@ export class NsiteGatewayServer {
     if (!sitePointer) {
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.red(`✗ Invalid site pointer: ${hostname} - ${elapsed}ms`));
-      return new Response(`Invalid site pointer: ${hostname}`, {
+      return new Response(`Invalid site pointer: ${escapeHtml(hostname)}`, {
         status: 400,
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain", ...securityHeaders() },
       });
     }
 
@@ -280,7 +310,7 @@ export class NsiteGatewayServer {
         if (!path) {
           return new Response(JSON.stringify({ error: "Missing path parameter" }), {
             status: 400,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...securityHeaders() },
           });
         }
 
@@ -293,6 +323,7 @@ export class NsiteGatewayServer {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
+            ...securityHeaders(),
           },
         });
       }
@@ -434,7 +465,7 @@ export class NsiteGatewayServer {
           console.log(colors.yellow(`  → File not found (no cache) - ${elapsed}ms`));
           return new Response("File not found", {
             status: 404,
-            headers: { "Content-Type": "text/plain" },
+            headers: { "Content-Type": "text/plain", ...securityHeaders() },
           });
         }
 
@@ -573,6 +604,7 @@ export class NsiteGatewayServer {
           headers: {
             "Content-Type": "text/html",
             "Refresh": "2", // Auto-refresh every 2 seconds
+            ...securityHeaders(),
           },
         });
       }
@@ -782,7 +814,7 @@ export class NsiteGatewayServer {
         );
         return new Response("Internal server error", {
           status: 500,
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain", ...securityHeaders() },
         });
       }
 
@@ -803,6 +835,7 @@ export class NsiteGatewayServer {
           headers: {
             "Content-Type": "text/html",
             "Refresh": "2", // Auto-refresh every 2 seconds
+            ...securityHeaders(),
           },
         });
       }
@@ -821,6 +854,7 @@ export class NsiteGatewayServer {
             status: 200,
             headers: {
               "Content-Type": "text/html",
+              ...securityHeaders(),
             },
           });
         }
@@ -830,7 +864,7 @@ export class NsiteGatewayServer {
           : "root site";
         return new Response(`No files found for this ${siteLabel}`, {
           status: 404,
-          headers: { "Content-Type": "text/plain" },
+          headers: { "Content-Type": "text/plain", ...securityHeaders() },
         });
       }
 
@@ -914,7 +948,7 @@ export class NsiteGatewayServer {
           console.log(colors.gray(`  → Directory listing served - ${elapsed}ms`));
           return new Response(html, {
             status: 200,
-            headers: { "Content-Type": "text/html" },
+            headers: { "Content-Type": "text/html", ...securityHeaders() },
           });
         }
       }
@@ -1164,21 +1198,21 @@ export class NsiteGatewayServer {
 </head>
 <body>
   <h1>404 - Not Found</h1>
-  <p>The requested file <code>${requestedPath}</code> was not found.</p>
+  <p>The requested file <code>${escapeHtml(requestedPath)}</code> was not found.</p>
   <p style="font-size: 0.9em;">This nsite does not have a custom 404.html page.</p>
 </body>
 </html>`;
 
             return new Response(html404, {
               status: 404,
-              headers: { "Content-Type": "text/html" },
+              headers: { "Content-Type": "text/html", ...securityHeaders() },
             });
           }
 
           // Return plain text for non-HTML requests
-          return new Response(`File not found: ${requestedPath}`, {
+          return new Response(`File not found: ${escapeHtml(requestedPath)}`, {
             status: 404,
-            headers: { "Content-Type": "text/plain" },
+            headers: { "Content-Type": "text/plain", ...securityHeaders() },
           });
         }
       }
@@ -1192,6 +1226,13 @@ export class NsiteGatewayServer {
 
         const tryFile = fileOption.file;
         const fileSha256 = tryFile.sha256!; // We already checked this is not undefined
+
+        // Validate sha256 format to prevent path traversal via cache keys
+        if (!/^[a-f0-9]{64}$/.test(fileSha256)) {
+          log.warn(`Invalid sha256 in manifest: ${fileSha256}`);
+          continue;
+        }
+
         // Use different cache keys for compressed vs decompressed content
         const rawCacheKey = `${siteAddress}-${fileSha256}-raw`;
         const decompressedCacheKey = `${siteAddress}-${fileSha256}-decompressed`;
@@ -1274,6 +1315,17 @@ export class NsiteGatewayServer {
               const downloadService = DownloadService.create();
               const downloadedData = await downloadService.downloadFromServer(server, fileSha256);
               if (downloadedData) {
+                // Verify SHA-256 integrity before caching
+                const hashBuffer = await crypto.subtle.digest("SHA-256", downloadedData);
+                const actualHash = [...new Uint8Array(hashBuffer)]
+                  .map((b) => b.toString(16).padStart(2, "0")).join("");
+                if (actualHash !== fileSha256) {
+                  log.warn(
+                    `Hash mismatch from ${server}: expected ${fileSha256}, got ${actualHash}`,
+                  );
+                  continue; // try next server
+                }
+
                 currentFileData = downloadedData;
 
                 // Save raw file to memory cache (no expiration - only invalidated by new events)
@@ -1427,13 +1479,10 @@ export class NsiteGatewayServer {
         const userServers = serverList.length > 0 ? serverList : this.options.servers;
         console.log(colors.red(`  → Failed to download any version of the file - ${elapsed}ms`));
         log.debug(`No servers had the requested file. Servers tried: ${userServers.join(", ")}`);
-        return new Response(
-          `Failed to download file from any server. Tried servers: ${userServers.join(", ")}`,
-          {
-            status: 500,
-            headers: { "Content-Type": "text/plain" },
-          },
-        );
+        return new Response("Failed to download file from any server", {
+          status: 500,
+          headers: { "Content-Type": "text/plain", ...securityHeaders() },
+        });
       }
 
       // Update variables for serving
@@ -1459,6 +1508,7 @@ export class NsiteGatewayServer {
             headers: {
               "ETag": etag,
               "Cache-Control": "public, max-age=3600",
+              ...securityHeaders(),
             },
           });
         }
@@ -1507,6 +1557,7 @@ export class NsiteGatewayServer {
         "Content-Type": contentType,
         "Content-Length": fileData.byteLength.toString(),
         "Cache-Control": "public, max-age=3600", // Browser can cache for 1 hour
+        ...securityHeaders(),
       };
 
       // Add ETag header for efficient caching (based on sha256 hash)
@@ -1533,8 +1584,8 @@ export class NsiteGatewayServer {
         const updateScript = `
 <script>
 (function() {
-  const currentPath = '${requestedPath}';
-  const npub = '${npubEncode(sitePointer.pubkey)}';
+  const currentPath = ${JSON.stringify(requestedPath)};
+  const npub = ${JSON.stringify(npubEncode(sitePointer.pubkey))};
   const startTime = Date.now();
 
   function checkForUpdates() {
@@ -1578,9 +1629,9 @@ export class NsiteGatewayServer {
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.red(`  → Error: ${errorMessage} - ${elapsed}ms`));
 
-      return new Response(`Error: ${errorMessage}`, {
+      return new Response("Internal server error", {
         status: 500,
-        headers: { "Content-Type": "text/plain" },
+        headers: { "Content-Type": "text/plain", ...securityHeaders() },
       });
     }
   }
@@ -1602,7 +1653,7 @@ export class NsiteGatewayServer {
     return `<!DOCTYPE html>
 <html>
 <head>
-  <title>Loading ${displayName}'s nsite...</title>
+  <title>Loading ${escapeHtml(displayName)}'s nsite...</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1668,11 +1719,11 @@ export class NsiteGatewayServer {
   <div class="container">
     ${
       picture
-        ? `<div class="profile-pic"><img src="${picture}" alt="${displayName}" onerror="this.style.display='none'"></div>`
+        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${escapeHtml(displayName)}" onerror="this.style.display='none'"></div>`
         : ""
     }
-    <h1>Loading ${displayName}'s ${siteName}</h1>
-    <div class="npub">${pubkey}${identifier ? ` (${identifier})` : ""}</div>
+    <h1>Loading ${escapeHtml(displayName)}'s ${siteName}</h1>
+    <div class="npub">${escapeHtml(pubkey)}${identifier ? ` (${escapeHtml(identifier)})` : ""}</div>
     <div class="loader"></div>
     <div class="status">
       Connecting to nostr relays...<br>
@@ -1698,7 +1749,7 @@ export class NsiteGatewayServer {
     return `<!DOCTYPE html>
 <html>
 <head>
-  <title>${displayName}'s nsite - No Content</title>
+  <title>${escapeHtml(displayName)}'s nsite - No Content</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -1758,12 +1809,12 @@ export class NsiteGatewayServer {
   <div class="container">
     ${
       picture
-        ? `<div class="profile-pic"><img src="${picture}" alt="${name}" onerror="this.style.display='none'"></div>`
+        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${escapeHtml(displayName)}" onerror="this.style.display='none'"></div>`
         : ""
     }
     <div class="icon">📭</div>
-    <h1>${name}'s ${siteName}</h1>
-    <div class="npub">${pubkey}${identifier ? ` (${identifier})` : ""}</div>
+    <h1>${escapeHtml(displayName)}'s ${siteName}</h1>
+    <div class="npub">${escapeHtml(pubkey)}${identifier ? ` (${escapeHtml(identifier)})` : ""}</div>
     <div class="message">
       This nsite exists but currently has no content.<br>
       Files may be added in the future.
@@ -1783,10 +1834,12 @@ export class NsiteGatewayServer {
   ): string {
     const fileList = files.map((file) => {
       const size = file.size ? this.formatFileSize(file.size) : "unknown";
-      return `<li><a href="/${file.path}">${file.path}</a> (${size})</li>`;
+      return `<li><a href="/${encodeURI(file.path)}">${escapeHtml(file.path)}</a> (${size})</li>`;
     }).join("\n");
 
-    const siteTitle = identifier ? `nsite: ${npub} (${identifier})` : `nsite: ${npub}`;
+    const siteTitle = identifier
+      ? `nsite: ${escapeHtml(npub)} (${escapeHtml(identifier)})`
+      : `nsite: ${escapeHtml(npub)}`;
 
     return `<!DOCTYPE html>
 <html>

@@ -45,7 +45,6 @@ export function registerServeCommand() {
         return await serveDir(request, {
           fsRoot: absoluteDir,
           showDirListing: true,
-          enableCors: true,
         });
       };
 
