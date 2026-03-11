@@ -8,6 +8,6 @@
     "wss://relay.damus.io"
   ],
   "servers": [
-	"https://blssm.us"
+  	"https://blssm.us"
   ]
 }

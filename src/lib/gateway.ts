@@ -361,6 +361,7 @@ export class NsiteGatewayServer {
           manifestServers = getManifestServers(manifestEvent).map((url) => url.toString());
 
           if (manifestServers.length > 0) {
+            serverList = manifestServers;
             log.debug(
               `Found ${manifestServers.length} servers from manifest event ${manifestId}...`,
             );

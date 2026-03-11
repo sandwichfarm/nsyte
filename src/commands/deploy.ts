@@ -2,7 +2,6 @@ import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import nsyte from "./root.ts";
 import { join } from "@std/path";
-import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
@@ -27,7 +26,6 @@ import {
   type EventPublishResult,
   fetchUserRelayList,
   type FileEntry,
-  getUserBlossomServers,
   getUserDisplayName,
   getUserOutboxes,
   listRemoteFiles,
@@ -294,13 +292,11 @@ export async function deployCommand(
     const userPreferences = await loadAsyncMap({
       displayName: getUserDisplayName(publisherPubkey),
       outboxes: getUserOutboxes(publisherPubkey),
-      servers: getUserBlossomServers(publisherPubkey),
     }, 5000);
     const resolvedRelays = relaySet(userPreferences.outboxes, manifestRelays);
-    const resolvedServers = mergeBlossomServers(
-      userPreferences.servers,
-      manifestServers,
-    );
+    // For uploads, use only the servers from CLI --servers or config (source of truth).
+    // Do not augment this with servers discovered from the user's kind 10063 preferences.
+    const resolvedServers = manifestServers;
 
     // Validate resolved configuration
     if (resolvedServers.length === 0 && manifestServers.length === 0) {

@@ -1,3 +1,4 @@
+import { encodeHex } from "@std/encoding/hex";
 import { ensureDir } from "@std/fs/ensure-dir";
 import { dirname, join } from "@std/path";
 import { ProgressRenderer } from "../ui/progress.ts";
@@ -221,7 +222,19 @@ export class DownloadService {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      return new Uint8Array(arrayBuffer);
+      const data = new Uint8Array(arrayBuffer);
+
+      // Verify sha256 hash to ensure the server returned the correct content
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const actualHash = encodeHex(new Uint8Array(hashBuffer));
+      if (actualHash !== sha256) {
+        log.debug(
+          `Hash mismatch from ${server}: expected ${sha256.slice(0, 16)}..., got ${actualHash.slice(0, 16)}...`,
+        );
+        return null;
+      }
+
+      return data;
     } catch (error) {
       log.debug(`Error downloading from ${server}: ${error}`);
       throw error;
