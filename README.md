@@ -1,4 +1,4 @@
-> nsites are presently in transition. While **nsyte is caught up to the most recent version** of the [proposed NIP](https://github.com/hzrd149/nips/blob/nsite/nsite.md) no gateways support the updated NIP yet. Therefor, nsites deployed with nsyte will not resolve on most (if any) gateways until they have caught up. 
+> nsites are presently in transition. While **nsyte is caught up to the most recent version** of the [proposed NIP](https://github.com/hzrd149/nips/blob/nsite/nsite.md) no gateways support the updated NIP yet. Therefor, nsites deployed with nsyte will not resolve on gateways until they have caught up.  
 
 > ⚠️ nsyte is alpha. there may be things broken. docs may be incorrect. things will change. use at
 > your own risk.
