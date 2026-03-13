@@ -231,6 +231,7 @@ async function uploadToServer(
   server: string,
   file: FileEntry,
   authHeader: string,
+  force = false,
 ): Promise<{ success: boolean; alreadyExists: boolean; error?: string; httpStatus?: number }> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
@@ -242,16 +243,20 @@ async function uploadToServer(
     const contentType = file.contentType || "application/octet-stream";
     const serverUrl = server.endsWith("/") ? server : `${server}/`;
 
-    try {
-      const preflightLabel = `HEAD preflight ${file.path} on ${server}`;
-      log.debug(`Checking if ${file.path} (${blobSha256}) already exists on ${server}`);
-      const exists = await headWithRetry(`${serverUrl}${blobSha256}`, preflightLabel);
-      if (exists) {
-        log.debug(`File ${file.path} (${blobSha256}) already exists on ${server}`);
-        return { success: true, alreadyExists: true };
+    if (!force) {
+      try {
+        const preflightLabel = `HEAD preflight ${file.path} on ${server}`;
+        log.debug(`Checking if ${file.path} (${blobSha256}) already exists on ${server}`);
+        const exists = await headWithRetry(`${serverUrl}${blobSha256}`, preflightLabel);
+        if (exists) {
+          log.debug(`File ${file.path} (${blobSha256}) already exists on ${server}`);
+          return { success: true, alreadyExists: true };
+        }
+      } catch (e) {
+        log.debug(`Error checking if file exists on ${server}: ${e}`);
       }
-    } catch (e) {
-      log.debug(`Error checking if file exists on ${server}: ${e}`);
+    } else {
+      log.debug(`Force mode: skipping HEAD preflight for ${file.path} on ${server}`);
     }
 
     const fileObj = new File([file.data], fileName, {
@@ -382,6 +387,7 @@ export async function processUploads(
   relays: string[],
   concurrency = DEFAULT_CONCURRENCY,
   progressCallback?: (progress: UploadProgress) => void,
+  force = false,
 ): Promise<UploadResponse[]> {
   if (!relays || relays.length === 0) {
     throw new Error(
@@ -468,6 +474,7 @@ export async function processUploads(
           file,
           servers,
           authTokenMap,
+          force,
           (server: string, event: string) => {
             const sp = serverProgress[server];
             switch (event) {
@@ -555,6 +562,7 @@ async function uploadFile(
   file: FileEntry,
   servers: string[],
   authTokenMap: Map<string, string>,
+  force = false,
   onServerEvent?: (server: string, event: ServerEventType) => void,
 ): Promise<UploadResponse> {
   const serverResults: {
@@ -591,7 +599,7 @@ async function uploadFile(
       // Initial attempt
       let shouldRetry = true;
       try {
-        const outcome = await uploadToServer(server, file, authHeader);
+        const outcome = await uploadToServer(server, file, authHeader, force);
         const success = outcome.success || outcome.alreadyExists;
         serverResults[server] = {
           success,
@@ -624,7 +632,7 @@ async function uploadFile(
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
           log.debug(`Retrying ${file.path} on ${server} (attempt ${attempt}/${MAX_RETRIES})`);
           try {
-            const outcome = await uploadToServer(server, file, authHeader);
+            const outcome = await uploadToServer(server, file, authHeader, force);
             const success = outcome.success || outcome.alreadyExists;
             serverResults[server] = {
               success,

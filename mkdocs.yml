@@ -67,7 +67,9 @@ nav:
       - run: usage/commands/run.md
       - validate: usage/commands/validate.md
       - debug: usage/commands/debug.md
-      - purge: usage/commands/purge.md
+      - deploy: usage/commands/deploy.md
+      - delete: usage/commands/delete.md
+      - undeploy: usage/commands/undeploy.md
       - ci: usage/commands/ci.md
       - bunker: usage/commands/bunker.md
   - Guides:

@@ -91,7 +91,8 @@ deno task compile:all
 | `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default) |
 | `nsyte debug <npub>`    | Debug an nsite by checking relays and servers                   |
 | `nsyte validate`        | Validate configuration file                                     |
-| `nsyte purge`           | Remove published files                                          |
+| `nsyte delete`          | Selectively remove published files                              |
+| `nsyte undeploy`        | Completely remove a deployed site                               |
 | `nsyte ci`              | Generate CI/CD credentials (nbunksec)                           |
 | `nsyte bunker <action>` | Manage NIP-46 bunkers                                           |
 
@@ -104,6 +105,9 @@ nsyte deploy ./dist
 # With options
 nsyte deploy ./dist --force --concurrency 8 --verbose
 
+# Sync missing blobs across all servers
+nsyte deploy ./dist --sync
+
 # With metadata publishing
 nsyte deploy ./dist --publish-profile --publish-relay-list --publish-server-list
 
@@ -111,53 +115,35 @@ nsyte deploy ./dist --publish-profile --publish-relay-list --publish-server-list
 nsyte deploy ./dist --app-handler --handler-kinds "1,30023"
 ```
 
-### Purging Files
+### Deleting Files
 
-The `purge` command removes published files from relays and optionally from Blossom servers:
+The `delete` command removes published files from relays and optionally from Blossom servers:
 
 ```bash
-# Interactive purge (prompts for what to purge)
-nsyte purge
+# Delete root site (interactive confirmation)
+nsyte delete
 
-# Purge all published files
-nsyte purge --all
+# Delete a named site
+nsyte delete -d blog
 
-# Purge specific files using glob patterns
-nsyte purge --paths "*.html" --paths "/static/*"
+# Delete site and its blobs from Blossom servers
+nsyte delete --include-blobs
 
-# Purge all files and their blobs from Blossom servers
-nsyte purge --all --include-blobs
-
-# Non-interactive purge (skip confirmation)
-nsyte purge --all --yes
+# Non-interactive delete (skip confirmation)
+nsyte delete --yes
 ```
 
-#### Purge Options
+> **Note**: `purge` still works as an alias but is deprecated. Please use `delete` instead.
 
-- `--all`: Remove all published files for your pubkey
-- `--paths <pattern>`: Remove files matching glob patterns (supports wildcards `*` and `?`)
+#### Delete Options
+
 - `--include-blobs`: Also delete blobs from Blossom servers
+- `--name <name>`: Site identifier for named sites
 - `--yes`: Skip confirmation prompts
 - `--relays <relays>`: Override relays to use (comma-separated)
 - `--servers <servers>`: Override Blossom servers to use (comma-separated)
 
-#### Pattern Examples
-
-```bash
-# Remove all HTML files
-nsyte purge --paths "*.html"
-
-# Remove all files in a directory
-nsyte purge --paths "/static/*"
-
-# Remove all CSS files recursively
-nsyte purge --paths "**/*.css"
-
-# Remove specific files
-nsyte purge --paths "/index.html" --paths "/about.html"
-```
-
-**Note**: The purge command creates NIP-09 delete events. Some relays may not honor delete requests,
+**Note**: The delete command creates NIP-09 delete events. Some relays may not honor delete requests,
 and it may take time for deletions to propagate.
 
 ### Debugging nsites
@@ -491,8 +477,8 @@ nsyte bunker migrate
 ### Upload Command Options
 
 ```
---force            Force re-upload of all files
---purge            Delete files that no longer exist locally
+--force            Force re-upload all files, bypassing server preflight checks
+--sync             Check all servers and upload missing blobs
 --verbose          Show detailed progress
 --concurrency <n>  Number of parallel uploads (default: 4)
 --fallback <file>  HTML file to use as 404.html

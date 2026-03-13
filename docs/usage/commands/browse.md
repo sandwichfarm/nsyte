@@ -172,5 +172,5 @@ The browser shows which relays and blossom servers have each file:
 
 - [`nsyte ls`](ls.md) - List files in a simple text format
 - [`nsyte deploy`](deploy.md) - Deploy files to the network
-- [`nsyte purge`](purge.md) - Remove files using command-line options
+- [`nsyte delete`](delete.md) - Remove files using command-line options
 - [`nsyte download`](download.md) - Download files from the network

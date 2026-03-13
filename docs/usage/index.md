@@ -40,8 +40,8 @@ nsyte deploy ./dist --force --concurrency 8 --verbose
 
 Common options:
 
-- `--force`: Re-upload all files, even if they haven't changed
-- `--purge`: Delete files that no longer exist locally
+- `--force`: Re-upload all files, bypassing server preflight checks
+- `--sync`: Check all servers and upload missing blobs
 - `--verbose`: Show detailed progress
 - `--concurrency`: Number of parallel uploads (default: 4)
 - `--fallback`: HTML file to use as 404.html (for SPAs)
@@ -77,22 +77,19 @@ This is useful for:
 - Migrating to a different setup
 - Verifying published content
 
-### Purging Files
+### Deleting Files
 
 To remove published files from relays and optionally from Blossom servers:
 
 ```bash
-# Interactive purge (prompts for what to purge)
-nsyte purge
+# Delete root site (interactive confirmation)
+nsyte delete
 
-# Purge all published files
-nsyte purge --all
+# Delete a named site
+nsyte delete -d blog
 
-# Purge specific files using patterns
-nsyte purge --paths "*.html" --paths "/static/*"
-
-# Purge files and their blobs from Blossom servers
-nsyte purge --all --include-blobs
+# Delete site and its blobs from Blossom servers
+nsyte delete --include-blobs
 ```
 
 This is useful for:

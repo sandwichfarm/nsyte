@@ -23,7 +23,8 @@ in detail on its own page.
 - [`nsyte ls`](commands/ls.md) — List published files
 - [`nsyte browse`](commands/browse.md) — Interactive TUI browser for managing files
 - [`nsyte download`](commands/download.md) — Download published files
-- [`nsyte purge`](commands/purge.md) — Remove published files
+- [`nsyte delete`](commands/delete.md) — Selectively remove published files
+- [`nsyte undeploy`](commands/undeploy.md) — Completely remove a deployed site
 
 ### Development
 
@@ -40,6 +41,7 @@ in detail on its own page.
 ### Legacy
 
 - [`nsyte upload`](commands/upload.md) — **DEPRECATED**: Use `deploy` instead
+- [`nsyte purge`](commands/delete.md) — **DEPRECATED**: Use `delete` instead
 
 ## Global Options
 
@@ -124,7 +126,7 @@ nsyte browse
 nsyte ls
 
 # Remove specific files
-nsyte purge --paths "*.old" --include-blobs
+nsyte delete --include-blobs
 ```
 
 ### CI/CD Integration
