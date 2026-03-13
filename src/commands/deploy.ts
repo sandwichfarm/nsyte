@@ -409,8 +409,12 @@ function formatServerSummary(
   }
 
   const lines: string[] = [];
+  const tableRows: [string, string, string][] = [];
+  const errorLines: Map<number, string[]> = new Map();
 
-  for (const [server, stats] of Object.entries(serverStats)) {
+  const entries = Object.entries(serverStats);
+  for (let idx = 0; idx < entries.length; idx++) {
+    const [server, stats] = entries[idx];
     const ratio = formatSuccessRatio(stats.success, stats.total);
     const status = stats.success === stats.total
       ? colors.green("✓")
@@ -429,23 +433,35 @@ function formatServerSummary(
     }
     const detailStr = details.length > 0 ? " " + details.join(", ") : "";
 
-    const row = formatTable([[status, server, ratio + detailStr]]);
-    lines.push(row);
+    tableRows.push([status, server, ratio + detailStr]);
 
-    // Show error breakdown only when there are multiple distinct error types
+    // Collect error breakdown lines per row
+    const rowErrors: string[] = [];
     if (stats.errors.size > 1) {
       const sortedErrors = [...stats.errors.entries()].sort((a, b) => b[1] - a[1]);
       for (const [errMsg, count] of sortedErrors) {
         const truncated = errMsg.length > 60 ? errMsg.substring(0, 57) + "..." : errMsg;
-        lines.push(`     ${colors.yellow(`${count}×`)} ${colors.gray(truncated)}`);
+        rowErrors.push(`     ${colors.yellow(`${count}×`)} ${colors.gray(truncated)}`);
       }
     } else if (stats.errors.size === 1) {
-      // Single error type — show inline only if it's not a generic message
       const [[errMsg]] = stats.errors;
       if (errMsg !== "unknown error") {
         const truncated = errMsg.length > 50 ? errMsg.substring(0, 47) + "..." : errMsg;
-        lines.push(`     ${colors.gray(truncated)}`);
+        rowErrors.push(`     ${colors.gray(truncated)}`);
       }
+    }
+    if (rowErrors.length > 0) {
+      errorLines.set(idx, rowErrors);
+    }
+  }
+
+  // Format all rows together so column widths align
+  const formattedRows = formatTable(tableRows).split("\n");
+  for (let idx = 0; idx < formattedRows.length; idx++) {
+    lines.push(formattedRows[idx]);
+    const errs = errorLines.get(idx);
+    if (errs) {
+      lines.push(...errs);
     }
   }
 
@@ -1763,7 +1779,8 @@ async function uploadFiles(
       }
 
       // Build server color map and legend (like browse command)
-      const sortedServers = [...resolvedServers].sort();
+      // Use resolvedServers order (not sorted) to match progress bar symbol/color assignment
+      const sortedServers = [...resolvedServers];
       const serverColorMap = new Map<string, (str: string) => string>();
       const legendItems: string[] = [];
       sortedServers.forEach((server, i) => {

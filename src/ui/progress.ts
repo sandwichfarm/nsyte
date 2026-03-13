@@ -108,7 +108,9 @@ export class ProgressRenderer {
     this.lastUpdate = this.startTime;
     this.isFirstRender = true;
     this.lastLineCount = 0;
-    this.startKeyListener();
+    if (this.servers.length > 0) {
+      this.startKeyListener();
+    }
   }
 
   private startKeyListener(): void {

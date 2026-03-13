@@ -231,7 +231,7 @@ async function uploadToServer(
   server: string,
   file: FileEntry,
   authHeader: string,
-): Promise<{ success: boolean; alreadyExists: boolean; error?: string }> {
+): Promise<{ success: boolean; alreadyExists: boolean; error?: string; httpStatus?: number }> {
   if (!file.data || !file.sha256) {
     throw new Error("File data or SHA-256 hash missing");
   }
@@ -324,7 +324,7 @@ async function uploadToServer(
       const errorText = await response.text().catch(() => "");
       const httpError = `HTTP ${response.status}${errorText ? `: ${errorText}` : ""}`;
       log.debug(`PUT to /upload with auth header failed: ${httpError}`);
-      return { success: false, alreadyExists: false, error: httpError };
+      return { success: false, alreadyExists: false, error: httpError, httpStatus: response.status };
     } catch (e) {
       log.debug(`PUT to /upload with auth header failed: ${e}`);
       return { success: false, alreadyExists: false, error: String(e) };
@@ -589,6 +589,7 @@ async function uploadFile(
   await Promise.all(
     servers.map(async (server) => {
       // Initial attempt
+      let shouldRetry = true;
       try {
         const outcome = await uploadToServer(server, file, authHeader);
         const success = outcome.success || outcome.alreadyExists;
@@ -602,9 +603,18 @@ async function uploadFile(
           onServerEvent?.(server, outcome.alreadyExists ? "skipped" : "completed");
           return;
         }
+        // Don't retry non-retryable HTTP statuses (e.g. 400, 401, 403)
+        if (outcome.httpStatus && !shouldRetryStatus(outcome.httpStatus)) {
+          shouldRetry = false;
+        }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         serverResults[server] = { success: false, error: errorMessage, retries: 0 };
+      }
+
+      if (!shouldRetry) {
+        onServerEvent?.(server, "failed");
+        return;
       }
 
       // Retries for this server (runs concurrently with other servers' retries)
@@ -623,15 +633,19 @@ async function uploadFile(
               retries: attempt,
             };
             if (success) {
-              onServerEvent?.(server, "completed");
+              onServerEvent?.(server, outcome.alreadyExists ? "skipped" : "completed");
               return;
+            }
+            // Stop retrying on non-retryable HTTP statuses
+            if (outcome.httpStatus && !shouldRetryStatus(outcome.httpStatus)) {
+              break;
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             serverResults[server] = { success: false, error: errorMessage, retries: attempt };
           }
         }
-        // All retries exhausted
+        // All retries exhausted or non-retryable
         onServerEvent?.(server, "failed");
       } finally {
         onServerEvent?.(server, "retry-end");
