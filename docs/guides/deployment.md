@@ -78,14 +78,18 @@ nsyte deploy ./dist
 
 ### Force Re-deploy
 
+Bypass server preflight checks and re-upload all files:
+
 ```bash
 nsyte deploy ./dist --force
 ```
 
-### Purge Deleted Files
+### Sync Missing Files
+
+Check all servers and upload any missing blobs:
 
 ```bash
-nsyte deploy ./dist --purge
+nsyte deploy ./dist --sync
 ```
 
 ### Set Concurrency

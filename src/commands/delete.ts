@@ -14,7 +14,7 @@ import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
 import nsyte from "./root.ts";
 
-const log = createLogger("purge");
+const log = createLogger("delete");
 
 import type { ISigner } from "applesauce-signers";
 import { handleError } from "../lib/error-utils.ts";
@@ -79,13 +79,14 @@ async function buildDeleteAuthMap(
 }
 
 /**
- * Register the purge command
+ * Register the delete command
  */
-export function registerPurgeCommand() {
+export function registerDeleteCommand() {
   return nsyte
-    .command("purge")
+    .command("delete")
+    .alias("purge")
     .alias("prg")
-    .description("Remove nsite events from relays and optionally blobs from servers")
+    .description("Selectively delete nsite events from relays and optionally blobs from servers")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated)")
     .option(
       "-s, --servers <servers:string>",
@@ -102,8 +103,16 @@ export function registerPurgeCommand() {
     )
     .option("-y, --yes", "Skip confirmation prompts", { default: false })
     .action(async (options) => {
-      log.debug(`Starting purgeCommand with options: ${JSON.stringify(options)}`);
-      console.log(colors.bold.magenta("\nnsyte purge\n"));
+      // Show deprecation notice if using purge alias
+      const cmdName = Deno.args[0];
+      if (cmdName === "purge") {
+        console.log(
+          colors.yellow("⚠️  The 'purge' command is deprecated. Please use 'delete' instead.\n"),
+        );
+      }
+
+      log.debug(`Starting deleteCommand with options: ${JSON.stringify(options)}`);
+      console.log(colors.bold.magenta("\nnsyte delete\n"));
 
       // Get config
       log.debug("Reading project file...");
@@ -190,7 +199,7 @@ export function registerPurgeCommand() {
           });
 
           if (!confirm) {
-            console.log(colors.yellow("Purge cancelled."));
+            console.log(colors.yellow("Delete cancelled."));
             return Deno.exit(0);
           }
         }
@@ -205,7 +214,7 @@ export function registerPurgeCommand() {
         if (success) {
           console.log(
             colors.green(
-              `\n✓ Successfully purged named site "${options.name}" from relays`,
+              `\n✓ Successfully deleted named site "${options.name}" from relays`,
             ),
           );
           console.log(
@@ -387,7 +396,7 @@ export function registerPurgeCommand() {
         });
 
         if (!confirm) {
-          console.log(colors.yellow("Purge cancelled."));
+          console.log(colors.yellow("Delete cancelled."));
           return Deno.exit(0);
         }
       }
@@ -401,7 +410,7 @@ export function registerPurgeCommand() {
 
       if (success) {
         console.log(
-          colors.green("\n✓ Successfully purged root site from relays"),
+          colors.green("\n✓ Successfully deleted root site from relays"),
         );
         console.log(
           colors.dim(
@@ -495,7 +504,7 @@ export function registerPurgeCommand() {
 
       Deno.exit(success ? 0 : 1);
     }).error((error) => {
-      handleError("Error purging", error, {
+      handleError("Error deleting", error, {
         showConsole: true,
         exit: true,
         exitCode: 1,

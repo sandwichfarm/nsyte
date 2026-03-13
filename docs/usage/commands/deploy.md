@@ -17,11 +17,11 @@ nsyte deploy <folder> [options]
 
 ## Options
 
-- `-f, --force` — Force publishing even if no changes were detected (default: false)
+- `-f, --force` — Force re-upload all files, bypassing server preflight checks (default: false)
 - `-s, --servers <servers>` — The blossom servers to use (comma-separated)
 - `-r, --relays <relays>` — The nostr relays to use (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
-- `-p, --purge` — Delete online file events that are not used anymore (default: false)
+- `--sync` — Check all servers and upload missing blobs (default: false)
 - `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
 - `--use-fallback-servers` — Include default blossom servers in addition to configured servers
 - `--use-fallbacks` — Enable both fallback relays and servers
@@ -49,10 +49,16 @@ Deploy with custom relays and servers:
 nsyte deploy dist --relays wss://relay.example --servers https://server.example
 ```
 
-Deploy with force and purge options:
+Deploy with force (bypass server preflight checks):
 
 ```bash
-nsyte deploy dist --force --purge
+nsyte deploy dist --force
+```
+
+Sync missing blobs across all servers:
+
+```bash
+nsyte deploy dist --sync
 ```
 
 Deploy with metadata events:
@@ -165,5 +171,6 @@ nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
 - [`nsyte init`](init.md) - Initialize a new nsyte project
 - [`nsyte ls`](ls.md) - List deployed files
 - [`nsyte browse`](browse.md) - Interactive file browser
-- [`nsyte purge`](purge.md) - Remove deployed files
+- [`nsyte delete`](delete.md) - Selectively remove deployed files
+- [`nsyte undeploy`](undeploy.md) - Completely remove a deployed site
 - [`nsyte serve`](serve.md) - Serve files locally for testing

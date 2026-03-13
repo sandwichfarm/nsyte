@@ -1,17 +1,19 @@
 ---
-title: purge
-description: Remove published files from relays and optionally from blossom servers
+title: delete
+description: Selectively remove published files from relays and optionally from blossom servers
 ---
 
-# `nsyte purge`
+# `nsyte delete`
 
-Remove published files from nostr relays and optionally delete blobs from blossom servers. This
+Selectively delete nsite events from relays and optionally delete blobs from blossom servers. This
 command creates NIP-09 delete events to remove your published nsite files.
+
+> **Note**: The `purge` command still works as an alias but is deprecated. Please use `delete` instead.
 
 ## Usage
 
 ```bash
-nsyte purge [options]
+nsyte delete [options]
 ```
 
 ## Options
@@ -25,45 +27,45 @@ nsyte purge [options]
 
 ## Examples
 
-Purge root site with confirmation:
+Delete root site with confirmation:
 
 ```bash
-nsyte purge
+nsyte delete
 ```
 
-Purge named site:
+Delete a named site:
 
 ```bash
-nsyte purge -d blog
+nsyte delete -d blog
 ```
 
-Purge site and delete blobs from blossom servers:
+Delete site and its blobs from blossom servers:
 
 ```bash
-nsyte purge --include-blobs
+nsyte delete --include-blobs
 ```
 
-Purge without confirmation (for CI/CD):
+Delete without confirmation (for CI/CD):
 
 ```bash
-nsyte purge -y
+nsyte delete -y
 ```
 
-Purge with custom relays and servers:
+Delete with custom relays and servers:
 
 ```bash
-nsyte purge -r wss://relay1.com,wss://relay2.com -s https://server1.com
+nsyte delete -r wss://relay1.com,wss://relay2.com -s https://server1.com
 ```
 
-Purge named site including blobs:
+Delete named site including blobs:
 
 ```bash
-nsyte purge -d blog --include-blobs -y
+nsyte delete -d blog --include-blobs -y
 ```
 
 ## How it Works
 
-1. **Identifies site**: Determines which site to purge (root or named)
+1. **Identifies site**: Determines which site to delete (root or named)
 2. **Fetches manifest**: Retrieves current site manifest from relays
 3. **Confirmation**: Shows preview of files to be deleted (first 5 + count)
 4. **Creates delete event**: Publishes NIP-09 Kind 5 delete event for the site manifest
@@ -73,33 +75,14 @@ nsyte purge -d blog --include-blobs -y
 
 When using `--include-blobs`, nsyte attempts to delete the actual blob files from blossom servers:
 
-- **Batch deletion first**: Tries batch deletion with BUD-04 auth
-- **Individual fallback**: If batch fails, attempts individual file deletion with auth
+- **Batch deletion**: Signs batch delete auth tokens (up to 20 hashes per token)
 - **Best effort**: Some servers may not support deletion or may reject the request
 
 Note: Delete events only remove references from relays. Use `--include-blobs` to also remove the actual files from storage servers.
 
-### Path Matching Rules
-
-- Paths are matched against the file paths as stored in your nsite events
-- Patterns are case-sensitive
-- Leading slashes are optional but recommended for clarity
-- Use quotes around patterns to prevent shell expansion
-
-## How It Works
-
-The purge command:
-
-1. **Fetches Events**: Retrieves your published site manifest events (kinds 15128, 35128) from
-   relays
-2. **Filters Files**: Applies pattern matching to select files for deletion
-3. **Confirms Action**: Shows what will be deleted and asks for confirmation (unless `--yes`)
-4. **Creates Delete Events**: Publishes NIP-09 delete events to relays
-5. **Deletes Blobs**: Optionally deletes actual files from blossom servers (if `--include-blobs`)
-
 ## NIP-09 Delete Events
 
-The purge command creates [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete
+The delete command creates [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete
 events:
 
 - Each delete event references the original nsite event
@@ -107,19 +90,9 @@ events:
 - Some relays might keep deleted events for historical purposes
 - Deletion is not guaranteed and may take time to propagate
 
-## Blob Deletion
-
-When using `--include-blobs`:
-
-- Makes DELETE requests to blossom servers
-- Only deletes blobs you own (authenticated by your key)
-- Blossom servers may have different deletion policies
-- Some servers might not support deletion
-- Files might be cached or replicated elsewhere
-
 ## Authentication
 
-The purge command requires authentication to:
+The delete command requires authentication to:
 
 - Sign delete events
 - Authenticate blob deletion requests
@@ -136,27 +109,21 @@ Authentication options (in order of precedence):
 
 By default, the command shows:
 
-- List of files to be deleted
-- Number of files affected
-- Whether blobs will be deleted
+- List of files to be deleted (first 5 + count)
 - Confirmation prompt before proceeding
 
-### Dry Run Information
+### Preview
 
 The command shows what would be deleted before actually doing it:
 
 ```
-Found 15 files matching your criteria:
-  /index.html
-  /about.html
-  /assets/style.css
-  ...
+This will delete root site (15 files):
+  - /index.html
+  - /about.html
+  - /assets/style.css
+  ...and 12 more files
 
-This will:
-✓ Create delete events on 3 relays
-✓ Delete 15 blobs from 2 blossom servers
-
-Are you sure? (y/N)
+Are you sure you want to delete the root site? This cannot be undone. (y/N)
 ```
 
 ## Error Handling
@@ -175,7 +142,6 @@ Are you sure? (y/N)
 
 ### Network Issues
 
-- Retries failed operations
 - Shows progress and error details
 - Graceful handling of timeouts
 
@@ -190,8 +156,8 @@ Are you sure? (y/N)
 ### No Undo
 
 - Once delete events are published, they cannot be undone
-- You would need to re-upload files to restore them
-- Always double-check your patterns before confirming
+- You would need to re-deploy files to restore them
+- Always double-check before confirming
 
 ### Server Dependencies
 
@@ -201,45 +167,22 @@ Are you sure? (y/N)
 
 ## Best Practices
 
-### Test Patterns First
-
-Use a specific pattern to test before purging everything:
-
-```bash
-# Test with a small subset first
-nsyte purge --paths "test.html"
-
-# Then purge everything if the pattern works
-nsyte purge --all
-```
-
-### Backup Before Purging
+### Backup Before Deleting
 
 Keep local copies of important files:
 
 ```bash
-# Download files before purging
+# Download files before deleting
 nsyte download ./backup
 
-# Then purge
-nsyte purge --all
-```
-
-### Use Specific Patterns
-
-Be as specific as possible with patterns:
-
-```bash
-# Good: specific directory
-nsyte purge --paths "/old-version/*"
-
-# Risky: too broad
-nsyte purge --paths "*"
+# Then delete
+nsyte delete
 ```
 
 ## Related Commands
 
-- [`nsyte upload`](upload.md) - Upload files to create nsites
-- [`nsyte ls`](ls.md) - List published files before purging
+- [`nsyte deploy`](deploy.md) - Deploy files to create nsites
+- [`nsyte undeploy`](undeploy.md) - Completely remove a deployed site
+- [`nsyte ls`](ls.md) - List published files before deleting
 - [`nsyte download`](download.md) - Download files for backup
 - [`nsyte debug`](debug.md) - Debug connectivity issues
