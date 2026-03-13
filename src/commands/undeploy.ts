@@ -229,11 +229,13 @@ export function registerUndeployCommand() {
         for (const server of servers) {
           console.log(colors.cyan(`\nDeleting from ${server}...`));
 
+          const normalizedServer = server.endsWith("/") ? server : server + "/";
+
           for (const hash of blobHashes) {
             try {
               const authHeader = deleteAuthMap.get(hash)!;
 
-              const response = await fetch(`${server}/${hash}`, {
+              const response = await fetch(`${normalizedServer}${hash}`, {
                 method: "DELETE",
                 headers: {
                   "Authorization": authHeader,
