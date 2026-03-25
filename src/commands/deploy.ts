@@ -30,7 +30,6 @@ import {
   getUserOutboxes,
   listRemoteFiles,
   publishEventsToRelaysDetailed,
-  purgeRemoteFiles,
   type RelayPublishResult,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
@@ -152,7 +151,9 @@ export function registerDeployCommand(): void {
     .alias("dpl")
     .description("Deploy files from a directory")
     .arguments("<folder:string>")
-    .option("-f, --force", "Force re-upload all files, bypassing server preflight checks.", { default: false })
+    .option("-f, --force", "Force re-upload all files, bypassing server preflight checks.", {
+      default: false,
+    })
     .option("-s, --servers <servers:string>", "The blossom servers to use (comma separated).")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
     .option(
@@ -340,7 +341,6 @@ export async function deployCommand(
     const deployResult = await maybeProcessFiles(
       state as DeploymentState,
       toTransfer,
-      toDelete,
       includedFiles,
       remoteFileEntries,
     );
@@ -482,7 +482,11 @@ function computeExitCode(result: DeployPhaseResult): number {
     // Manifest creation failed (signing error)
     if (!mr.created) {
       console.log(
-        colors.red(`\nDeploy failed: manifest event could not be created${mr.error ? ` (${mr.error})` : ""}.`),
+        colors.red(
+          `\nDeploy failed: manifest event could not be created${
+            mr.error ? ` (${mr.error})` : ""
+          }.`,
+        ),
       );
       return 1;
     }
@@ -1246,7 +1250,8 @@ async function compareAndPrepareFiles(
         unchanged = [];
       }
     } else {
-      const errMsg = "No new files to upload. Use --sync to backfill servers, --force to re-upload all.";
+      const errMsg =
+        "No new files to upload. Use --sync to backfill servers, --force to re-upload all.";
       console.error(colors.red(errMsg));
       log.error(errMsg);
 
@@ -1260,42 +1265,6 @@ async function compareAndPrepareFiles(
   }
 
   return { toTransfer, existing: unchanged, toDelete };
-}
-
-/**
- * Delete files marked for deletion
- */
-async function deleteRemovedFiles(
-  state: DeploymentState,
-  filesToDelete: FileEntry[],
-): Promise<void> {
-  if (filesToDelete.length === 0) {
-    return;
-  }
-
-  const { statusDisplay, resolvedRelays, signer } = state;
-
-  log.info(`Requesting deletion of ${filesToDelete.length} files from remote events`);
-
-  statusDisplay.update(`Deleting ${filesToDelete.length} files...`);
-
-  try {
-    const deletedCount = await purgeRemoteFiles(
-      resolvedRelays,
-      filesToDelete,
-      signer,
-    );
-
-    if (deletedCount > 0) {
-      statusDisplay.success(`Deleted ${deletedCount} files`);
-    } else {
-      statusDisplay.error("Failed to delete any files");
-    }
-  } catch (e: unknown) {
-    const errMsg = `Error during file deletion: ${getErrorMessage(e)}`;
-    statusDisplay.error(errMsg);
-    log.error(errMsg);
-  }
 }
 
 /**
@@ -1328,7 +1297,6 @@ async function prepareFilesForUpload(
 async function maybeProcessFiles(
   state: DeploymentState,
   toTransfer: FileEntry[],
-  toDelete: FileEntry[],
   includedFiles: FileEntry[],
   remoteFileEntries: FileEntry[],
 ): Promise<DeployPhaseResult> {
@@ -1343,7 +1311,12 @@ async function maybeProcessFiles(
 
     try {
       const preparedFiles = await prepareFilesForUpload(state, toTransfer);
-      const uploadResult = await uploadFiles(state, preparedFiles, includedFiles, remoteFileEntries);
+      const uploadResult = await uploadFiles(
+        state,
+        preparedFiles,
+        includedFiles,
+        remoteFileEntries,
+      );
 
       filesUploaded = uploadResult.uploadResponses.filter((r) => r.success).length;
       filesFailed = uploadResult.uploadResponses.filter((r) => !r.success).length;
@@ -1361,10 +1334,6 @@ async function maybeProcessFiles(
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
       manifestResult = await publishSiteManifest(state, includedFiles, remoteFileEntries, []);
     }
-  }
-
-  if (toDelete.length > 0) {
-    await deleteRemovedFiles(state, toDelete);
   }
 
   return {
@@ -1496,7 +1465,13 @@ async function publishSiteManifest(
 
   if (fileMappings.length === 0) {
     log.warn("No files with hashes to include in manifest");
-    return { created: false, published: false, error: "No files with hashes to include", successCount: 0, failureCount: 0 };
+    return {
+      created: false,
+      published: false,
+      error: "No files with hashes to include",
+      successCount: 0,
+      failureCount: 0,
+    };
   }
 
   statusDisplay.update("Creating site manifest event...");
@@ -1790,7 +1765,9 @@ async function uploadFiles(
           : contentType;
         const size = formatFileSize(result.file.size);
         console.log(
-          `  ${indicators} ${colors.red(result.file.path)} ${colors.gray(fileType)} ${colors.gray(size)} ${colors.red("✗ " + (result.error || "failed"))}`,
+          `  ${indicators} ${colors.red(result.file.path)} ${colors.gray(fileType)} ${
+            colors.gray(size)
+          } ${colors.red("✗ " + (result.error || "failed"))}`,
         );
       }
       console.log("");
@@ -1799,7 +1776,11 @@ async function uploadFiles(
       if (skippedResponses.length > 0) {
         console.log(formatSectionHeader("Skipped Blobs (Already on Servers)"));
         console.log(
-          colors.gray(`${skippedResponses.length} blob${skippedResponses.length === 1 ? "" : "s"} already present on all servers`),
+          colors.gray(
+            `${skippedResponses.length} blob${
+              skippedResponses.length === 1 ? "" : "s"
+            } already present on all servers`,
+          ),
         );
         for (const result of skippedResponses) {
           const contentType = result.file.contentType || "unknown";
@@ -1808,7 +1789,9 @@ async function uploadFiles(
             : contentType;
           const size = formatFileSize(result.file.size);
           console.log(
-            `  ${colors.gray("⊘")} ${colors.gray(result.file.path)} ${colors.gray(fileType)} ${colors.gray(size)}`,
+            `  ${colors.gray("⊘")} ${colors.gray(result.file.path)} ${colors.gray(fileType)} ${
+              colors.gray(size)
+            }`,
           );
         }
         console.log("");
@@ -1818,7 +1801,13 @@ async function uploadFiles(
     console.log(formatSectionHeader("Blossom Server Summary"));
     const serverStats: Record<
       string,
-      { success: number; total: number; failed: number; retries: number; errors: Map<string, number> }
+      {
+        success: number;
+        total: number;
+        failed: number;
+        retries: number;
+        errors: Map<string, number>;
+      }
     > = {};
     for (const server of resolvedServers) {
       serverStats[server] = { success: 0, total: 0, failed: 0, retries: 0, errors: new Map() };
