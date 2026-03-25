@@ -174,16 +174,12 @@ show_output ""
 
 # Relay configuration (fast)
 show_output "$(printf '\033[36m\nEnter nostr relay URLs (leave empty when done):\033[0m')"
-show_output "? Enter relay URL: (wss://nostr.cercatrova.me) (wss://relay.primal.net) (wss://relay.wellorder.net) (wss://nos.lol) (wss://nostr-pub.wellorder.net) (wss://relay.damus.io) (wss://relay.nostr.band)"
+show_output "? Enter relay URL: (wss://nostr.cercatrova.me) (wss://relay.primal.net) (wss://relay.wellorder.net) (wss://nos.lol) (wss://nostr-pub.wellorder.net) (wss://relay.damus.io)"
 type_input "wss://relay.damus.io"
 show_output ""
 
 show_output "? Enter relay URL:"
 type_input "wss://nos.lol"
-show_output ""
-
-show_output "? Enter relay URL:"
-type_input "wss://relay.nostr.band"
 show_output ""
 
 show_output "? Enter relay URL:"

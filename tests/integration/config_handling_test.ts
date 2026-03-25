@@ -311,7 +311,6 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
         relays: [
           "wss://nos.lol",
           "wss://relay.damus.io",
-          "wss://relay.nostr.band",
         ],
         servers: [
           "https://blossom.hzrd149.com",
@@ -342,14 +341,14 @@ Deno.test("Configuration Handling - Default Values", async (t) => {
     const loadConfigWithFallback = (configData?: any): ProjectConfig => {
       if (!configData) {
         return {
-          relays: ["wss://relay.nostr.band"],
+          relays: ["wss://relay.damus.io"],
           servers: ["https://blossom.hzrd149.com"],
         };
       }
 
       // Ensure required fields exist
       return {
-        relays: configData.relays || ["wss://relay.nostr.band"],
+        relays: configData.relays || ["wss://relay.damus.io"],
         servers: configData.servers || [],
         bunkerPubkey: configData.bunkerPubkey,
         id: configData.id,

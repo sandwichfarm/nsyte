@@ -99,7 +99,7 @@ Choose relays carefully:
 ```bash
 # Use multiple trusted relays
 nsyte deploy ./dist \
-  --relays "wss://relay.damus.io,wss://relay.nostr.band,wss://nos.lol"
+  --relays "wss://relay.damus.io,wss://nos.lol"
 ```
 
 ## Deployment Security

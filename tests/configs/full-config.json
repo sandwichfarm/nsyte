@@ -2,8 +2,7 @@
   "$schema": "https://nsyte.run/schemas/config.schema.json",
   "relays": [
     "wss://relay.damus.io",
-    "wss://nos.lol",
-    "wss://relay.nostr.band"
+    "wss://nos.lol"
   ],
   "servers": [
     "https://cdn.hzrd149.com",

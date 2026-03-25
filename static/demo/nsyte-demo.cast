@@ -143,7 +143,7 @@
 [20.360423, "o", "\r\n"]
 [20.576865, "o", "\r\n"]
 [20.701831, "o", "\u001b[36m\r\nEnter nostr relay URLs (leave empty when done):\u001b[0m\r\n"]
-[20.828885, "o", "? Enter relay URL: (wss://nostr.cercatrova.me) (wss://relay.primal.net) (wss://relay.wellorder.net) (wss://nos.lol) (wss://nostr-pub.wellorder.net) (wss://relay.damus.io) (wss://relay.nostr.band)\r\n"]
+[20.828885, "o", "? Enter relay URL: (wss://nostr.cercatrova.me) (wss://relay.primal.net) (wss://relay.wellorder.net) (wss://nos.lol) (wss://nostr-pub.wellorder.net) (wss://relay.damus.io)\r\n"]
 [20.947602, "o", "w"]
 [21.002267, "o", "s"]
 [21.048194, "o", "s"]
