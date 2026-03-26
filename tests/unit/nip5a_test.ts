@@ -113,6 +113,15 @@ describe("decodePubkeyBase36", () => {
       "Invalid base36 character",
     );
   });
+
+  it("throws on overflow (value > 2^256 - 1)", () => {
+    const overflowInput = "z".repeat(50);
+    assertThrows(
+      () => decodePubkeyBase36(overflowInput),
+      Error,
+      "does not fit into 32-byte pubkey",
+    );
+  });
 });
 
 describe("roundtrip", () => {

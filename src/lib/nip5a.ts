@@ -55,6 +55,10 @@ export function decodePubkeyBase36(encoded: string): Uint8Array {
     num = num >> 8n;
   }
 
+  if (num !== 0n) {
+    throw new Error("Base36 value does not fit into 32-byte pubkey");
+  }
+
   return bytes;
 }
 

@@ -1,5 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import { decompress as brotliDecompress } from "@nick/brotli";
+import { hexToBytes } from "@noble/hashes/utils";
 import { ensureDir } from "@std/fs";
 import { contentType } from "@std/media-types";
 import { extname, join } from "@std/path";
@@ -77,7 +78,7 @@ export interface GatewayServerOptions {
 }
 
 /**
- * Extract npub and optional identifier from hostname
+ * Extract pubkey and optional identifier from hostname
  * Root site: "npub123.localhost" -> { pubkey, kind: 15128, identifier: "" }
  * Named site (NIP-5A): "<pubkeyB36><dTag>.localhost" -> { pubkey, kind: 35128, identifier: dTag }
  */
@@ -233,9 +234,7 @@ export class NsiteGatewayServer {
     console.log(colors.gray(`\nNote: http://localhost:${port} redirects to:`));
     if (targetNpub) {
       if (targetIdentifier) {
-        const pubkeyBytes = new Uint8Array(
-          targetSite!.pubkey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)),
-        );
+        const pubkeyBytes = hexToBytes(targetSite!.pubkey);
         const targetB36 = encodePubkeyBase36(pubkeyBytes);
         console.log(colors.gray(`http://${targetB36}${targetIdentifier}.localhost:${port}\n`));
       } else {
@@ -345,16 +344,6 @@ export class NsiteGatewayServer {
           headers: { "Content-Type": "text/plain", ...securityHeaders() },
         },
       );
-    }
-
-    // Return error for invalid site pointer
-    if (!sitePointer) {
-      const elapsed = Math.round(performance.now() - startTime);
-      console.log(colors.red(`✗ Invalid site pointer: ${hostname} - ${elapsed}ms`));
-      return new Response(`Invalid site pointer: ${escapeHtml(hostname)}`, {
-        status: 400,
-        headers: { "Content-Type": "text/plain", ...securityHeaders() },
-      });
     }
 
     // Get readable address for console logging
@@ -1204,8 +1193,16 @@ export class NsiteGatewayServer {
         const fallback = find404Fallback(fileListEntry.files, supportsBrotli, supportsGzip);
         if (fallback) {
           filesToTry.push(fallback);
+          const fallbackPath = fallback.file.path.startsWith("/")
+            ? fallback.file.path
+            : `/${fallback.file.path}`;
+          const compressionInfo = fallback.compressed
+            ? ` (${fallback.type === "br" ? "brotli" : "gzip"})`
+            : "";
           console.log(
-            colors.yellow(`  → File not found: ${requestedPath}, will try /404.html`),
+            colors.yellow(
+              `  → File not found: ${requestedPath}, will try ${fallbackPath}${compressionInfo}`,
+            ),
           );
         }
 
