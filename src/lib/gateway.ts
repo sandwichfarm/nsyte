@@ -134,6 +134,49 @@ export function extractNpubAndIdentifier(
 }
 
 /**
+ * Find 404 fallback file from the file list, trying compressed variants first.
+ * Returns the matching file entry and compression info, or null if no 404.html exists.
+ */
+export function find404Fallback(
+  files: FileEntry[],
+  supportsBrotli: boolean,
+  supportsGzip: boolean,
+): { file: FileEntry; compressed: boolean; type: "br" | "gz" | null } | null {
+  // Try brotli-compressed 404.html first
+  if (supportsBrotli) {
+    const brFile = files.find((f) => {
+      const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+      return normalizedPath === "404.html.br";
+    });
+    if (brFile && brFile.sha256) {
+      return { file: brFile, compressed: true, type: "br" };
+    }
+  }
+
+  // Try gzip-compressed 404.html
+  if (supportsGzip) {
+    const gzFile = files.find((f) => {
+      const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+      return normalizedPath === "404.html.gz";
+    });
+    if (gzFile && gzFile.sha256) {
+      return { file: gzFile, compressed: true, type: "gz" };
+    }
+  }
+
+  // Try uncompressed 404.html
+  const plainFile = files.find((f) => {
+    const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
+    return normalizedPath === "404.html";
+  });
+  if (plainFile && plainFile.sha256) {
+    return { file: plainFile, compressed: false, type: null };
+  }
+
+  return null;
+}
+
+/**
  * Nsite Gateway Server - serves nsites via npub subdomains
  */
 export class NsiteGatewayServer {
@@ -1158,54 +1201,16 @@ export class NsiteGatewayServer {
 
       // If no files found yet, try 404.html
       if (filesToTry.length === 0) {
-        let found404 = false;
-
-        // Try to find /404.html as fallback per nsite specification
-        // Check for compressed versions first if supported
-        if (supportsBrotli) {
-          const notFoundBr = fileListEntry.files.find((f) => {
-            const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-            return normalizedPath === "404.html.br";
-          });
-
-          if (notFoundBr && notFoundBr.sha256) {
-            filesToTry.push({ file: notFoundBr, compressed: true, type: "br" });
-            found404 = true;
-            console.log(
-              colors.yellow(`  → File not found: ${requestedPath}, will try /404.html.br`),
-            );
-          }
-        }
-
-        if (supportsGzip) {
-          const notFoundGz = fileListEntry.files.find((f) => {
-            const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-            return normalizedPath === "404.html.gz";
-          });
-
-          if (notFoundGz && notFoundGz.sha256) {
-            filesToTry.push({ file: notFoundGz, compressed: true, type: "gz" });
-            found404 = true;
-            console.log(
-              colors.yellow(`  → File not found: ${requestedPath}, will try /404.html.gz`),
-            );
-          }
-        }
-
-        // Always try uncompressed 404.html
-        const notFoundFile = fileListEntry.files.find((f) => {
-          const normalizedPath = f.path.startsWith("/") ? f.path.slice(1) : f.path;
-          return normalizedPath === "404.html";
-        });
-
-        if (notFoundFile && notFoundFile.sha256) {
-          filesToTry.push({ file: notFoundFile, compressed: false, type: null });
-          found404 = true;
-          console.log(colors.yellow(`  → File not found: ${requestedPath}, will try /404.html`));
+        const fallback = find404Fallback(fileListEntry.files, supportsBrotli, supportsGzip);
+        if (fallback) {
+          filesToTry.push(fallback);
+          console.log(
+            colors.yellow(`  → File not found: ${requestedPath}, will try /404.html`),
+          );
         }
 
         // If still no file found, return error response
-        if (!found404) {
+        if (filesToTry.length === 0) {
           const elapsed = Math.round(performance.now() - startTime);
           console.log(
             colors.red(
@@ -1549,6 +1554,7 @@ export class NsiteGatewayServer {
       }
 
       // Serve the file
+      // NIP-5A spec: MUST serve /404.html as fallback with 404 status code
       // For 404 pages, use the 404.html content type, otherwise use the target path (without .br/.gz)
       const is404 = (file.path.endsWith("404.html") || file.path.endsWith("404.html.br") ||
         file.path.endsWith("404.html.gz")) &&

@@ -1,6 +1,10 @@
 import { assertEquals } from "@std/assert";
-import { extractNpubAndIdentifier } from "../../src/lib/gateway.ts";
+import {
+  extractNpubAndIdentifier,
+  find404Fallback,
+} from "../../src/lib/gateway.ts";
 import { encodePubkeyBase36 } from "../../src/lib/nip5a.ts";
+import type { FileEntry } from "../../src/lib/nostr.ts";
 
 // Generate a test pubkey (32 bytes = 64 hex chars)
 const TEST_PUBKEY_HEX =
@@ -108,3 +112,118 @@ Deno.test(
     });
   },
 );
+
+// Helper to create mock FileEntry objects for 404 tests
+const mockFile = (
+  path: string,
+  sha256: string | undefined = "a".repeat(64),
+): FileEntry => ({
+  path,
+  sha256,
+  size: 100,
+  contentType: "text/html",
+});
+
+Deno.test("find404Fallback - NIP-5A compliance", async (t) => {
+  await t.step("finds uncompressed 404.html", () => {
+    const files = [
+      mockFile("index.html"),
+      mockFile("404.html"),
+    ];
+    const result = find404Fallback(files, false, false);
+    assertEquals(result?.file.path, "404.html");
+    assertEquals(result?.compressed, false);
+    assertEquals(result?.type, null);
+  });
+
+  await t.step(
+    "prefers brotli-compressed 404.html.br when supported",
+    () => {
+      const files = [
+        mockFile("404.html"),
+        mockFile("404.html.br"),
+      ];
+      const result = find404Fallback(files, true, false);
+      assertEquals(result?.file.path, "404.html.br");
+      assertEquals(result?.compressed, true);
+      assertEquals(result?.type, "br");
+    },
+  );
+
+  await t.step(
+    "prefers gzip-compressed 404.html.gz when supported",
+    () => {
+      const files = [
+        mockFile("404.html"),
+        mockFile("404.html.gz"),
+      ];
+      const result = find404Fallback(files, false, true);
+      assertEquals(result?.file.path, "404.html.gz");
+      assertEquals(result?.compressed, true);
+      assertEquals(result?.type, "gz");
+    },
+  );
+
+  await t.step("prefers brotli over gzip when both supported", () => {
+    const files = [
+      mockFile("404.html"),
+      mockFile("404.html.br"),
+      mockFile("404.html.gz"),
+    ];
+    const result = find404Fallback(files, true, true);
+    assertEquals(result?.file.path, "404.html.br");
+  });
+
+  await t.step("returns null when no 404.html exists", () => {
+    const files = [
+      mockFile("index.html"),
+      mockFile("style.css"),
+    ];
+    const result = find404Fallback(files, true, true);
+    assertEquals(result, null);
+  });
+
+  await t.step("skips 404.html without sha256", () => {
+    const files: FileEntry[] = [
+      { path: "404.html", size: 100, contentType: "text/html" },
+    ];
+    const result = find404Fallback(files, false, false);
+    assertEquals(result, null);
+  });
+
+  await t.step("handles path with leading slash", () => {
+    const files = [
+      mockFile("/404.html"),
+    ];
+    const result = find404Fallback(files, false, false);
+    assertEquals(result?.file.path, "/404.html");
+    assertEquals(result?.compressed, false);
+  });
+
+  await t.step(
+    "falls back to uncompressed when brotli not supported",
+    () => {
+      const files = [
+        mockFile("404.html.br"),
+        mockFile("404.html"),
+      ];
+      const result = find404Fallback(files, false, false);
+      assertEquals(result?.file.path, "404.html");
+      assertEquals(result?.compressed, false);
+    },
+  );
+
+  await t.step(
+    "falls back to gzip when brotli file missing",
+    () => {
+      const files = [
+        mockFile("404.html.gz"),
+        mockFile("404.html"),
+      ];
+      const result = find404Fallback(files, true, true);
+      assertEquals(result?.file.path, "404.html.gz");
+      assertEquals(result?.compressed, true);
+      assertEquals(result?.type, "gz");
+    },
+  );
+});
