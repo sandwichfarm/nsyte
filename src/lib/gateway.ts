@@ -179,14 +179,22 @@ export class NsiteGatewayServer {
     console.log(colors.gray(`\nAccess nsites via:`));
     console.log(colors.gray(`  Root site: http://{npub}.localhost:${port}/path/to/file`));
     console.log(
-      colors.gray(`  Named site: http://{identifier}.{npub}.localhost:${port}/path/to/file`),
+      colors.gray(`  Named site: http://{base36pubkey}{dtag}.localhost:${port}/path/to/file`),
     );
     console.log(colors.gray(`Example: http://npub1abc123.localhost:${port}/index.html`));
-    console.log(colors.gray(`Example: http://blog.npub1abc123.localhost:${port}/index.html`));
+    console.log(
+      colors.gray(
+        `Example: http://0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdblog.localhost:${port}/index.html`,
+      ),
+    );
     console.log(colors.gray(`\nNote: http://localhost:${port} redirects to:`));
     if (targetNpub) {
       if (targetIdentifier) {
-        console.log(colors.gray(`http://${targetIdentifier}.${targetNpub}.localhost:${port}\n`));
+        const pubkeyBytes = new Uint8Array(
+          targetSite!.pubkey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)),
+        );
+        const targetB36 = encodePubkeyBase36(pubkeyBytes);
+        console.log(colors.gray(`http://${targetB36}${targetIdentifier}.localhost:${port}\n`));
       } else {
         console.log(colors.gray(`http://${targetNpub}.localhost:${port}\n`));
       }
@@ -258,9 +266,17 @@ export class NsiteGatewayServer {
           headers: { "Content-Type": "text/plain", ...securityHeaders() },
         });
       }
-      const redirectUrl = targetIdentifier
-        ? `http://${targetIdentifier}.${targetNpub}.localhost:${port}${url.pathname}${url.search}`
-        : `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
+      let redirectUrl: string;
+      if (targetIdentifier && targetSite) {
+        const pubkeyBytes = new Uint8Array(
+          targetSite.pubkey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)),
+        );
+        const targetB36 = encodePubkeyBase36(pubkeyBytes);
+        redirectUrl =
+          `http://${targetB36}${targetIdentifier}.localhost:${port}${url.pathname}${url.search}`;
+      } else {
+        redirectUrl = `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
+      }
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.cyan(`→ Redirecting to ${redirectUrl} - ${elapsed}ms`));
       return new Response(null, {
@@ -280,7 +296,7 @@ export class NsiteGatewayServer {
       const elapsed = Math.round(performance.now() - startTime);
       console.log(colors.red(`✗ Invalid request (no npub) - ${elapsed}ms`));
       return new Response(
-        "Invalid request. Use npub subdomain (e.g., npub123.localhost or blog.npub123.localhost)",
+        "Invalid request. Use npub subdomain for root sites (e.g., npub1xxx.localhost) or NIP-5A format for named sites (e.g., {base36pubkey}{dtag}.localhost)",
         {
           status: 400,
           headers: { "Content-Type": "text/plain", ...securityHeaders() },
