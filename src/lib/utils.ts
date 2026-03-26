@@ -77,6 +77,50 @@ export function parseRelayInput(relayInput: string): string[] {
 }
 
 /**
+ * Convert an SSH git URL to HTTPS format.
+ * git@github.com:user/repo.git -> https://github.com/user/repo
+ */
+export function sshToHttpsUrl(url: string): string | null {
+  const match = url.match(/^git@([^:]+):(.+?)(?:\.git)?$/);
+  if (!match) return null;
+  return `https://${match[1]}/${match[2]}`;
+}
+
+/**
+ * Detect source repository URL from git remote.
+ * Returns the configured source URL, or auto-detected from git origin, or undefined.
+ * Auto-detected SSH URLs are converted to HTTPS.
+ */
+export async function detectSourceUrl(configSource?: string): Promise<string | undefined> {
+  // Config takes priority
+  if (configSource) return configSource;
+
+  try {
+    const command = new Deno.Command("git", {
+      args: ["remote", "get-url", "origin"],
+      stdout: "piped",
+      stderr: "null",
+    });
+    const output = await command.output();
+    if (!output.success) return undefined;
+
+    const url = new TextDecoder().decode(output.stdout).trim();
+    if (!url) return undefined;
+
+    // If already HTTP(S), use directly
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url.replace(/\.git$/, "");
+    }
+
+    // Try SSH-to-HTTPS conversion
+    return sshToHttpsUrl(url) ?? undefined;
+  } catch {
+    // No git, no remote, or permission error — silently skip
+    return undefined;
+  }
+}
+
+/**
  * Truncate a string (typically a pubkey or hash) for display
  * @param str - The string to truncate
  * @param prefixLength - Length of prefix to show (default 8)
