@@ -52,7 +52,7 @@ export function getManifestFiles(manifest: NostrEvent): FilePathMapping[] {
 export function createSiteManifestTemplate(
   files: FilePathMapping[],
   identifier?: string,
-  metadata?: { title?: string; description?: string; servers?: string[]; relays?: string[] },
+  metadata?: { title?: string; description?: string; servers?: string[]; relays?: string[]; source?: string },
 ): EventTemplate {
   const tags: string[][] = [];
 
@@ -87,6 +87,11 @@ export function createSiteManifestTemplate(
   }
   if (metadata?.description) {
     tags.push(["description", metadata.description]);
+  }
+
+  // Add optional source tag (repository URL)
+  if (metadata?.source) {
+    tags.push(["source", metadata.source]);
   }
 
   tags.push(["client", "nsyte"]);
