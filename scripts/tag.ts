@@ -65,9 +65,8 @@ async function updateVersion() {
     const generalStatusProcess = new Deno.Command("git", { args: ["status", "--porcelain"] });
     const { stdout: generalStatusOutput } = await generalStatusProcess.output();
     const generalStatus = new TextDecoder().decode(generalStatusOutput).trim();
-    const otherChanges = generalStatus.split("\n").filter((line) =>
-      !line.includes("deno.json")
-    ).map((line) => line.substring(3)).join(", ");
+    const otherChanges = generalStatus.split("\n").filter((line) => !line.includes("deno.json"))
+      .map((line) => line.substring(3)).join(", ");
 
     if (otherChanges && !committedFiles) {
       console.warn(

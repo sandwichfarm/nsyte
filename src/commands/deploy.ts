@@ -28,11 +28,11 @@ import {
   type FileEntry,
   getUserDisplayName,
   getUserOutboxes,
-  listRemoteFiles,
   publishEventsToRelaysDetailed,
   type RelayPublishResult,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
+import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
 import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
 import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
@@ -1145,7 +1145,7 @@ async function fetchRemoteFiles(
       const reason = options.force && options.sync ? " (required for sync)" : "";
       statusDisplay.update(`Checking for existing files on remote relays${reason}...`);
       try {
-        remoteFileEntries = await listRemoteFiles(primaryRelays, publisherPubkey);
+        remoteFileEntries = await listTrustedRemoteFiles(primaryRelays, publisherPubkey);
 
         // If nothing found on the configured relays, retry with a broader relay set
         if (remoteFileEntries.length === 0 && resolvedRelays.length > 0 && allowFallbackRelays) {
@@ -1155,7 +1155,7 @@ async function fetchRemoteFiles(
           statusDisplay.update(
             `No files found on configured relays, retrying with default broadcast relays...`,
           );
-          remoteFileEntries = await listRemoteFiles(fallbackRelays, publisherPubkey);
+          remoteFileEntries = await listTrustedRemoteFiles(fallbackRelays, publisherPubkey);
         }
 
         const remoteFoundMsg = remoteFileEntries.length > 0

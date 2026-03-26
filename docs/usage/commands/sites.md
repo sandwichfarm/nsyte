@@ -51,7 +51,8 @@ nsyte sites --use-fallbacks
 
 The sites command displays:
 
-- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:<identifier>" for named sites (kind 35128)
+- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:<identifier>" for named sites
+  (kind 35128)
 - **Title**: Site title from metadata
 - **Description**: Site description from metadata
 - **File count**: Number of files in the site
@@ -63,11 +64,13 @@ Sites are sorted by most recent update.
 
 ### Root Site
 
-The default site for a pubkey (kind 15128). Every pubkey can have one root site, which represents the user's main identity. The root site has no identifier (d tag is empty).
+The default site for a pubkey (kind 15128). Every pubkey can have one root site, which represents
+the user's main identity. The root site has no identifier (d tag is empty).
 
 ### Named Sites
 
-Additional sites with unique identifiers (kind 35128). A pubkey can have multiple named sites, each with a unique identifier like `blog`, `docs`, `portfolio`, etc.
+Additional sites with unique identifiers (kind 35128). A pubkey can have multiple named sites, each
+with a unique identifier like `blog`, `docs`, `portfolio`, etc.
 
 ## How it Works
 

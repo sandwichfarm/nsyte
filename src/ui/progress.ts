@@ -311,10 +311,10 @@ export class ProgressRenderer {
       grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
     }
 
-    const bar = colors.green("█".repeat(greenW))
-      + colors.yellow("█".repeat(yellowW))
-      + colors.red("█".repeat(redW))
-      + "░".repeat(grayW);
+    const bar = colors.green("█".repeat(greenW)) +
+      colors.yellow("█".repeat(yellowW)) +
+      colors.red("█".repeat(redW)) +
+      "░".repeat(grayW);
 
     const skipped = data.skipped ?? 0;
     const retrying = data.retrying ?? 0;
@@ -368,9 +368,7 @@ export class ProgressRenderer {
         const colorFn = SERVER_COLORS[i % SERVER_COLORS.length];
         const name = shortServerName(server).padEnd(maxNameLen);
         const serverDone = sp.completed + sp.failed;
-        const serverPercent = sp.total === 0
-          ? 0
-          : Math.floor((serverDone / sp.total) * 100);
+        const serverPercent = sp.total === 0 ? 0 : Math.floor((serverDone / sp.total) * 100);
 
         // Build per-server bar with standard colors (green/yellow/red)
         let sGreen = 0;
@@ -385,10 +383,10 @@ export class ProgressRenderer {
           sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sYellow - sRed);
         }
 
-        const sBar = colors.green("█".repeat(sGreen))
-          + colors.yellow("█".repeat(sYellow))
-          + colors.red("█".repeat(sRed))
-          + "░".repeat(sGray);
+        const sBar = colors.green("█".repeat(sGreen)) +
+          colors.yellow("█".repeat(sYellow)) +
+          colors.red("█".repeat(sRed)) +
+          "░".repeat(sGray);
 
         const pctStr = `${serverPercent}%`.padStart(4);
 
@@ -406,7 +404,9 @@ export class ProgressRenderer {
         }
 
         lines.push(
-          `  ${colorFn(symbol)} ${colorFn(name)} [${sBar}] ${pctStr} | ${statParts.join(", ")}${timeStr}`,
+          `  ${colorFn(symbol)} ${colorFn(name)} [${sBar}] ${pctStr} | ${
+            statParts.join(", ")
+          }${timeStr}`,
         );
       }
     }

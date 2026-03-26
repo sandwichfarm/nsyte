@@ -5,8 +5,8 @@ description: Completely remove a deployed site from relays and blossom servers
 
 # `nsyte undeploy`
 
-Completely remove a deployed site: delete all blobs from blossom servers and remove the site manifest
-from relays. This is the nuclear option for fully taking down a site.
+Completely remove a deployed site: delete all blobs from blossom servers and remove the site
+manifest from relays. This is the nuclear option for fully taking down a site.
 
 ## Usage
 

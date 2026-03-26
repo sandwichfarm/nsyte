@@ -8,11 +8,12 @@ import { handleError } from "../lib/error-utils.ts";
 import { getManifestFiles, getManifestServers } from "../lib/manifest.ts";
 import {
   type FileEntryWithSources,
-  getSiteManifestEvent,
   getUserBlossomServers,
   getUserDisplayName,
 } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
+import { formatManifestIdWithAge } from "../ui/time-formatter.ts";
 import nsyte from "./root.ts";
 
 // Color palette for relays and servers
@@ -50,12 +51,132 @@ export const RELAY_SYMBOL_ALT = "▼"; // Triangle for relays (upside down)
 export const SERVER_SYMBOLS = ["■", "●", "◆", "★", "▰"];
 /** @deprecated Use SERVER_SYMBOLS[index] instead */
 export const SERVER_SYMBOL = SERVER_SYMBOLS[0];
+export const BLOSSOM_CHECK_TIMEOUT_MS = 10_000;
 
 /**
  * Get the symbol for a server by index
  */
 export function getServerSymbol(index: number): string {
   return SERVER_SYMBOLS[index % SERVER_SYMBOLS.length];
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallbackValue: T): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => resolve(fallbackValue), timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
+export async function populateAvailableBlossomServers(
+  files: FileEntryWithSources[],
+  servers: string[],
+  checker: (sha256: string, servers: string[]) => Promise<string[]> = checkBlossomServersForFile,
+  timeoutMs: number = BLOSSOM_CHECK_TIMEOUT_MS,
+): Promise<void> {
+  await Promise.all(files.map(async (file) => {
+    file.availableOnServers = await withTimeout(checker(file.sha256, servers), timeoutMs, []);
+  }));
+}
+
+export interface ListTreeItem {
+  path: string;
+  isDirectory: boolean;
+  depth: number;
+  isLast: boolean;
+  parentPrefix: string;
+  file?: FileEntryWithSources;
+}
+
+export function buildListTreeItems(files: FileEntryWithSources[]): ListTreeItem[] {
+  const fileMap = new Map<string, FileEntryWithSources>();
+  const directories = new Set<string>();
+  const children = new Map<string, Set<string>>();
+
+  const ensureChildren = (path: string) => {
+    if (!children.has(path)) {
+      children.set(path, new Set());
+    }
+  };
+
+  ensureChildren("");
+
+  for (const file of files) {
+    const normalizedPath = file.path.startsWith("/") ? file.path.substring(1) : file.path;
+    fileMap.set(normalizedPath, file);
+
+    const parts = normalizedPath.split("/");
+    if (parts.length === 1) {
+      children.get("")!.add(normalizedPath);
+      continue;
+    }
+
+    let currentPath = "";
+    for (let i = 0; i < parts.length - 1; i++) {
+      const parentPath = currentPath;
+      currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+      directories.add(currentPath);
+      ensureChildren(parentPath);
+      ensureChildren(currentPath);
+      children.get(parentPath)!.add(currentPath);
+    }
+
+    children.get(parts.slice(0, -1).join("/"))!.add(normalizedPath);
+  }
+
+  const sortChildren = (paths: string[]) => {
+    return paths.sort((a, b) => {
+      const aIsDirectory = directories.has(a);
+      const bIsDirectory = directories.has(b);
+      if (aIsDirectory !== bIsDirectory) {
+        return aIsDirectory ? -1 : 1;
+      }
+
+      const aName = a.split("/").pop() || a;
+      const bName = b.split("/").pop() || b;
+      return aName.localeCompare(bName);
+    });
+  };
+
+  const treeItems: ListTreeItem[] = [];
+
+  const visit = (path: string, depth: number, isLast: boolean, parentPrefix = "") => {
+    const isDirectory = directories.has(path);
+    treeItems.push({
+      path,
+      isDirectory,
+      depth,
+      isLast,
+      parentPrefix,
+      file: fileMap.get(path),
+    });
+
+    if (!isDirectory) {
+      return;
+    }
+
+    const nextParentPrefix = parentPrefix + (depth > 0 ? (isLast ? "   " : "│  ") : "");
+    const childPaths = sortChildren(Array.from(children.get(path) || []));
+    childPaths.forEach((childPath, index) => {
+      visit(childPath, depth + 1, index === childPaths.length - 1, nextParentPrefix);
+    });
+  };
+
+  const rootPaths = sortChildren(Array.from(children.get("") || []));
+  rootPaths.forEach((path, index) => {
+    visit(path, 0, index === rootPaths.length - 1);
+  });
+
+  return treeItems;
 }
 
 /**
@@ -147,14 +268,20 @@ export function registerListCommand() {
         console.log(colors.cyan(`Filtering by path: ${normalizedPathFilter}`));
       }
 
-      const manifest = await getSiteManifestEvent(relays, pubkey, options.name);
-      if (!manifest) {
+      const trustedManifest = await fetchTrustedSiteManifestEvent(relays, pubkey, options.name);
+      if (!trustedManifest.event) {
         const siteType = options.name ? `named site "${options.name}"` : "root site";
         console.log(colors.red(`No manifest event found for ${siteType}`));
         Deno.exit(1);
       }
 
-      console.log(colors.gray(`Found manifest event: ${manifest.id}`));
+      const manifest = trustedManifest.event;
+
+      console.log(
+        colors.gray(
+          `Found manifest event: ${formatManifestIdWithAge(manifest.id, manifest.created_at)}`,
+        ),
+      );
 
       // Convert FilePathMapping[] to FileEntryWithSources[]
       const fileMappings = getManifestFiles(manifest);
@@ -164,7 +291,7 @@ export function registerListCommand() {
         sha256: file.sha256,
         eventId: manifest.id,
         event: manifest,
-        foundOnRelays: [...relays],
+        foundOnRelays: [...trustedManifest.relays],
         availableOnServers: [],
       }));
 
@@ -176,10 +303,7 @@ export function registerListCommand() {
       // Check server availability for each file
       if (allServers.length > 0) {
         console.log(colors.gray(`Checking ${allServers.length} blossom server(s)...`));
-        for (const file of files) {
-          const availableServers = await checkBlossomServersForFile(file.sha256, allServers);
-          file.availableOnServers = availableServers;
-        }
+        await populateAvailableBlossomServers(files, allServers);
       }
 
       // Filter files by path if specified
@@ -233,7 +357,7 @@ export function registerListCommand() {
 
         // Display manifest event ID
         console.log("\n" + colors.bold("Manifest Event:"));
-        console.log(colors.cyan(manifest.id));
+        console.log(colors.cyan(formatManifestIdWithAge(manifest.id, manifest.created_at)));
         console.log(colors.gray("─".repeat(60)));
 
         if (relayColorMap.size > 0) {
@@ -269,91 +393,25 @@ export function registerListCommand() {
         const serverColumnWidth = Math.max(maxServerCount, 1); // At least 1 space
         const totalIndicatorWidth = relayColumnWidth + 3 + serverColumnWidth; // 3 for " | "
 
-        // Derive directories from file paths
-        const directories = new Set<string>();
-        files.forEach((file) => {
-          const pathParts = file.path.split("/").filter((p) => p);
-          let currentPath = "";
-          for (let i = 0; i < pathParts.length - 1; i++) {
-            currentPath += (currentPath ? "/" : "") + pathParts[i];
-            directories.add(currentPath);
-          }
-        });
-
-        // Create combined list of directories and files
-        interface ListItem {
-          path: string;
-          isDirectory: boolean;
-          file?: FileEntryWithSources;
-          displayLine?: string;
-          row?: number;
-        }
-
-        const allItems: ListItem[] = [
-          // Add directories
-          ...Array.from(directories).map((dir) => ({
-            path: "/" + dir,
-            isDirectory: true,
-          })),
-          // Add files
-          ...files.map((file) => ({
-            path: file.path,
-            isDirectory: false,
-            file,
-          })),
-        ];
-
-        // Sort files to create a tree-like structure
-        const sortedItems = [...allItems].sort((a, b) => {
-          const aDepth = a.path.split("/").filter((p) => p).length;
-          const bDepth = b.path.split("/").filter((p) => p).length;
-
-          // If same depth, directories come before files
-          if (aDepth === bDepth) {
-            if (a.isDirectory && !b.isDirectory) return -1;
-            if (!a.isDirectory && b.isDirectory) return 1;
-          }
-
-          return a.path.localeCompare(b.path);
-        });
+        const treeItems = buildListTreeItems(files);
 
         // Display files in tree-like format
         console.log("\n" + colors.bold("Files:"));
         console.log(colors.gray("─".repeat(100)));
 
-        sortedItems.forEach((item, index) => {
+        treeItems.forEach((item) => {
           if (item.isDirectory) {
-            // Display directory
-            const pathParts = item.path.split("/").filter((p) => p);
-            const depth = Math.max(0, pathParts.length - 1);
-            const dirName = pathParts[pathParts.length - 1] || item.path;
-
-            // Determine if this is the last item at this depth level
-            const isLast = index === sortedItems.length - 1 ||
-              (index < sortedItems.length - 1 &&
-                sortedItems[index + 1].path.split("/").filter((p) => p).length <=
-                  pathParts.length);
-
-            // Build tree structure
-            let treePrefix = "";
-            if (depth > 0) {
-              // Add spacing for parent directories
-              for (let i = 0; i < depth - 1; i++) {
-                treePrefix += "  ";
-              }
-              // Add branch
-              treePrefix += isLast ? "└─ " : "├─ ";
+            const dirName = item.path.split("/").pop() || item.path;
+            let treePrefix = item.parentPrefix;
+            if (item.depth > 0) {
+              treePrefix += item.isLast ? "└─ " : "├─ ";
             }
 
-            // Empty indicators for directories (no relay/server info)
             const emptyIndicators = " ".repeat(totalIndicatorWidth);
-
-            // Display directory in gray
             console.log(
               `${emptyIndicators} ${colors.gray(treePrefix)}${colors.gray(dirName + "/")}`,
             );
           } else {
-            // Display file
             const file = item.file!;
 
             // Build relay indicators (fixed width based on count, not string length)
@@ -399,32 +457,14 @@ export function registerListCommand() {
             // Combine indicators with fixed total width
             const indicators = relayIndicators + separator + serverIndicators;
 
-            // Calculate tree indentation based on path depth
-            const pathParts = file.path.split("/").filter((p) => p);
-            const depth = Math.max(0, pathParts.length - 1);
-            const fileName = pathParts[pathParts.length - 1] || file.path;
-
-            // Determine if this is the last item at this depth level
-            const isLast = index === sortedItems.length - 1 ||
-              (index < sortedItems.length - 1 &&
-                sortedItems[index + 1].path.split("/").filter((p) => p).length <=
-                  pathParts.length);
-
-            // Build tree structure
-            let treePrefix = "";
-            if (depth > 0) {
-              // Add spacing for parent directories
-              for (let i = 0; i < depth - 1; i++) {
-                treePrefix += "  ";
-              }
-              // Add branch
-              treePrefix += isLast ? "└─ " : "├─ ";
+            const fileName = item.path.split("/").pop() || item.path;
+            let treePrefix = item.parentPrefix;
+            if (item.depth > 0) {
+              treePrefix += item.isLast ? "└─ " : "├─ ";
             }
 
-            // Format file info
             const hashDisplay = colors.gray(` [${truncateHash(file.sha256)}]`);
 
-            // Fixed width for indicators column, then tree and file info
             console.log(
               `${indicators} ${colors.gray(treePrefix)}${colors.white(fileName)}${hashDisplay}`,
             );

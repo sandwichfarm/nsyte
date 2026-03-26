@@ -1,4 +1,4 @@
-> nsyte supports NIP-5A from v0.23.1+. v0.23.0 has support for root sites, but not named sites. 
+> nsyte supports NIP-5A from v0.23.1+. v0.23.0 has support for root sites, but not named sites.
 
 # nsyte
 
@@ -142,8 +142,8 @@ nsyte delete --yes
 - `--relays <relays>`: Override relays to use (comma-separated)
 - `--servers <servers>`: Override Blossom servers to use (comma-separated)
 
-**Note**: The delete command creates NIP-09 delete events. Some relays may not honor delete requests,
-and it may take time for deletions to propagate.
+**Note**: The delete command creates NIP-09 delete events. Some relays may not honor delete
+requests, and it may take time for deletions to propagate.
 
 ### Debugging nsites
 
@@ -183,7 +183,8 @@ nsyte run
 ```
 
 The `serve` command builds and serves your local nsite files, while `run` starts a resolver server
-that can serve nsites locally (e.g., `npub123.localhost` for root sites, `{base36pubkey}{dtag}.localhost` for named sites).
+that can serve nsites locally (e.g., `npub123.localhost` for root sites,
+`{base36pubkey}{dtag}.localhost` for named sites).
 
 ## Authentication Methods
 

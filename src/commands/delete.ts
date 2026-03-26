@@ -4,14 +4,11 @@ import { encodeBase64 } from "@std/encoding/base64";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
-import {
-  createDeleteEvent,
-  getSiteManifestEvent,
-  getUserDisplayName,
-  publishEventsToRelays,
-} from "../lib/nostr.ts";
+import { createDeleteEvent, getUserDisplayName, publishEventsToRelays } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
+import { formatManifestIdWithAge } from "../ui/time-formatter.ts";
 import nsyte from "./root.ts";
 
 const log = createLogger("delete");
@@ -164,15 +161,21 @@ export function registerDeleteCommand() {
 
         // Fetch the specific site manifest
         console.log(colors.cyan(`\nFetching site manifest for named site "${options.name}"...`));
-        const manifest = await getSiteManifestEvent(relays, pubkey, options.name);
+        const trustedManifest = await fetchTrustedSiteManifestEvent(relays, pubkey, options.name);
 
-        if (!manifest) {
+        if (!trustedManifest.event) {
           const siteType = `named site "${options.name}"`;
           console.log(colors.red(`No manifest event found for ${siteType}`));
           return Deno.exit(1);
         }
 
-        console.log(colors.gray(`Found manifest event: ${manifest.id}`));
+        const manifest = trustedManifest.event;
+
+        console.log(
+          colors.gray(
+            `Found manifest event: ${formatManifestIdWithAge(manifest.id, manifest.created_at)}`,
+          ),
+        );
 
         // Show what will be deleted
         const pathTags = manifest.tags.filter((tag) => tag[0] === "path");
@@ -209,7 +212,7 @@ export function registerDeleteCommand() {
         const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
 
         console.log(colors.cyan("Publishing delete event to relays..."));
-        const success = await publishEventsToRelays(relays, [deleteEvent]);
+        const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);
 
         if (success) {
           console.log(
@@ -364,14 +367,20 @@ export function registerDeleteCommand() {
 
       // Fetch root site manifest (kind 15128, no d tag)
       console.log(colors.cyan("\nFetching root site manifest..."));
-      const manifest = await getSiteManifestEvent(relays, pubkey);
+      const trustedManifest = await fetchTrustedSiteManifestEvent(relays, pubkey);
 
-      if (!manifest) {
+      if (!trustedManifest.event) {
         console.log(colors.red("No root site manifest event found."));
         return Deno.exit(1);
       }
 
-      console.log(colors.gray(`Found manifest event: ${manifest.id}`));
+      const manifest = trustedManifest.event;
+
+      console.log(
+        colors.gray(
+          `Found manifest event: ${formatManifestIdWithAge(manifest.id, manifest.created_at)}`,
+        ),
+      );
 
       // Show what will be deleted
       const pathTags = manifest.tags.filter((tag) => tag[0] === "path");
@@ -406,7 +415,7 @@ export function registerDeleteCommand() {
       const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
 
       console.log(colors.cyan("Publishing delete event to relays..."));
-      const success = await publishEventsToRelays(relays, [deleteEvent]);
+      const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);
 
       if (success) {
         console.log(

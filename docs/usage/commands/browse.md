@@ -101,7 +101,8 @@ Delete operations require authentication. The browse command supports:
 
 1. **Unified `--sec` flag** — Auto-detects format (nsec, nbunksec, bunker://, hex)
 2. **Project config** — Uses authentication from `.nsite/config.json`
-3. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to delete
+3. **Interactive prompt** — If no authentication is provided, you'll be prompted when attempting to
+   delete
 
 ## Features
 

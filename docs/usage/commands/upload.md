@@ -21,11 +21,13 @@ nsyte upload dist
 nsyte deploy dist
 ```
 
-All options and behaviors are the same. Simply replace `upload` with `deploy` in your commands and scripts.
+All options and behaviors are the same. Simply replace `upload` with `deploy` in your commands and
+scripts.
 
 ## Why the Change?
 
-The command was renamed to better reflect its purpose: deploying complete sites rather than just uploading files. The `deploy` command handles:
+The command was renamed to better reflect its purpose: deploying complete sites rather than just
+uploading files. The `deploy` command handles:
 
 - Uploading files to blossom servers
 - Publishing events to nostr relays

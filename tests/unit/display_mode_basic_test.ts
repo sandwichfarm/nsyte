@@ -1,9 +1,5 @@
 import { assertEquals } from "@std/assert";
-import {
-  type DisplayManager,
-  DisplayMode,
-  getDisplayManager,
-} from "../../src/lib/display-mode.ts";
+import { type DisplayManager, DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
 
 Deno.test("Display Mode - getDisplayManager", async (t) => {
   await t.step("should return a display manager instance", () => {

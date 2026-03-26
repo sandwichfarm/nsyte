@@ -31,7 +31,10 @@ Deno.test("Nostr request helpers return within timeout even without EOSE", async
 
     await t.step("fetchUserServers resolves to []", async () => {
       const pubkey = crypto.randomUUID();
-      const result = await withTimeout(fetchUserServers(pubkey, ["wss://example.invalid"], 10), 500);
+      const result = await withTimeout(
+        fetchUserServers(pubkey, ["wss://example.invalid"], 10),
+        500,
+      );
       assertEquals(result, []);
     });
   } finally {
