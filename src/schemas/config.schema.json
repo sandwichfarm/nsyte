@@ -141,6 +141,12 @@
       "type": "string",
       "description": "Optional site description for the manifest event"
     },
+    "source": {
+      "type": "string",
+      "description": "Optional repository URL for the source tag in manifest events (http/https only)",
+      "format": "uri",
+      "pattern": "^https?://"
+    },
     "appHandler": {
       "type": "object",
       "description": "NIP-89 app handler configuration",

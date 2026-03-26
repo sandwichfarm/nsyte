@@ -36,6 +36,7 @@ export type ProjectConfig = {
   id?: string | "" | null; // Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)
   title?: string; // Optional site title for manifest
   description?: string; // Optional site description for manifest
+  source?: string; // Optional repository URL for source tag in manifest
   appHandler?: {
     id?: string; // Optional unique identifier for this handler (defaults to site id)
     kinds: number[]; // Event kinds this nsite can handle/display
