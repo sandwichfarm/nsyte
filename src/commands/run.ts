@@ -15,7 +15,6 @@ const log = createLogger("run");
 /**
  * Parse site identifier from various formats and return AddressPointer:
  * - naddr format: naddr1... (kind 15128 for root or 35128 for named sites)
- * - subdomain format: <name>.npub1... (kind 35128)
  * - regular npub: npub1... (kind 15128)
  */
 function parseSiteIdentifier(input: string): AddressPointer | null {
@@ -32,24 +31,7 @@ function parseSiteIdentifier(input: string): AddressPointer | null {
     }
   }
 
-  // 2. Check if subdomain format: <name>.npub1...
-  const subdomainMatch = input.match(/^([a-zA-Z0-9_-]+)\.(npub1[a-z0-9]+)$/);
-  if (subdomainMatch) {
-    const npub = subdomainMatch[2];
-    const identifier = subdomainMatch[1];
-    const pubkey = normalizeToPubkey(npub);
-    if (!pubkey) {
-      throw new Error(`Invalid npub in subdomain format: ${npub}`);
-    }
-    // Construct AddressPointer for named site (kind 35128)
-    return {
-      pubkey,
-      identifier,
-      kind: 35128,
-    };
-  }
-
-  // 3. Regular npub
+  // 2. Regular npub
   const pubkey = normalizeToPubkey(input);
   if (pubkey) {
     // Construct AddressPointer for root site (kind 15128)
@@ -82,7 +64,7 @@ export function registerRunCommand(): void {
     .command("run")
     .alias("rn")
     .description(
-      "Run a resolver server that serves nsites via npub subdomains",
+      "Run a local resolver server that serves nsites",
     )
     .arguments("[npub:string]")
     .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
