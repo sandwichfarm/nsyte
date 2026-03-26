@@ -1,7 +1,4 @@
-> nsites are presently in transition. **nsyte v0.22.0+ is almost fully caught up with** with [proposed NIP](https://github.com/hzrd149/nips/blob/nsite/nsite.md), the the named sites specification has changed and has not been ported. Named sites deployed with nsite will be broken until further notice. Only a few gateways support the updated NIP, but they are catching up. nsites deployed with nsyte v0.22.0+ will work with gateways supporting the new specification.
-
-> ⚠️ nsyte is alpha. there may be things broken. docs may be incorrect. things will change. use at
-> your own risk.
+> nsyte supports NIP-5A from v0.23.1+. v0.23.0 has support for root sites, but not named sites. 
 
 # nsyte
 
