@@ -34,7 +34,8 @@ import {
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
-import { parseRelayInput, truncateString } from "../lib/utils.ts";
+import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
+import { validateDTag } from "../lib/nip5a.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -271,6 +272,20 @@ export async function deployCommand(
       statusDisplay.error("Critical error: Project data could not be resolved.");
       log.error("Critical error: Project data is null after context resolution.");
       return Deno.exit(1);
+    }
+
+    // Validate named site identifier against NIP-5A rules
+    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    if (siteId) {
+      const validation = validateDTag(siteId);
+      if (!validation.valid) {
+        const errorMsg = validation.suggestion
+          ? `${validation.error}\n\n  Suggestion: Use "${validation.suggestion}" instead.\n  Update .nsite/config.json: "id": "${validation.suggestion}"`
+          : validation.error || "Invalid site identifier";
+        statusDisplay.error(errorMsg);
+        log.error(`dTag validation failed: ${validation.error}`);
+        return Deno.exit(1);
+      }
     }
 
     const signerResult = await initSigner(authKeyHex, config, options, options.config);
@@ -1490,11 +1505,15 @@ async function publishSiteManifest(
     const manifestServers = options.servers?.split(",").filter((s) => s.trim()) || config.servers ||
       [];
 
+    // Detect source URL (config > git remote auto-detect)
+    const sourceUrl = await detectSourceUrl(config.source);
+
     const metadata = {
       title: config.title,
       description: config.description,
       servers: manifestServers, // Use config values for metadata (recommendations)
       relays: manifestRelays, // Use config values for metadata (recommendations)
+      source: sourceUrl,
     };
 
     // Display manifest event information before creating
@@ -1503,6 +1522,9 @@ async function publishSiteManifest(
     console.log(colors.cyan(`  Files: ${fileMappings.length}`));
     console.log(colors.cyan(`  Relays: ${manifestRelays.length}`));
     console.log(colors.cyan(`  Servers: ${manifestServers.length}`));
+    if (sourceUrl) {
+      console.log(colors.cyan(`  Source: ${sourceUrl}`));
+    }
     console.log("");
 
     // Create manifest event
