@@ -24,6 +24,7 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "./manifest.ts";
+import { decodePubkeyBase36, encodePubkeyBase36, validateDTag } from "./nip5a.ts";
 import {
   type FileEntry,
   getSiteManifestEvent,
@@ -77,32 +78,55 @@ export interface GatewayServerOptions {
 
 /**
  * Extract npub and optional identifier from hostname
- * Root site: "npub123.localhost" -> { npub: "npub123" }
- * Named site: "blog.npub123.localhost" -> { npub: "npub123", identifier: "blog" }
+ * Root site: "npub123.localhost" -> { pubkey, kind: 15128, identifier: "" }
+ * Named site (NIP-5A): "<pubkeyB36><dTag>.localhost" -> { pubkey, kind: 35128, identifier: dTag }
  */
-function extractNpubAndIdentifier(
+export function extractNpubAndIdentifier(
   hostname: string,
 ): AddressPointer | null {
   const parts = hostname.split(".");
   if (parts.length < 2) return null;
 
-  // Handle root site: npub123.localhost
-  if (parts[0].startsWith("npub")) {
-    const pubkey = normalizeToPubkey(parts[0]);
+  const label = parts[0];
+
+  // Handle root site: npub1xxx.localhost (unchanged)
+  if (label.startsWith("npub")) {
+    const pubkey = normalizeToPubkey(label);
     if (!pubkey) return null;
     return { pubkey, kind: NSITE_ROOT_SITE_KIND, identifier: "" };
   }
 
-  // Handle named site: blog.npub123.localhost
-  if (parts.length >= 3 && parts[0] && parts[1].startsWith("npub")) {
-    const identifier = parts[0];
-    const pubkey = normalizeToPubkey(parts[1]);
+  // Handle NIP-5A named site: <pubkeyB36><dTag>.localhost
+  // pubkeyB36 is exactly 50 lowercase base36 chars, dTag is 0-13 chars
+  if (label.length >= 50) {
+    const pubkeyB36 = label.slice(0, 50);
+    const dTag = label.slice(50);
 
-    if (!pubkey) return null;
+    // Validate dTag if present (0-13 chars, a-z0-9 and hyphens, no trailing hyphen)
+    if (dTag.length > 0) {
+      const validation = validateDTag(dTag);
+      if (!validation.valid) {
+        return null;
+      }
+    }
 
-    // Validate identifier (alphanumeric, hyphens, underscores)
-    if (/^[a-zA-Z0-9_-]+$/.test(identifier)) {
-      return { pubkey, kind: NSITE_NAME_SITE_KIND, identifier };
+    try {
+      const pubkeyBytes = decodePubkeyBase36(pubkeyB36);
+      // Convert Uint8Array to hex string
+      const pubkey = Array.from(pubkeyBytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      if (pubkey.length !== 64) return null;
+
+      return {
+        pubkey,
+        kind: dTag.length > 0 ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND,
+        identifier: dTag,
+      };
+    } catch {
+      // Invalid base36 encoding
+      return null;
     }
   }
 
@@ -128,13 +152,6 @@ export class NsiteGatewayServer {
   private pathUpdateTimestamps: Map<string, number>;
   private backgroundUpdateChecks: Map<string, Promise<void>>;
   private serverController: Deno.HttpServer | null = null;
-
-  /**
-   * Generate cache key for site-specific caches (not profile)
-   */
-  private getSiteCacheKey(npub: string, identifier?: string): string {
-    return identifier ? `${npub}:${identifier}` : `${npub}:root`;
-  }
 
   constructor(options: GatewayServerOptions) {
     this.options = options;
