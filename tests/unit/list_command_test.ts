@@ -4,7 +4,7 @@ import "../test-setup-global.ts";
 import { assertEquals } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
 
-import { buildListTreeItems } from "../../src/commands/list.ts";
+import { buildListTreeItems } from "../../src/ui/file-tree.ts";
 import type { FileEntryWithSources } from "../../src/lib/nostr.ts";
 
 function createFile(path: string): FileEntryWithSources {

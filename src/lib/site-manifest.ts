@@ -1,6 +1,8 @@
+import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { getSeenRelays, type NostrEvent, relaySet } from "applesauce-core/helpers";
-import { getManifestRelays } from "./manifest.ts";
-import { fetchSiteManifestEvent, getUserOutboxes } from "./nostr.ts";
+import { lastValueFrom } from "rxjs";
+import { getManifestRelays, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
+import { fetchSiteManifestEvent, getUserOutboxes, pool, store } from "./nostr.ts";
 import type { FileEntry, FileEntryWithSources } from "./nostr.ts";
 
 export interface TrustedManifestFetchResult {
@@ -19,9 +21,19 @@ export interface TrustedManifestDependencies {
   ) => Promise<NostrEvent | null>;
 }
 
+export interface ManifestHistoryDependencies {
+  getOutboxes: (pubkey: string) => Promise<string[] | undefined>;
+  fetchEvents: (relays: string[], pubkey: string, identifier?: string) => Promise<NostrEvent[]>;
+}
+
 const defaultDependencies: TrustedManifestDependencies = {
   getOutboxes: getUserOutboxes,
   fetchManifest: fetchSiteManifestEvent,
+};
+
+const defaultManifestHistoryDependencies: ManifestHistoryDependencies = {
+  getOutboxes: getUserOutboxes,
+  fetchEvents: fetchSiteManifestEvents,
 };
 
 function pickNewerManifest(a: NostrEvent | null, b: NostrEvent | null): NostrEvent | null {
@@ -32,6 +44,51 @@ function pickNewerManifest(a: NostrEvent | null, b: NostrEvent | null): NostrEve
   }
 
   return a.id >= b.id ? a : b;
+}
+
+export function sortManifestEvents(events: NostrEvent[]): NostrEvent[] {
+  const uniqueEvents = new Map<string, NostrEvent>();
+  for (const event of events) {
+    uniqueEvents.set(event.id, event);
+  }
+
+  return Array.from(uniqueEvents.values()).sort((a, b) => {
+    if (a.created_at !== b.created_at) {
+      return b.created_at - a.created_at;
+    }
+
+    return b.id.localeCompare(a.id);
+  });
+}
+
+async function fetchSiteManifestEvents(
+  relays: string[],
+  pubkey: string,
+  identifier?: string,
+  timeout = 15_000,
+): Promise<NostrEvent[]> {
+  try {
+    const events = await lastValueFrom(
+      pool.request(
+        relays,
+        identifier
+          ? {
+            kinds: [NSITE_NAME_SITE_KIND],
+            authors: [pubkey],
+            "#d": [identifier],
+          }
+          : {
+            kinds: [NSITE_ROOT_SITE_KIND],
+            authors: [pubkey],
+          },
+      ).pipe(mapEventsToStore(store), mapEventsToTimeline(), simpleTimeout(timeout)),
+      { defaultValue: [] },
+    );
+
+    return sortManifestEvents(events);
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchTrustedSiteManifestEvent(
@@ -63,6 +120,26 @@ export async function fetchTrustedSiteManifestEvent(
     outboxes,
     manifestRelays,
   };
+}
+
+export async function fetchTrustedSiteManifestHistory(
+  initialRelays: string[],
+  pubkey: string,
+  identifier?: string,
+  dependencies: ManifestHistoryDependencies = defaultManifestHistoryDependencies,
+): Promise<NostrEvent[]> {
+  const outboxes = await dependencies.getOutboxes(pubkey) ?? [];
+  const firstPassRelays = relaySet(initialRelays, outboxes);
+  const firstPassEvents = await dependencies.fetchEvents(firstPassRelays, pubkey, identifier);
+  const manifestRelays = relaySet(...firstPassEvents.map((event) => getManifestRelays(event)));
+
+  if (manifestRelays.length === 0) {
+    return sortManifestEvents(firstPassEvents);
+  }
+
+  const trustedRelays = relaySet(firstPassRelays, manifestRelays);
+  const secondPassEvents = await dependencies.fetchEvents(trustedRelays, pubkey, identifier);
+  return sortManifestEvents([...firstPassEvents, ...secondPassEvents]);
 }
 
 export function getManifestFileEntries(manifestEvent: NostrEvent): FileEntry[] {

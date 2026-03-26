@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Keypress } from "@cliffy/keypress";
 import type { UploadProgress } from "../lib/upload.ts";
-import { SERVER_COLORS, SERVER_SYMBOLS } from "../commands/list.ts";
+import { SERVER_COLORS, SERVER_SYMBOLS } from "./source-indicators.ts";
 
 const PROGRESS_BAR_WIDTH = 30;
 const SERVER_BAR_WIDTH = 20;
@@ -74,9 +74,80 @@ interface ProgressData {
   serverProgress?: Record<string, ServerProgress>;
 }
 
+export interface ServerProgressSummary {
+  total: number;
+  completed: number;
+  failed: number;
+  retrying: number;
+  skipped: number;
+  finishedAt?: number;
+}
+
 /** Shorten a server URL for display: strip protocol, trailing slash */
 function shortServerName(url: string): string {
   return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
+export function formatServerProgressBars(
+  servers: string[],
+  serverProgress: Record<string, ServerProgressSummary>,
+  startTime?: number,
+): string {
+  if (servers.length === 0) {
+    return "";
+  }
+
+  const maxNameLen = Math.max(...servers.map((s) => shortServerName(s).length));
+  const lines: string[] = [];
+
+  for (let i = 0; i < servers.length; i++) {
+    const server = servers[i];
+    const sp = serverProgress[server];
+    if (!sp) continue;
+
+    const symbol = SERVER_SYMBOLS[i % SERVER_SYMBOLS.length];
+    const colorFn = SERVER_COLORS[i % SERVER_COLORS.length];
+    const name = shortServerName(server).padEnd(maxNameLen);
+    const serverDone = sp.completed + sp.failed;
+    const serverPercent = sp.total === 0 ? 0 : Math.floor((serverDone / sp.total) * 100);
+
+    let sGreen = 0;
+    let sYellow = 0;
+    let sRed = 0;
+    let sGray = SERVER_BAR_WIDTH;
+
+    if (sp.total > 0) {
+      sGreen = Math.floor((sp.completed / sp.total) * SERVER_BAR_WIDTH);
+      sYellow = Math.floor((sp.retrying / sp.total) * SERVER_BAR_WIDTH);
+      sRed = Math.floor((sp.failed / sp.total) * SERVER_BAR_WIDTH);
+      sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sYellow - sRed);
+    }
+
+    const sBar = colors.green("█".repeat(sGreen)) +
+      colors.yellow("█".repeat(sYellow)) +
+      colors.red("█".repeat(sRed)) +
+      "░".repeat(sGray);
+
+    const pctStr = `${serverPercent}%`.padStart(4);
+    const statParts = [`${sp.completed} ok`];
+    if (sp.failed > 0) statParts.push(colors.red(`${sp.failed} fail`));
+    if (sp.retrying > 0) statParts.push(colors.yellow(`${sp.retrying} retry`));
+    if (sp.skipped > 0) statParts.push(colors.dim(`${sp.skipped} skip`));
+
+    let timeStr = "";
+    if (sp.finishedAt && startTime) {
+      const secs = Math.floor((sp.finishedAt - startTime) / 1000);
+      timeStr = colors.dim(` (${secs}s)`);
+    }
+
+    lines.push(
+      `  ${colorFn(symbol)} ${colorFn(name)} [${sBar}] ${pctStr} | ${
+        statParts.join(", ")
+      }${timeStr}`,
+    );
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -355,59 +426,13 @@ export class ProgressRenderer {
       const sepWidth = columns > 0 ? Math.min(columns, 60) : 60;
       lines.push(colors.dim("─".repeat(sepWidth)));
 
-      const maxNameLen = Math.max(
-        ...this.servers.map((s) => shortServerName(s).length),
+      const serverLines = formatServerProgressBars(
+        this.servers,
+        data.serverProgress,
+        this.startTime,
       );
-
-      for (let i = 0; i < this.servers.length; i++) {
-        const server = this.servers[i];
-        const sp = data.serverProgress[server];
-        if (!sp) continue;
-
-        const symbol = SERVER_SYMBOLS[i % SERVER_SYMBOLS.length];
-        const colorFn = SERVER_COLORS[i % SERVER_COLORS.length];
-        const name = shortServerName(server).padEnd(maxNameLen);
-        const serverDone = sp.completed + sp.failed;
-        const serverPercent = sp.total === 0 ? 0 : Math.floor((serverDone / sp.total) * 100);
-
-        // Build per-server bar with standard colors (green/yellow/red)
-        let sGreen = 0;
-        let sYellow = 0;
-        let sRed = 0;
-        let sGray = SERVER_BAR_WIDTH;
-
-        if (sp.total > 0) {
-          sGreen = Math.floor((sp.completed / sp.total) * SERVER_BAR_WIDTH);
-          sYellow = Math.floor((sp.retrying / sp.total) * SERVER_BAR_WIDTH);
-          sRed = Math.floor((sp.failed / sp.total) * SERVER_BAR_WIDTH);
-          sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sYellow - sRed);
-        }
-
-        const sBar = colors.green("█".repeat(sGreen)) +
-          colors.yellow("█".repeat(sYellow)) +
-          colors.red("█".repeat(sRed)) +
-          "░".repeat(sGray);
-
-        const pctStr = `${serverPercent}%`.padStart(4);
-
-        // Stats
-        const statParts = [`${sp.completed} ok`];
-        if (sp.failed > 0) statParts.push(colors.red(`${sp.failed} fail`));
-        if (sp.retrying > 0) statParts.push(colors.yellow(`${sp.retrying} retry`));
-        if (sp.skipped > 0) statParts.push(colors.dim(`${sp.skipped} skip`));
-
-        // Show elapsed time when server is done
-        let timeStr = "";
-        if (sp.finishedAt) {
-          const secs = Math.floor((sp.finishedAt - this.startTime) / 1000);
-          timeStr = colors.dim(` (${secs}s)`);
-        }
-
-        lines.push(
-          `  ${colorFn(symbol)} ${colorFn(name)} [${sBar}] ${pctStr} | ${
-            statParts.join(", ")
-          }${timeStr}`,
-        );
+      if (serverLines) {
+        lines.push(...serverLines.split("\n"));
       }
     }
 

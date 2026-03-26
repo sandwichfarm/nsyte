@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import type { BrowseState } from "./state.ts";
-import { getServerSymbol, RELAY_SYMBOL, RELAY_SYMBOL_ALT } from "../../commands/list.ts";
+import { getServerSymbol, RELAY_SYMBOL, RELAY_SYMBOL_ALT } from "../source-indicators.ts";
 import { isIgnored } from "../../lib/files.ts";
 import { formatTimestamp } from "../time-formatter.ts";
 import { addLineNumbers, highlightJson } from "../json-highlighter.ts";

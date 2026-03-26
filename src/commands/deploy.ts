@@ -50,7 +50,7 @@ import {
   formatTable,
   formatTitle,
 } from "../ui/formatters.ts";
-import { getServerSymbol, SERVER_COLORS } from "./list.ts";
+import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import { loadAsyncMap } from "applesauce-loaders/helpers";
