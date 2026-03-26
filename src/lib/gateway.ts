@@ -178,7 +178,7 @@ export function find404Fallback(
 }
 
 /**
- * Nsite Gateway Server - serves nsites via npub subdomains
+ * Nsite Gateway Server - serves nsites via npub (root) and NIP-5A base36 (named) subdomains
  */
 export class NsiteGatewayServer {
   private options: GatewayServerOptions;
@@ -294,13 +294,11 @@ export class NsiteGatewayServer {
     const hostname = request.headers.get("host")?.split(":")[0] || "";
     const { port, targetSite } = this.options;
 
-    // Extract targetNpub and targetIdentifier from targetSite
-    const targetNpub = targetSite ? npubEncode(targetSite.pubkey) : null;
     const targetIdentifier = targetSite?.identifier;
 
     // Handle root localhost redirect
     if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
-      if (!targetNpub) {
+      if (!targetSite) {
         const elapsed = Math.round(performance.now() - startTime);
         console.log(colors.red(`✗ No target site configured - ${elapsed}ms`));
         return new Response("No target site configured", {
@@ -309,14 +307,12 @@ export class NsiteGatewayServer {
         });
       }
       let redirectUrl: string;
-      if (targetIdentifier && targetSite) {
-        const pubkeyBytes = new Uint8Array(
-          targetSite.pubkey.match(/.{2}/g)!.map((b: string) => parseInt(b, 16)),
-        );
-        const targetB36 = encodePubkeyBase36(pubkeyBytes);
+      if (targetIdentifier) {
+        const targetB36 = encodePubkeyBase36(hexToBytes(targetSite.pubkey));
         redirectUrl =
           `http://${targetB36}${targetIdentifier}.localhost:${port}${url.pathname}${url.search}`;
       } else {
+        const targetNpub = npubEncode(targetSite.pubkey);
         redirectUrl = `http://${targetNpub}.localhost:${port}${url.pathname}${url.search}`;
       }
       const elapsed = Math.round(performance.now() - startTime);
@@ -336,7 +332,7 @@ export class NsiteGatewayServer {
 
     if (!sitePointer) {
       const elapsed = Math.round(performance.now() - startTime);
-      console.log(colors.red(`✗ Invalid request (no npub) - ${elapsed}ms`));
+      console.log(colors.red(`✗ Invalid request (unrecognized hostname format) - ${elapsed}ms`));
       return new Response(
         "Invalid request. Use npub subdomain for root sites (e.g., npub1xxx.localhost) or NIP-5A format for named sites (e.g., {base36pubkey}{dtag}.localhost)",
         {

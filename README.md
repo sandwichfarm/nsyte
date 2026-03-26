@@ -89,7 +89,7 @@ deno task compile:all
 | `nsyte ls`              | List published files                                            |
 | `nsyte browse`          | Interactive TUI browser for files                               |
 | `nsyte download <dir>`  | Download files                                                  |
-| `nsyte run`             | Run resolver server with npub subdomains                        |
+| `nsyte run`             | Run resolver server for nsites                                  |
 | `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default) |
 | `nsyte debug <npub>`    | Debug an nsite by checking relays and servers                   |
 | `nsyte validate`        | Validate configuration file                                     |
@@ -181,12 +181,12 @@ The debug command checks:
 # Serve local files for development
 nsyte serve
 
-# Run resolver server for testing npub subdomains
+# Run resolver server for nsites
 nsyte run
 ```
 
 The `serve` command builds and serves your local nsite files, while `run` starts a resolver server
-that can serve nsites via npub subdomains (e.g., `npub123.localhost`).
+that can serve nsites locally (e.g., `npub123.localhost` for root sites, `{base36pubkey}{dtag}.localhost` for named sites).
 
 ## Authentication Methods
 

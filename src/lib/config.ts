@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
 import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
+import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
@@ -733,23 +734,24 @@ Generated and stored nbunksec string.`));
   const siteType = await Select.prompt<string>({
     message: "What type of site are you creating?",
     options: [
-      { name: "Root site (hosted by npub) - e.g., npub1xxxx.nsite", value: "root" },
-      { name: "Named site (subdomain) - e.g., blog.npub1xxx.nsite", value: "named" },
+      { name: "Root site - e.g., npub1xxxx.nsite.lol", value: "root" },
+      { name: "Named site - e.g., {base36pubkey}blog.nsite.lol", value: "named" },
     ],
   });
 
   let siteId: string | null | undefined;
   if (siteType === "named") {
     const identifier = await Input.prompt({
-      message: "Enter site identifier (subdomain name) (required):",
+      message: "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
       validate: (input: string) => {
         const trimmed = input.trim();
         if (!trimmed) {
           return "Site identifier is required";
         }
-        // Validate identifier: alphanumeric, hyphens, underscores only
-        if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-          return "Site identifier can only contain letters, numbers, hyphens, and underscores";
+        const result = validateDTag(trimmed);
+        if (!result.valid) {
+          const suggestion = suggestIdentifier(trimmed);
+          return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
         }
         return true;
       },

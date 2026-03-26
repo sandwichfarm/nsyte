@@ -2,7 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import nsyte from "./root.ts";
 import { join } from "@std/path";
-import { getOutboxes, npubEncode, relaySet } from "applesauce-core/helpers";
+import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
@@ -35,7 +35,9 @@ import {
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
 import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
-import { validateDTag } from "../lib/nip5a.ts";
+import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
+import { hexToBytes } from "@noble/hashes/utils";
+import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -528,6 +530,7 @@ function computeExitCode(result: DeployPhaseResult): number {
  */
 function displayGatewayUrl(config: ProjectConfig, publisherPubkey: string): void {
   const npub = npubEncode(publisherPubkey);
+  const pubkeyB36 = encodePubkeyBase36(hexToBytes(publisherPubkey));
   const { gatewayHostnames, id } = config;
   const siteId = id === null || id === "" ? undefined : id;
   const isNamedSite = !!siteId;
@@ -535,16 +538,23 @@ function displayGatewayUrl(config: ProjectConfig, publisherPubkey: string): void
   console.log(colors.green(`\nThe nsite is now available on any nsite gateway, for example:`));
   for (const gatewayHostname of gatewayHostnames || []) {
     if (isNamedSite) {
-      console.log(colors.blue.underline(`https://${siteId}.${npub}.${gatewayHostname}/`));
+      console.log(colors.blue.underline(`https://${pubkeyB36}${siteId}.${gatewayHostname}/`));
     } else {
       console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
     }
   }
   console.log(colors.green(`\nYou can also run the command:`));
 
-  console.log(
-    colors.magenta.bold(isNamedSite ? `nsyte run ${siteId}.${npub}` : `nsyte run ${npub}`),
-  );
+  if (isNamedSite) {
+    const naddr = naddrEncode({
+      pubkey: publisherPubkey,
+      kind: NSITE_NAME_SITE_KIND,
+      identifier: siteId,
+    });
+    console.log(colors.magenta.bold(`nsyte run ${naddr}`));
+  } else {
+    console.log(colors.magenta.bold(`nsyte run ${npub}`));
+  }
 }
 
 /**

@@ -121,7 +121,9 @@
       "oneOf": [
         {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 13,
+          "pattern": "^[a-z0-9-]+$"
         },
         {
           "type": "string",
@@ -131,7 +133,7 @@
           "type": "null"
         }
       ],
-      "description": "Site identifier for named sites (kind 35128). Use empty string or null for root site (kind 15128)"
+      "description": "Site identifier for named sites (kind 35128). Must match [a-z0-9-]{1,13} per NIP-5A. Use empty string or null for root site (kind 15128)"
     },
     "title": {
       "type": "string",
