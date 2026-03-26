@@ -78,22 +78,25 @@ deno task compile:all
 
 ## Core Commands
 
-| Command                 | Description                                                     |
-| ----------------------- | --------------------------------------------------------------- |
-| `nsyte`                 | Interactive setup wizard                                        |
-| `nsyte init`            | Initialize configuration                                        |
-| `nsyte deploy <dir>`    | Deploy files                                                    |
-| `nsyte ls`              | List published files                                            |
-| `nsyte browse`          | Interactive TUI browser for files                               |
-| `nsyte download <dir>`  | Download files                                                  |
-| `nsyte run`             | Run resolver server for nsites                                  |
-| `nsyte serve -d <div>`  | Serve local nsite files from directory (current dir is default) |
-| `nsyte debug <npub>`    | Debug an nsite by checking relays and servers                   |
-| `nsyte validate`        | Validate configuration file                                     |
-| `nsyte delete`          | Selectively remove published files                              |
-| `nsyte undeploy`        | Completely remove a deployed site                               |
-| `nsyte ci`              | Generate CI/CD credentials (nbunksec)                           |
-| `nsyte bunker <action>` | Manage NIP-46 bunkers                                           |
+| Command                    | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `nsyte`                    | Show help                                                          |
+| `nsyte init`               | Initialize configuration                                           |
+| `nsyte deploy <dir>`       | Deploy a directory                                                 |
+| `nsyte list [path]`        | Show the current manifest and file tree                            |
+| `nsyte status [path]`      | Show manifest history, relay coverage, and Blossom server coverage |
+| `nsyte get <remote-path>`  | Download one file from a site                                      |
+| `nsyte put <local> <path>` | Upload one file and update an existing manifest                    |
+| `nsyte browse`             | Interactive TUI browser for files                                  |
+| `nsyte download <dir>`     | Download a site to a directory                                     |
+| `nsyte run`                | Run resolver server for nsites                                     |
+| `nsyte serve`              | Serve local nsite files from the current directory                 |
+| `nsyte debug <npub>`       | Debug an nsite by checking relays and servers                      |
+| `nsyte validate`           | Validate configuration file                                        |
+| `nsyte delete`             | Selectively remove published files                                 |
+| `nsyte undeploy`           | Completely remove a deployed site                                  |
+| `nsyte ci`                 | Generate CI/CD credentials (nbunksec)                              |
+| `nsyte bunker <action>`    | Manage NIP-46 bunkers                                              |
 
 ### Deploying Files
 
@@ -111,7 +114,54 @@ nsyte deploy ./dist --sync
 nsyte deploy ./dist --publish-profile --publish-relay-list --publish-server-list
 
 # With NIP-89 app handler
-nsyte deploy ./dist --app-handler --handler-kinds "1,30023"
+nsyte deploy ./dist --publish-app-handler --handler-kinds "1,30023"
+```
+
+### Inspecting a Site
+
+Use `list` when you want the current file tree. Use `status` when you want propagation and storage
+details.
+
+```bash
+# Show the current manifest and file tree
+nsyte list
+
+# List only one subtree
+nsyte list blog/
+
+# Show relay coverage, manifest history, and Blossom server summaries
+nsyte status
+
+# Show the full per-file view
+nsyte status --full
+
+# Inspect a named site
+nsyte status --name blog
+```
+
+### Getting and Putting Single Files
+
+Use `get` to download a single file from a published site, and `put` to upload one file and write a
+new manifest.
+
+```bash
+# Print a remote file to stdout
+nsyte get /index.html
+
+# Save a remote file locally
+nsyte get /assets/app.js --output ./app.js
+
+# Download from a named site
+nsyte get /feed.json --name blog
+
+# Upload one file to an existing site
+nsyte put ./dist/index.html /
+
+# Upload one file to a nested path
+nsyte put ./dist/app.js /assets/app.js
+
+# Update a named site
+nsyte put ./dist/feed.json /feed.json --name blog
 ```
 
 ### Deleting Files
@@ -319,7 +369,7 @@ nsyte ci
 
 # Add the nbunksec to your CI/CD secrets (e.g., NBUNK_SECRET)
 # Then use in your pipeline:
-nsyte deploy ./dist --nbunksec ${NBUNK_SECRET}
+nsyte deploy ./dist --sec ${NBUNK_SECRET}
 ```
 
 **Security Best Practices:**
@@ -338,7 +388,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: denoland/setup-deno@v1
-      - run: nsyte deploy ./dist --nbunksec ${{ secrets.NBUNK_SECRET }}
+      - run: nsyte deploy ./dist --sec ${{ secrets.NBUNK_SECRET }}
 ```
 
 ## Configuration
@@ -435,7 +485,7 @@ announcements, allowing your nsite to be discovered as a viewer for specific Nos
 
 ```bash
 # Publish app handler for specific event kinds
-nsyte deploy ./dist --app-handler --handler-kinds "1,30023,30311"
+nsyte deploy ./dist --publish-app-handler --handler-kinds "1,30023,30311"
 ```
 
 When enabled, other Nostr clients can suggest your nsite when users encounter the specified event
@@ -482,7 +532,7 @@ nsyte bunker migrate
 --verbose          Show detailed progress
 --concurrency <n>  Number of parallel uploads (default: 4)
 --fallback <file>  HTML file to use as 404.html
---nbunksec <string>   nbunksec string for authentication
+--sec <string>        Secret for authentication (nsec, nbunksec, bunker URL, or hex)
 ```
 
 ### Deep Linking in SPAs
