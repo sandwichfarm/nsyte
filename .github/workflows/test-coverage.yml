@@ -1,0 +1,49 @@
+name: Tests & Coverage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "deno.json"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "deno.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-coverage:
+    name: Test & Update Coverage Badges
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Run tests with coverage
+        run: deno task coverage
+
+      - name: Generate LCOV report
+        run: deno coverage test-output/coverage --lcov > test-output/coverage.lcov
+
+      - name: Generate coverage badges
+        run: deno run --allow-read --allow-write --allow-run scripts/generate-coverage-badges.ts
+
+      - name: Commit updated badges
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add static/coverage-badge.svg static/coverage-lines-badge.svg static/coverage-branches-badge.svg
+          git diff --staged --quiet || git commit -m "ci: update coverage badges [skip ci]"
+          git push
