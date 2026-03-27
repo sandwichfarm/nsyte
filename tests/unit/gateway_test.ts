@@ -1,14 +1,10 @@
 import { assertEquals } from "@std/assert";
-import {
-  extractNpubAndIdentifier,
-  find404Fallback,
-} from "../../src/lib/gateway.ts";
+import { extractNpubAndIdentifier, find404Fallback } from "../../src/lib/gateway.ts";
 import { encodePubkeyBase36 } from "../../src/lib/nip5a.ts";
 import type { FileEntry } from "../../src/lib/nostr.ts";
 
 // Generate a test pubkey (32 bytes = 64 hex chars)
-const TEST_PUBKEY_HEX =
-  "266815e0c9210dfa324c6cba3573b14bee49da4209a9456f9484e5106cd408a5";
+const TEST_PUBKEY_HEX = "266815e0c9210dfa324c6cba3573b14bee49da4209a9456f9484e5106cd408a5";
 const TEST_PUBKEY_BYTES = new Uint8Array(
   TEST_PUBKEY_HEX.match(/.{2}/g)!.map((b) => parseInt(b, 16)),
 );

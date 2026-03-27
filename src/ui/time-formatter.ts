@@ -60,3 +60,59 @@ export function formatTimestamp(timestamp: number): string {
     }
   }
 }
+
+/**
+ * Format a unix timestamp as an age relative to now.
+ */
+export function formatAge(timestamp: number, nowMs = Date.now()): string {
+  const diffMs = Math.max(0, nowMs - (timestamp * 1000));
+  const minuteMs = 1000 * 60;
+  const hourMs = minuteMs * 60;
+  const dayMs = hourMs * 24;
+  const weekMs = dayMs * 7;
+  const monthMs = dayMs * 30;
+  const yearMs = dayMs * 365;
+
+  if (diffMs < minuteMs) {
+    return "just now";
+  }
+
+  if (diffMs < hourMs) {
+    const minutes = Math.floor(diffMs / minuteMs);
+    return minutes === 1 ? "1 minute ago" : `${minutes} minutes ago`;
+  }
+
+  if (diffMs < dayMs) {
+    const hours = Math.floor(diffMs / hourMs);
+    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+  }
+
+  if (diffMs < weekMs) {
+    const days = Math.floor(diffMs / dayMs);
+    return days === 1 ? "1 day ago" : `${days} days ago`;
+  }
+
+  if (diffMs < monthMs) {
+    const weeks = Math.floor(diffMs / weekMs);
+    return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+  }
+
+  if (diffMs < yearMs) {
+    const months = Math.floor(diffMs / monthMs);
+    return months === 1 ? "1 month ago" : `${months} months ago`;
+  }
+
+  const years = Math.floor(diffMs / yearMs);
+  return years === 1 ? "1 year ago" : `${years} years ago`;
+}
+
+/**
+ * Format a manifest identifier with a human-readable age.
+ */
+export function formatManifestIdWithAge(
+  manifestId: string,
+  createdAt: number,
+  nowMs = Date.now(),
+): string {
+  return `${manifestId} (${formatAge(createdAt, nowMs)})`;
+}

@@ -5,7 +5,8 @@ description: Interactive configuration editor
 
 # config
 
-Interactive TUI (Terminal User Interface) for editing nsyte configuration files with a full-screen editor.
+Interactive TUI (Terminal User Interface) for editing nsyte configuration files with a full-screen
+editor.
 
 ## Usage
 
@@ -20,20 +21,24 @@ nsyte config [options]
 ## Keyboard Shortcuts
 
 ### Navigation
+
 - **Arrow keys** — Navigate between fields
 - **Enter** — Edit selected field
 - **Tab** — Move to next field
 
 ### Editing
+
 - **s** — Save changes
 - **r** — Reset to original values
 - **ESC** — Collapse all expanded sections
 
 ### Help & Exit
+
 - **h** — Show help
 - **q** — Quit (prompts if unsaved changes)
 
 ### Array & Object Management
+
 - **+** — Add item to array (when array is selected)
 - **-** — Delete selected array item
 - **Space** — Expand/collapse objects and arrays
@@ -41,24 +46,28 @@ nsyte config [options]
 ## Features
 
 ### Interactive Editing
+
 - Full-screen terminal interface with alternate screen buffer
 - Navigate configuration structure with keyboard
 - Edit fields inline with type validation
 - Visual feedback for unsaved changes
 
 ### Configuration Structure
+
 - **Nested objects**: Expand and collapse complex structures
 - **Arrays**: Add, remove, and reorder items
 - **Type validation**: Ensures valid values before saving
 - **Required fields**: Highlights missing required configuration
 
 ### Special Features
+
 - **Bunker selection**: Browse and select from stored bunkers with display names
 - **Relay/server management**: Easy add/remove for arrays of URLs
 - **Profile metadata**: Edit profile fields with validation
 - **App handler config**: Configure NIP-89 handlers with visual editor
 
 ### Safety
+
 - Tracks unsaved changes with visual indicator
 - Confirms before quitting with unsaved changes
 - Validates configuration before saving

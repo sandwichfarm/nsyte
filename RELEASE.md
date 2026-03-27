@@ -2,7 +2,8 @@
 
 ## Version Source of Truth
 
-`deno.json` is the single source of truth for the version number. The `src/version.ts` module imports it via a JSON import, so there is nothing to keep in sync manually.
+`deno.json` is the single source of truth for the version number. The `src/version.ts` module
+imports it via a JSON import, so there is nothing to keep in sync manually.
 
 ```
 deno.json  --(JSON import)-->  src/version.ts  -->  CLI --version output
@@ -30,7 +31,8 @@ deno.json  --(JSON import)-->  src/version.ts  -->  CLI --version output
    deno task release
    ```
 
-   This pushes commits and the tag to `origin`. The `Build and Release` GitHub Action runs automatically on tag push.
+   This pushes commits and the tag to `origin`. The `Build and Release` GitHub Action runs
+   automatically on tag push.
 
 ## Manual Release (workflow_dispatch)
 
@@ -40,12 +42,13 @@ You can also trigger a release from the GitHub Actions UI:
 2. Enter the version number (e.g., `0.23.0`)
 3. The workflow runs `sync-version.ts` to update `deno.json` before building
 
-For tag-triggered releases, `deno.json` already has the correct version from the tagging step, so the sync is skipped.
+For tag-triggered releases, `deno.json` already has the correct version from the tagging step, so
+the sync is skipped.
 
 ## What Each Script Does
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/sync-version.ts` | Updates `deno.json` version field. No git operations. |
-| `scripts/tag.ts` | Reads version from `deno.json`, commits if needed, creates git tag. |
-| `scripts/release.ts` | Reads version from `deno.json`, pushes commits and tag to origin. |
+| Script                    | Purpose                                                             |
+| ------------------------- | ------------------------------------------------------------------- |
+| `scripts/sync-version.ts` | Updates `deno.json` version field. No git operations.               |
+| `scripts/tag.ts`          | Reads version from `deno.json`, commits if needed, creates git tag. |
+| `scripts/release.ts`      | Reads version from `deno.json`, pushes commits and tag to origin.   |

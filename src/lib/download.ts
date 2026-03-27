@@ -3,7 +3,8 @@ import { ensureDir } from "@std/fs/ensure-dir";
 import { dirname, join } from "@std/path";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { createLogger } from "./logger.ts";
-import { type FileEntry, listRemoteFiles } from "./nostr.ts";
+import type { FileEntry } from "./nostr.ts";
+import { listTrustedRemoteFiles } from "./site-manifest.ts";
 import type { ByteArray } from "./types.ts";
 
 const log = createLogger("download");
@@ -65,7 +66,7 @@ export class DownloadService {
         site ? ` (site: ${site})` : ""
       }`,
     );
-    return await listRemoteFiles(relays, pubkey, site);
+    return await listTrustedRemoteFiles(relays, pubkey, site);
   }
 
   /**
@@ -229,7 +230,9 @@ export class DownloadService {
       const actualHash = encodeHex(new Uint8Array(hashBuffer));
       if (actualHash !== sha256) {
         log.debug(
-          `Hash mismatch from ${server}: expected ${sha256.slice(0, 16)}..., got ${actualHash.slice(0, 16)}...`,
+          `Hash mismatch from ${server}: expected ${sha256.slice(0, 16)}..., got ${
+            actualHash.slice(0, 16)
+          }...`,
         );
         return null;
       }

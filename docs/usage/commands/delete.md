@@ -8,7 +8,8 @@ description: Selectively remove published files from relays and optionally from 
 Selectively delete nsite events from relays and optionally delete blobs from blossom servers. This
 command creates NIP-09 delete events to remove your published nsite files.
 
-> **Note**: The `purge` command still works as an alias but is deprecated. Please use `delete` instead.
+> **Note**: The `purge` command still works as an alias but is deprecated. Please use `delete`
+> instead.
 
 ## Usage
 
@@ -69,7 +70,8 @@ nsyte delete -d blog --include-blobs -y
 2. **Fetches manifest**: Retrieves current site manifest from relays
 3. **Confirmation**: Shows preview of files to be deleted (first 5 + count)
 4. **Creates delete event**: Publishes NIP-09 Kind 5 delete event for the site manifest
-5. **Deletes blobs** (if `--include-blobs`): Attempts to delete blobs from blossom servers using BUD-04 auth
+5. **Deletes blobs** (if `--include-blobs`): Attempts to delete blobs from blossom servers using
+   BUD-04 auth
 
 ## Blob Deletion
 
@@ -78,7 +80,8 @@ When using `--include-blobs`, nsyte attempts to delete the actual blob files fro
 - **Batch deletion**: Signs batch delete auth tokens (up to 20 hashes per token)
 - **Best effort**: Some servers may not support deletion or may reject the request
 
-Note: Delete events only remove references from relays. Use `--include-blobs` to also remove the actual files from storage servers.
+Note: Delete events only remove references from relays. Use `--include-blobs` to also remove the
+actual files from storage servers.
 
 ## NIP-09 Delete Events
 

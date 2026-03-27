@@ -29,7 +29,8 @@ nsyte deploy <folder> [options]
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
 - `--publish-profile` — Publish profile metadata (Kind 0) - **root sites only** (default: false)
 - `--publish-relay-list` — Publish relay list (Kind 10002) - **root sites only** (default: false)
-- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default: false)
+- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default:
+  false)
 - `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma-separated)
 - `--fallback <file>` — An HTML file to copy and publish as 404.html
@@ -98,6 +99,7 @@ through:
 2. **Project config**: Uses bunker configured during `nsyte init`
 
 The `--sec` flag accepts multiple formats:
+
 - `nsec1...` - Nostr private key (bech32)
 - `nbunksec...` - Encoded bunker credentials
 - `bunker://...` - Bunker URL with relay and optional secret

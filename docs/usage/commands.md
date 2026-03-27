@@ -55,15 +55,18 @@ These options are available for all commands:
 
 Many commands support unified authentication:
 
-- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker://, or 64-char hex)
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker://, or 64-char
+  hex)
 
 The `--sec` flag automatically detects the format of your secret:
+
 - `nsec1...` - Nostr private key (bech32)
-- `nbunksec...` - Encoded bunker credentials  
+- `nbunksec...` - Encoded bunker credentials
 - `bunker://...` - Bunker URL with relay and optional secret
 - 64-character hex string - Raw private key
 
-If not provided, commands will use the bunker configured in `.nsite/config.json` or prompt for authentication.
+If not provided, commands will use the bunker configured in `.nsite/config.json` or prompt for
+authentication.
 
 ## Configuration
 
@@ -79,10 +82,12 @@ Use `nsyte init` to create a new configuration or `nsyte validate` to check an e
 ## Environment Variables
 
 - `LOG_LEVEL` — Logging level: `none`, `error`, `warn`, `info`, `debug` (default: `info`)
-- `NSITE_DISPLAY_MODE` — Display mode: `interactive`, `non-interactive`, `debug` (default: `interactive`)
+- `NSITE_DISPLAY_MODE` — Display mode: `interactive`, `non-interactive`, `debug` (default:
+  `interactive`)
 - `NSYTE_DISABLE_KEYCHAIN` — Disable native keychain, use encrypted file storage (set to `true`)
 - `NSYTE_TEST_MODE` — Enable test mode, disables keychain (set to `true`)
-- `NSYTE_FORCE_ENCRYPTED_STORAGE` — Force encrypted file storage instead of OS keychain (set to `true`)
+- `NSYTE_FORCE_ENCRYPTED_STORAGE` — Force encrypted file storage instead of OS keychain (set to
+  `true`)
 
 ## Getting Started
 

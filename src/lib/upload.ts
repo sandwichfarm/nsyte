@@ -329,7 +329,12 @@ async function uploadToServer(
       const errorText = await response.text().catch(() => "");
       const httpError = `HTTP ${response.status}${errorText ? `: ${errorText}` : ""}`;
       log.debug(`PUT to /upload with auth header failed: ${httpError}`);
-      return { success: false, alreadyExists: false, error: httpError, httpStatus: response.status };
+      return {
+        success: false,
+        alreadyExists: false,
+        error: httpError,
+        httpStatus: response.status,
+      };
     } catch (e) {
       log.debug(`PUT to /upload with auth header failed: ${e}`);
       return { success: false, alreadyExists: false, error: String(e) };
@@ -578,18 +583,24 @@ async function uploadFile(
 
   if (!file.data || !file.sha256) {
     return {
-      file, success: false, skipped: false,
+      file,
+      success: false,
+      skipped: false,
       error: "File data or SHA-256 hash missing",
-      serverResults, eventPublished: false,
+      serverResults,
+      eventPublished: false,
     };
   }
 
   const authHeader = authTokenMap.get(file.sha256);
   if (!authHeader) {
     return {
-      file, success: false, skipped: false,
+      file,
+      success: false,
+      skipped: false,
       error: `No auth token found for blob ${file.sha256.substring(0, 8)}...`,
-      serverResults, eventPublished: false,
+      serverResults,
+      eventPublished: false,
     };
   }
 

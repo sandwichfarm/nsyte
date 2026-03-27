@@ -53,7 +53,8 @@ This ensures your announcements reach the widest possible audience across the No
 
 ### Update App Handler Without Deploying
 
-When you update your app handler configuration (supported event kinds, platforms, etc.) but haven't changed your site files:
+When you update your app handler configuration (supported event kinds, platforms, etc.) but haven't
+changed your site files:
 
 ```bash
 # Update config.json with new handler configuration
@@ -78,7 +79,8 @@ Publish metadata events independently of file deployment for faster updates.
 
 ### App Handler (Kind 31990)
 
-NIP-89 application handler announcement that tells Nostr clients your site can handle specific event kinds. Configure in `.nsite/config.json`:
+NIP-89 application handler announcement that tells Nostr clients your site can handle specific event
+kinds. Configure in `.nsite/config.json`:
 
 ```json
 {

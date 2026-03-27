@@ -167,7 +167,10 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
   if (isTestEnv && configPath) {
     const resolved = isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
     // Block if the resolved path is inside the actual nsyte project directory
-    if (!resolved.includes("nsyte-test-") && !resolved.startsWith("/tmp/") && !resolved.startsWith("/var/")) {
+    if (
+      !resolved.includes("nsyte-test-") && !resolved.startsWith("/tmp/") &&
+      !resolved.startsWith("/var/")
+    ) {
       log.warn(`Blocked test from writing config to project path: ${resolved}`);
       return;
     }

@@ -33,7 +33,7 @@ import {
   showCursor,
 } from "../ui/browse/renderer.ts";
 import { createInitialState, updatePropagationStats } from "../ui/browse/state.ts";
-import { RELAY_COLORS, SERVER_COLORS } from "./list.ts";
+import { RELAY_COLORS, SERVER_COLORS } from "../ui/source-indicators.ts";
 
 const log = createLogger("browse");
 
