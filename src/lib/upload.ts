@@ -1,9 +1,8 @@
-import type { ISigner } from "applesauce-signers";
 import { encodeBase64 } from "@std/encoding/base64";
+import type { NostrEvent } from "applesauce-core/helpers";
+import type { ISigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import { publishEventsToRelays } from "./nostr.ts";
 import type { FileEntry, NostrEventTemplate } from "./nostr.ts";
-import { NostrEvent } from "applesauce-core/helpers";
 
 const log = createLogger("upload");
 
@@ -11,7 +10,6 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 const SIGN_TIMEOUT_MS = 15_000;
-const PUBLISH_TIMEOUT_MS = 15_000;
 const RETRY_BASE_DELAY_MS = 500;
 const VERIFY_RETRY_DELAY_MS = 300;
 
@@ -115,21 +113,6 @@ async function headWithRetry(
   );
 }
 
-async function _getPublicKeyWithRetry(signer: Signer): Promise<string> {
-  return await runWithRetry<string>(
-    "getPublicKey",
-    MAX_RETRIES,
-    RETRY_BASE_DELAY_MS,
-    async () => {
-      return await withTimeout(
-        Promise.resolve(signer.getPublicKey()),
-        SIGN_TIMEOUT_MS,
-        "getPublicKey",
-      );
-    },
-  );
-}
-
 async function signEventWithRetry(
   label: string,
   signFn: () => NostrEvent | Promise<NostrEvent>,
@@ -143,9 +126,6 @@ async function signEventWithRetry(
     },
   );
 }
-
-/** @deprecated use Nip07Interface from applesauce-signers */
-export interface Signer extends ISigner {}
 
 export interface ServerProgressEntry {
   total: number;
@@ -195,7 +175,7 @@ export type UploadResponse = {
  * Sign a batch blob upload authorization covering up to UPLOAD_AUTH_BATCH_SIZE hashes.
  * Returns the full Authorization header value: "Nostr <base64-encoded-event>".
  */
-async function createBatchUploadAuth(signer: Signer, blobSha256s: string[]): Promise<string> {
+async function createBatchUploadAuth(signer: ISigner, blobSha256s: string[]): Promise<string> {
   const currentTime = Math.floor(Date.now() / 1000);
 
   const xTags: string[][] = blobSha256s.map((hash) => ["x", hash]);
@@ -233,8 +213,8 @@ async function uploadToServer(
   authHeader: string,
   force = false,
 ): Promise<{ success: boolean; alreadyExists: boolean; error?: string; httpStatus?: number }> {
-  if (!file.data || !file.sha256) {
-    throw new Error("File data or SHA-256 hash missing");
+  if (!file.data) {
+    throw new Error("File data missing");
   }
 
   try {
@@ -329,7 +309,12 @@ async function uploadToServer(
       const errorText = await response.text().catch(() => "");
       const httpError = `HTTP ${response.status}${errorText ? `: ${errorText}` : ""}`;
       log.debug(`PUT to /upload with auth header failed: ${httpError}`);
-      return { success: false, alreadyExists: false, error: httpError, httpStatus: response.status };
+      return {
+        success: false,
+        alreadyExists: false,
+        error: httpError,
+        httpStatus: response.status,
+      };
     } catch (e) {
       log.debug(`PUT to /upload with auth header failed: ${e}`);
       return { success: false, alreadyExists: false, error: String(e) };
@@ -341,49 +326,13 @@ async function uploadToServer(
 }
 
 /**
- * Publish event to relays with direct WebSocket connections
- */
-async function publishEventToRelays(
-  event: NostrEvent,
-  relays: string[],
-): Promise<boolean> {
-  log.debug(`Publishing event to ${relays.length} relays via pool`);
-
-  try {
-    const publishLabel = `publish event ${event.id?.substring(0, 8) ?? ""}`;
-    const success = await runWithRetry<boolean>(
-      publishLabel,
-      MAX_RETRIES,
-      RETRY_BASE_DELAY_MS,
-      async () => {
-        const result = await withTimeout(
-          publishEventsToRelays(relays, [event]),
-          PUBLISH_TIMEOUT_MS,
-          publishLabel,
-        );
-        if (!result) {
-          throw new Error("Publish returned false");
-        }
-        return true;
-      },
-    );
-
-    return success;
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    log.error(`Error publishing event: ${errorMessage}`);
-    return false;
-  }
-}
-
-/**
  * Process uploads in parallel with progress tracking
  */
 export async function processUploads(
   files: FileEntry[],
   _baseDir: string,
   servers: string[],
-  signer: Signer,
+  signer: ISigner,
   relays: string[],
   concurrency = DEFAULT_CONCURRENCY,
   progressCallback?: (progress: UploadProgress) => void,
@@ -576,20 +525,26 @@ async function uploadFile(
 
   log.debug(`Uploading file ${file.path}`);
 
-  if (!file.data || !file.sha256) {
+  if (!file.data) {
     return {
-      file, success: false, skipped: false,
-      error: "File data or SHA-256 hash missing",
-      serverResults, eventPublished: false,
+      file,
+      success: false,
+      skipped: false,
+      error: "File data missing",
+      serverResults,
+      eventPublished: false,
     };
   }
 
   const authHeader = authTokenMap.get(file.sha256);
   if (!authHeader) {
     return {
-      file, success: false, skipped: false,
+      file,
+      success: false,
+      skipped: false,
       error: `No auth token found for blob ${file.sha256.substring(0, 8)}...`,
-      serverResults, eventPublished: false,
+      serverResults,
+      eventPublished: false,
     };
   }
 

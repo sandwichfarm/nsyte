@@ -124,7 +124,8 @@ Deno.test("getLocalFiles", async (t) => {
       assertEquals(file.path, "/metadata-test.txt");
       assertExists(file.size);
       assertEquals(file.size, new TextEncoder().encode(testContent).length);
-      // sha256 is not computed by getLocalFiles (computed later by loadFileData)
+      assertExists(file.sha256);
+      assertEquals(file.sha256, await calculateFileHash(testFile));
       assertExists(file.contentType);
       assertEquals(file.contentType!.toLowerCase(), "text/plain; charset=utf-8");
     });
@@ -381,16 +382,19 @@ Deno.test("isIgnored", async (t) => {
 });
 
 Deno.test("compareFiles", async (t) => {
+  const hashMatch = "a".repeat(64);
+  const hashNew = "b".repeat(64);
+
   await t.step("should identify new files to transfer", () => {
     const localFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
-      { path: "/file2.txt", size: 200, contentType: "text/plain" },
-      { path: "/new.txt", size: 300, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
+      { path: "/file2.txt", size: 200, contentType: "text/plain", sha256: hashMatch },
+      { path: "/new.txt", size: 300, contentType: "text/plain", sha256: hashNew },
     ];
 
     const remoteFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
-      { path: "/file2.txt", size: 200, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
+      { path: "/file2.txt", size: 200, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const result = compareFiles(localFiles, remoteFiles);
@@ -403,13 +407,13 @@ Deno.test("compareFiles", async (t) => {
 
   await t.step("should identify files to delete", () => {
     const localFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const remoteFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
-      { path: "/old.txt", size: 200, contentType: "text/plain" },
-      { path: "/obsolete.txt", size: 300, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
+      { path: "/old.txt", size: 200, contentType: "text/plain", sha256: "c".repeat(64) },
+      { path: "/obsolete.txt", size: 300, contentType: "text/plain", sha256: "d".repeat(64) },
     ];
 
     const result = compareFiles(localFiles, remoteFiles);
@@ -442,11 +446,11 @@ Deno.test("compareFiles", async (t) => {
 
   await t.step("should handle case-insensitive paths", () => {
     const localFiles: FileEntry[] = [
-      { path: "/File1.TXT", size: 100, contentType: "text/plain" },
+      { path: "/File1.TXT", size: 100, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const remoteFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const result = compareFiles(localFiles, remoteFiles);
@@ -457,22 +461,6 @@ Deno.test("compareFiles", async (t) => {
     assertEquals(result.toDelete.length, 0);
   });
 
-  await t.step("should handle missing hashes gracefully", () => {
-    const localFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" }, // No sha256
-    ];
-
-    const remoteFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: "remotehash" },
-    ];
-
-    const result = compareFiles(localFiles, remoteFiles);
-
-    // Should treat as existing when local hash is missing
-    assertEquals(result.existing.length, 1);
-    assertEquals(result.toTransfer.length, 0);
-  });
-
   await t.step("should handle empty file lists", () => {
     const result1 = compareFiles([], []);
     assertEquals(result1.toTransfer.length, 0);
@@ -480,7 +468,7 @@ Deno.test("compareFiles", async (t) => {
     assertEquals(result1.toDelete.length, 0);
 
     const localFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const result2 = compareFiles(localFiles, []);
@@ -489,7 +477,7 @@ Deno.test("compareFiles", async (t) => {
     assertEquals(result2.toDelete.length, 0);
 
     const remoteFiles: FileEntry[] = [
-      { path: "/file1.txt", size: 100, contentType: "text/plain" },
+      { path: "/file1.txt", size: 100, contentType: "text/plain", sha256: hashMatch },
     ];
 
     const result3 = compareFiles([], remoteFiles);
@@ -505,10 +493,13 @@ Deno.test("loadFileData", async (t) => {
   try {
     await t.step("should load file data with metadata", async () => {
       const content = "Test content for loading";
-      await Deno.writeTextFile(join(tempDir, "test.txt"), content);
+      const diskPath = join(tempDir, "test.txt");
+      await Deno.writeTextFile(diskPath, content);
+      const expectedHash = await calculateFileHash(diskPath);
 
       const fileEntry: FileEntry = {
         path: "/test.txt",
+        sha256: expectedHash,
         size: 0, // Will be updated
         contentType: "text/plain",
       };
@@ -516,7 +507,7 @@ Deno.test("loadFileData", async (t) => {
       const loaded = await loadFileData(tempDir, fileEntry);
 
       assertExists(loaded.data);
-      assertExists(loaded.sha256);
+      assertEquals(loaded.sha256, expectedHash);
       assertEquals(loaded.size, new TextEncoder().encode(content).length);
       assertEquals(loaded.sha256.length, 64); // SHA256 hex string
       assertEquals(new TextDecoder().decode(loaded.data!), content);
@@ -527,10 +518,13 @@ Deno.test("loadFileData", async (t) => {
     await t.step("should handle nested file paths", async () => {
       await Deno.mkdir(join(tempDir, "subdir"));
       const content = "Nested file content";
-      await Deno.writeTextFile(join(tempDir, "subdir", "nested.txt"), content);
+      const diskPath = join(tempDir, "subdir", "nested.txt");
+      await Deno.writeTextFile(diskPath, content);
+      const expectedHash = await calculateFileHash(diskPath);
 
       const fileEntry: FileEntry = {
         path: "/subdir/nested.txt",
+        sha256: expectedHash,
         size: 0,
         contentType: "text/plain",
       };
@@ -543,10 +537,13 @@ Deno.test("loadFileData", async (t) => {
 
     await t.step("should normalize directory paths", async () => {
       const content = "Path normalization test";
-      await Deno.writeTextFile(join(tempDir, "normalize.txt"), content);
+      const diskPath = join(tempDir, "normalize.txt");
+      await Deno.writeTextFile(diskPath, content);
+      const expectedHash = await calculateFileHash(diskPath);
 
       const fileEntry: FileEntry = {
         path: "/normalize.txt",
+        sha256: expectedHash,
         size: 0,
         contentType: "text/plain",
       };
@@ -566,10 +563,13 @@ Deno.test("loadFileData", async (t) => {
 
     await t.step("should handle binary files", async () => {
       const binaryData = new Uint8Array([0, 1, 2, 3, 255, 254]);
-      await Deno.writeFile(join(tempDir, "binary.bin"), binaryData);
+      const diskPath = join(tempDir, "binary.bin");
+      await Deno.writeFile(diskPath, binaryData);
+      const expectedHash = await calculateFileHash(diskPath);
 
       const fileEntry: FileEntry = {
         path: "/binary.bin",
+        sha256: expectedHash,
         size: 0,
         contentType: "application/octet-stream",
       };
@@ -587,10 +587,13 @@ Deno.test("loadFileData", async (t) => {
     });
 
     await t.step("should handle empty files", async () => {
-      await Deno.writeTextFile(join(tempDir, "empty.txt"), "");
+      const diskPath = join(tempDir, "empty.txt");
+      await Deno.writeTextFile(diskPath, "");
+      const expectedHash = await calculateFileHash(diskPath);
 
       const fileEntry: FileEntry = {
         path: "/empty.txt",
+        sha256: expectedHash,
         size: 0,
         contentType: "text/plain",
       };
@@ -600,12 +603,13 @@ Deno.test("loadFileData", async (t) => {
       assertExists(loaded.data);
       assertEquals(loaded.data.length, 0);
       assertEquals(loaded.size, 0);
-      assertExists(loaded.sha256);
+      assertEquals(loaded.sha256, expectedHash);
     });
 
     await t.step("should throw for non-existent file", async () => {
       const fileEntry: FileEntry = {
         path: "/nonexistent.txt",
+        sha256: "0".repeat(64),
         size: 0,
         contentType: "text/plain",
       };
@@ -618,12 +622,16 @@ Deno.test("loadFileData", async (t) => {
     });
 
     await t.step("should handle file read errors", async () => {
+      await Deno.writeTextFile(join(tempDir, "test.txt"), "x");
+      const expectedHash = await calculateFileHash(join(tempDir, "test.txt"));
+
       const readStub = stub(Deno, "readFile", () => {
         throw new Error("Read permission denied");
       });
 
       const fileEntry: FileEntry = {
         path: "/test.txt",
+        sha256: expectedHash,
         size: 0,
         contentType: "text/plain",
       };

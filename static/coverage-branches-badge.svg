@@ -4,9 +4,9 @@
   width="116"
   height="20"
   role="img"
-  aria-label="branches: 13.3%"
+  aria-label="branches: 81.6%"
 >
-  <title>branches: 13.3%</title>
+  <title>branches: 81.6%</title>
   <linearGradient id="s" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1" />
     <stop offset="1" stop-opacity=".1" />
@@ -16,7 +16,7 @@
   </clipPath>
   <g clip-path="url(#r)">
     <rect width="66" height="20" fill="#555" />
-    <rect x="66" width="50" height="20" fill="#e05d44" />
+    <rect x="66" width="50" height="20" fill="#4c1" />
     <rect width="116" height="20" fill="url(#s)" />
   </g>
   <g
@@ -44,7 +44,7 @@
       fill-opacity=".3"
       transform="scale(.1)"
       textLength="400"
-    >13.3%</text>
-    <text x="910" y="140" transform="scale(.1)" fill="#fff" textLength="400">13.3%</text>
+    >81.6%</text>
+    <text x="910" y="140" transform="scale(.1)" fill="#fff" textLength="400">81.6%</text>
   </g>
 </svg>

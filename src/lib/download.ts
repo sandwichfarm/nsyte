@@ -3,7 +3,8 @@ import { ensureDir } from "@std/fs/ensure-dir";
 import { dirname, join } from "@std/path";
 import { ProgressRenderer } from "../ui/progress.ts";
 import { createLogger } from "./logger.ts";
-import { type FileEntry, listRemoteFiles } from "./nostr.ts";
+import type { FileEntry } from "./nostr.ts";
+import { listTrustedRemoteFiles } from "./site-manifest.ts";
 import type { ByteArray } from "./types.ts";
 
 const log = createLogger("download");
@@ -65,7 +66,7 @@ export class DownloadService {
         site ? ` (site: ${site})` : ""
       }`,
     );
-    return await listRemoteFiles(relays, pubkey, site);
+    return await listTrustedRemoteFiles(relays, pubkey, site);
   }
 
   /**
@@ -152,17 +153,9 @@ export class DownloadService {
     const outputPath = join(options.output, file.path);
 
     // Check if file already exists
-    const existingFile = await this.checkExistingFile(outputPath, options.overwrite);
+    const existingFile = await this.checkExistingFile(file, outputPath, options.overwrite);
     if (existingFile) {
       return existingFile;
-    }
-
-    if (!file.sha256) {
-      return {
-        file,
-        success: false,
-        error: "No SHA256 hash found for file",
-      };
     }
 
     // Try to download from each server until one succeeds
@@ -229,7 +222,9 @@ export class DownloadService {
       const actualHash = encodeHex(new Uint8Array(hashBuffer));
       if (actualHash !== sha256) {
         log.debug(
-          `Hash mismatch from ${server}: expected ${sha256.slice(0, 16)}..., got ${actualHash.slice(0, 16)}...`,
+          `Hash mismatch from ${server}: expected ${sha256.slice(0, 16)}..., got ${
+            actualHash.slice(0, 16)
+          }...`,
         );
         return null;
       }
@@ -245,14 +240,23 @@ export class DownloadService {
    * Check if a file already exists and handle overwrite logic
    */
   private async checkExistingFile(
+    manifestFile: FileEntry,
     outputPath: string,
     overwrite?: boolean,
   ): Promise<DownloadResult | null> {
     try {
       const stat = await Deno.stat(outputPath);
       if (stat.isFile && !overwrite) {
+        let sha256 = manifestFile.sha256;
+        try {
+          const fileContent = await Deno.readFile(outputPath);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", fileContent);
+          sha256 = encodeHex(new Uint8Array(hashBuffer));
+        } catch {
+          // Unreadable path (permissions) or test doubles without readFile: keep manifest hash
+        }
         return {
-          file: { path: outputPath } as FileEntry,
+          file: { ...manifestFile, sha256 },
           success: true,
           skipped: true,
           reason: "File already exists (use --overwrite to replace)",

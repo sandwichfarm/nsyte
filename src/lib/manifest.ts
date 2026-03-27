@@ -52,7 +52,13 @@ export function getManifestFiles(manifest: NostrEvent): FilePathMapping[] {
 export function createSiteManifestTemplate(
   files: FilePathMapping[],
   identifier?: string,
-  metadata?: { title?: string; description?: string; servers?: string[]; relays?: string[]; source?: string },
+  metadata?: {
+    title?: string;
+    description?: string;
+    servers?: string[];
+    relays?: string[];
+    source?: string;
+  },
 ): EventTemplate {
   const tags: string[][] = [];
 

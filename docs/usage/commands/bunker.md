@@ -94,7 +94,8 @@ nsyte bunker migrate <pubkey1> <pubkey2>
 
 ## Bunker Migration
 
-The `migrate` subcommand is used to rebuild the bunker index on platforms that use native keychains (macOS and Windows).
+The `migrate` subcommand is used to rebuild the bunker index on platforms that use native keychains
+(macOS and Windows).
 
 ### When to Use
 

@@ -2,6 +2,7 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { restore, returnsNext, stub } from "@std/testing/mock";
 import {
   formatProgressBar,
+  formatServerProgressBars,
   formatUploadProgress,
   ProgressRenderer,
 } from "../../src/ui/progress.ts";
@@ -74,6 +75,9 @@ Deno.test("UI Progress - formatUploadProgress", async (t) => {
       completed: 5,
       failed: 1,
       inProgress: 4,
+      skipped: 0,
+      retrying: 0,
+      serverProgress: {},
     };
 
     const result = formatUploadProgress(progress);
@@ -90,6 +94,9 @@ Deno.test("UI Progress - formatUploadProgress", async (t) => {
       completed: 3,
       failed: 0,
       inProgress: 2,
+      skipped: 0,
+      retrying: 0,
+      serverProgress: {},
     };
 
     const result = formatUploadProgress(progress);
@@ -104,6 +111,9 @@ Deno.test("UI Progress - formatUploadProgress", async (t) => {
       completed: 4,
       failed: 1,
       inProgress: 0,
+      skipped: 0,
+      retrying: 0,
+      serverProgress: {},
     };
 
     const result = formatUploadProgress(progress);
@@ -118,11 +128,32 @@ Deno.test("UI Progress - formatUploadProgress", async (t) => {
       completed: 10,
       failed: 0,
       inProgress: 0,
+      skipped: 0,
+      retrying: 0,
+      serverProgress: {},
     };
 
     const result = formatUploadProgress(progress);
     assertStringIncludes(result, "100%");
     assertStringIncludes(result, "10 completed");
+  });
+});
+
+Deno.test("UI Progress - formatServerProgressBars", async (t) => {
+  await t.step("should render blossom server summary bars", () => {
+    const output = formatServerProgressBars(
+      ["https://cdn-a.example", "https://cdn-b.example"],
+      {
+        "https://cdn-a.example": { total: 4, completed: 4, failed: 0, retrying: 0, skipped: 0 },
+        "https://cdn-b.example": { total: 4, completed: 2, failed: 2, retrying: 0, skipped: 0 },
+      },
+    );
+
+    assertStringIncludes(output, "cdn-a.example");
+    assertStringIncludes(output, "cdn-b.example");
+    assertStringIncludes(output, "100%");
+    assertStringIncludes(output, "4 ok");
+    assertStringIncludes(output, "2 fail");
   });
 });
 
@@ -152,9 +183,21 @@ Deno.test("UI Progress - ProgressRenderer", async (t) => {
       completed: 10,
       failed: 2,
       inProgress: 8,
-      serverStats: {
-        "file1.txt": { successCount: 3, totalServers: 5 },
-        "file2.txt": { successCount: 2, totalServers: 3 },
+      serverProgress: {
+        "https://server-a.example": {
+          total: 20,
+          completed: 10,
+          failed: 2,
+          retrying: 0,
+          skipped: 0,
+        },
+        "https://server-b.example": {
+          total: 20,
+          completed: 8,
+          failed: 4,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     });
 

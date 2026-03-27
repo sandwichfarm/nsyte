@@ -1,7 +1,11 @@
+import "../test-setup-global.ts";
+
 import { assertEquals, assertMatch } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import { formatTimestamp } from "../../src/ui/time-formatter.ts";
+
+import { formatAge, IdWithAge } from "../../src/ui/time-formatter.ts";
 
 // Fixed reference time: 2023-11-14T22:13:20.000Z (Unix: 1700000000 seconds)
 const FIXED_NOW_MS = 1700000000000;
@@ -142,5 +146,33 @@ describe("formatTimestamp", () => {
       const result = formatTimestamp(FIXED_NOW_S - 730 * 24 * 60 * 60);
       assertMatch(result, /\w{3}\s+\d{1,2},\s+\d{4}/);
     });
+// Import test setup FIRST to block all system access
+
+
+describe("formatAge", () => {
+  it("formats recent timestamps as relative age", () => {
+    const nowMs = 1000 * 60 * 60 * 24 * 40;
+    const createdAt = Math.floor((nowMs - (2 * 60 * 60 * 1000)) / 1000);
+
+    assertEquals(formatAge(createdAt, nowMs), "2 hours ago");
+  });
+
+  it("formats older timestamps as years instead of absolute dates", () => {
+    const nowMs = 1000 * 60 * 60 * 24 * 800;
+    const createdAt = Math.floor((nowMs - (400 * 24 * 60 * 60 * 1000)) / 1000);
+
+    assertEquals(formatAge(createdAt, nowMs), "1 year ago");
+  });
+});
+
+describe("formatManifestIdWithAge", () => {
+  it("appends manifest age to the identifier", () => {
+    const nowMs = 1000 * 60 * 60 * 24 * 10;
+    const createdAt = Math.floor((nowMs - (3 * 24 * 60 * 60 * 1000)) / 1000);
+
+    assertEquals(
+      formatManifestIdWithAge("manifest123", createdAt, nowMs),
+      `manifest123 (${formatAge(createdAt, nowMs)})`,
+    );
   });
 });

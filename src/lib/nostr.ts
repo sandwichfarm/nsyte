@@ -208,12 +208,14 @@ export async function fetchUserRelayList(
 
 /**
  * File entry interface
+ *
+ * `sha256` is always set: from directory scan, manifest path tags, or after `loadFileData`.
  */
 export interface FileEntry {
   path: string;
+  sha256: string;
   data?: ByteArray;
   size?: number;
-  sha256?: string;
   contentType?: string;
   event?: NostrEvent; // Reference to the manifest event this file comes from
 }

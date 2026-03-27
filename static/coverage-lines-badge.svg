@@ -1,23 +1,23 @@
 <svg
   xmlns="http://www.w3.org/2000/svg"
   xmlns:xlink="http://www.w3.org/1999/xlink"
-  width="87"
+  width="95"
   height="20"
   role="img"
-  aria-label="lines: 9.4%"
+  aria-label="lines: 35.7%"
 >
-  <title>lines: 9.4%</title>
+  <title>lines: 35.7%</title>
   <linearGradient id="s" x2="0" y2="100%">
     <stop offset="0" stop-color="#bbb" stop-opacity=".1" />
     <stop offset="1" stop-opacity=".1" />
   </linearGradient>
   <clipPath id="r">
-    <rect width="87" height="20" rx="3" fill="#fff" />
+    <rect width="95" height="20" rx="3" fill="#fff" />
   </clipPath>
   <g clip-path="url(#r)">
     <rect width="45" height="20" fill="#555" />
-    <rect x="45" width="42" height="20" fill="#e05d44" />
-    <rect width="87" height="20" fill="url(#s)" />
+    <rect x="45" width="50" height="20" fill="#fe7d37" />
+    <rect width="95" height="20" fill="url(#s)" />
   </g>
   <g
     fill="#fff"
@@ -38,13 +38,13 @@
     <text x="225" y="140" transform="scale(.1)" fill="#fff" textLength="350">lines</text>
     <text
       aria-hidden="true"
-      x="660"
+      x="700"
       y="150"
       fill="#010101"
       fill-opacity=".3"
       transform="scale(.1)"
-      textLength="320"
-    >9.4%</text>
-    <text x="660" y="140" transform="scale(.1)" fill="#fff" textLength="320">9.4%</text>
+      textLength="400"
+    >35.7%</text>
+    <text x="700" y="140" transform="scale(.1)" fill="#fff" textLength="400">35.7%</text>
   </g>
 </svg>

@@ -1,6 +1,6 @@
 {
   "name": "@nsyte/cli",
-  "version": "0.23.2",
+  "version": "0.23.3",
   "description": "nsyte - publish your site to nostr and blossom servers",
   "license": "MIT",
   "exports": "./src/cli.ts",
@@ -44,7 +44,7 @@
     "serve:dist": "deno run --allow-net --allow-read https://deno.land/std@0.220.0/http/file_server.ts --port=8000 ./dist"
   },
   "imports": {
-    "@cliffy/ansi": "jsr:@cliffy/ansi@^1.0.0-rc.8",
+    "@cliffy/ansi": "jsr:@cliffy/ansi@1.0.0-rc.8",
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.8",
     "@cliffy/prompt": "jsr:@cliffy/prompt@1.0.0-rc.8",
     "@cliffy/keypress": "jsr:@cliffy/keypress@1.0.0-rc.8",
@@ -59,11 +59,11 @@
     "@std/testing": "jsr:@std/testing@^1.0.17",
     "ajv": "npm:ajv@8.17.1",
     "ajv-formats": "npm:ajv-formats@3.0.1",
-    "applesauce-common": "npm:applesauce-common@^5.1.0",
-    "applesauce-core": "npm:applesauce-core@^5.1.0",
+    "applesauce-common": "npm:applesauce-common@^5.2.0",
+    "applesauce-core": "npm:applesauce-core@^5.2.0",
     "applesauce-loaders": "npm:applesauce-loaders@^5.1.0",
-    "applesauce-relay": "npm:applesauce-relay@^5.1.0",
-    "applesauce-signers": "npm:applesauce-signers@^5.1.0",
+    "applesauce-relay": "npm:applesauce-relay@^5.2.0",
+    "applesauce-signers": "npm:applesauce-signers@^5.2.0",
     "rxjs": "npm:rxjs@^7.8.2",
     "@noble/curves": "npm:@noble/curves@^1.9.7",
     "@noble/hashes": "npm:@noble/hashes@^1.8.0",
@@ -78,8 +78,6 @@
     "singleQuote": false
   },
   "test": {
-    "include": [
-      "tests/"
-    ]
+    "include": ["tests/"]
   }
 }

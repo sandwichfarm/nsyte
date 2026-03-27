@@ -2,9 +2,9 @@
   "version": "5",
   "specifiers": {
     "jsr:@cliffy/ansi@1.0.0-rc.8": "1.0.0-rc.8",
-    "jsr:@cliffy/ansi@^1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/command@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/flags@1.0.0-rc.8": "1.0.0-rc.8",
+    "jsr:@cliffy/internal@1.0.0": "1.0.0",
     "jsr:@cliffy/internal@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/keycode@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/keypress@1.0.0-rc.8": "1.0.0-rc.8",
@@ -12,22 +12,24 @@
     "jsr:@cliffy/table@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@libs/qrcode@^3.0.1": "3.0.1",
     "jsr:@nick/brotli@0.1.0": "0.1.0",
-    "jsr:@std/assert@^1.0.17": "1.0.18",
-    "jsr:@std/assert@^1.0.18": "1.0.18",
-    "jsr:@std/assert@~1.0.6": "1.0.18",
-    "jsr:@std/async@^1.1.0": "1.1.0",
-    "jsr:@std/cli@^1.0.27": "1.0.27",
+    "jsr:@std/assert@^1.0.17": "1.0.19",
+    "jsr:@std/assert@^1.0.18": "1.0.19",
+    "jsr:@std/assert@~1.0.6": "1.0.19",
+    "jsr:@std/async@^1.1.0": "1.2.0",
+    "jsr:@std/cli@^1.0.28": "1.0.28",
     "jsr:@std/data-structures@^1.0.10": "1.0.10",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/encoding@~1.0.5": "1.0.10",
     "jsr:@std/fmt@^1.0.9": "1.0.9",
     "jsr:@std/fmt@~1.0.2": "1.0.9",
-    "jsr:@std/fs@*": "1.0.22",
-    "jsr:@std/fs@^1.0.22": "1.0.22",
+    "jsr:@std/fs@*": "1.0.23",
+    "jsr:@std/fs@^1.0.22": "1.0.23",
+    "jsr:@std/fs@^1.0.23": "1.0.23",
     "jsr:@std/html@^1.0.5": "1.0.5",
-    "jsr:@std/http@^1.0.24": "1.0.24",
+    "jsr:@std/http@^1.0.24": "1.0.25",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/io@~0.224.9": "0.224.9",
+    "jsr:@std/io@~0.225.3": "0.225.3",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.6": "1.0.6",
     "jsr:@std/path@*": "1.1.4",
@@ -41,31 +43,39 @@
     "npm:@scure/base@^1.2.6": "1.2.6",
     "npm:@scure/bip32@^1.7.0": "1.7.0",
     "npm:@scure/bip39@^1.6.0": "1.6.0",
-    "npm:@types/node@*": "24.2.0",
     "npm:ajv-formats@3.0.1": "3.0.1_ajv@8.17.1",
     "npm:ajv@8.17.1": "8.17.1",
-    "npm:applesauce-common@^5.1.0": "5.1.0",
-    "npm:applesauce-core@^5.1.0": "5.1.0",
+    "npm:applesauce-common@^5.2.0": "5.2.0",
+    "npm:applesauce-core@^5.2.0": "5.2.0",
     "npm:applesauce-loaders@^5.1.0": "5.1.0",
-    "npm:applesauce-relay@^5.1.0": "5.1.0",
-    "npm:applesauce-signers@^5.1.0": "5.1.0",
+    "npm:applesauce-relay@^5.2.0": "5.2.0",
+    "npm:applesauce-signers@^5.2.0": "5.2.0_@capacitor+core@7.6.1",
     "npm:rxjs@^7.8.2": "7.8.2"
   },
   "jsr": {
     "@cliffy/ansi@1.0.0-rc.8": {
       "integrity": "ba37f10ce55bbfbdd8ddd987f91f029b17bce88385b98ba3058870f3b007b80c",
       "dependencies": [
-        "jsr:@cliffy/internal",
+        "jsr:@cliffy/internal@1.0.0-rc.8",
         "jsr:@std/encoding@~1.0.5",
         "jsr:@std/fmt@~1.0.2",
-        "jsr:@std/io"
+        "jsr:@std/io@~0.224.9"
+      ]
+    },
+    "@cliffy/ansi@1.0.0": {
+      "integrity": "987008f74e50aa72cc1517ffccc769711734a14927bc4599e052efe1b9a840e2",
+      "dependencies": [
+        "jsr:@cliffy/internal@1.0.0",
+        "jsr:@std/encoding@^1.0.10",
+        "jsr:@std/fmt@^1.0.9",
+        "jsr:@std/io@~0.225.3"
       ]
     },
     "@cliffy/command@1.0.0-rc.8": {
       "integrity": "758147790797c74a707e5294cc7285df665422a13d2a483437092ffce40b5557",
       "dependencies": [
         "jsr:@cliffy/flags",
-        "jsr:@cliffy/internal",
+        "jsr:@cliffy/internal@1.0.0-rc.8",
         "jsr:@cliffy/table",
         "jsr:@std/fmt@~1.0.2",
         "jsr:@std/text"
@@ -80,25 +90,28 @@
     "@cliffy/internal@1.0.0-rc.8": {
       "integrity": "34cdf2fad9b084b5aed493b138d573f52d4e988767215f7460daf0b918ff43d8"
     },
+    "@cliffy/internal@1.0.0": {
+      "integrity": "1e17ccbcd5420093c0a93e5b3827bbdc9abac5195bacf187edc44665e54bdde6"
+    },
     "@cliffy/keycode@1.0.0-rc.8": {
       "integrity": "76dbf85a67ec0aea2e29ca049b8507b6b3f62a2a971bd744d8d3fc447c177cd9"
     },
     "@cliffy/keypress@1.0.0-rc.8": {
       "integrity": "a75fa9ccf8e01ed3b0b6ec8c1392e89a6617f89e444b88024dce735f9d4dc562",
       "dependencies": [
-        "jsr:@cliffy/internal",
+        "jsr:@cliffy/internal@1.0.0-rc.8",
         "jsr:@cliffy/keycode"
       ]
     },
     "@cliffy/prompt@1.0.0-rc.8": {
       "integrity": "eba403ea1d47b9971bf2210fa35f4dc7ebd2aba87beec9540ae47552806e2f25",
       "dependencies": [
-        "jsr:@cliffy/ansi@1.0.0-rc.8",
-        "jsr:@cliffy/internal",
+        "jsr:@cliffy/ansi",
+        "jsr:@cliffy/internal@1.0.0-rc.8",
         "jsr:@cliffy/keycode",
         "jsr:@std/assert@~1.0.6",
         "jsr:@std/fmt@~1.0.2",
-        "jsr:@std/io",
+        "jsr:@std/io@~0.224.9",
         "jsr:@std/path@~1.0.6",
         "jsr:@std/text"
       ]
@@ -115,17 +128,17 @@
     "@nick/brotli@0.1.0": {
       "integrity": "b76eae36f8c02ed5d4cb133ecbd32a31ddead52272d0a4c3704e8c5fedfbe660"
     },
-    "@std/assert@1.0.18": {
-      "integrity": "270245e9c2c13b446286de475131dc688ca9abcd94fc5db41d43a219b34d1c78",
+    "@std/assert@1.0.19": {
+      "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
         "jsr:@std/internal"
       ]
     },
-    "@std/async@1.1.0": {
-      "integrity": "72418df08d1be84668a53e48aab3520d68ae6882182f8a5ca75c6d1f087220d1"
+    "@std/async@1.2.0": {
+      "integrity": "c059c6f6d95ca7cc012ae8e8d7164d1697113d54b0b679e4372b354b11c2dee5"
     },
-    "@std/cli@1.0.27": {
-      "integrity": "eba97edd0891871a7410e835dd94b3c260c709cca5983df2689c25a71fbe04de"
+    "@std/cli@1.0.28": {
+      "integrity": "74ef9b976db59ca6b23a5283469c9072be6276853807a83ec6c7ce412135c70a"
     },
     "@std/data-structures@1.0.10": {
       "integrity": "f574f86b0e07c69b9edc555fcc814b57d29258bad39fd5a34ba8a80ecf033cfe"
@@ -136,8 +149,8 @@
     "@std/fmt@1.0.9": {
       "integrity": "2487343e8899fb2be5d0e3d35013e54477ada198854e52dd05ed0422eddcabe0"
     },
-    "@std/fs@1.0.22": {
-      "integrity": "de0f277a58a867147a8a01bc1b181d0dfa80bfddba8c9cf2bacd6747bcec9308",
+    "@std/fs@1.0.23": {
+      "integrity": "3ecbae4ce4fee03b180fa710caff36bb5adb66631c46a6460aaad49515565a37",
       "dependencies": [
         "jsr:@std/internal",
         "jsr:@std/path@^1.1.4"
@@ -146,13 +159,13 @@
     "@std/html@1.0.5": {
       "integrity": "4e2d693f474cae8c16a920fa5e15a3b72267b94b84667f11a50c6dd1cb18d35e"
     },
-    "@std/http@1.0.24": {
-      "integrity": "4dd59afd7cfd6e2e96e175b67a5a829b449ae55f08575721ec691e5d85d886d4",
+    "@std/http@1.0.25": {
+      "integrity": "577b4252290af1097132812b339fffdd55fb0f4aeb98ff11bdbf67998aa17193",
       "dependencies": [
         "jsr:@std/cli",
         "jsr:@std/encoding@^1.0.10",
         "jsr:@std/fmt@^1.0.9",
-        "jsr:@std/fs@^1.0.22",
+        "jsr:@std/fs@^1.0.23",
         "jsr:@std/html",
         "jsr:@std/media-types",
         "jsr:@std/net",
@@ -165,6 +178,9 @@
     },
     "@std/io@0.224.9": {
       "integrity": "4414664b6926f665102e73c969cfda06d2c4c59bd5d0c603fd4f1b1c840d6ee3"
+    },
+    "@std/io@0.225.3": {
+      "integrity": "27b07b591384d12d7b568f39e61dff966b8230559122df1e9fd11cc068f7ddd1"
     },
     "@std/media-types@1.1.0": {
       "integrity": "c9d093f0c05c3512932b330e3cc1fe1d627b301db33a4c2c2185c02471d6eaa4"
@@ -200,6 +216,12 @@
     }
   },
   "npm": {
+    "@capacitor/core@7.6.1": {
+      "integrity": "sha512-nsNouCMxgYenyemy20sZwZYMtFi93LSZVWm2KqHTYIPIDgwx24+PzwHIdRQBZdK7hpvD5jQEhWuo/QyLLnAyBQ==",
+      "dependencies": [
+        "tslib"
+      ]
+    },
     "@noble/ciphers@0.5.3": {
       "integrity": "sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w=="
     },
@@ -269,12 +291,6 @@
         "@scure/base@1.2.6"
       ]
     },
-    "@types/node@24.2.0": {
-      "integrity": "sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==",
-      "dependencies": [
-        "undici-types"
-      ]
-    },
     "ajv-formats@3.0.1_ajv@8.17.1": {
       "integrity": "sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==",
       "dependencies": [
@@ -293,8 +309,8 @@
         "require-from-string"
       ]
     },
-    "applesauce-common@5.1.0": {
-      "integrity": "sha512-qUEJibEtawkCgrxoyj0u+ECk3C/PKwGSmOq9kCupGjHVG21BU6Nh29BxU4vcmmBXH2ByiA6VuZgyJZb3t2JJuA==",
+    "applesauce-common@5.2.0": {
+      "integrity": "sha512-6Natb0szkj65OBKK5LBHIszAmVd8ha9GkCZcavJnZbNeWBgoDTO0hfkgI4pk2L6L/OWNceo2XCajvDAx0AjlgQ==",
       "dependencies": [
         "@scure/base@1.2.6",
         "applesauce-core",
@@ -303,8 +319,8 @@
         "rxjs"
       ]
     },
-    "applesauce-core@5.1.0": {
-      "integrity": "sha512-kk4nHndK4zjS8Sa6mC8LGtQ0LDSP4hlCGPJ9lpyIln7MkZaNFWD9eFd+fsEhfE9kyrne9IyYuVfJNp+EqY1b9w==",
+    "applesauce-core@5.2.0": {
+      "integrity": "sha512-aSuM6q6/Gs2FGUqytlHDjKZpSst2xKaT0vMXUQFWUctECNIxvwy6/hTDDInukMuI9mrQdjnO781ZJJgghI7RNw==",
       "dependencies": [
         "debug",
         "fast-deep-equal",
@@ -322,8 +338,8 @@
         "rxjs"
       ]
     },
-    "applesauce-relay@5.1.0": {
-      "integrity": "sha512-d0LTJmQmr5gsYFm9A6efPEo2Bx/ewoL7LNsIdieMx34QohZBpPb137RvU9KQ1lFIXTm0tudd8VYfAPncqti2OQ==",
+    "applesauce-relay@5.2.0": {
+      "integrity": "sha512-ty8PzHenocGdTr3x3It8Ql0rMD9rxB6VGCzGRfL5QF6epdstv2YHKuTyr8QdPBvf7yxfc7oZcMi6djSwNxXqkQ==",
       "dependencies": [
         "@noble/hashes@1.8.0",
         "applesauce-core",
@@ -332,14 +348,17 @@
         "rxjs"
       ]
     },
-    "applesauce-signers@5.1.0": {
-      "integrity": "sha512-sdQe6J1txYV1GVX8/zSGZDyyXuuZomePHSfUDozZmNAnXhCXE0wqVfhLK0yegVMnomSgoeDUCsGmJiTE2BHqoQ==",
+    "applesauce-signers@5.2.0_@capacitor+core@7.6.1": {
+      "integrity": "sha512-7tN7lNK2XERdrRchG5z4rdpMqOacFdv7rRhiS+DLTdlbqeSf0wD6Kj8M3vSqq5f2pVS2cl5Z4E/m5RpWC4PSxg==",
       "dependencies": [
         "@noble/secp256k1",
         "applesauce-core",
         "debug",
         "nanoid",
         "rxjs"
+      ],
+      "optionalDependencies": [
+        "nostr-signer-capacitor-plugin"
       ]
     },
     "debug@4.4.3": {
@@ -369,9 +388,15 @@
     "ms@2.1.3": {
       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="
     },
-    "nanoid@5.1.6": {
-      "integrity": "sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==",
+    "nanoid@5.1.7": {
+      "integrity": "sha512-ua3NDgISf6jdwezAheMOk4mbE1LXjm1DfMUDMuJf4AqxLFK3ccGpgWizwa5YV7Yz9EpXwEaWoRXSb/BnV0t5dQ==",
       "bin": true
+    },
+    "nostr-signer-capacitor-plugin@0.0.5_@capacitor+core@7.6.1": {
+      "integrity": "sha512-/EvqWz71HZ5cWmzvfXWTm48AWZtbeZDbOg3vLwXyXPjnIp1DR7Wurww/Mo41ORNu1DNPlqH20l7kIXKO6vR5og==",
+      "dependencies": [
+        "@capacitor/core"
+      ]
     },
     "nostr-tools@2.19.4": {
       "integrity": "sha512-qVLfoTpZegNYRJo5j+Oi6RPu0AwLP6jcvzcB3ySMnIT5DrAGNXfs5HNBspB/2HiGfH3GY+v6yXkTtcKSBQZwSg==",
@@ -399,9 +424,6 @@
     },
     "tslib@2.8.1": {
       "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
-    },
-    "undici-types@7.10.0": {
-      "integrity": "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag=="
     }
   },
   "remote": {
@@ -440,7 +462,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@cliffy/ansi@^1.0.0-rc.8",
+      "jsr:@cliffy/ansi@1.0.0-rc.8",
       "jsr:@cliffy/command@1.0.0-rc.8",
       "jsr:@cliffy/keypress@1.0.0-rc.8",
       "jsr:@cliffy/prompt@1.0.0-rc.8",
@@ -460,11 +482,11 @@
       "npm:@scure/bip39@^1.6.0",
       "npm:ajv-formats@3.0.1",
       "npm:ajv@8.17.1",
-      "npm:applesauce-common@^5.1.0",
-      "npm:applesauce-core@^5.1.0",
+      "npm:applesauce-common@^5.2.0",
+      "npm:applesauce-core@^5.2.0",
       "npm:applesauce-loaders@^5.1.0",
-      "npm:applesauce-relay@^5.1.0",
-      "npm:applesauce-signers@^5.1.0",
+      "npm:applesauce-relay@^5.2.0",
+      "npm:applesauce-signers@^5.2.0",
       "npm:rxjs@^7.8.2"
     ]
   }

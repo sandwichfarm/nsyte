@@ -19,6 +19,10 @@ describe("keychain - comprehensive branch coverage", () => {
       if (key === "NSYTE_DISABLE_KEYCHAIN" || key === "NSYTE_TEST_MODE") {
         return undefined; // Allow keychain by default in tests
       }
+      // Provide fake D-Bus session for CI environments (headless Linux)
+      if (key === "DBUS_SESSION_BUS_ADDRESS") {
+        return originalEnvGet.call(Deno.env, key) || "unix:path=/run/user/1000/bus";
+      }
       return originalEnvGet.call(Deno.env, key);
     });
   });

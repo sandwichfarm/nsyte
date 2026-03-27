@@ -6,14 +6,11 @@ import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import {
-  createDeleteEvent,
-  getSiteManifestEvent,
-  getUserDisplayName,
-  publishEventsToRelays,
-} from "../lib/nostr.ts";
+import { createDeleteEvent, getUserDisplayName, publishEventsToRelays } from "../lib/nostr.ts";
 import { resolveRelays, resolveServers } from "../lib/resolver-utils.ts";
+import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
+import { formatManifestIdWithAge } from "../ui/time-formatter.ts";
 import nsyte from "./root.ts";
 
 const log = createLogger("undeploy");
@@ -153,9 +150,9 @@ export function registerUndeployCommand() {
       // Fetch site manifest
       const siteLabel = options.name ? `named site "${options.name}"` : "root site";
       console.log(colors.cyan(`\nFetching manifest for ${siteLabel}...`));
-      const manifest = await getSiteManifestEvent(relays, pubkey, options.name);
+      const trustedManifest = await fetchTrustedSiteManifestEvent(relays, pubkey, options.name);
 
-      if (!manifest) {
+      if (!trustedManifest.event) {
         console.log(colors.red(`No manifest event found for ${siteLabel}.`));
         // Close signer if it's a bunker
         if ("close" in signer && typeof signer.close === "function") {
@@ -164,7 +161,13 @@ export function registerUndeployCommand() {
         return Deno.exit(1);
       }
 
-      console.log(colors.gray(`Found manifest event: ${manifest.id}`));
+      const manifest = trustedManifest.event;
+
+      console.log(
+        colors.gray(
+          `Found manifest event: ${formatManifestIdWithAge(manifest.id, manifest.created_at)}`,
+        ),
+      );
 
       // Extract all file hashes from manifest path tags
       const pathTags = manifest.tags.filter((tag) => tag[0] === "path");
@@ -185,7 +188,7 @@ export function registerUndeployCommand() {
           `\n\u26a0 This will delete ${colors.bold(uniqueBlobCount.toString())} blobs from ${
             colors.bold(servers.length.toString())
           } servers and remove the site manifest from ${
-            colors.bold(relays.length.toString())
+            colors.bold(trustedManifest.relays.length.toString())
           } relays.`,
         ),
       );
@@ -287,7 +290,7 @@ export function registerUndeployCommand() {
       const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
 
       console.log(colors.cyan("Publishing delete event to relays..."));
-      const success = await publishEventsToRelays(relays, [deleteEvent]);
+      const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);
 
       // Results summary
       console.log(formatSectionHeader("\nResults"));

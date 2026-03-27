@@ -17,6 +17,7 @@ import {
   relaySet,
 } from "applesauce-core/helpers";
 import { truncateHash } from "../ui/browse/renderer.ts";
+import { formatAge } from "../ui/time-formatter.ts";
 import { DownloadService } from "./download.ts";
 import { createLogger } from "./logger.ts";
 import {
@@ -28,13 +29,12 @@ import {
 import { decodePubkeyBase36, encodePubkeyBase36, validateDTag } from "./nip5a.ts";
 import {
   type FileEntry,
-  getSiteManifestEvent,
   getUserBlossomServers,
   getUserDisplayName,
   getUserOutboxes,
   getUserProfile,
-  listRemoteFiles,
 } from "./nostr.ts";
+import { fetchTrustedSiteManifestEvent, listTrustedRemoteFiles } from "./site-manifest.ts";
 import type { ByteArray } from "./types.ts";
 
 const log = createLogger("gateway");
@@ -268,8 +268,9 @@ export class NsiteGatewayServer {
     Deno.addSignalListener("SIGTERM", cleanup);
 
     // Start server using Deno.serve
-    this.serverController = Deno.serve({ port, hostname: "127.0.0.1" }, (req) =>
-      this.handleRequest(req)
+    this.serverController = Deno.serve(
+      { port, hostname: "127.0.0.1" },
+      (req) => this.handleRequest(req),
     );
     await this.serverController.finished;
   }
@@ -409,11 +410,11 @@ export class NsiteGatewayServer {
           `Getting site manifest event for ${readableAddress}" from relays: ${relays.join(" ")}`,
         );
 
-        const manifestEvent = await getSiteManifestEvent(
+        const manifestEvent = (await fetchTrustedSiteManifestEvent(
           relays,
           sitePointer.pubkey,
           sitePointer.identifier,
-        );
+        )).event;
 
         // List of servers from the manifest event
         let manifestServers: string[] = [];
@@ -430,13 +431,15 @@ export class NsiteGatewayServer {
               colors.gray(
                 `  → Found ${manifestServers.length} servers in manifest (id: ${
                   manifestId.slice(0, 16)
-                }...)`,
+                }..., age: ${formatAge(manifestEvent.created_at)})`,
               ),
             );
           } else {
             console.log(
               colors.gray(
-                `  → Found manifest (id: ${manifestId.slice(0, 16)}...) but no servers listed`,
+                `  → Found manifest (id: ${manifestId.slice(0, 16)}..., age: ${
+                  formatAge(manifestEvent.created_at)
+                }) but no servers listed`,
               ),
             );
           }
@@ -541,7 +544,7 @@ export class NsiteGatewayServer {
                 `  → Fetching file list for ${readableAddress} from ${fileEventRelays.length} relays...`,
               ),
             );
-            let files = await listRemoteFiles(
+            let files = await listTrustedRemoteFiles(
               fileEventRelays,
               sitePointer.pubkey,
               sitePointer.identifier,
@@ -557,7 +560,7 @@ export class NsiteGatewayServer {
                   `  → No files returned, retrying with fallback relays (${fallbackRelays.length})...`,
                 ),
               );
-              files = await listRemoteFiles(
+              files = await listTrustedRemoteFiles(
                 fallbackRelays,
                 sitePointer.pubkey,
                 sitePointer.identifier,
@@ -590,7 +593,9 @@ export class NsiteGatewayServer {
                 const manifestId = manifestEvent.id || "unknown";
                 console.log(
                   colors.gray(
-                    `  → Manifest id: ${manifestId.slice(0, 16)}... (kind ${manifestEvent.kind})`,
+                    `  → Manifest id: ${manifestId.slice(0, 16)}... (age: ${
+                      formatAge(manifestEvent.created_at)
+                    }, kind ${manifestEvent.kind})`,
                   ),
                 );
                 await this.saveFileListManifest(
@@ -607,18 +612,20 @@ export class NsiteGatewayServer {
             } else {
               // Check if a manifest exists but has no files
               const relays = relaySet(fileEventRelays, this.options.profileRelays);
-              const manifestEvent = await getSiteManifestEvent(
+              const manifestEvent = (await fetchTrustedSiteManifestEvent(
                 relays,
                 sitePointer.pubkey,
                 sitePointer.identifier,
-              );
+              )).event;
 
               if (manifestEvent) {
                 // Manifest exists but has no files - cache this state
                 const manifestId = manifestEvent.id || "unknown";
                 console.log(
                   colors.yellow(
-                    `  → Manifest found (id: ${manifestId.slice(0, 16)}...) but contains no files`,
+                    `  → Manifest found (id: ${manifestId.slice(0, 16)}..., age: ${
+                      formatAge(manifestEvent.created_at)
+                    }) but contains no files`,
                   ),
                 );
                 this.fileListCache.set(siteAddress, {
@@ -687,7 +694,7 @@ export class NsiteGatewayServer {
                   `  → Checking for updates in background from ${fileEventRelays.length} relays...`,
                 ),
               );
-              let files = await listRemoteFiles(
+              let files = await listTrustedRemoteFiles(
                 fileEventRelays,
                 sitePointer.pubkey,
                 sitePointer.identifier,
@@ -703,7 +710,7 @@ export class NsiteGatewayServer {
                     `  → No files returned, retrying update check with fallback relays...`,
                   ),
                 );
-                files = await listRemoteFiles(
+                files = await listTrustedRemoteFiles(
                   fallbackRelays,
                   sitePointer.pubkey,
                   sitePointer.identifier,
@@ -766,11 +773,11 @@ export class NsiteGatewayServer {
               if (files.length === 0) {
                 // Check if a manifest exists but has no files
                 const relays = relaySet(fileEventRelays, this.options.profileRelays);
-                const manifestEvent = await getSiteManifestEvent(
+                const manifestEvent = (await fetchTrustedSiteManifestEvent(
                   relays,
                   sitePointer.pubkey,
                   sitePointer.identifier,
-                );
+                )).event;
 
                 if (manifestEvent) {
                   // Manifest exists but still has no files - update cache with empty flag
@@ -830,7 +837,9 @@ export class NsiteGatewayServer {
                   const manifestId = manifestEvent.id || "unknown";
                   console.log(
                     colors.gray(
-                      `  → Manifest id: ${manifestId.slice(0, 16)}... (kind ${manifestEvent.kind})`,
+                      `  → Manifest id: ${manifestId.slice(0, 16)}... (age: ${
+                        formatAge(manifestEvent.created_at)
+                      }, kind ${manifestEvent.kind})`,
                     ),
                   );
                   await this.saveFileListManifest(
@@ -1752,7 +1761,9 @@ export class NsiteGatewayServer {
   <div class="container">
     ${
       picture
-        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${escapeHtml(displayName)}" onerror="this.style.display='none'"></div>`
+        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${
+          escapeHtml(displayName)
+        }" onerror="this.style.display='none'"></div>`
         : ""
     }
     <h1>Loading ${escapeHtml(displayName)}'s ${siteName}</h1>
@@ -1842,7 +1853,9 @@ export class NsiteGatewayServer {
   <div class="container">
     ${
       picture
-        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${escapeHtml(displayName)}" onerror="this.style.display='none'"></div>`
+        ? `<div class="profile-pic"><img src="${escapeHtml(picture)}" alt="${
+          escapeHtml(displayName)
+        }" onerror="this.style.display='none'"></div>`
         : ""
     }
     <div class="icon">📭</div>

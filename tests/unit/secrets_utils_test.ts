@@ -9,7 +9,6 @@ import {
   getSystemConfigDir,
 } from "../../src/lib/secrets/utils.ts";
 
-
 describe("secrets/utils - comprehensive branch coverage", () => {
   const originalBuild = Deno.build;
   const originalEnvGet = Deno.env.get;

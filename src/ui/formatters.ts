@@ -266,9 +266,7 @@ export function formatRelayPublishResults(
   for (const result of relayResults) {
     const status = result.ok ? colors.green("✓") : colors.red("✗");
     const relayName = result.relay;
-    const detail = result.ok
-      ? colors.green("accepted")
-      : colors.red(result.message || "rejected");
+    const detail = result.ok ? colors.green("accepted") : colors.red(result.message || "rejected");
 
     rows.push([status, relayName, detail]);
   }
