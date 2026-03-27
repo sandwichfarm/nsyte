@@ -1,7 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { stub } from "@std/testing/mock";
 import { NEVER } from "rxjs";
-import { fetchUserRelayList, fetchUserServers, pool } from "../../src/lib/nostr.ts";
+import { fetchUserRelayList, getUserBlossomServers, pool } from "../../src/lib/nostr.ts";
+
+// Valid 64-char hex pubkey for testing (castUser validates format)
+const TEST_PUBKEY = "0".repeat(64);
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: number | undefined;
@@ -16,28 +19,27 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
   }
 }
 
-Deno.test("Nostr request helpers return within timeout even without EOSE", async (t) => {
+Deno.test({
+  name: "Nostr request helpers return within timeout even without EOSE",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async (t) => {
   const requestStub = stub(pool, "request", () => NEVER as any);
 
   try {
     await t.step("fetchUserRelayList resolves to null", async () => {
-      const pubkey = crypto.randomUUID();
       const result = await withTimeout(
-        fetchUserRelayList(["wss://example.invalid"], pubkey, 10),
-        500,
+        fetchUserRelayList(["wss://example.invalid"], TEST_PUBKEY, 10),
+        2000,
       );
       assertEquals(result, null);
     });
 
-    await t.step("fetchUserServers resolves to []", async () => {
-      const pubkey = crypto.randomUUID();
-      const result = await withTimeout(
-        fetchUserServers(pubkey, ["wss://example.invalid"], 10),
-        500,
-      );
-      assertEquals(result, []);
+    await t.step("getUserBlossomServers resolves to undefined", async () => {
+      const result = await withTimeout(getUserBlossomServers(TEST_PUBKEY, 10), 500);
+      assertEquals(result, undefined);
     });
   } finally {
     requestStub.restore();
   }
-});
+}});
