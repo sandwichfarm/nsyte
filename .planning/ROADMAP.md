@@ -45,7 +45,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Expand status.ts and display-mode.ts tests (interactive mode + env-var constructor)
-- [ ] 02-02-PLAN.md — Expand formatters.ts and progress.ts tests (uncovered functions + server-bar rendering)
+- [x] 02-02-PLAN.md — Expand formatters.ts and progress.ts tests (uncovered functions + server-bar rendering)
 
 ## Progress
 

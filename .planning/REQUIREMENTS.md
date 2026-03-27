@@ -16,10 +16,10 @@ Requirements for test coverage milestone. Each maps to roadmap phases.
 
 ### Tier 2 - Expanded Tests (Partial Coverage)
 
-- [ ] **T2-01**: status.ts has tests covering untested branches (58.7% -> higher)
-- [ ] **T2-02**: formatters.ts has tests covering 3 uncovered functions (70.8% -> higher)
-- [ ] **T2-03**: progress.ts has tests covering edge cases in progress rendering (55.4% -> higher)
-- [ ] **T2-04**: display-mode.ts has tests covering remaining branches (77.9% -> higher)
+- [x] **T2-01**: status.ts has tests covering untested branches (58.7% -> higher)
+- [x] **T2-02**: formatters.ts has tests covering 3 uncovered functions (70.8% -> higher)
+- [x] **T2-03**: progress.ts has tests covering edge cases in progress rendering (55.4% -> higher)
+- [x] **T2-04**: display-mode.ts has tests covering remaining branches (77.9% -> higher)
 
 ## Future Requirements
 
@@ -49,10 +49,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | T1-02 | Phase 1 | Complete |
 | T1-03 | Phase 1 | Complete |
 | T1-04 | Phase 1 | Complete |
-| T2-01 | Phase 2 | Pending |
-| T2-02 | Phase 2 | Pending |
-| T2-03 | Phase 2 | Pending |
-| T2-04 | Phase 2 | Pending |
+| T2-01 | Phase 2 | Complete |
+| T2-02 | Phase 2 | Complete |
+| T2-03 | Phase 2 | Complete |
+| T2-04 | Phase 2 | Complete |
 
 **Coverage:**
 - v1.0 requirements: 8 total
