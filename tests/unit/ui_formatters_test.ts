@@ -453,7 +453,7 @@ Deno.test("UI Formatters - formatRelayPublishResults", async (t) => {
     assertStringIncludes(result, "rejected");
   });
 
-  dm.setMode(DisplayMode.INTERACTIVE);
+  dm.setMode(originalMode);
 });
 
 Deno.test("UI Formatters - formatSummaryTitle", async (t) => {
@@ -546,5 +546,5 @@ Deno.test("UI Formatters - additional branch coverage", async (t) => {
     assertStringIncludes(result, "No server results");
   });
 
-  dm.setMode(DisplayMode.INTERACTIVE);
+  dm.setMode(originalMode);
 });

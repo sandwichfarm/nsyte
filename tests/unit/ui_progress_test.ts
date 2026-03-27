@@ -560,7 +560,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   let consoleSizeStub: any;
 
   await t.step("should render server bars when showServerBars is true", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -591,7 +590,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   });
 
   await t.step("should show server failed count in red", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -618,7 +616,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   });
 
   await t.step("should show server retrying count", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -645,7 +642,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   });
 
   await t.step("should show server skipped count", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -672,7 +668,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   });
 
   await t.step("should show server finished time", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -707,7 +702,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
   });
 
   await t.step("should skip server not in serverProgress", () => {
-    restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -739,7 +733,6 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
 Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
   await t.step("should use cursor-up sequences on second render", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -768,7 +761,6 @@ Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
   });
 
   await t.step("should clear rendered lines when stopping after multi-line render", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -807,7 +799,6 @@ Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
 
 Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) => {
   await t.step("should truncate segments when terminal is narrow", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 40, rows: 50 }));
 
@@ -826,7 +817,6 @@ Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) 
   });
 
   await t.step("should show all segments when terminal is wide", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 300, rows: 50 }));
 
@@ -844,7 +834,6 @@ Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) 
   });
 
   await t.step("should handle consoleSize throwing", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => {
       throw new Error("not a tty");
@@ -867,7 +856,6 @@ Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) 
 
 Deno.test("UI Progress - ProgressRenderer interval clearing", async (t) => {
   await t.step("stop should clear interval when intervalId is set", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const clearIntervalStub = stub(globalThis, "clearInterval", () => {});
 
@@ -883,7 +871,6 @@ Deno.test("UI Progress - ProgressRenderer interval clearing", async (t) => {
   });
 
   await t.step("complete should clear interval when intervalId is set", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleLogStub = stub(console, "log", () => {});
     const clearIntervalStub = stub(globalThis, "clearInterval", () => {});
@@ -903,7 +890,6 @@ Deno.test("UI Progress - ProgressRenderer interval clearing", async (t) => {
 
 Deno.test("UI Progress - ProgressRenderer shrinking line count", async (t) => {
   await t.step("should clear leftover lines when new render has fewer lines than previous", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -936,7 +922,6 @@ Deno.test("UI Progress - ProgressRenderer shrinking line count", async (t) => {
 
 Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async (t) => {
   await t.step("should use fallback sepWidth when consoleSize throws during server bars", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     // Make consoleSize throw so columns = 0, triggering the : 60 fallback for sepWidth
     const consoleSizeStub = stub(Deno, "consoleSize", () => {
@@ -968,7 +953,6 @@ Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async 
   });
 
   await t.step("should handle server with total=0 in server bars", () => {
-    restore();
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
     const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
 
@@ -996,7 +980,3 @@ Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async 
   });
 });
 
-// Clean up
-Deno.test("Cleanup", () => {
-  restore();
-});
