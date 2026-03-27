@@ -601,8 +601,12 @@ async function resolveContext(
   if (options.noConfig) {
     log.debug("Resolving project context with --no-config (ignoring config file).");
     config = {
-      servers: options.servers ? options.servers.split(",").filter((s) => s.trim()) : [],
-      relays: options.relays ? options.relays.split(",").filter((r) => r.trim()) : [],
+      servers: options.servers
+        ? options.servers.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+      relays: options.relays
+        ? options.relays.split(",").map((r) => r.trim()).filter(Boolean)
+        : [],
       fallback: options.fallback,
       gatewayHostnames: ["nsite.lol"],
     };
