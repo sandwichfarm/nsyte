@@ -41,7 +41,11 @@ Plans:
   2. Each expanded test file covers the previously-untested functions and branches identified in requirements
   3. Line coverage for Tier 2 modules rises above current baselines (status 58.7%, formatters 70.8%, progress 55.4%, display-mode 77.9%)
   4. Overall project line coverage rises measurably above the 35.3% pre-milestone baseline
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Expand status.ts and display-mode.ts tests (interactive mode + env-var constructor)
+- [ ] 02-02-PLAN.md — Expand formatters.ts and progress.ts tests (uncovered functions + server-bar rendering)
 
 ## Progress
 
@@ -51,4 +55,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. New Test Files | 2/2 | Complete   | 2026-03-27 |
-| 2. Expanded Coverage | 0/? | Not started | - |
+| 2. Expanded Coverage | 0/2 | Not started | - |
