@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { stub } from "@std/testing/mock";
 import { NEVER } from "rxjs";
-import { fetchUserRelayList, getUserServers, pool } from "../../src/lib/nostr.ts";
+import { fetchUserRelayList, getUserBlossomServers, pool } from "../../src/lib/nostr.ts";
 
 // Valid 64-char hex pubkey for testing (castUser validates format)
 const TEST_PUBKEY = "0".repeat(64);
@@ -35,9 +35,9 @@ Deno.test({
       assertEquals(result, null);
     });
 
-    await t.step("getUserServers resolves to []", async () => {
-      const result = await withTimeout(getUserServers(TEST_PUBKEY, 10), 500);
-      assertEquals(result, []);
+    await t.step("getUserBlossomServers resolves to undefined", async () => {
+      const result = await withTimeout(getUserBlossomServers(TEST_PUBKEY, 10), 500);
+      assertEquals(result, undefined);
     });
   } finally {
     requestStub.restore();
