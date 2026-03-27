@@ -24,6 +24,8 @@ export const DEFAULT_IGNORE_PATTERNS = [
 /**
  * Get all files from a local directory, honoring .nsyte-ignore using Deno std lib
  * Returns both the files to include and the paths of those ignored.
+ *
+ * Each included file has `sha256` set from the file contents on disk (SHA-256 hex).
  */
 export async function getLocalFiles(
   dirPath: string,
@@ -108,10 +110,12 @@ export async function getLocalFiles(
       const relativeToUploadDir = relative(normalizedDir, entry.path);
       try {
         const fileInfo = await Deno.stat(entry.path);
+        const sha256 = await calculateFileHash(entry.path);
         const fileEntry: FileEntry = {
           path: "/" + relativeToUploadDir.replace(/\\/g, "/"), // Correct regex, ensure leading /
           size: fileInfo.size,
           contentType: getContentType(relativeToUploadDir),
+          sha256,
         };
         includedFiles.push(fileEntry);
       } catch (error: unknown) {
@@ -304,19 +308,21 @@ export function compareFiles(
       const remoteFile = toDelete[i];
 
       if (remote.normalizedPath === normalizedLocalPath) {
-        if (
-          !localFile.sha256 ||
-          !remoteFile.sha256 ||
-          remoteFile.sha256 === localFile.sha256
-        ) {
+        const localHash = localFile.sha256;
+        const remoteHash = remoteFile.sha256;
+        if (remoteHash && localHash === remoteHash) {
           log.debug(
             `File ${localFile.path} already exists remotely with matching hash`,
           );
           existing.push(localFile);
         } else {
-          log.debug(
-            `File ${localFile.path} exists remotely but has different hash, will update`,
-          );
+          if (remoteHash && localHash !== remoteHash) {
+            log.debug(
+              `File ${localFile.path} exists remotely but has different hash, will update`,
+            );
+          } else if (!remoteHash) {
+            log.debug(`File ${localFile.path} has no remote hash, will upload`);
+          }
           toTransfer.push(localFile);
         }
 
@@ -355,7 +361,9 @@ export async function calculateFileHash(filePath: string): Promise<string> {
 }
 
 /**
- * Load file data for a file entry
+ * Load file bytes from disk for upload.
+ * `fileEntry.sha256` must match the file contents at `dirPath` + `fileEntry.path` (typically from
+ * {@link getLocalFiles}); it is returned as-is without recomputing the digest.
  */
 export async function loadFileData(
   dirPath: string,
@@ -367,13 +375,10 @@ export async function loadFileData(
   try {
     const data = await Deno.readFile(fullPath);
 
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const sha256 = encodeHex(new Uint8Array(hashBuffer));
-
     return {
       ...fileEntry,
       data,
-      sha256,
+      sha256: fileEntry.sha256,
       size: data.length,
     };
   } catch (error: unknown) {

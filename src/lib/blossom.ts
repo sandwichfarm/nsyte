@@ -1,13 +1,13 @@
 import { encodeBase64 } from "@std/encoding/base64";
+import type { ISigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import type { Signer } from "./upload.ts";
 
 const log = createLogger("blossom");
 
 /**
  * Create a Blossom delete authorization for a single blob
  */
-async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<string> {
+async function createDeleteAuth(blobSha256: string, signer: ISigner): Promise<string> {
   log.debug(`Creating delete auth for blob ${blobSha256}`);
   const currentTime = Math.floor(Date.now() / 1000);
 
@@ -37,7 +37,7 @@ async function createDeleteAuth(blobSha256: string, signer: Signer): Promise<str
 export async function deleteBlob(
   server: string,
   blobSha256: string,
-  signer: Signer,
+  signer: ISigner,
 ): Promise<boolean> {
   try {
     log.debug(`Starting delete operation for blob ${blobSha256} on server ${server}`);

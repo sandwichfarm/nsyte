@@ -6,7 +6,7 @@ import { readProjectFile } from "../lib/config.ts";
 import { DownloadService } from "../lib/download.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { getManifestFiles, getManifestServers } from "../lib/manifest.ts";
+import { type FilePathMapping, getManifestFiles, getManifestServers } from "../lib/manifest.ts";
 import { getUserBlossomServers, getUserDisplayName } from "../lib/nostr.ts";
 import {
   resolvePubkey,
@@ -38,6 +38,32 @@ function mergeUniqueStrings(...values: Array<string[] | undefined>): string[] {
     }
   }
   return Array.from(merged);
+}
+
+export type ManifestFileLookupResult =
+  | { kind: "found"; file: FilePathMapping }
+  | { kind: "invalid" }
+  | { kind: "missing" };
+
+export function lookupManifestFile(
+  files: FilePathMapping[],
+  remotePath: string,
+): ManifestFileLookupResult {
+  const normalizedRemotePath = normalizeSitePath(remotePath);
+  const matchingFiles = files.filter((file) =>
+    normalizeSitePath(file.path) === normalizedRemotePath
+  );
+  const downloadableFile = matchingFiles.find((file) => !!file.sha256);
+
+  if (downloadableFile) {
+    return { kind: "found", file: downloadableFile };
+  }
+
+  if (matchingFiles.length > 0) {
+    return { kind: "invalid" };
+  }
+
+  return { kind: "missing" };
 }
 
 export async function writeGetOutput(data: Uint8Array, output?: string): Promise<void> {
@@ -79,12 +105,17 @@ export function registerGetCommand(): void {
         }
 
         const normalizedRemotePath = normalizeSitePath(remotePath);
-        const fileEntry = getManifestFiles(trustedManifest.event).find((file) => {
-          return normalizeSitePath(file.path) === normalizedRemotePath;
-        });
-        if (!fileEntry?.sha256) {
+        const manifestFile = lookupManifestFile(
+          getManifestFiles(trustedManifest.event),
+          remotePath,
+        );
+        if (manifestFile.kind === "invalid") {
+          throw new Error(`Invalid manifest entry for ${normalizedRemotePath}`);
+        }
+        if (manifestFile.kind === "missing") {
           throw new Error(`Path not found in ${siteType}: ${normalizedRemotePath}`);
         }
+        const fileEntry = manifestFile.file;
 
         const configuredServers = resolveServers(options, config);
         const manifestServers = getManifestServers(trustedManifest.event).map((url) =>

@@ -153,17 +153,9 @@ export class DownloadService {
     const outputPath = join(options.output, file.path);
 
     // Check if file already exists
-    const existingFile = await this.checkExistingFile(outputPath, options.overwrite);
+    const existingFile = await this.checkExistingFile(file, outputPath, options.overwrite);
     if (existingFile) {
       return existingFile;
-    }
-
-    if (!file.sha256) {
-      return {
-        file,
-        success: false,
-        error: "No SHA256 hash found for file",
-      };
     }
 
     // Try to download from each server until one succeeds
@@ -248,14 +240,23 @@ export class DownloadService {
    * Check if a file already exists and handle overwrite logic
    */
   private async checkExistingFile(
+    manifestFile: FileEntry,
     outputPath: string,
     overwrite?: boolean,
   ): Promise<DownloadResult | null> {
     try {
       const stat = await Deno.stat(outputPath);
       if (stat.isFile && !overwrite) {
+        let sha256 = manifestFile.sha256;
+        try {
+          const fileContent = await Deno.readFile(outputPath);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", fileContent);
+          sha256 = encodeHex(new Uint8Array(hashBuffer));
+        } catch {
+          // Unreadable path (permissions) or test doubles without readFile: keep manifest hash
+        }
         return {
-          file: { path: outputPath } as FileEntry,
+          file: { ...manifestFile, sha256 },
           success: true,
           skipped: true,
           reason: "File already exists (use --overwrite to replace)",

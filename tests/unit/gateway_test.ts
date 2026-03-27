@@ -110,10 +110,7 @@ Deno.test(
 );
 
 // Helper to create mock FileEntry objects for 404 tests
-const mockFile = (
-  path: string,
-  sha256: string | undefined = "a".repeat(64),
-): FileEntry => ({
+const mockFile = (path: string, sha256 = "a".repeat(64)): FileEntry => ({
   path,
   sha256,
   size: 100,
@@ -179,9 +176,9 @@ Deno.test("find404Fallback - NIP-5A compliance", async (t) => {
     assertEquals(result, null);
   });
 
-  await t.step("skips 404.html without sha256", () => {
+  await t.step("skips 404.html with empty sha256", () => {
     const files: FileEntry[] = [
-      { path: "404.html", size: 100, contentType: "text/html" },
+      { path: "404.html", sha256: "", size: 100, contentType: "text/html" },
     ];
     const result = find404Fallback(files, false, false);
     assertEquals(result, null);

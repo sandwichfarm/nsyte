@@ -47,7 +47,7 @@ async function writeToLogFile(level: string, namespace: string, message: string)
     const logEntry = `${timestamp} [${level.toUpperCase()}] ${namespace}: ${message}\n`;
     await logFileHandle.write(new TextEncoder().encode(logEntry));
     await logFileHandle.sync(); // Ensure it's written to disk
-  } catch (error) {
+  } catch {
     // Silently fail to avoid recursive logging issues
   }
 }
@@ -215,7 +215,7 @@ export async function cleanupLogger(): Promise<void> {
   if (logFileHandle) {
     try {
       await logFileHandle.close();
-    } catch (error) {
+    } catch {
       // Silently ignore errors during cleanup
     }
     logFileHandle = null;

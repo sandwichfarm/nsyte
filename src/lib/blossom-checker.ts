@@ -171,7 +171,7 @@ async function checkBlobsAvailability(
         found: response.status === 200,
         status: response.status,
       });
-    } catch (error) {
+    } catch {
       results.push({
         hash,
         found: false,
@@ -212,7 +212,7 @@ async function verifyBlobHash(
       downloadTime,
       fileSize: fileData.byteLength,
     };
-  } catch (error) {
+  } catch {
     const downloadTime = Date.now() - startTime;
 
     return {

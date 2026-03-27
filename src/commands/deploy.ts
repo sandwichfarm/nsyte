@@ -1,8 +1,9 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
-import nsyte from "./root.ts";
+import { hexToBytes } from "@noble/hashes/utils";
 import { join } from "@std/path";
 import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
+import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
 import {
@@ -18,9 +19,11 @@ import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
+import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
+import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
 import {
   createSiteManifestEvent,
   type EventPublishResult,
@@ -32,13 +35,10 @@ import {
   type RelayPublishResult,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
 import { normalizeSiteIdentifier, resolveSiteIdentifier } from "../lib/site-identifier.ts";
+import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
 import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
-import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
-import { hexToBytes } from "@noble/hashes/utils";
-import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -51,10 +51,10 @@ import {
   formatTable,
   formatTitle,
 } from "../ui/formatters.ts";
-import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { ProgressRenderer } from "../ui/progress.ts";
+import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { StatusDisplay } from "../ui/status.ts";
-import { loadAsyncMap } from "applesauce-loaders/helpers";
+import nsyte from "./root.ts";
 
 // LOGGER
 const log = createLogger("deploy");
@@ -391,7 +391,6 @@ export async function deployCommand(
       state as DeploymentState,
       toTransfer,
       includedFiles,
-      remoteFileEntries,
     );
     await maybePublishMetadata(state as DeploymentState, publisherPubkey);
 
@@ -1192,8 +1191,13 @@ async function fetchRemoteFiles(
   state: DeploymentState,
   publisherPubkey: string,
 ): Promise<FileEntry[]> {
-  const { statusDisplay, displayManager, options, resolvedRelays } = state;
+  const { statusDisplay, displayManager, options, resolvedRelays, config } = state;
   let remoteFileEntries: FileEntry[] = [];
+
+  // Must match publishSiteManifest / createSiteManifestEvent: named sites use kind 35128 + #d.
+  // Omitting this always fetched the root (15128) manifest and reused root path hashes on
+  // named-site deploys (e.g. /index.html from root on a named site).
+  const manifestSiteId = config.id === null || config.id === "" ? undefined : config.id;
 
   // We need remote file info for sync mode, and when not forcing uploads
   const shouldFetchRemote = !options.force || options.sync;
@@ -1207,19 +1211,28 @@ async function fetchRemoteFiles(
 
     if (primaryRelays.length > 0) {
       const reason = options.force && options.sync ? " (required for sync)" : "";
-      statusDisplay.update(`Checking for existing files on remote relays${reason}...`);
+      const remoteLabel = manifestSiteId ? `named site "${manifestSiteId}"` : "root site";
+      statusDisplay.update(
+        `Checking for existing files on remote relays (${remoteLabel})${reason}...`,
+      );
       try {
-        remoteFileEntries = await listTrustedRemoteFiles(primaryRelays, publisherPubkey);
+        remoteFileEntries = await listTrustedRemoteFiles(
+          primaryRelays,
+          publisherPubkey,
+          manifestSiteId,
+        );
 
         // If nothing found on the configured relays, retry with a broader relay set
         if (remoteFileEntries.length === 0 && resolvedRelays.length > 0 && allowFallbackRelays) {
-          const fallbackRelays = Array.from(
-            new Set([...resolvedRelays, ...NSYTE_BROADCAST_RELAYS]),
-          );
+          const fallbackRelays = relaySet(resolvedRelays, NSYTE_BROADCAST_RELAYS);
           statusDisplay.update(
             `No files found on configured relays, retrying with default broadcast relays...`,
           );
-          remoteFileEntries = await listTrustedRemoteFiles(fallbackRelays, publisherPubkey);
+          remoteFileEntries = await listTrustedRemoteFiles(
+            fallbackRelays,
+            publisherPubkey,
+            manifestSiteId,
+          );
         }
 
         const remoteFoundMsg = remoteFileEntries.length > 0
@@ -1387,7 +1400,6 @@ async function maybeProcessFiles(
   state: DeploymentState,
   toTransfer: FileEntry[],
   includedFiles: FileEntry[],
-  remoteFileEntries: FileEntry[],
 ): Promise<DeployPhaseResult> {
   const { statusDisplay, resolvedRelays } = state;
 
@@ -1404,7 +1416,6 @@ async function maybeProcessFiles(
         state,
         preparedFiles,
         includedFiles,
-        remoteFileEntries,
       );
 
       filesUploaded = uploadResult.uploadResponses.filter((r) => r.success).length;
@@ -1421,7 +1432,7 @@ async function maybeProcessFiles(
     // Even if no files to upload, we may need to publish manifest with existing files
     // (e.g., when files were deleted or metadata changed)
     if (includedFiles.length > 0 && resolvedRelays.length > 0) {
-      manifestResult = await publishSiteManifest(state, includedFiles, remoteFileEntries, []);
+      manifestResult = await publishSiteManifest(state, includedFiles, []);
     }
   }
 
@@ -1440,7 +1451,6 @@ async function maybeProcessFiles(
 async function publishSiteManifest(
   state: DeploymentState,
   includedFiles: FileEntry[],
-  remoteFileEntries: FileEntry[],
   uploadResponses: UploadResponse[],
 ): Promise<ManifestPublishResult> {
   const {
@@ -1453,13 +1463,12 @@ async function publishSiteManifest(
     fallbackFileEntry,
   } = state;
 
-  // Build a complete file mapping from all local files
-  // This ensures the manifest includes ALL files, not just newly uploaded ones
+  // Build a complete file mapping from all local files (hashes from disk at scan + this run's uploads)
   const fileMappingsMap = new Map<string, { path: string; sha256: string }>();
 
-  // First, add all files from upload responses (newly uploaded or re-uploaded files)
+  // Paths from successful uploads (hashes from the upload pipeline; should match local content)
   for (const response of uploadResponses) {
-    if (response.success && response.file.sha256) {
+    if (response.success) {
       fileMappingsMap.set(response.file.path, {
         path: response.file.path,
         sha256: response.file.sha256,
@@ -1467,66 +1476,32 @@ async function publishSiteManifest(
     }
   }
 
-  // Then, add unchanged files from remote entries (files that weren't uploaded)
-  // Use the sha256 from remote entries for files that exist locally but weren't uploaded
-  // Normalize paths for comparison (same logic as compareFiles)
+  // Files not uploaded this run: use SHA-256 from the directory scan (never from remote manifest)
   const normalizePath = (path: string) => path.replace(/^\/+/, "/").toLowerCase();
 
   for (const localFile of includedFiles) {
     const normalizedLocalPath = normalizePath(localFile.path);
 
-    // Check if this file was already added from upload responses
     const alreadyInMap = Array.from(fileMappingsMap.keys()).some(
       (mappedPath) => normalizePath(mappedPath) === normalizedLocalPath,
     );
 
     if (!alreadyInMap) {
-      // Find the corresponding remote file entry to get its sha256
-      const remoteFile = remoteFileEntries.find(
-        (r) => normalizePath(r.path) === normalizedLocalPath,
-      );
-
-      if (remoteFile?.sha256) {
-        fileMappingsMap.set(localFile.path, {
-          path: localFile.path,
-          sha256: remoteFile.sha256,
-        });
-      } else if (localFile.sha256) {
-        // Fallback: use local file's sha256 if available
-        // This can happen for new files that weren't uploaded yet (shouldn't happen in normal flow)
-        fileMappingsMap.set(localFile.path, {
-          path: localFile.path,
-          sha256: localFile.sha256,
-        });
-      }
+      fileMappingsMap.set(localFile.path, {
+        path: localFile.path,
+        sha256: localFile.sha256,
+      });
     }
   }
 
-  // Add 404.html entry if fallback file was found
+  // Add 404.html entry if fallback file was found (hash from scan or upload response only)
   if (fallbackFileEntry) {
     const normalizedFallbackPath = normalizePath(fallbackFileEntry.path);
 
-    // Find the hash for the fallback file from the mappings we just built
-    let fallbackHash: string | undefined;
-
-    // First, try to find it in upload responses
     const fallbackUploadResponse = uploadResponses.find(
-      (r) => r.success && r.file.sha256 && normalizePath(r.file.path) === normalizedFallbackPath,
+      (r) => r.success && normalizePath(r.file.path) === normalizedFallbackPath,
     );
-    if (fallbackUploadResponse?.file.sha256) {
-      fallbackHash = fallbackUploadResponse.file.sha256;
-    } else {
-      // Try to find it in remote entries
-      const fallbackRemoteFile = remoteFileEntries.find(
-        (r) => normalizePath(r.path) === normalizedFallbackPath,
-      );
-      if (fallbackRemoteFile?.sha256) {
-        fallbackHash = fallbackRemoteFile.sha256;
-      } else if (fallbackFileEntry.sha256) {
-        // Use the hash from the file entry itself if available
-        fallbackHash = fallbackFileEntry.sha256;
-      }
-    }
+    const fallbackHash = fallbackUploadResponse?.file.sha256 ?? fallbackFileEntry.sha256;
 
     if (fallbackHash) {
       fileMappingsMap.set("/404.html", {
@@ -1696,7 +1671,6 @@ async function uploadFiles(
   state: DeploymentState,
   preparedFiles: FileEntry[],
   includedFiles: FileEntry[],
-  remoteFileEntries: FileEntry[],
 ): Promise<UploadPhaseResult> {
   const {
     statusDisplay,
@@ -1754,9 +1728,7 @@ async function uploadFiles(
 
     for (const result of uploadResponses) {
       if (result.success) {
-        if (result.file.sha256) {
-          messageCollector.addFileSuccess(result.file.path, result.file.sha256);
-        }
+        messageCollector.addFileSuccess(result.file.path, result.file.sha256);
       } else if (result.error) {
         messageCollector.addFileError(result.file.path, result.error);
       }
@@ -1966,7 +1938,6 @@ async function uploadFiles(
       manifestResult = await publishSiteManifest(
         state,
         includedFiles,
-        remoteFileEntries,
         uploadResponses.filter((r) => r.success),
       );
     }
