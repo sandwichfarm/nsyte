@@ -84,6 +84,7 @@ export interface DeployCommandOptions {
   handlerKinds?: string;
   nonInteractive: boolean;
   name?: string;
+  noConfig: boolean;
 }
 
 /**
@@ -212,6 +213,11 @@ export function registerDeployCommand(): void {
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, deploys root site (kind 15128).",
     )
+    .option(
+      "--no-config",
+      "Ignore config file and use only CLI arguments.",
+      { default: false },
+    )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
@@ -284,6 +290,18 @@ export async function deployCommand(
     // CLI --name overrides config.id
     if (options.name !== undefined) {
       config.id = options.name;
+    }
+
+    // Hint: suggest --non-interactive when CLI override flags are used in interactive mode
+    if (
+      !options.nonInteractive && !options.noConfig &&
+      (options.servers || options.relays || options.name !== undefined)
+    ) {
+      console.log(
+        colors.blue(
+          "  Tip: Use -i/--non-interactive to skip interactive prompts when using CLI flags.\n",
+        ),
+      );
     }
 
     // Validate named site identifier against NIP-5A rules
@@ -579,7 +597,24 @@ async function resolveContext(
   let config: ProjectConfig | null = null;
   let authKeyHex: string | null | undefined = options.sec || undefined;
 
-  if (options.nonInteractive) {
+  // --no-config: ignore config file entirely, build config from CLI args only
+  if (options.noConfig) {
+    log.debug("Resolving project context with --no-config (ignoring config file).");
+    config = {
+      servers: options.servers ? options.servers.split(",").filter((s) => s.trim()) : [],
+      relays: options.relays ? options.relays.split(",").filter((r) => r.trim()) : [],
+      fallback: options.fallback,
+      gatewayHostnames: ["nsite.lol"],
+    };
+
+    if (!authKeyHex && !options.sec) {
+      return {
+        config,
+        authKeyHex,
+        error: "Missing signing key: --no-config requires --sec for authentication.",
+      };
+    }
+  } else if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
     let existingProjectData: ProjectConfig | null = null;
 
@@ -704,6 +739,17 @@ async function resolveContext(
 
     if (!config?.gatewayHostnames) {
       config.gatewayHostnames = ["nsite.lol"];
+    }
+
+    // Apply CLI flag overrides to config (interactive mode)
+    if (options.servers) {
+      config.servers = options.servers.split(",").filter((s) => s.trim());
+    }
+    if (options.relays) {
+      config.relays = options.relays.split(",").filter((r) => r.trim());
+    }
+    if (options.fallback) {
+      config.fallback = options.fallback;
     }
 
     if (options.sec) {
