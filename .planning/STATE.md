@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-stopped_at: Completed 01-new-test-files/01-02-PLAN.md
-last_updated: "2026-03-27T13:17:47.388Z"
+status: Ready to execute
+stopped_at: Completed 02-expanded-coverage-02-01-PLAN.md
+last_updated: "2026-03-27T13:37:26.626Z"
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliable deployment of static sites to the Nostr/Blossom ecosystem
-**Current focus:** Phase 01 — new-test-files
+**Current focus:** Phase 02 — expanded-coverage
 
 ## Current Position
 
-Phase: 01 (new-test-files) — EXECUTING
+Phase: 02 (expanded-coverage) — EXECUTING
 Plan: 2 of 2
 
 ## Performance Metrics
@@ -48,6 +48,7 @@ Plan: 2 of 2
 *Updated after each plan completion*
 | Phase 01-new-test-files P01 | 2 | 2 tasks | 2 files |
 | Phase 01-new-test-files P02 | 3min | 2 tasks | 2 files |
+| Phase 02-expanded-coverage P01 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Plan: 2 of 2
 - [Phase 01-new-test-files]: stub(Date, 'now') in beforeEach with restore() in afterEach for deterministic time control in formatTimestamp tests
 - [Phase 01-new-test-files]: Use assertStringIncludes for ANSI color output (cliffy wraps text in escape codes, exact equality fails)
 - [Phase 01-new-test-files]: Stub Deno.Command as 'any' for detectSourceUrl tests to avoid real git subprocess calls
+- [Phase 02-expanded-coverage]: Stubbed Deno.stdout.writeSync for interactive output capture in StatusDisplay tests
+- [Phase 02-expanded-coverage]: Used singleton reset pattern (DisplayManager as any).instance = undefined for env-var constructor branch testing
+- [Phase 02-expanded-coverage]: Extracted withEnvVars() helper to DRY up singleton reset + env stub + restore pattern
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-27T13:17:47.385Z
-Stopped at: Completed 01-new-test-files/01-02-PLAN.md
+Last session: 2026-03-27T13:37:26.623Z
+Stopped at: Completed 02-expanded-coverage-02-01-PLAN.md
 Resume file: None
