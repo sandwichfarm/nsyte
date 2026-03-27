@@ -33,6 +33,7 @@ import {
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
 import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
+import { normalizeSiteIdentifier, resolveSiteIdentifier } from "../lib/site-identifier.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
 import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
 import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
@@ -289,7 +290,7 @@ export async function deployCommand(
 
     // CLI --name overrides config.id
     if (options.name !== undefined) {
-      config.id = options.name;
+      config.id = resolveSiteIdentifier(options.name);
     }
 
     // Hint: suggest --non-interactive when CLI override flags are used in interactive mode
@@ -305,7 +306,7 @@ export async function deployCommand(
     }
 
     // Validate named site identifier against NIP-5A rules
-    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteId = normalizeSiteIdentifier(config.id);
     if (siteId) {
       const validation = validateDTag(siteId);
       if (!validation.valid) {
@@ -563,7 +564,7 @@ function displayGatewayUrl(config: ProjectConfig, publisherPubkey: string): void
   const npub = npubEncode(publisherPubkey);
   const pubkeyB36 = encodePubkeyBase36(hexToBytes(publisherPubkey));
   const { gatewayHostnames, id } = config;
-  const siteId = id === null || id === "" ? undefined : id;
+  const siteId = normalizeSiteIdentifier(id);
   const isNamedSite = !!siteId;
 
   console.log(colors.green(`\nThe nsite is now available on any nsite gateway, for example:`));
@@ -1024,7 +1025,7 @@ function displayConfig(
     console.log(formatConfigValue("User", userDisplay, false));
 
     // Display site type (root site vs named site)
-    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteId = normalizeSiteIdentifier(config.id);
     const siteType = siteId ? `Named site: ${siteId}` : "Root site";
     console.log(formatConfigValue("Site Type", siteType, false));
 
@@ -1057,7 +1058,7 @@ function displayConfig(
     console.log(colors.cyan(`User: ${userDisplay}`));
 
     // Display site type (root site vs named site)
-    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteId = normalizeSiteIdentifier(config.id);
     const siteType = siteId ? `Named site: ${siteId}` : "Root site";
     console.log(colors.cyan(`Site Type: ${siteType}`));
 
@@ -1569,7 +1570,7 @@ async function publishSiteManifest(
 
     // Get site identifier from config (for named sites)
     // Use id from config, or empty string/null for root site
-    const siteId = config.id === null || config.id === "" ? undefined : config.id;
+    const siteId = normalizeSiteIdentifier(config.id);
 
     // Prepare metadata - use config values (these are recommendations for others)
     // Operational relays/servers (from kind 10002/10063) are used for publishing, not in metadata

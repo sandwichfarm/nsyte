@@ -11,6 +11,7 @@ import {
   getUserDisplayName,
 } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { resolveSiteIdentifier } from "../lib/site-identifier.ts";
 import {
   fetchTrustedSiteManifestEvent,
   fetchTrustedSiteManifestHistory,
@@ -42,7 +43,7 @@ export interface CategorizedStatusServers {
 }
 
 interface StatusCommandOptions {
-  config?: string;
+  config?: string | false;
   relays?: string;
   sec?: string;
   pubkey?: string;
@@ -183,6 +184,7 @@ export function registerStatusCommand() {
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, inspects root site (kind 15128).",
     )
+    .option("--no-config", "Ignore config file and use only CLI arguments.", { default: false })
     .option("--full", "Show the full file list instead of the per-server file summary.", {
       default: false,
     })
@@ -192,8 +194,10 @@ export function registerStatusCommand() {
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .action(async (options: StatusCommandOptions, pathFilter?: string) => {
-      const pubkey = await resolvePubkey(options);
-      const projectConfig = readProjectFile(options.config);
+      const configPath = typeof options.config === "string" ? options.config : undefined;
+      const projectConfig = options.config === false ? null : readProjectFile(configPath);
+      const siteName = resolveSiteIdentifier(options.name, projectConfig);
+      const pubkey = await resolvePubkey(options, projectConfig);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       const configuredRelays = options.relays !== undefined
         ? resolveRelays(options, projectConfig, false)
@@ -215,7 +219,7 @@ export function registerStatusCommand() {
       }
 
       const normalizedPathFilter = normalizePathFilter(pathFilter);
-      const siteType = options.name ? `named site \"${options.name}\"` : "root site";
+      const siteType = siteName ? `named site \"${siteName}\"` : "root site";
       const displayName = await getUserDisplayName(pubkey);
 
       console.log(
@@ -231,8 +235,8 @@ export function registerStatusCommand() {
       }
 
       const [trustedManifest, manifestHistory] = await Promise.all([
-        fetchTrustedSiteManifestEvent(relays, pubkey, options.name),
-        fetchTrustedSiteManifestHistory(relays, pubkey, options.name),
+        fetchTrustedSiteManifestEvent(relays, pubkey, siteName),
+        fetchTrustedSiteManifestHistory(relays, pubkey, siteName),
       ]);
 
       if (!trustedManifest.event) {

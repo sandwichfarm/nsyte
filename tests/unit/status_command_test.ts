@@ -10,6 +10,7 @@ import {
   categorizeStatusServers,
   registerStatusCommand,
 } from "../../src/commands/status.ts";
+import { normalizeSiteIdentifier, resolveSiteIdentifier } from "../../src/lib/site-identifier.ts";
 import { sortManifestEvents } from "../../src/lib/site-manifest.ts";
 
 describe("status command", () => {
@@ -22,6 +23,39 @@ describe("status command", () => {
     const statusCommand = nsyte.getCommands().find((cmd) => cmd.getName() === "status");
     assertExists(statusCommand);
     assertEquals(statusCommand.getName(), "status");
+    assertExists(statusCommand.getOption("config"));
+    assertExists(statusCommand.getOption("no-config"));
+  });
+});
+
+describe("resolveSiteIdentifier", () => {
+  it("prefers the explicit CLI name over config", () => {
+    assertEquals(
+      resolveSiteIdentifier("cli-site", { id: "config-site" }),
+      "cli-site",
+    );
+  });
+
+  it("uses the configured site id when no CLI name is provided", () => {
+    assertEquals(resolveSiteIdentifier(undefined, { id: "config-site" }), "config-site");
+  });
+
+  it("treats empty or null config ids as the root site", () => {
+    assertEquals(resolveSiteIdentifier(undefined, { id: "" }), undefined);
+    assertEquals(resolveSiteIdentifier(undefined, { id: null }), undefined);
+    assertEquals(resolveSiteIdentifier(undefined, undefined), undefined);
+  });
+});
+
+describe("normalizeSiteIdentifier", () => {
+  it("normalizes empty root-site values to undefined", () => {
+    assertEquals(normalizeSiteIdentifier(""), undefined);
+    assertEquals(normalizeSiteIdentifier(null), undefined);
+    assertEquals(normalizeSiteIdentifier(undefined), undefined);
+  });
+
+  it("preserves named site identifiers", () => {
+    assertEquals(normalizeSiteIdentifier("my-site"), "my-site");
   });
 });
 
