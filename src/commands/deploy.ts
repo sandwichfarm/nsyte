@@ -64,7 +64,7 @@ const log = createLogger("deploy");
  * Deploy command options
  */
 export interface DeployCommandOptions {
-  config?: string;
+  config?: string | false;
   force: boolean;
   verbose: boolean;
   sync: boolean;
@@ -212,6 +212,11 @@ export function registerDeployCommand(): void {
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, deploys root site (kind 15128).",
     )
+    .option(
+      "--no-config",
+      "Ignore config file and use only CLI arguments.",
+      { default: false },
+    )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
@@ -266,6 +271,7 @@ export async function deployCommand(
     const currentWorkingDir = Deno.cwd();
     const targetDir = join(currentWorkingDir, fileOrFolder);
     const context = await resolveContext(options);
+    const configPath = typeof options.config === "string" ? options.config : undefined;
 
     if (context.error) {
       statusDisplay.error(context.error);
@@ -286,6 +292,18 @@ export async function deployCommand(
       config.id = options.name;
     }
 
+    // Hint: suggest --non-interactive when CLI override flags are used in interactive mode
+    if (
+      !options.nonInteractive && options.config !== false &&
+      (options.servers || options.relays || options.name !== undefined)
+    ) {
+      console.log(
+        colors.blue(
+          "  Tip: Use -i/--non-interactive to skip interactive prompts when using CLI flags.\n",
+        ),
+      );
+    }
+
     // Validate named site identifier against NIP-5A rules
     const siteId = config.id === null || config.id === "" ? undefined : config.id;
     if (siteId) {
@@ -303,7 +321,7 @@ export async function deployCommand(
       }
     }
 
-    const signerResult = await initSigner(authKeyHex, config, options, options.config);
+    const signerResult = await initSigner(authKeyHex, config, options, configPath);
 
     if ("error" in signerResult) {
       statusDisplay.error(`Signer: ${signerResult.error}`);
@@ -578,13 +596,33 @@ async function resolveContext(
 ): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let authKeyHex: string | null | undefined = options.sec || undefined;
+  const configPath = typeof options.config === "string" ? options.config : undefined;
 
-  if (options.nonInteractive) {
+  // --no-config: ignore config file entirely, build config from CLI args only
+  if (options.config === false) {
+    log.debug("Resolving project context with --no-config (ignoring config file).");
+    config = {
+      servers: options.servers
+        ? options.servers.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+      relays: options.relays ? options.relays.split(",").map((r) => r.trim()).filter(Boolean) : [],
+      fallback: options.fallback,
+      gatewayHostnames: ["nsite.lol"],
+    };
+
+    if (!authKeyHex && !options.sec) {
+      return {
+        config,
+        authKeyHex,
+        error: "Missing signing key: --no-config requires --sec for authentication.",
+      };
+    }
+  } else if (options.nonInteractive) {
     log.debug("Resolving project context in non-interactive mode.");
     let existingProjectData: ProjectConfig | null = null;
 
     try {
-      existingProjectData = readProjectFile(options.config);
+      existingProjectData = readProjectFile(configPath);
     } catch {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
@@ -657,7 +695,7 @@ async function resolveContext(
     let keyFromInteractiveSetup: string | undefined;
 
     try {
-      currentProjectData = readProjectFile(options.config);
+      currentProjectData = readProjectFile(configPath);
     } catch {
       // Configuration exists but is invalid
       console.error(colors.red("\nConfiguration file exists but contains errors."));
@@ -673,7 +711,7 @@ async function resolveContext(
 
     if (!currentProjectData) {
       log.info("No .nsite/config.json found, running initial project setup.");
-      const setupResult = await setupProject(false, options.config);
+      const setupResult = await setupProject(false, configPath);
       if (!setupResult.config) {
         return {
           config: defaultConfig,
@@ -689,7 +727,7 @@ async function resolveContext(
         log.info(
           "Project is configured but no signing method found (CLI key, CLI bunker, or configured bunker). Running key setup...",
         );
-        const keySetupResult = await setupProject(false, options.config);
+        const keySetupResult = await setupProject(false, configPath);
         if (!keySetupResult.config) {
           return {
             config,
@@ -704,6 +742,17 @@ async function resolveContext(
 
     if (!config?.gatewayHostnames) {
       config.gatewayHostnames = ["nsite.lol"];
+    }
+
+    // Apply CLI flag overrides to config (interactive mode)
+    if (options.servers) {
+      config.servers = options.servers.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    }
+    if (options.relays) {
+      config.relays = options.relays.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+    }
+    if (options.fallback) {
+      config.fallback = options.fallback;
     }
 
     if (options.sec) {
