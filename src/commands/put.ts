@@ -181,10 +181,8 @@ export function registerPutCommand(): void {
           1,
         );
 
-        const successfulUpload = uploadResponses.find((response) =>
-          response.success && response.file.sha256
-        );
-        if (!successfulUpload?.file.sha256) {
+        const successfulUpload = uploadResponses.find((response) => response.success);
+        if (!successfulUpload) {
           throw new Error(uploadResponses[0]?.error || "Failed to upload file to any server.");
         }
 

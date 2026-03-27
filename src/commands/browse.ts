@@ -1,8 +1,10 @@
 import { colors } from "@cliffy/ansi/colors";
-import nsyte from "./root.ts";
 import { Keypress } from "@cliffy/keypress";
 import { existsSync } from "@std/fs/exists";
 import { join } from "@std/path";
+import { mapEventsToTimeline, simpleTimeout } from "applesauce-core";
+import type { NostrEvent } from "applesauce-core/helpers";
+import { lastValueFrom } from "rxjs";
 import { fetchAllSites, listRemoteFilesWithProgress } from "../lib/browse-loader.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
@@ -10,9 +12,6 @@ import { handleError } from "../lib/error-utils.ts";
 import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from "../lib/files.ts";
 import { createLogger } from "../lib/logger.ts";
 import { pool } from "../lib/nostr.ts";
-import { lastValueFrom } from "rxjs";
-import { mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import type { NostrEvent } from "applesauce-core/helpers";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "../lib/utils.ts";
 import {
@@ -34,6 +33,7 @@ import {
 } from "../ui/browse/renderer.ts";
 import { createInitialState, updatePropagationStats } from "../ui/browse/state.ts";
 import { RELAY_COLORS, SERVER_COLORS } from "../ui/source-indicators.ts";
+import nsyte from "./root.ts";
 
 const log = createLogger("browse");
 
@@ -316,8 +316,6 @@ export function registerBrowseCommand(): void {
 
             // Non-blocking function to check remaining files
             const checkBlossomServersWithYielding = async (
-              relays: string[],
-              pubkey: string,
               files: typeof state.files,
               servers: string[],
             ) => {
@@ -356,7 +354,6 @@ export function registerBrowseCommand(): void {
             const manifestEvent = selectedSite?.event ?? null;
 
             // Fire and forget - don't block
-            let hasInitialBlossomCheck = false;
             (async () => {
               // First, try to get servers from manifest events (prioritized per NIP-XX)
               const manifestEvents = manifestEvent ? [manifestEvent] : [];
@@ -449,19 +446,15 @@ export function registerBrowseCommand(): void {
               if (remainingFiles.length > 0) {
                 // Check remaining files with yielding to not block the UI
                 checkBlossomServersWithYielding(
-                  relays,
-                  pubkey,
                   remainingFiles,
                   state.blossomServers,
                 );
               }
 
-              hasInitialBlossomCheck = true;
               state.status = "Ready";
               updatePropagationStats(state);
               throttledRender(true); // Force immediate render when done
             })().catch((error) => {
-              hasInitialBlossomCheck = true;
               state.status = "Ready";
               log.debug(`Initial blossom check failed: ${error}`);
               throttledRender(true); // Force immediate render on error
@@ -471,7 +464,7 @@ export function registerBrowseCommand(): void {
             const keypress = new Keypress();
 
             // Priority input queue to handle keyboard events properly
-            let inputQueue: Array<
+            const inputQueue: Array<
               { key: string; sequence?: string; timestamp: number; priority: number }
             > = [];
             let processingQueue = false;

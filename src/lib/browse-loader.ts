@@ -178,7 +178,7 @@ export async function listRemoteFilesWithProgress(
         { defaultValue: [] },
       );
 
-      const timeoutPromise = new Promise<any[]>((_, reject) => {
+      const timeoutPromise = new Promise<NostrEvent[]>((_, reject) => {
         setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
       });
 

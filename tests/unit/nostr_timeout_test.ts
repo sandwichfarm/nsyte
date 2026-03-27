@@ -24,22 +24,23 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async (t) => {
-  const requestStub = stub(pool, "request", () => NEVER as any);
+    const requestStub = stub(pool, "request", () => NEVER as any);
 
-  try {
-    await t.step("fetchUserRelayList resolves to null", async () => {
-      const result = await withTimeout(
-        fetchUserRelayList(["wss://example.invalid"], TEST_PUBKEY, 10),
-        2000,
-      );
-      assertEquals(result, null);
-    });
+    try {
+      await t.step("fetchUserRelayList resolves to null", async () => {
+        const result = await withTimeout(
+          fetchUserRelayList(["wss://example.invalid"], TEST_PUBKEY, 10),
+          2000,
+        );
+        assertEquals(result, null);
+      });
 
-    await t.step("getUserBlossomServers resolves to undefined", async () => {
-      const result = await withTimeout(getUserBlossomServers(TEST_PUBKEY, 10), 500);
-      assertEquals(result, undefined);
-    });
-  } finally {
-    requestStub.restore();
-  }
-}});
+      await t.step("getUserBlossomServers resolves to undefined", async () => {
+        const result = await withTimeout(getUserBlossomServers(TEST_PUBKEY, 10), 500);
+        assertEquals(result, undefined);
+      });
+    } finally {
+      requestStub.restore();
+    }
+  },
+});

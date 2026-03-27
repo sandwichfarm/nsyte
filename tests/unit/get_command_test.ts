@@ -4,7 +4,7 @@ import "../test-setup-global.ts";
 import { assertEquals } from "@std/assert";
 import { afterEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
-import { writeGetOutput } from "../../src/commands/get.ts";
+import { lookupManifestFile, writeGetOutput } from "../../src/commands/get.ts";
 
 describe("writeGetOutput", () => {
   afterEach(() => {
@@ -32,5 +32,34 @@ describe("writeGetOutput", () => {
     assertEquals(stdoutStub.calls.length, 0);
     assertEquals(writeFileStub.calls.length, 1);
     assertEquals(writeFileStub.calls[0].args[0], "./downloaded.txt");
+  });
+});
+
+describe("lookupManifestFile", () => {
+  it("finds a valid manifest entry for the requested path", () => {
+    const result = lookupManifestFile([
+      { path: "/index.html", sha256: "abc123" },
+    ], "index.html");
+
+    assertEquals(result, {
+      kind: "found",
+      file: { path: "/index.html", sha256: "abc123" },
+    });
+  });
+
+  it("rejects a matching manifest entry without a sha256", () => {
+    const result = lookupManifestFile([
+      { path: "/index.html", sha256: undefined as unknown as string },
+    ], "/index.html");
+
+    assertEquals(result, { kind: "invalid" });
+  });
+
+  it("returns missing when no path matches", () => {
+    const result = lookupManifestFile([
+      { path: "/index.html", sha256: "abc123" },
+    ], "/missing.html");
+
+    assertEquals(result, { kind: "missing" });
   });
 });

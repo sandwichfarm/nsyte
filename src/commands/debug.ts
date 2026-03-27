@@ -1,5 +1,4 @@
 import { colors } from "@cliffy/ansi/colors";
-import nsyte from "./root.ts";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { EventStore, mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { decodePointer, type Filter, type NostrEvent, npubEncode } from "applesauce-core/helpers";
@@ -10,6 +9,7 @@ import { checkBlossomServers } from "../lib/blossom-checker.ts";
 import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
+import nsyte from "./root.ts";
 
 const logger = createLogger("debug");
 
@@ -197,7 +197,7 @@ export function registerDebugCommand(): void {
       "Pretty print events (kind 0, 10002, server list, and index.html nsite event)",
       { default: false },
     )
-    .action(async (options: any, npub?: string) => {
+    .action(async (options, npub?: string) => {
       try {
         logger.info("Starting nsite debug...");
 

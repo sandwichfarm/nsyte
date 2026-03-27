@@ -117,7 +117,7 @@ export function registerListCommand() {
       }
 
       const manifest = trustedManifest.event;
-      let files = getManifestFiles(manifest).map((file) => ({
+      const files = getManifestFiles(manifest).map((file) => ({
         path: file.path,
         sha256: file.sha256,
         eventId: manifest.id,
