@@ -83,6 +83,7 @@ export interface DeployCommandOptions {
   publishServerList: boolean;
   handlerKinds?: string;
   nonInteractive: boolean;
+  name?: string;
 }
 
 /**
@@ -207,6 +208,10 @@ export function registerDeployCommand(): void {
       "--fallback <file:string>",
       "An HTML file to reference as 404.html (creates path mapping with same hash)",
     )
+    .option(
+      "-d, --name <name:string>",
+      "The site identifier for named sites (kind 35128). If not provided, deploys root site (kind 15128).",
+    )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
@@ -276,13 +281,21 @@ export async function deployCommand(
       return Deno.exit(1);
     }
 
+    // CLI --name overrides config.id
+    if (options.name !== undefined) {
+      config.id = options.name;
+    }
+
     // Validate named site identifier against NIP-5A rules
     const siteId = config.id === null || config.id === "" ? undefined : config.id;
     if (siteId) {
       const validation = validateDTag(siteId);
       if (!validation.valid) {
+        const suggestionHint = options.name !== undefined
+          ? `Use "--name ${validation.suggestion}" instead.`
+          : `Update .nsite/config.json: "id": "${validation.suggestion}"`;
         const errorMsg = validation.suggestion
-          ? `${validation.error}\n\n  Suggestion: Use "${validation.suggestion}" instead.\n  Update .nsite/config.json: "id": "${validation.suggestion}"`
+          ? `${validation.error}\n\n  Suggestion: ${suggestionHint}`
           : validation.error || "Invalid site identifier";
         statusDisplay.error(errorMsg);
         log.error(`dTag validation failed: ${validation.error}`);
@@ -634,6 +647,7 @@ async function resolveContext(
         ? options.relays.split(",").filter((r) => r.trim())
         : existingProjectData?.relays) || [],
       bunkerPubkey: existingProjectData?.bunkerPubkey,
+      id: existingProjectData?.id,
       fallback: options.fallback || existingProjectData?.fallback,
       gatewayHostnames: existingProjectData?.gatewayHostnames || ["nsite.lol"],
     };
