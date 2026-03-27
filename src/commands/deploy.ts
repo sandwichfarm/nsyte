@@ -747,10 +747,10 @@ async function resolveContext(
 
     // Apply CLI flag overrides to config (interactive mode)
     if (options.servers) {
-      config.servers = options.servers.split(",").filter((s) => s.trim());
+      config.servers = options.servers.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     }
     if (options.relays) {
-      config.relays = options.relays.split(",").filter((r) => r.trim());
+      config.relays = options.relays.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
     }
     if (options.fallback) {
       config.fallback = options.fallback;
