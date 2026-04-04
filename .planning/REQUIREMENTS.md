@@ -13,10 +13,10 @@ Requirements for milestone v1.1: Address Open Issues. Each maps to roadmap phase
 
 ### Dry-Run
 
-- [ ] **DRY-01**: User can run `nsyte deploy --dry-run` to see the planned file list and manifest event without uploading or publishing
-- [ ] **DRY-02**: User can run `nsyte announce --dry-run` to see the announcement event without publishing
-- [ ] **DRY-03**: Dry-run mode skips bunker/signer connection entirely (no NIP-46 round-trip)
-- [ ] **DRY-04**: Dry-run output pretty-prints event JSON for inspection
+- [x] **DRY-01**: User can run `nsyte deploy --dry-run` to see the planned file list and manifest event without uploading or publishing
+- [x] **DRY-02**: User can run `nsyte announce --dry-run` to see the announcement event without publishing
+- [x] **DRY-03**: Dry-run mode skips bunker/signer connection entirely (no NIP-46 round-trip)
+- [x] **DRY-04**: Dry-run output pretty-prints event JSON for inspection
 
 ### Config Schema
 
@@ -87,10 +87,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUG-01 | Phase 3 | Pending |
 | SCHEMA-01 | Phase 4 | Pending |
 | SCHEMA-02 | Phase 4 | Pending |
-| DRY-01 | Phase 5 | Pending |
-| DRY-02 | Phase 5 | Pending |
-| DRY-03 | Phase 5 | Pending |
-| DRY-04 | Phase 5 | Pending |
+| DRY-01 | Phase 5 | Complete |
+| DRY-02 | Phase 5 | Complete |
+| DRY-03 | Phase 5 | Complete |
+| DRY-04 | Phase 5 | Complete |
 | SCAN-01 | Phase 6 | Complete |
 | SCAN-02 | Phase 6 | Complete |
 | SCAN-03 | Phase 6 | Complete |
