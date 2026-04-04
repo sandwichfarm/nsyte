@@ -67,6 +67,32 @@ describe("createSiteManifestTemplate — title and description", () => {
     assertEquals(findTag(result.tags, "title"), undefined);
   });
 
+  it("omits description tag when description is empty string", () => {
+    const result = createSiteManifestTemplate(testFiles, "my-site", {
+      description: "",
+    });
+
+    assertEquals(findTag(result.tags, "description"), undefined);
+  });
+
+  it("includes title tag when title is whitespace-only (manifest stores as-is)", () => {
+    const result = createSiteManifestTemplate(testFiles, "my-site", {
+      title: "   ",
+    });
+
+    // createSiteManifestTemplate stores the value as-is if truthy
+    // Whitespace-only is truthy in JS, so it gets stored
+    assertEquals(findTag(result.tags, "title"), ["title", "   "]);
+  });
+
+  it("includes description tag when description is whitespace-only (manifest stores as-is)", () => {
+    const result = createSiteManifestTemplate(testFiles, "my-site", {
+      description: "   ",
+    });
+
+    assertEquals(findTag(result.tags, "description"), ["description", "   "]);
+  });
+
   it("includes all metadata tags together", () => {
     const result = createSiteManifestTemplate(testFiles, "my-site", {
       title: "Full Site",

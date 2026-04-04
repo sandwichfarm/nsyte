@@ -1577,8 +1577,10 @@ async function publishSiteManifest(
     }
     console.log("");
 
-    // Tip for missing title/description
-    if (!config.title && !config.description) {
+    // Tip for missing title/description (treat whitespace-only as missing)
+    const hasTitle = !!config.title?.trim();
+    const hasDescription = !!config.description?.trim();
+    if (!hasTitle && !hasDescription) {
       console.log(
         colors.dim(
           "  Tip: Add title and description to your config for richer manifests:",
