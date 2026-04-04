@@ -159,8 +159,8 @@ function buildAppHandlerTemplate(
   }
 
   const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-  // Use placeholder for pubkey-dependent URL in dry-run
-  const gatewayUrl = `https://<pubkey>.${gatewayHostname}`;
+  // Use placeholder for npub-dependent URL in dry-run
+  const gatewayUrl = `https://<npub>.${gatewayHostname}`;
 
   const tags: string[][] = [
     ["d", handlerId],
@@ -234,7 +234,8 @@ function buildProfileTemplate(config: ProjectConfig): EventTemplate {
  * Build a relay list event template (kind 10002) without signing.
  */
 function buildRelayListTemplate(relays: string[]): EventTemplate {
-  const tags: string[][] = relays.map((relay) => ["r", relay]);
+  // NIP-65: include "write" marker to match production event shape
+  const tags: string[][] = relays.map((relay) => ["r", relay, "write"]);
   return {
     kind: 10002,
     created_at: Math.floor(Date.now() / 1000),

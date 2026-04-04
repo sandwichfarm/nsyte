@@ -1,6 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import { ensureDir } from "@std/fs";
-import { join } from "@std/path";
+import { basename, join } from "@std/path";
 import { highlightJson } from "../../ui/json-highlighter.ts";
 import type { DryRunEvent, DryRunOptions, DryRunResult } from "./types.ts";
 
@@ -103,8 +103,8 @@ function printOutputFiles(outputDir: string, files: string[]): void {
   console.log(colors.bold("  Event previews written to:"));
   console.log(colors.dim(`    ${outputDir}/`));
   for (const file of files) {
-    const basename = file.split("/").pop();
-    console.log(colors.dim(`      ${basename}`));
+    const name = basename(file);
+    console.log(colors.dim(`      ${name}`));
   }
   console.log("");
 }
@@ -147,9 +147,19 @@ export async function handleDryRunOutput(
         console.log(
           colors.dim("  Press Enter to open the event inspector, or Ctrl+C to exit..."),
         );
-        // Wait for Enter key
-        const buf = new Uint8Array(1);
-        await Deno.stdin.read(buf);
+        // Wait for Enter key — read until line ending to consume any buffered input
+        const buf = new Uint8Array(1024);
+        let sawLineEnding = false;
+        while (!sawLineEnding) {
+          const bytesRead = await Deno.stdin.read(buf);
+          if (bytesRead === null) break;
+          for (let i = 0; i < bytesRead; i++) {
+            if (buf[i] === 10 || buf[i] === 13) {
+              sawLineEnding = true;
+              break;
+            }
+          }
+        }
 
         const { runDryRunInspector } = await import("../../ui/dry-run/mod.ts");
         await runDryRunInspector(events);

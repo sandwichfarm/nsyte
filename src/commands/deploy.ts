@@ -55,8 +55,7 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import nsyte from "./root.ts";
-import { scanFileList, type ScanLevel } from "../lib/scanner/mod.ts";
-import { displayScanReport } from "./scan.ts";
+import { collectDeployEvents, handleDryRunOutput } from "../lib/dry-run/mod.ts";
 
 // LOGGER
 const log = createLogger("deploy");
@@ -229,16 +228,6 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
-    .option(
-      "--skip-secrets-scan",
-      "Skip the pre-deploy secrets scan.",
-      { default: false },
-    )
-    .option(
-      "--scan-level <level:string>",
-      "Secrets scan sensitivity level (low, medium, high).",
-      { default: "medium" },
-    )
     .option("--dry-run", "Preview what would be deployed without uploading or publishing.", {
       default: false,
     })
