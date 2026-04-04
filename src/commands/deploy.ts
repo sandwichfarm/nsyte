@@ -676,6 +676,7 @@ async function resolveContext(
     }
 
     config = {
+      ...existingProjectData,
       servers: (options.servers
         ? options.servers.split(",").filter((s) =>
           s.trim()
