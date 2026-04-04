@@ -55,6 +55,7 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import nsyte from "./root.ts";
+import { collectDeployEvents, handleDryRunOutput } from "../lib/dry-run/mod.ts";
 
 // LOGGER
 const log = createLogger("deploy");
@@ -85,6 +86,12 @@ export interface DeployCommandOptions {
   handlerKinds?: string;
   nonInteractive: boolean;
   name?: string;
+  /** Preview what would be deployed without uploading or publishing */
+  dryRun: boolean;
+  /** Custom output directory for dry-run event previews */
+  dryRunOutput?: string;
+  /** Comma-separated event kinds to also print to stdout during dry-run */
+  dryRunShowKinds?: string;
 }
 
 /**
@@ -219,6 +226,17 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
+    .option("--dry-run", "Preview what would be deployed without uploading or publishing.", {
+      default: false,
+    })
+    .option(
+      "--dry-run-output <dir:string>",
+      "Output directory for dry-run event previews (default: /tmp/nsyte-dry-run-{timestamp}/).",
+    )
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers, e.g. '35128,31990').",
+    )
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
       const cmdName = Deno.args[0];
@@ -320,6 +338,44 @@ export async function deployCommand(
         log.error(`dTag validation failed: ${validation.error}`);
         return Deno.exit(1);
       }
+    }
+
+    // Dry-run: preview what would be deployed without signing, uploading, or publishing
+    if (options.dryRun) {
+      log.debug("Dry-run mode: scanning files and collecting event previews");
+
+      // Scan local files (read-only, no signer needed)
+      statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
+      const { includedFiles } = await getLocalFiles(targetDir);
+
+      // Collect event templates (no signing)
+      const events = collectDeployEvents(config, includedFiles, {
+        publishAppHandler: options.publishAppHandler,
+        publishProfile: options.publishProfile,
+        publishRelayList: options.publishRelayList,
+        publishServerList: options.publishServerList,
+        handlerKinds: options.handlerKinds,
+        servers: options.servers,
+        relays: options.relays,
+      });
+
+      // Parse --dry-run-show-kinds
+      const showKinds = options.dryRunShowKinds
+        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+          !isNaN(k)
+        )
+        : undefined;
+
+      // Handle output (banner, files, optional stdout)
+      await handleDryRunOutput(events, {
+        outputDir: options.dryRunOutput,
+        showKinds,
+        interactive: !options.nonInteractive && Deno.stdin.isTerminal(),
+      }, {
+        totalFiles: includedFiles.length,
+      });
+
+      return Deno.exit(0);
     }
 
     const signerResult = await initSigner(authKeyHex, config, options, configPath);
