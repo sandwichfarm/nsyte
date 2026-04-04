@@ -82,7 +82,7 @@ describe("collectDeployEvents", () => {
     assertNotEquals(relayEvent, undefined);
     const rTags = relayEvent!.template.tags.filter((t) => t[0] === "r");
     assertEquals(rTags.length, 1);
-    assertEquals(rTags[0], ["r", "wss://relay.example.com"]);
+    assertEquals(rTags[0], ["r", "wss://relay.example.com", "write"]);
   });
 
   it("includes server list event when publishServerList is true", () => {
@@ -110,7 +110,7 @@ describe("collectDeployEvents", () => {
     const relayEvent = events.find((e) => e.kind === 10002);
     assertNotEquals(relayEvent, undefined);
     const rTags = relayEvent!.template.tags.filter((t) => t[0] === "r");
-    assertEquals(rTags[0], ["r", "wss://custom-relay.example.com"]);
+    assertEquals(rTags[0], ["r", "wss://custom-relay.example.com", "write"]);
   });
 
   it("uses overridden servers from options", () => {
