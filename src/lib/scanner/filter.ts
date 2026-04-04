@@ -14,7 +14,7 @@ export const BINARY_EXTENSIONS = new Set([
   ".bmp",
   ".webp",
   ".avif",
-  ".svg",
+  // Note: .svg is intentionally NOT here — SVGs are text XML and can contain secrets
   ".tiff",
   ".tif",
   // Fonts

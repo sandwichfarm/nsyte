@@ -221,6 +221,16 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
+    .option(
+      "--skip-secrets-scan",
+      "Skip the pre-deploy secrets scan.",
+      { default: false },
+    )
+    .option(
+      "--scan-level <level:string>",
+      "Secrets scan sensitivity level (low, medium, high).",
+      { default: "medium" },
+    )
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
       const cmdName = Deno.args[0];

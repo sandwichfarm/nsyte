@@ -102,11 +102,10 @@ export function scanContent(
         continue;
       }
 
-      // Standard regex pattern matching
-      // Reset regex lastIndex for global patterns
-      const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
-      const match = regex.exec(line);
-      if (match) {
+      // Standard regex pattern matching — loop to catch all matches per line
+      const regex = new RegExp(pattern.regex.source, pattern.regex.flags.includes("g") ? pattern.regex.flags : pattern.regex.flags + "g");
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(line)) !== null) {
         findings.push({
           filePath,
           line: i + 1,
@@ -115,6 +114,8 @@ export function scanContent(
           severity: pattern.severity,
           matchPreview: createMatchPreview(match[0]),
         });
+        // Prevent infinite loop on zero-length matches
+        if (match[0].length === 0) regex.lastIndex++;
       }
     }
   }
@@ -154,8 +155,16 @@ export async function scanFileList(
       allFindings.push(...findings);
       filesScanned++;
     } catch {
-      // File unreadable — skip silently (may be a binary file without null bytes in first 512)
+      // File unreadable — record as a warning finding so users know the scan was incomplete
       filesSkipped++;
+      allFindings.push({
+        filePath: file.path,
+        line: 0,
+        patternId: "unreadable-file",
+        patternName: "Unreadable file",
+        severity: "warning" as const,
+        matchPreview: "(file could not be read — scan incomplete for this file)",
+      });
     }
   }
 
