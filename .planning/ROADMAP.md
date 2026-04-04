@@ -96,7 +96,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Core dry-run library: event collector, file writer, types (wave 1)
 - [x] 05-02-PLAN.md — Deploy + Announce command integration: --dry-run flag and early exit (wave 1)
-- [ ] 05-03-PLAN.md — Interactive TUI event inspector: tag grouping, expand/collapse, navigation (wave 2)
+- [x] 05-03-PLAN.md — Interactive TUI event inspector: tag grouping, expand/collapse, navigation (wave 2)
 
 ### Phase 6: Secrets Scanner
 **Goal**: Users can scan for Nostr-specific secrets before deploying, and the deploy pipeline warns when secrets are detected
