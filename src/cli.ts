@@ -39,6 +39,7 @@ import { createLogger } from "./lib/logger.ts";
 import { pool } from "./lib/nostr.ts";
 
 import { registerBunkerCommand } from "./commands/bunker.ts";
+import { registerScanCommand } from "./commands/scan.ts";
 
 const log = createLogger("cli");
 
@@ -62,6 +63,7 @@ registerDebugCommand();
 registerAnnounceCommand();
 registerConfigCommand();
 registerBunkerCommand();
+registerScanCommand();
 
 /**
  * Main function - the entry point for the command line
