@@ -384,7 +384,7 @@ export async function deployCommand(
       await handleDryRunOutput(events, {
         outputDir: options.dryRunOutput,
         showKinds,
-        interactive: !options.nonInteractive,
+        interactive: !options.nonInteractive && Deno.stdin.isTerminal(),
       }, {
         totalFiles: includedFiles.length,
       });

@@ -139,5 +139,25 @@ export async function handleDryRunOutput(
     printEventsToStdout(events, options.showKinds);
   }
 
+  // 6. Launch interactive TUI if requested
+  if (options.interactive && events.length > 0) {
+    // Check if stdin is actually a terminal
+    try {
+      if (Deno.stdin.isTerminal()) {
+        console.log(
+          colors.dim("  Press Enter to open the event inspector, or Ctrl+C to exit..."),
+        );
+        // Wait for Enter key
+        const buf = new Uint8Array(1);
+        await Deno.stdin.read(buf);
+
+        const { runDryRunInspector } = await import("../../ui/dry-run/mod.ts");
+        await runDryRunInspector(events);
+      }
+    } catch {
+      // Not a terminal or stdin not available — skip TUI
+    }
+  }
+
   return { outputDir, files, events };
 }
