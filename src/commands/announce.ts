@@ -3,6 +3,7 @@ import nsyte from "./root.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
+import { collectAnnounceEvents, handleDryRunOutput } from "../lib/dry-run/mod.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { publishAppHandler } from "../lib/metadata/publisher.ts";
@@ -22,6 +23,9 @@ export function registerAnnounceCommand(): void {
       "--sec <secret:string>",
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
+    .option("--dry-run", "Preview what would be announced without publishing.", {
+      default: false,
+    })
     .action(async (options) => {
       const status = new StatusDisplay();
 
@@ -47,6 +51,24 @@ export function registerAnnounceCommand(): void {
             ),
           );
           Deno.exit(1);
+        }
+
+        // Dry-run: preview what would be announced without signing or publishing
+        if (options.dryRun) {
+          const events = collectAnnounceEvents(config);
+
+          if (events.length === 0) {
+            console.error(
+              colors.yellow("No events to preview. Check your app handler configuration."),
+            );
+            Deno.exit(1);
+          }
+
+          await handleDryRunOutput(events, {
+            interactive: false, // Announce dry-run is simpler, no TUI needed
+          });
+
+          Deno.exit(0);
         }
 
         // Initialize signer
