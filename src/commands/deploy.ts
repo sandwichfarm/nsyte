@@ -56,6 +56,7 @@ import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import nsyte from "./root.ts";
 import { scanFileList, type ScanLevel } from "../lib/scanner/mod.ts";
+import { collectDeployEvents, handleDryRunOutput } from "../lib/dry-run/mod.ts";
 import { displayScanReport } from "./scan.ts";
 
 // LOGGER
@@ -407,6 +408,57 @@ export async function deployCommand(
     displayConfig(state as DeploymentState, publisherPubkey, userPreferences.displayName);
 
     const includedFiles = await scanLocalFiles(state as DeploymentState);
+
+    // --- Secrets scan pre-check ---
+    if (!options.skipSecretsScan && includedFiles.length > 0) {
+      const scanLevel = validateDeployScanLevel(options.scanLevel);
+      statusDisplay.update("Scanning for secrets...");
+
+      const scanResult = await scanFileList(
+        includedFiles.map((f) => ({
+          path: f.path,
+          absolutePath: join(
+            targetDir,
+            f.path.startsWith("/") ? f.path.slice(1) : f.path,
+          ),
+        })),
+        { level: scanLevel },
+      );
+
+      if (scanResult.findings.length > 0) {
+        displayScanReport(scanResult, false, options.verbose);
+
+        if (options.nonInteractive) {
+          // SCAN-06: Hard block in non-interactive mode
+          console.error(
+            colors.red(
+              `\nSecrets detected (${scanResult.findings.length} finding(s)). Aborting deploy in non-interactive mode.`,
+            ),
+          );
+          console.error(
+            colors.yellow("Use --skip-secrets-scan to bypass this check."),
+          );
+          return Deno.exit(1);
+        } else {
+          // SCAN-04 / D-11: Interactive prompt — default No
+          const proceed = await Confirm.prompt({
+            message: "Secrets detected. Continue deploy?",
+            default: false,
+          });
+          if (!proceed) {
+            console.log("Deploy cancelled.");
+            return Deno.exit(1);
+          }
+        }
+      } else {
+        if (!options.nonInteractive) {
+          statusDisplay.update(
+            `Scanned ${scanResult.filesScanned} files (${scanResult.filesSkipped} skipped as binary). No secrets detected.`,
+          );
+        }
+      }
+    }
+    // --- End secrets scan pre-check ---
 
     // Find fallback file in scanned files if configured
     state.fallbackFileEntry = findFallbackFile(state as DeploymentState, includedFiles);
@@ -2100,4 +2152,16 @@ async function maybePublishMetadata(
       log.info(`  ${status} ${relay}: ${result.success}/${result.total} events`);
     }
   }
+}
+
+/**
+ * Validate scan level for deploy command.
+ * Defaults to "medium" for invalid input.
+ */
+function validateDeployScanLevel(input?: string): ScanLevel {
+  const level = (input || "medium").toLowerCase();
+  if (level === "low" || level === "medium" || level === "high") {
+    return level as ScanLevel;
+  }
+  return "medium";
 }
