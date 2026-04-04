@@ -95,7 +95,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md — Core dry-run library: event collector, file writer, types (wave 1)
-- [ ] 05-02-PLAN.md — Deploy + Announce command integration: --dry-run flag and early exit (wave 1)
+- [x] 05-02-PLAN.md — Deploy + Announce command integration: --dry-run flag and early exit (wave 1)
 - [ ] 05-03-PLAN.md — Interactive TUI event inspector: tag grouping, expand/collapse, navigation (wave 2)
 
 ### Phase 6: Secrets Scanner
@@ -112,8 +112,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Scanner library module (types, patterns, binary filter, core scanning logic + tests)
-- [ ] 06-02-PLAN.md — Scan command, deploy integration, CLI registration, integration tests
+- [x] 06-01-PLAN.md — Scanner library module (types, patterns, binary filter, core scanning logic + tests)
+- [x] 06-02-PLAN.md — Scan command, deploy integration, CLI registration, integration tests
 
 ## Progress
 
