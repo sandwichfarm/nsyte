@@ -55,6 +55,8 @@ import { ProgressRenderer } from "../ui/progress.ts";
 import { getServerSymbol, SERVER_COLORS } from "../ui/source-indicators.ts";
 import { StatusDisplay } from "../ui/status.ts";
 import nsyte from "./root.ts";
+import { scanFileList, type ScanLevel } from "../lib/scanner/mod.ts";
+import { displayScanReport } from "./scan.ts";
 
 // LOGGER
 const log = createLogger("deploy");
@@ -85,6 +87,14 @@ export interface DeployCommandOptions {
   handlerKinds?: string;
   nonInteractive: boolean;
   name?: string;
+  skipSecretsScan: boolean;
+  scanLevel?: string;
+  /** Preview what would be deployed without uploading or publishing */
+  dryRun: boolean;
+  /** Custom output directory for dry-run event previews */
+  dryRunOutput?: string;
+  /** Comma-separated event kinds to also print to stdout during dry-run */
+  dryRunShowKinds?: string;
 }
 
 /**
@@ -219,6 +229,27 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option("-i, --non-interactive", "Run in non-interactive mode", { default: false })
+    .option(
+      "--skip-secrets-scan",
+      "Skip the pre-deploy secrets scan.",
+      { default: false },
+    )
+    .option(
+      "--scan-level <level:string>",
+      "Secrets scan sensitivity level (low, medium, high).",
+      { default: "medium" },
+    )
+    .option("--dry-run", "Preview what would be deployed without uploading or publishing.", {
+      default: false,
+    })
+    .option(
+      "--dry-run-output <dir:string>",
+      "Output directory for dry-run event previews (default: /tmp/nsyte-dry-run-{timestamp}/).",
+    )
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers, e.g. '35128,31990').",
+    )
     .action(async (options: DeployCommandOptions, folder: string) => {
       // Show deprecation notice if using upload alias
       const cmdName = Deno.args[0];
