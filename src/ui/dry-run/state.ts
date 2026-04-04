@@ -10,8 +10,6 @@ export interface TagGroup {
   count: number;
   /** The actual tag arrays */
   tags: string[][];
-  /** Whether this group is expanded in the tree view */
-  expanded: boolean;
 }
 
 /**
@@ -72,7 +70,6 @@ export function groupTagsByFirstElement(tags: string[][]): TagGroup[] {
       name,
       count: groupTags.length,
       tags: groupTags,
-      expanded: false,
     }));
 
   return groups;

@@ -27,7 +27,8 @@ export function printDryRunBanner(): void {
 export function defaultOutputDir(): string {
   const now = new Date();
   const ts = now.toISOString().replace(/[:.]/g, "").replace("T", "-").slice(0, 15);
-  return `/tmp/nsyte-dry-run-${ts}`;
+  const tmpDir = Deno.env.get("TMPDIR") || Deno.env.get("TEMP") || Deno.env.get("TMP") || "/tmp";
+  return join(tmpDir, `nsyte-dry-run-${ts}`);
 }
 
 /**

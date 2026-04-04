@@ -76,13 +76,6 @@ describe("groupTagsByFirstElement", () => {
     assertEquals(titleGroup?.count, 1);
   });
 
-  it("initializes all groups as collapsed", () => {
-    const groups = groupTagsByFirstElement(testEvent.template.tags);
-    for (const group of groups) {
-      assertEquals(group.expanded, false);
-    }
-  });
-
   it("handles empty tags array", () => {
     const groups = groupTagsByFirstElement([]);
     assertEquals(groups.length, 0);

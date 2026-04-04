@@ -86,8 +86,6 @@ export interface DeployCommandOptions {
   handlerKinds?: string;
   nonInteractive: boolean;
   name?: string;
-  skipSecretsScan: boolean;
-  scanLevel?: string;
   /** Preview what would be deployed without uploading or publishing */
   dryRun: boolean;
   /** Custom output directory for dry-run event previews */
