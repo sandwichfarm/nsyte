@@ -1577,6 +1577,26 @@ async function publishSiteManifest(
     }
     console.log("");
 
+    // Tip for missing title/description
+    if (!config.title && !config.description) {
+      console.log(
+        colors.dim(
+          "  Tip: Add title and description to your config for richer manifests:",
+        ),
+      );
+      console.log(
+        colors.dim(
+          '    nsyte config set title "My Site"',
+        ),
+      );
+      console.log(
+        colors.dim(
+          '    nsyte config set description "My description"',
+        ),
+      );
+      console.log("");
+    }
+
     // Create manifest event
     const manifestEvent = await createSiteManifestEvent(
       signer,
