@@ -16,6 +16,11 @@ if [ -d "website/static" ]; then
   cp -r website/static/. dist/
 fi
 
+# Copy JSON Schema files
+echo "📋 Copying schema files..."
+mkdir -p dist/schemas
+cp src/schemas/config.schema.json dist/schemas/config.schema.json
+
 # Copy demo recording files
 echo "🎬 Copying demo files..."
 cp -r static/demo dist/
@@ -55,6 +60,7 @@ echo "Structure:"
 echo "  dist/"
 echo "  ├── index.html          (splash page)"
 echo "  ├── .well-known/        (nostr.json and other well-known files)"
+echo "  ├── schemas/            (JSON Schema files)"
 echo "  ├── demo/               (asciinema demos)"
 echo "  ├── install.sh          (install script)"
 echo "  └── docs/               (documentation)"
