@@ -354,6 +354,44 @@ export async function deployCommand(
       }
     }
 
+    // Dry-run: preview what would be deployed without signing, uploading, or publishing
+    if (options.dryRun) {
+      log.debug("Dry-run mode: scanning files and collecting event previews");
+
+      // Scan local files (read-only, no signer needed)
+      statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
+      const { includedFiles } = await getLocalFiles(targetDir);
+
+      // Collect event templates (no signing)
+      const events = collectDeployEvents(config, includedFiles, {
+        publishAppHandler: options.publishAppHandler,
+        publishProfile: options.publishProfile,
+        publishRelayList: options.publishRelayList,
+        publishServerList: options.publishServerList,
+        handlerKinds: options.handlerKinds,
+        servers: options.servers,
+        relays: options.relays,
+      });
+
+      // Parse --dry-run-show-kinds
+      const showKinds = options.dryRunShowKinds
+        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+          !isNaN(k)
+        )
+        : undefined;
+
+      // Handle output (banner, files, optional stdout)
+      await handleDryRunOutput(events, {
+        outputDir: options.dryRunOutput,
+        showKinds,
+        interactive: !options.nonInteractive,
+      }, {
+        totalFiles: includedFiles.length,
+      });
+
+      return Deno.exit(0);
+    }
+
     const signerResult = await initSigner(authKeyHex, config, options, configPath);
 
     if ("error" in signerResult) {
