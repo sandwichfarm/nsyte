@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import { formatTimestamp } from "../../src/ui/time-formatter.ts";
 
-import { formatAge, IdWithAge } from "../../src/ui/time-formatter.ts";
+import { formatAge, formatManifestIdWithAge } from "../../src/ui/time-formatter.ts";
 
 // Fixed reference time: 2023-11-14T22:13:20.000Z (Unix: 1700000000 seconds)
 const FIXED_NOW_MS = 1700000000000;
@@ -146,8 +146,8 @@ describe("formatTimestamp", () => {
       const result = formatTimestamp(FIXED_NOW_S - 730 * 24 * 60 * 60);
       assertMatch(result, /\w{3}\s+\d{1,2},\s+\d{4}/);
     });
-// Import test setup FIRST to block all system access
-
+  });
+});
 
 describe("formatAge", () => {
   it("formats recent timestamps as relative age", () => {
