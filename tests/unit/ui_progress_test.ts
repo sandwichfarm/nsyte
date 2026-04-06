@@ -1022,4 +1022,3 @@ Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async 
     stdoutStub.restore();
   });
 });
-
