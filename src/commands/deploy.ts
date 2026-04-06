@@ -676,6 +676,7 @@ async function resolveContext(
     }
 
     config = {
+      ...existingProjectData,
       servers: (options.servers
         ? options.servers.split(",").filter((s) =>
           s.trim()
@@ -1575,6 +1576,28 @@ async function publishSiteManifest(
       console.log(colors.cyan(`  Source: ${sourceUrl}`));
     }
     console.log("");
+
+    // Tip for missing title/description (treat whitespace-only as missing)
+    const hasTitle = !!config.title?.trim();
+    const hasDescription = !!config.description?.trim();
+    if (!hasTitle && !hasDescription) {
+      console.log(
+        colors.dim(
+          "  Tip: Add title and description to your config for richer manifests:",
+        ),
+      );
+      console.log(
+        colors.dim(
+          '    nsyte config set title "My Site"',
+        ),
+      );
+      console.log(
+        colors.dim(
+          '    nsyte config set description "My description"',
+        ),
+      );
+      console.log("");
+    }
 
     // Create manifest event
     const manifestEvent = await createSiteManifestEvent(
