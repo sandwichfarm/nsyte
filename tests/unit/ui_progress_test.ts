@@ -598,7 +598,428 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
   });
 });
 
-// Clean up
-Deno.test("Cleanup", () => {
-  restore();
+Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
+  let stdoutStub: any;
+  let consoleSizeStub: any;
+
+  await t.step("should render server bars when showServerBars is true", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 3,
+      failed: 0,
+      inProgress: 3,
+      serverProgress: {
+        "https://server1.com": { total: 3, completed: 2, failed: 0, retrying: 0, skipped: 0 },
+        "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "server1.com");
+    assertStringIncludes(allOutput, "server2.com");
+    assertStringIncludes(allOutput, "█");
+    assertStringIncludes(allOutput, "─");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should show server failed count in red", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 2,
+      failed: 0,
+      inProgress: 4,
+      serverProgress: {
+        "https://server1.com": { total: 6, completed: 2, failed: 2, retrying: 0, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "2 fail");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should show server retrying count", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 2,
+      failed: 0,
+      inProgress: 3,
+      serverProgress: {
+        "https://server1.com": { total: 6, completed: 2, failed: 0, retrying: 1, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "1 retry");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should show server skipped count", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 2,
+      failed: 0,
+      inProgress: 1,
+      serverProgress: {
+        "https://server1.com": { total: 6, completed: 2, failed: 0, retrying: 0, skipped: 3 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "3 skip");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should show server finished time", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(3, ["https://server1.com"]);
+    const startTime = (renderer as any).startTime;
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 3,
+      completed: 3,
+      failed: 0,
+      inProgress: 0,
+      serverProgress: {
+        "https://server1.com": {
+          total: 3,
+          completed: 3,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+          finishedAt: startTime + 5000,
+        },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "s)");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should skip server not in serverProgress", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 3,
+      failed: 0,
+      inProgress: 3,
+      serverProgress: {
+        // Only server1 in progress data, server2 is omitted
+        "https://server1.com": { total: 3, completed: 2, failed: 0, retrying: 0, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    // server1 should appear, server2 should not (no data for it)
+    assertStringIncludes(allOutput, "server1.com");
+    assertEquals(allOutput.includes("server2.com"), false);
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
 });
+
+Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
+  await t.step("should use cursor-up sequences on second render", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    (renderer as any).showServerBars = true;
+
+    const spData = {
+      "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+    };
+
+    // First update to set lastLineCount
+    renderer.update({ total: 6, completed: 2, failed: 0, inProgress: 4, serverProgress: spData });
+    // Second update triggers cursor-up path
+    renderer.update({ total: 6, completed: 4, failed: 0, inProgress: 2, serverProgress: spData });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    // Should contain escape sequences including cursor-up
+    assertStringIncludes(allOutput, "\x1b[");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should clear rendered lines when stopping after multi-line render", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    (renderer as any).showServerBars = true;
+
+    // Update to set lastLineCount > 1
+    renderer.update({
+      total: 6,
+      completed: 2,
+      failed: 0,
+      inProgress: 4,
+      serverProgress: {
+        "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+        "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      },
+    });
+
+    // Capture writes before stop
+    const beforeStopCount = stdoutStub.calls.length;
+
+    // Stop should emit cursor-up for clearing multi-line output
+    renderer.stop();
+
+    let stopOutput = "";
+    for (let i = beforeStopCount; i < stdoutStub.calls.length; i++) {
+      stopOutput += new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+    }
+    // clearRenderedLines should emit cursor-up escape when lastLineCount > 1
+    assertStringIncludes(stopOutput, "\x1b[");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+});
+
+Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) => {
+  await t.step("should truncate segments when terminal is narrow", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 40, rows: 50 }));
+
+    const renderer = new ProgressRenderer(100);
+    renderer.update({ total: 100, completed: 50, failed: 0, inProgress: 50 });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "50%");
+    assertEquals(allOutput.includes("ETA:"), false);
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should show all segments when terminal is wide", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 300, rows: 50 }));
+
+    const renderer = new ProgressRenderer(100);
+    renderer.update({ total: 100, completed: 50, failed: 0, inProgress: 50 });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "ETA:");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should handle consoleSize throwing", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => {
+      throw new Error("not a tty");
+    });
+
+    const renderer = new ProgressRenderer(100);
+    // Should not throw
+    renderer.update({ total: 100, completed: 50, failed: 0, inProgress: 50 });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "50%");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+});
+
+Deno.test("UI Progress - ProgressRenderer interval clearing", async (t) => {
+  await t.step("stop should clear interval when intervalId is set", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const clearIntervalStub = stub(globalThis, "clearInterval", () => {});
+
+    const renderer = new ProgressRenderer(5);
+    (renderer as any).intervalId = 42;
+    renderer.stop();
+
+    assertEquals(clearIntervalStub.calls.length >= 1, true);
+    assertEquals(clearIntervalStub.calls[0].args[0], 42);
+
+    clearIntervalStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("complete should clear interval when intervalId is set", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleLogStub = stub(console, "log", () => {});
+    const clearIntervalStub = stub(globalThis, "clearInterval", () => {});
+
+    const renderer = new ProgressRenderer(5);
+    (renderer as any).intervalId = 99;
+    renderer.complete(true, "done");
+
+    assertEquals(clearIntervalStub.calls.length >= 1, true);
+    assertEquals(clearIntervalStub.calls[0].args[0], 99);
+
+    clearIntervalStub.restore();
+    consoleLogStub.restore();
+    stdoutStub.restore();
+  });
+});
+
+Deno.test("UI Progress - ProgressRenderer shrinking line count", async (t) => {
+  await t.step("should clear leftover lines when new render has fewer lines than previous", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    (renderer as any).showServerBars = true;
+
+    const spData = {
+      "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+    };
+    // First render: multiple lines (main bar + separator + 2 server bars = 4 lines)
+    renderer.update({ total: 6, completed: 2, failed: 0, inProgress: 4, serverProgress: spData });
+
+    // Turn off server bars for second render: only 1 line
+    (renderer as any).showServerBars = false;
+    renderer.update({ total: 6, completed: 4, failed: 0, inProgress: 2 });
+
+    // Collect all output
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    // Output should contain escape sequences for clearing extra lines
+    assertStringIncludes(allOutput, "\x1b[");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+});
+
+Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async (t) => {
+  await t.step("should use fallback sepWidth when consoleSize throws during server bars", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    // Make consoleSize throw so columns = 0, triggering the : 60 fallback for sepWidth
+    const consoleSizeStub = stub(Deno, "consoleSize", () => {
+      throw new Error("not a tty");
+    });
+
+    const renderer = new ProgressRenderer(3, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 3,
+      completed: 1,
+      failed: 0,
+      inProgress: 2,
+      serverProgress: {
+        "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    // Server bars should still render with the separator
+    assertStringIncludes(allOutput, "─");
+    assertStringIncludes(allOutput, "server1.com");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should handle server with total=0 in server bars", () => {
+    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+
+    const renderer = new ProgressRenderer(3, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 3,
+      completed: 0,
+      failed: 0,
+      inProgress: 0,
+      serverProgress: {
+        // total=0 triggers the 0% branch
+        "https://server1.com": { total: 0, completed: 0, failed: 0, retrying: 0, skipped: 0 },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+    assertStringIncludes(allOutput, "server1.com");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+});
+

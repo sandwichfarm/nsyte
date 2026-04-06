@@ -154,3 +154,202 @@ Deno.test("UI Status - StatusDisplay", async (t) => {
   // Restore original display mode
   manager.setMode(originalMode);
 });
+
+Deno.test("UI Status - StatusDisplay interactive mode", async (t) => {
+  // Force interactive mode so StatusDisplay uses Deno.stdout.writeSync
+  const manager = getDisplayManager();
+  const originalMode = manager.getMode();
+  manager.setMode(DisplayMode.INTERACTIVE);
+
+  await t.step("update() interactive branch calls writeSync with clear + message", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+
+    try {
+      const status = new StatusDisplay();
+      status.update("hello");
+
+      // Should call writeSync twice: clear escape + message
+      assertEquals(writeSyncCalls.length, 2);
+      const clearSeq = new TextDecoder().decode(writeSyncCalls[0]);
+      assertEquals(clearSeq.includes("\r"), true);
+      const msgSeq = new TextDecoder().decode(writeSyncCalls[1]);
+      assertEquals(msgSeq, "hello");
+    } finally {
+      writeSyncStub.restore();
+    }
+  });
+
+  await t.step("clear() interactive branch calls writeSync and resets message", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+
+    try {
+      const status = new StatusDisplay();
+      status.clear();
+
+      // Should call writeSync once for clearing the line
+      assertEquals(writeSyncCalls.length >= 1, true);
+      const clearSeq = new TextDecoder().decode(writeSyncCalls[0]);
+      assertEquals(clearSeq.includes("\r"), true);
+    } finally {
+      writeSyncStub.restore();
+    }
+  });
+
+  await t.step("complete() no-args branch just clears without logging", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+    const consoleLogCalls: unknown[][] = [];
+    const consoleLogStub = stub(console, "log", (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    });
+
+    try {
+      const status = new StatusDisplay();
+      status.complete(undefined, undefined);
+
+      // Should NOT log anything, just writeSync for clear
+      assertEquals(consoleLogCalls.length, 0);
+      // writeSync called for clear
+      assertEquals(writeSyncCalls.length >= 1, true);
+    } finally {
+      writeSyncStub.restore();
+      consoleLogStub.restore();
+    }
+  });
+
+  await t.step("complete() interactive success branch calls writeSync + logs checkmark", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+    const consoleLogCalls: unknown[][] = [];
+    const consoleLogStub = stub(console, "log", (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    });
+
+    try {
+      const status = new StatusDisplay();
+      status.complete(true, "done");
+
+      // Should call writeSync to clear line
+      assertEquals(writeSyncCalls.length >= 1, true);
+      // Should log with checkmark
+      assertEquals(consoleLogCalls.length, 1);
+      const loggedMsg = consoleLogCalls[0].join(" ");
+      assertEquals(loggedMsg.includes("✓"), true);
+      assertEquals(loggedMsg.includes("done"), true);
+    } finally {
+      writeSyncStub.restore();
+      consoleLogStub.restore();
+    }
+  });
+
+  await t.step("complete() interactive error branch calls writeSync + logs X mark", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+    const consoleLogCalls: unknown[][] = [];
+    const consoleLogStub = stub(console, "log", (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    });
+
+    try {
+      const status = new StatusDisplay();
+      status.complete(false, "failed");
+
+      // Should call writeSync to clear line
+      assertEquals(writeSyncCalls.length >= 1, true);
+      // Should log with X mark
+      assertEquals(consoleLogCalls.length, 1);
+      const loggedMsg = consoleLogCalls[0].join(" ");
+      assertEquals(loggedMsg.includes("✗"), true);
+      assertEquals(loggedMsg.includes("failed"), true);
+    } finally {
+      writeSyncStub.restore();
+      consoleLogStub.restore();
+    }
+  });
+
+  await t.step("addMessage() interactive branch with currentMessage reprints status", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+    const consoleLogCalls: unknown[][] = [];
+    const consoleLogStub = stub(console, "log", (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    });
+
+    try {
+      const status = new StatusDisplay();
+      // Set currentMessage via update()
+      status.update("current status");
+      // Reset call counts for addMessage check
+      writeSyncCalls.length = 0;
+
+      status.addMessage("info message");
+
+      // Should call writeSync: once to clear line, once to reprint currentMessage
+      assertEquals(writeSyncCalls.length, 2);
+      const clearSeq = new TextDecoder().decode(writeSyncCalls[0]);
+      assertEquals(clearSeq.includes("\r"), true);
+      const reprintSeq = new TextDecoder().decode(writeSyncCalls[1]);
+      assertEquals(reprintSeq, "current status");
+      // Should console.log the info message
+      assertEquals(consoleLogCalls.length, 1);
+      const loggedMsg = consoleLogCalls[0].join(" ");
+      assertEquals(loggedMsg.includes("info message"), true);
+    } finally {
+      writeSyncStub.restore();
+      consoleLogStub.restore();
+    }
+  });
+
+  await t.step("addMessage() interactive branch without currentMessage skips reprint", () => {
+    const writeSyncCalls: Uint8Array[] = [];
+    const writeSyncStub = stub(Deno.stdout, "writeSync", (data: Uint8Array) => {
+      writeSyncCalls.push(data);
+      return data.length;
+    });
+    const consoleLogCalls: unknown[][] = [];
+    const consoleLogStub = stub(console, "log", (...args: unknown[]) => {
+      consoleLogCalls.push(args);
+    });
+
+    try {
+      // Fresh instance with no prior update() call
+      const status = new StatusDisplay();
+      status.addMessage("standalone info");
+
+      // Should call writeSync only once (clear line), no reprint
+      assertEquals(writeSyncCalls.length, 1);
+      const clearSeq = new TextDecoder().decode(writeSyncCalls[0]);
+      assertEquals(clearSeq.includes("\r"), true);
+      // Should console.log the message
+      assertEquals(consoleLogCalls.length, 1);
+      const loggedMsg = consoleLogCalls[0].join(" ");
+      assertEquals(loggedMsg.includes("standalone info"), true);
+    } finally {
+      writeSyncStub.restore();
+      consoleLogStub.restore();
+    }
+  });
+
+  // Restore original display mode
+  manager.setMode(originalMode);
+});
