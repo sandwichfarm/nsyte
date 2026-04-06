@@ -3,11 +3,6 @@ title: CI/CD Guide
 description: Setting up continuous integration and deployment for nsyte sites
 ---
 
----
-title: ci
-description: Create an nbunksec string for CI/CD use
----
-
 # CI/CD
 
 Using `nsyte` in your existing CI/CD workflow is straightforward.
