@@ -78,4 +78,14 @@ jobs:
           git add static/coverage-badge.svg static/coverage-lines-badge.svg static/coverage-branches-badge.svg
           git diff --staged --quiet || git commit -m "ci: update coverage badges [skip ci]"
           git pull --rebase
-          git push || echo "Push blocked by branch protection (badges not updated)"
+          push_stderr="$(mktemp)"
+          if ! git push 2>"$push_stderr"; then
+            if grep -qiE 'GH006|GH013|protected branch|repository rule violations' "$push_stderr"; then
+              echo "Push blocked by branch protection (badges not updated)"
+            else
+              cat "$push_stderr" >&2
+              rm -f "$push_stderr"
+              exit 1
+            fi
+          fi
+          rm -f "$push_stderr"
