@@ -78,4 +78,4 @@ jobs:
           git add static/coverage-badge.svg static/coverage-lines-badge.svg static/coverage-branches-badge.svg
           git diff --staged --quiet || git commit -m "ci: update coverage badges [skip ci]"
           git pull --rebase
-          git push
+          git push || echo "Push blocked by branch protection (badges not updated)"
