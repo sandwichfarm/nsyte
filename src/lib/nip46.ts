@@ -9,7 +9,7 @@ import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { kinds } from "applesauce-core/helpers";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
+import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, NSITE_SNAPSHOT_KIND } from "./manifest.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
@@ -22,6 +22,7 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   31990, // NIP-89 handler announcement
   NSITE_ROOT_SITE_KIND, // NIP-XX root site manifest
   NSITE_NAME_SITE_KIND, // NIP-XX named site manifest
+  NSITE_SNAPSHOT_KIND, // NIP-5A manifest snapshot
   kinds.EventDeletion, // NIP-09 event deletion
 ]);
 
