@@ -87,6 +87,10 @@ export interface DeployCommandOptions {
   handlerKinds?: string;
   nonInteractive: boolean;
   name?: string;
+  /** Skip the pre-deploy secrets scan */
+  skipSecretsScan: boolean;
+  /** Secrets scan sensitivity level (low, medium, high) */
+  scanLevel?: string;
 }
 
 /**

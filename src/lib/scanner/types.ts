@@ -9,7 +9,7 @@ export type ScanLevel = "low" | "medium" | "high";
 /**
  * Pattern severity for color-coded output
  */
-export type Severity = "high" | "medium" | "low";
+export type Severity = "high" | "medium" | "low" | "warning";
 
 /**
  * A single pattern definition for the scanner
