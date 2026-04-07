@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
-import { DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
+import { stub } from "@std/testing/mock";
+import { DisplayManager, DisplayMode, getDisplayManager } from "../../src/lib/display-mode.ts";
 
 Deno.test("DisplayMode enum", async (t) => {
   await t.step("should have correct values", () => {
@@ -85,5 +86,73 @@ Deno.test("getDisplayManager", async (t) => {
     // Reset to default
     manager.setMode(DisplayMode.INTERACTIVE);
     manager.setVerbose(false);
+  });
+});
+
+Deno.test("DisplayManager - constructor env var branches", async (t) => {
+  // Helper to test a constructor env var branch by resetting the singleton,
+  // stubbing Deno.env.get, calling getInstance(), and asserting mode/verbose.
+  function withEnvVars(
+    envMap: Record<string, string | undefined>,
+    fn: (instance: DisplayManager) => void,
+  ) {
+    const original = (DisplayManager as any).instance;
+    (DisplayManager as any).instance = undefined;
+
+    const envStub = stub(Deno.env, "get", (key: string): string | undefined => {
+      if (key in envMap) return envMap[key];
+      return undefined;
+    });
+
+    try {
+      const instance = DisplayManager.getInstance();
+      fn(instance);
+    } finally {
+      envStub.restore();
+      (DisplayManager as any).instance = original;
+    }
+  }
+
+  await t.step("NSITE_DISPLAY_MODE=interactive sets INTERACTIVE mode", () => {
+    withEnvVars({ NSITE_DISPLAY_MODE: "interactive" }, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.INTERACTIVE);
+      assertEquals(instance.isInteractive(), true);
+    });
+  });
+
+  await t.step("NSITE_DISPLAY_MODE=non-interactive sets NON_INTERACTIVE mode", () => {
+    withEnvVars({ NSITE_DISPLAY_MODE: "non-interactive" }, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.NON_INTERACTIVE);
+      assertEquals(instance.isNonInteractive(), true);
+    });
+  });
+
+  await t.step("NSITE_DISPLAY_MODE=debug sets DEBUG mode and verbose=true", () => {
+    withEnvVars({ NSITE_DISPLAY_MODE: "debug" }, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.DEBUG);
+      assertEquals(instance.isDebug(), true);
+      assertEquals(instance.isVerbose(), true);
+    });
+  });
+
+  await t.step("LOG_LEVEL=debug (no NSITE_DISPLAY_MODE) sets DEBUG mode", () => {
+    withEnvVars({ LOG_LEVEL: "debug" }, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.DEBUG);
+      assertEquals(instance.isDebug(), true);
+    });
+  });
+
+  await t.step("LOG_LEVEL=debug overrides NSITE_DISPLAY_MODE=interactive to DEBUG", () => {
+    withEnvVars({ NSITE_DISPLAY_MODE: "interactive", LOG_LEVEL: "debug" }, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.DEBUG);
+      assertEquals(instance.isDebug(), true);
+    });
+  });
+
+  await t.step("no env vars set defaults to INTERACTIVE mode", () => {
+    withEnvVars({}, (instance) => {
+      assertEquals(instance.getMode(), DisplayMode.INTERACTIVE);
+      assertEquals(instance.isInteractive(), true);
+    });
   });
 });

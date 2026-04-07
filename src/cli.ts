@@ -26,6 +26,7 @@ import { registerGetCommand } from "./commands/get.ts";
 import { registerInitCommand } from "./commands/init.ts";
 import { registerListCommand } from "./commands/list.ts";
 import { registerStatusCommand } from "./commands/status.ts";
+import { registerSnapshotCommand } from "./commands/snapshot.ts";
 import { registerDeleteCommand } from "./commands/delete.ts";
 import { registerPutCommand } from "./commands/put.ts";
 import { registerUndeployCommand } from "./commands/undeploy.ts";
@@ -39,6 +40,7 @@ import { createLogger } from "./lib/logger.ts";
 import { pool } from "./lib/nostr.ts";
 
 import { registerBunkerCommand } from "./commands/bunker.ts";
+import { registerScanCommand } from "./commands/scan.ts";
 
 const log = createLogger("cli");
 
@@ -47,6 +49,7 @@ registerInitCommand();
 registerDeployCommand();
 registerListCommand();
 registerStatusCommand();
+registerSnapshotCommand();
 registerSitesCommand();
 registerBrowseCommand();
 registerDownloadCommand();
@@ -62,6 +65,7 @@ registerDebugCommand();
 registerAnnounceCommand();
 registerConfigCommand();
 registerBunkerCommand();
+registerScanCommand();
 
 /**
  * Main function - the entry point for the command line

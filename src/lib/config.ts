@@ -13,6 +13,7 @@ import { SecretsManager } from "./secrets/mod.ts";
 const log = createLogger("config");
 
 export type ProjectConfig = {
+  "$schema"?: string; // JSON Schema URL for IDE autocompletion
   bunkerPubkey?: string; // Only store the pubkey reference, not the full URL
   relays: string[];
   servers: string[];
@@ -85,6 +86,8 @@ export const popularBlossomServers = [
   "https://cdn.nostrcheck.me",
   "https://nostr.download",
 ];
+
+export const CONFIG_SCHEMA_URL = "https://nsyte.run/schemas/config.schema.json";
 
 export const defaultConfig: ProjectConfig = {
   relays: [],
@@ -780,6 +783,7 @@ Generated and stored nbunksec string.`));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
 
   const config: ProjectConfig = {
+    "$schema": CONFIG_SCHEMA_URL,
     bunkerPubkey,
     relays,
     servers,
