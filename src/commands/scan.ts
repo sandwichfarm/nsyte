@@ -23,6 +23,7 @@ export function formatFindings(
     high: 0,
     medium: 1,
     low: 2,
+    warning: 3,
   };
   const sorted = [...findings].sort((a, b) => {
     const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
@@ -36,7 +37,9 @@ export function formatFindings(
         ? colors.red
         : finding.severity === "medium"
           ? colors.yellow
-          : colors.dim;
+          : finding.severity === "warning"
+            ? colors.yellow
+            : colors.dim;
 
     const locationStr =
       finding.line > 0
@@ -67,6 +70,9 @@ export function formatSummary(result: ScanResult): string[] {
     (f) => f.severity === "medium",
   ).length;
   const lowCount = result.findings.filter((f) => f.severity === "low").length;
+  const warningCount = result.findings.filter(
+    (f) => f.severity === "warning",
+  ).length;
 
   lines.push("");
   lines.push(colors.bold("  Scan Results"));
@@ -86,6 +92,9 @@ export function formatSummary(result: ScanResult): string[] {
     }
     if (lowCount > 0) {
       lines.push(`    ${colors.dim("Low severity:")}    ${lowCount}`);
+    }
+    if (warningCount > 0) {
+      lines.push(`    ${colors.yellow("Warnings:")}        ${warningCount}`);
     }
   } else {
     lines.push(colors.green(`  Findings:         0`));
