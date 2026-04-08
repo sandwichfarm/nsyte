@@ -95,6 +95,10 @@ export interface DeployCommandOptions {
   dryRunOutput?: string;
   /** Comma-separated event kinds to also print to stdout during dry-run */
   dryRunShowKinds?: string;
+  /** Skip the pre-deploy secrets scan */
+  skipSecretsScan: boolean;
+  /** Secrets scan sensitivity level */
+  scanLevel?: string;
 }
 
 /**
@@ -229,14 +233,14 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option(
-      "-i, --non-interactive", 
-      "Run in non-interactive mode", 
-      { default: false }
+      "-i, --non-interactive",
+      "Run in non-interactive mode",
+      { default: false },
     )
     .option(
-      "--dry-run", 
-      "Preview what would be deployed without uploading or publishing.", 
-      { default: false }
+      "--dry-run",
+      "Preview what would be deployed without uploading or publishing.",
+      { default: false },
     )
     .option(
       "--dry-run-output <dir:string>",
@@ -244,7 +248,7 @@ export function registerDeployCommand(): void {
     )
     .option(
       "--dry-run-show-kinds <kinds:string>",
-      "Also print events of these kinds to stdout (comma-separated kind numbers, e.g. '35128,31990')."
+      "Also print events of these kinds to stdout (comma-separated kind numbers, e.g. '35128,31990').",
     )
     .option(
       "--skip-secrets-scan",
@@ -380,9 +384,7 @@ export async function deployCommand(
 
       // Parse --dry-run-show-kinds
       const showKinds = options.dryRunShowKinds
-        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
-          !isNaN(k)
-        )
+        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim())).filter((k) => !isNaN(k))
         : undefined;
 
       // Handle output (banner, files, optional stdout)
