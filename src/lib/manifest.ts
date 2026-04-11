@@ -46,6 +46,81 @@ export interface FilePathMapping {
   sha256: string;
 }
 
+/** Minimal upload-response shape needed by manifest assembly. */
+export interface ManifestUploadInput {
+  success: boolean;
+  file: FilePathMapping;
+}
+
+function normalizeManifestPath(path: string): string {
+  return path.replace(/^\/+/, "/").toLowerCase();
+}
+
+/**
+ * Resolve the configured fallback file to a scanned `FilePathMapping`. Pure:
+ * callers log user-facing warnings when `fallbackPath` is set but no matching
+ * file was scanned.
+ */
+export function findFallbackFile<T extends FilePathMapping>(
+  fallbackPath: string | undefined,
+  includedFiles: readonly T[],
+): T | null {
+  if (!fallbackPath) return null;
+  const normalized = fallbackPath.startsWith("/") ? fallbackPath : `/${fallbackPath}`;
+  return includedFiles.find((f) => f.path === normalized) ?? null;
+}
+
+/**
+ * Build the final file→hash list that a site manifest event should contain.
+ * Single source of truth shared by the real deploy path and the dry-run path,
+ * so both paths always produce identical manifests for the same inputs.
+ *
+ * - Prefers upload-response hashes on duplicates (upload pipeline is authoritative
+ *   for files that were just pushed; scanned hashes fill in files that weren't
+ *   re-uploaded this run).
+ * - Synthesizes the `/404.html` entry from `fallbackFile`, preferring the upload
+ *   response hash when the fallback file itself was part of this upload.
+ */
+export function buildManifestFileMappings(
+  includedFiles: readonly FilePathMapping[],
+  uploadResponses: readonly ManifestUploadInput[],
+  fallbackFile: FilePathMapping | null,
+): FilePathMapping[] {
+  const mappings = new Map<string, FilePathMapping>();
+
+  for (const response of uploadResponses) {
+    if (response.success) {
+      mappings.set(response.file.path, {
+        path: response.file.path,
+        sha256: response.file.sha256,
+      });
+    }
+  }
+
+  for (const local of includedFiles) {
+    const normalized = normalizeManifestPath(local.path);
+    const alreadyInMap = Array.from(mappings.keys()).some(
+      (mapped) => normalizeManifestPath(mapped) === normalized,
+    );
+    if (!alreadyInMap) {
+      mappings.set(local.path, { path: local.path, sha256: local.sha256 });
+    }
+  }
+
+  if (fallbackFile) {
+    const normalizedFallback = normalizeManifestPath(fallbackFile.path);
+    const fallbackUpload = uploadResponses.find(
+      (r) => r.success && normalizeManifestPath(r.file.path) === normalizedFallback,
+    );
+    const fallbackHash = fallbackUpload?.file.sha256 ?? fallbackFile.sha256;
+    if (fallbackHash) {
+      mappings.set("/404.html", { path: "/404.html", sha256: fallbackHash });
+    }
+  }
+
+  return Array.from(mappings.values());
+}
+
 /** Returns the named-site identifier from a manifest event */
 export function getManifestIdentifier(manifest: NostrEvent): string | undefined {
   return manifest.tags.find((tag) => tag[0] === "d")?.[1];

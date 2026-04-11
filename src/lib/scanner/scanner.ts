@@ -1,18 +1,9 @@
 import { basename } from "@std/path";
 import { expandGlob } from "@std/fs/expand-glob";
 import { normalize, relative } from "@std/path";
-import {
-  getPatternsForLevel,
-  getSuspiciousFilenamesForLevel,
-} from "./patterns.ts";
+import { getPatternsForLevel, getSuspiciousFilenamesForLevel } from "./patterns.ts";
 import { shouldSkipFile } from "./filter.ts";
-import type {
-  ScanFileEntry,
-  ScanFinding,
-  ScanLevel,
-  ScanOptions,
-  ScanResult,
-} from "./types.ts";
+import type { ScanFileEntry, ScanFinding, ScanLevel, ScanOptions, ScanResult } from "./types.ts";
 
 /**
  * Truncate a matched string for safe display.
@@ -103,7 +94,10 @@ export function scanContent(
       }
 
       // Standard regex pattern matching — loop to catch all matches per line
-      const regex = new RegExp(pattern.regex.source, pattern.regex.flags.includes("g") ? pattern.regex.flags : pattern.regex.flags + "g");
+      const regex = new RegExp(
+        pattern.regex.source,
+        pattern.regex.flags.includes("g") ? pattern.regex.flags : pattern.regex.flags + "g",
+      );
       let match: RegExpExecArray | null;
       while ((match = regex.exec(line)) !== null) {
         findings.push({
@@ -162,7 +156,7 @@ export async function scanFileList(
         line: 0,
         patternId: "unreadable-file",
         patternName: "Unreadable file",
-        severity: "warning" as const,
+        severity: "low",
         matchPreview: "(file could not be read — scan incomplete for this file)",
       });
     }
