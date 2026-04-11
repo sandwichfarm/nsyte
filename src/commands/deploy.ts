@@ -19,7 +19,11 @@ import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
 import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
-import { NSITE_NAME_SITE_KIND } from "../lib/manifest.ts";
+import {
+  buildManifestFileMappings,
+  findFallbackFile,
+  NSITE_NAME_SITE_KIND,
+} from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
@@ -371,8 +375,13 @@ export async function deployCommand(
       statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
       const { includedFiles } = await getLocalFiles(targetDir);
 
+      // Assemble manifest file mappings via the same helpers the real deploy
+      // path uses — guarantees dry-run and real runs emit identical manifests.
+      const fallbackFileEntry = resolveFallbackFile(options, config, includedFiles);
+      const manifestFiles = buildManifestFileMappings(includedFiles, [], fallbackFileEntry);
+
       // Collect event templates (no signing)
-      const events = collectDeployEvents(config, includedFiles, {
+      const events = collectDeployEvents(config, manifestFiles, {
         publishAppHandler: options.publishAppHandler,
         publishProfile: options.publishProfile,
         publishRelayList: options.publishRelayList,
@@ -506,7 +515,7 @@ export async function deployCommand(
     // --- End secrets scan pre-check ---
 
     // Find fallback file in scanned files if configured
-    state.fallbackFileEntry = findFallbackFile(state as DeploymentState, includedFiles);
+    state.fallbackFileEntry = resolveFallbackFile(options, config, includedFiles);
 
     const remoteFileEntries = await fetchRemoteFiles(state as DeploymentState, publisherPubkey);
     const { toTransfer, toDelete } = await compareAndPrepareFiles(
@@ -1235,25 +1244,23 @@ function displayConfig(
 }
 
 /**
- * Find fallback file in included files by exact path match
+ * Resolve the configured fallback file from a scanned file list and surface
+ * user-facing warnings. Wraps the pure `findFallbackFile` helper from
+ * `manifest.ts` with deploy's logging/console-output conventions so both the
+ * real deploy path and the dry-run path share one logging point.
  */
-function findFallbackFile(state: DeploymentState, includedFiles: FileEntry[]): FileEntry | null {
-  const { options, config } = state;
+function resolveFallbackFile(
+  options: DeployCommandOptions,
+  config: ProjectConfig,
+  includedFiles: FileEntry[],
+): FileEntry | null {
   const fallbackPath = options.fallback || config.fallback;
+  if (!fallbackPath) return null;
 
-  if (!fallbackPath) {
-    return null;
-  }
-
-  // Normalize the fallback path to match FileEntry path format (leading slash)
-  const normalizedFallbackPath = fallbackPath.startsWith("/") ? fallbackPath : `/${fallbackPath}`;
-
-  // Find the file by exact path match
-  const found = includedFiles.find((file) => file.path === normalizedFallbackPath);
-
+  const found = findFallbackFile(fallbackPath, includedFiles);
   if (!found) {
     log.warn(
-      `Configured fallback file '${fallbackPath}' (normalized: ${normalizedFallbackPath}) not found in scanned files.`,
+      `Configured fallback file '${fallbackPath}' not found in scanned files.`,
     );
     if (!options.nonInteractive) {
       console.log(
@@ -1592,69 +1599,11 @@ async function publishSiteManifest(
     fallbackFileEntry,
   } = state;
 
-  // Build a complete file mapping from all local files (hashes from disk at scan + this run's uploads)
-  const fileMappingsMap = new Map<string, { path: string; sha256: string }>();
-
-  // Paths from successful uploads (hashes from the upload pipeline; should match local content)
-  for (const response of uploadResponses) {
-    if (response.success) {
-      fileMappingsMap.set(response.file.path, {
-        path: response.file.path,
-        sha256: response.file.sha256,
-      });
-    }
-  }
-
-  // Files not uploaded this run: use SHA-256 from the directory scan (never from remote manifest)
-  const normalizePath = (path: string) => path.replace(/^\/+/, "/").toLowerCase();
-
-  for (const localFile of includedFiles) {
-    const normalizedLocalPath = normalizePath(localFile.path);
-
-    const alreadyInMap = Array.from(fileMappingsMap.keys()).some(
-      (mappedPath) => normalizePath(mappedPath) === normalizedLocalPath,
-    );
-
-    if (!alreadyInMap) {
-      fileMappingsMap.set(localFile.path, {
-        path: localFile.path,
-        sha256: localFile.sha256,
-      });
-    }
-  }
-
-  // Add 404.html entry if fallback file was found (hash from scan or upload response only)
-  if (fallbackFileEntry) {
-    const normalizedFallbackPath = normalizePath(fallbackFileEntry.path);
-
-    const fallbackUploadResponse = uploadResponses.find(
-      (r) => r.success && normalizePath(r.file.path) === normalizedFallbackPath,
-    );
-    const fallbackHash = fallbackUploadResponse?.file.sha256 ?? fallbackFileEntry.sha256;
-
-    if (fallbackHash) {
-      fileMappingsMap.set("/404.html", {
-        path: "/404.html",
-        sha256: fallbackHash,
-      });
-      log.info(
-        `Added 404.html entry pointing to fallback file hash: ${fallbackHash.substring(0, 8)}...`,
-      );
-    } else {
-      log.warn(
-        `Fallback file found but no hash available. 404.html will not be added to manifest.`,
-      );
-      if (!options.nonInteractive) {
-        console.log(
-          colors.yellow(
-            `Warning: Fallback file found but no hash available. 404.html will not be added to manifest.`,
-          ),
-        );
-      }
-    }
-  }
-
-  const fileMappings = Array.from(fileMappingsMap.values());
+  const fileMappings = buildManifestFileMappings(
+    includedFiles,
+    uploadResponses,
+    fallbackFileEntry,
+  );
 
   if (fileMappings.length === 0) {
     log.warn("No files with hashes to include in manifest");
@@ -1730,7 +1679,6 @@ async function publishSiteManifest(
     // Create manifest event
     const manifestEvent = await createSiteManifestEvent(
       signer,
-      publisherPubkey,
       fileMappings,
       siteId,
       metadata,

@@ -33,7 +33,12 @@ import { truncateHash } from "../ui/browse/renderer.ts";
 import { LOCAL_RELAY_URL, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
-import { type FilePathMapping, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
+import {
+  createSiteManifestTemplate,
+  type FilePathMapping,
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+} from "./manifest.ts";
 import type { ByteArray } from "./types.ts";
 import type { PublishResponse } from "applesauce-relay/types";
 
@@ -240,6 +245,7 @@ export interface SiteManifestMetadata {
   description?: string;
   servers?: string[];
   relays?: string[];
+  source?: string;
 }
 
 /**
@@ -533,69 +539,18 @@ export async function listRemoteFilesWithSources(
 }
 
 /**
- * Create a site manifest event (NIP-XX)
- * @param signer - Signer for the event
- * @param pubkey - Public key of the site owner
- * @param files - Array of file path mappings (path -> sha256)
- * @param id - Optional site identifier for named sites (kind 35128). If not provided, creates root site (kind 15128)
- * @param metadata - Optional metadata (title, description, servers, relays)
+ * Create and sign a site manifest event (NIP-XX). Thin wrapper around
+ * `createSiteManifestTemplate` — the template function is the single source
+ * of truth for manifest event shape, shared with dry-run previews.
  */
 export async function createSiteManifestEvent(
   signer: ISigner,
-  pubkey: string,
   files: FilePathMapping[],
   id?: string,
   metadata?: SiteManifestMetadata,
 ): Promise<NostrEvent> {
-  const tags: string[][] = [];
-
-  // Add d tag for named sites (kind 35128)
-  if (id) {
-    tags.push(["d", id]);
-  }
-
-  // Add path tags for all files
-  for (const file of files) {
-    const normalizedPath = file.path.startsWith("/") ? file.path : `/${file.path}`;
-    tags.push(["path", normalizedPath, file.sha256]);
-  }
-
-  // Add optional server tags
-  if (metadata?.servers && metadata.servers.length > 0) {
-    for (const server of metadata.servers) {
-      tags.push(["server", server]);
-    }
-  }
-
-  // Add optional relay tags
-  if (metadata?.relays && metadata.relays.length > 0) {
-    for (const relay of metadata.relays) {
-      tags.push(["relay", relay]);
-    }
-  }
-
-  // Add optional title and description
-  if (metadata?.title) {
-    tags.push(["title", metadata.title]);
-  }
-  if (metadata?.description) {
-    tags.push(["description", metadata.description]);
-  }
-
-  tags.push(["client", "nsyte"]);
-
-  // Use kind 35128 for named sites, 15128 for root site
-  const kind = id ? NSITE_NAME_SITE_KIND : NSITE_ROOT_SITE_KIND;
-
-  const eventTemplate = {
-    kind,
-    pubkey: pubkey,
-    created_at: unixNow(),
-    tags,
-    content: "",
-  };
-
-  return await signer.signEvent(eventTemplate);
+  const template = createSiteManifestTemplate(files, id, metadata);
+  return await signer.signEvent(template);
 }
 
 /** Create a delete event (NIP-09) */
