@@ -371,8 +371,24 @@ export async function deployCommand(
       statusDisplay.update(`Scanning files in ${formatFilePath(targetDir)}...`);
       const { includedFiles } = await getLocalFiles(targetDir);
 
+      // Synthesize the /404.html path mapping from the fallback config, mirroring publishSiteManifest.
+      // Without this the draft manifest event would be missing the fallback tag.
+      const manifestFiles = [...includedFiles];
+      const fallbackPath = options.fallback || config.fallback;
+      if (fallbackPath) {
+        const normalizedFallbackPath = fallbackPath.startsWith("/") ? fallbackPath : `/${fallbackPath}`;
+        const fallbackFile = includedFiles.find((f) => f.path === normalizedFallbackPath);
+        if (fallbackFile) {
+          manifestFiles.push({ path: "/404.html", sha256: fallbackFile.sha256 });
+        } else {
+          log.warn(
+            `Configured fallback file '${fallbackPath}' not found in scanned files. 404.html will not be included in dry-run manifest.`,
+          );
+        }
+      }
+
       // Collect event templates (no signing)
-      const events = collectDeployEvents(config, includedFiles, {
+      const events = collectDeployEvents(config, manifestFiles, {
         publishAppHandler: options.publishAppHandler,
         publishProfile: options.publishProfile,
         publishRelayList: options.publishRelayList,
