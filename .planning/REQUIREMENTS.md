@@ -16,15 +16,15 @@ Requirements for Custom Event Timestamps milestone. Each maps to roadmap phases.
 
 ### Timestamp Propagation
 
-- [ ] **PROP-01**: Override applies to site manifest events (kinds 15128, 35128)
-- [ ] **PROP-02**: Override applies to snapshot events (kind 5128)
-- [ ] **PROP-03**: Override applies to profile events (kind 0)
-- [ ] **PROP-04**: Override applies to relay list events (kind 10002)
-- [ ] **PROP-05**: Override applies to server list events (kind 10063)
-- [ ] **PROP-06**: Override applies to app handler events (kind 31990)
-- [ ] **PROP-07**: Override applies to app recommendation events (kind 31989)
-- [ ] **PROP-08**: Delete events (kind 5) are excluded from override -- deletion should reflect actual time
-- [ ] **PROP-09**: Blossom auth events (kind 24242) are excluded from override -- expiration logic depends on current time
+- [x] **PROP-01**: Override applies to site manifest events (kinds 15128, 35128)
+- [x] **PROP-02**: Override applies to snapshot events (kind 5128)
+- [x] **PROP-03**: Override applies to profile events (kind 0)
+- [x] **PROP-04**: Override applies to relay list events (kind 10002)
+- [x] **PROP-05**: Override applies to server list events (kind 10063)
+- [x] **PROP-06**: Override applies to app handler events (kind 31990)
+- [x] **PROP-07**: Override applies to app recommendation events (kind 31989)
+- [x] **PROP-08**: Delete events (kind 5) are excluded from override -- deletion should reflect actual time
+- [x] **PROP-09**: Blossom auth events (kind 24242) are excluded from override -- expiration logic depends on current time
 
 ### Testing
 
@@ -54,15 +54,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-02 | Phase 7 | Complete |
 | CLI-03 | Phase 7 | Complete |
 | CLI-04 | Phase 7 | Complete |
-| PROP-01 | Phase 8 | Pending |
-| PROP-02 | Phase 8 | Pending |
-| PROP-03 | Phase 8 | Pending |
-| PROP-04 | Phase 8 | Pending |
-| PROP-05 | Phase 8 | Pending |
-| PROP-06 | Phase 8 | Pending |
-| PROP-07 | Phase 8 | Pending |
-| PROP-08 | Phase 8 | Pending |
-| PROP-09 | Phase 8 | Pending |
+| PROP-01 | Phase 8 | Complete |
+| PROP-02 | Phase 8 | Complete |
+| PROP-03 | Phase 8 | Complete |
+| PROP-04 | Phase 8 | Complete |
+| PROP-05 | Phase 8 | Complete |
+| PROP-06 | Phase 8 | Complete |
+| PROP-07 | Phase 8 | Complete |
+| PROP-08 | Phase 8 | Complete |
+| PROP-09 | Phase 8 | Complete |
 | TEST-01 | Phase 9 | Pending |
 | TEST-02 | Phase 9 | Pending |
 | TEST-03 | Phase 9 | Pending |
