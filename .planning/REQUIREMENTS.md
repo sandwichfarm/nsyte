@@ -28,9 +28,9 @@ Requirements for Custom Event Timestamps milestone. Each maps to roadmap phases.
 
 ### Testing
 
-- [ ] **TEST-01**: Unit tests for timestamp parsing (Unix and ISO 8601)
-- [ ] **TEST-02**: Unit tests for timestamp propagation to each event type
-- [ ] **TEST-03**: Unit tests confirming delete events and auth events are excluded from override
+- [x] **TEST-01**: Unit tests for timestamp parsing (Unix and ISO 8601)
+- [x] **TEST-02**: Unit tests for timestamp propagation to each event type
+- [x] **TEST-03**: Unit tests confirming delete events and auth events are excluded from override
 
 ## Future Requirements
 
@@ -63,9 +63,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROP-07 | Phase 8 | Complete |
 | PROP-08 | Phase 8 | Complete |
 | PROP-09 | Phase 8 | Complete |
-| TEST-01 | Phase 9 | Pending |
-| TEST-02 | Phase 9 | Pending |
-| TEST-03 | Phase 9 | Pending |
+| TEST-01 | Phase 9 | Complete |
+| TEST-02 | Phase 9 | Complete |
+| TEST-03 | Phase 9 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 16 total

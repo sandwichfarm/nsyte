@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Custom Event Timestamps
 status: verifying
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-04-14T13:16:11.855Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-04-14T14:10:27.431Z"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** Reliable site deployment to the nostr + blossom ecosystem with a simple CLI workflow.
-**Current focus:** Phase 08 — timestamp-propagation
+**Current focus:** Phase 09 — tests
 
 ## Current Position
 
-Phase: 08 (timestamp-propagation) — EXECUTING
-Plan: 2 of 2
+Phase: 09 (tests) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-14
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2 phases only)
 | Phase 07 P02 | 1 | 2 tasks | 2 files |
 | Phase 08 P01 | 130s | 2 tasks | 2 files |
 | Phase 08 P02 | 4m | 2 tasks | 5 files |
+| Phase 09-tests P01 | 87 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Progress: [░░░░░░░░░░] 0% (v1.2 phases only)
 - [Phase 08]: Nullish coalescing ?? fallback preserves original unixNow()/Math.floor behavior when createdAt is omitted
 - [Phase 08]: Added createdAt?: number to DeployCommandOptions, PutCommandOptions, SnapshotCommandOptions -- TypeScript requires explicit interface declaration even though Cliffy provides global options at runtime
 - [Phase 08]: publishAppHandler options object extended with createdAt (not a new positional parameter) -- maintains existing pattern; publishProfile/RelayList/ServerList use positional optional parameter consistent with their style
+- [Phase 09-tests]: Source-code assertion pattern used for private auth functions in blossom.ts and upload.ts (Deno.readTextFileSync via import.meta.url)
+- [Phase 09-tests]: Function arity check (createDeleteEvent.length === 2) confirms no createdAt parameter added to delete events
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-14T13:16:11.852Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-04-14T14:10:27.429Z
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None

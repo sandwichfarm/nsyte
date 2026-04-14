@@ -86,7 +86,9 @@ Plans:
   1. Test suite passes for Unix epoch parsing and ISO 8601 parsing with known expected values
   2. Tests confirm each event kind (15128, 35128, 5128, 0, 10002, 10063, 31990, 31989) receives the custom timestamp when provided
   3. Tests explicitly confirm kind 5 (delete) and kind 24242 (auth) events ignore the override and always use current time
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [x] 09-01-PLAN.md -- Timestamp propagation and exclusion tests
 
 ## Progress
 
@@ -100,4 +102,4 @@ Plans:
 | 6. Secrets Scanner | v1.1 | -- | Complete | 2026-04-04 |
 | 7. CLI Argument and Timestamp Utilities | v1.2 | 2/2 | Complete   | 2026-04-14 |
 | 8. Timestamp Propagation | v1.2 | 2/2 | Complete   | 2026-04-14 |
-| 9. Tests | v1.2 | 0/? | Not started | - |
+| 9. Tests | v1.2 | 1/1 | Complete   | 2026-04-14 |
