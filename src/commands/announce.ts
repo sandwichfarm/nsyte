@@ -5,7 +5,7 @@ import { readProjectFile } from "../lib/config.ts";
 import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { publishAppHandler } from "../lib/metadata/publisher.ts";
+import { publishAppHandler, publishAppRecommendation } from "../lib/metadata/publisher.ts";
 import { getUserDisplayName, getUserOutboxes } from "../lib/nostr.ts";
 import { StatusDisplay } from "../ui/status.ts";
 
@@ -17,6 +17,7 @@ export function registerAnnounceCommand(): void {
     .alias("annc")
     .description("Publish app handlers to Nostr")
     .option("--publish-app-handler", "Publish app handler information (Kind 31990)")
+    .option("--publish-app-recommendation", "Publish app recommendation (Kind 31989)")
     .option("--all", "Publish all available data")
     .option(
       "--sec <secret:string>",
@@ -37,13 +38,15 @@ export function registerAnnounceCommand(): void {
         // Determine what to publish
         const publishAll = options.all === true;
         const shouldPublishAppHandler = publishAll || options.publishAppHandler === true;
+        const shouldPublishAppRecommendation = publishAll ||
+          options.publishAppRecommendation === true;
 
         // Check if anything needs to be published
-        if (!shouldPublishAppHandler) {
+        if (!shouldPublishAppHandler && !shouldPublishAppRecommendation) {
           console.error(colors.red("No publish options specified."));
           console.error(
             colors.yellow(
-              "Use --publish-app-handler or --all",
+              "Use --publish-app-handler, --publish-app-recommendation, or --all",
             ),
           );
           Deno.exit(1);
@@ -72,6 +75,7 @@ export function registerAnnounceCommand(): void {
 
         const results = {
           appHandler: false,
+          appRecommendation: false,
         };
 
         // Discover user's existing relay list and display name in parallel
@@ -119,6 +123,28 @@ export function registerAnnounceCommand(): void {
           }
         }
 
+        // Publish app recommendation
+        if (shouldPublishAppRecommendation) {
+          status.update("Publishing app recommendation...");
+          try {
+            await publishAppRecommendation(config, signer, publishToRelays, status, {
+              createdAt: options.createdAt,
+            });
+            results.appRecommendation = true;
+            status.addMessage(
+              colors.green(
+                `✓ App recommendation published to ${publishToRelays.length} relays`,
+              ),
+            );
+          } catch (error) {
+            const errorMsg = getErrorMessage(error);
+            status.addMessage(
+              colors.red(`✗ Failed to publish app recommendation: ${errorMsg}`),
+            );
+            logger.error(`Failed to publish app recommendation: ${errorMsg}`);
+          }
+        }
+
         // Clear the status display before showing summary
         status.complete();
 
@@ -126,6 +152,7 @@ export function registerAnnounceCommand(): void {
         const successCount = Object.values(results).filter((v) => v).length;
         const totalCount = Object.values(results).filter((_, i) => (publishAll || [
           options.publishAppHandler,
+          options.publishAppRecommendation,
         ][i])).length;
 
         console.log("\n" + colors.bold("Announcement Summary:"));

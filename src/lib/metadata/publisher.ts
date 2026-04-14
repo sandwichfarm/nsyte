@@ -5,6 +5,7 @@ import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
 import {
   createAppHandlerEvent,
+  createAppRecommendationEvent,
   createProfileEvent,
   createRelayListEvent,
   createServerListEvent,
@@ -149,6 +150,77 @@ export async function publishAppHandler(
   } catch (e: unknown) {
     statusDisplay.error(`Failed to publish app handler: ${getErrorMessage(e)}`);
     log.error(`App handler publication error: ${getErrorMessage(e)}`);
+  }
+}
+
+/**
+ * Publish app recommendation (kind 31989)
+ * Recommends the user's own app handler for the specified event kinds
+ */
+export async function publishAppRecommendation(
+  config: ProjectConfig,
+  signer: ISigner,
+  relays: string[],
+  statusDisplay: StatusDisplay,
+  options: { handlerKinds?: string; createdAt?: number } = {},
+): Promise<void> {
+  statusDisplay.update("Publishing NIP-89 app recommendation...");
+
+  try {
+    let kinds: number[] = [];
+    if (options.handlerKinds) {
+      kinds = options.handlerKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+        !isNaN(k)
+      );
+    } else if (config.appHandler?.kinds) {
+      kinds = config.appHandler.kinds;
+    }
+
+    if (kinds.length === 0) {
+      statusDisplay.error("No event kinds specified for app recommendation");
+      log.error("App recommendation requires event kinds to be specified");
+      return;
+    }
+
+    const isRootSite = config.id === null || config.id === "" || config.id === undefined;
+    let handlerId: string;
+
+    if (config.appHandler?.id) {
+      handlerId = config.appHandler.id;
+    } else if (!isRootSite && config.id) {
+      handlerId = config.id;
+    } else {
+      statusDisplay.error(
+        "App recommendation requires 'id' field when site is a root site (no site id configured)",
+      );
+      log.error(
+        "Root sites must specify 'appHandler.id' in config to publish app recommendations",
+      );
+      return;
+    }
+
+    const publisherPubkey = await signer.getPublicKey();
+
+    const events = await Promise.all(
+      kinds.map((kind) =>
+        createAppRecommendationEvent(
+          signer,
+          kind,
+          {
+            pubkey: publisherPubkey,
+            identifier: handlerId,
+          },
+          options.createdAt,
+        )
+      ),
+    );
+
+    log.debug(`Created ${events.length} app recommendation events`);
+    await publishEventsToRelays(relays, events);
+    statusDisplay.success(`App recommendations published for kinds: ${kinds.join(", ")}`);
+  } catch (e: unknown) {
+    statusDisplay.error(`Failed to publish app recommendation: ${getErrorMessage(e)}`);
+    log.error(`App recommendation publication error: ${getErrorMessage(e)}`);
   }
 }
 
