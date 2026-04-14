@@ -76,7 +76,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 08-01-PLAN.md -- Add createdAt parameter to event creation functions (nostr.ts, manifest.ts)
-- [ ] 08-02-PLAN.md -- Thread options.createdAt through command handlers and metadata publisher
+- [x] 08-02-PLAN.md -- Thread options.createdAt through command handlers and metadata publisher
 
 ### Phase 9: Tests
 **Goal**: Automated tests verify timestamp parsing, propagation to every event type, and auth event exclusion
@@ -99,5 +99,5 @@ Plans:
 | 5. Config Schema Hosting | v1.1 | -- | Complete | 2026-04-04 |
 | 6. Secrets Scanner | v1.1 | -- | Complete | 2026-04-04 |
 | 7. CLI Argument and Timestamp Utilities | v1.2 | 2/2 | Complete   | 2026-04-14 |
-| 8. Timestamp Propagation | v1.2 | 1/2 | In Progress|  |
+| 8. Timestamp Propagation | v1.2 | 2/2 | Complete   | 2026-04-14 |
 | 9. Tests | v1.2 | 0/? | Not started | - |
