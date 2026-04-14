@@ -73,7 +73,10 @@ Plans:
   4. Blossom auth events (kind 24242) always use current time regardless of `--created-at`
   5. Omitting `--created-at` produces identical behavior to the current default (no regression)
 **UI hint**: no
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 08-01-PLAN.md -- Add createdAt parameter to event creation functions (nostr.ts, manifest.ts)
+- [ ] 08-02-PLAN.md -- Thread options.createdAt through command handlers and metadata publisher
 
 ### Phase 9: Tests
 **Goal**: Automated tests verify timestamp parsing, propagation to every event type, and auth event exclusion
@@ -96,5 +99,5 @@ Plans:
 | 5. Config Schema Hosting | v1.1 | -- | Complete | 2026-04-04 |
 | 6. Secrets Scanner | v1.1 | -- | Complete | 2026-04-04 |
 | 7. CLI Argument and Timestamp Utilities | v1.2 | 2/2 | Complete   | 2026-04-14 |
-| 8. Timestamp Propagation | v1.2 | 0/? | Not started | - |
+| 8. Timestamp Propagation | v1.2 | 0/2 | Not started | - |
 | 9. Tests | v1.2 | 0/? | Not started | - |
