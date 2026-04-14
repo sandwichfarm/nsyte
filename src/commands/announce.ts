@@ -105,7 +105,9 @@ export function registerAnnounceCommand(): void {
         if (shouldPublishAppHandler) {
           status.update("Publishing app handler...");
           try {
-            await publishAppHandler(config, signer, publishToRelays, status);
+            await publishAppHandler(config, signer, publishToRelays, status, {
+              createdAt: options.createdAt,
+            });
             results.appHandler = true;
             status.addMessage(
               colors.green(`✓ App handler published to ${publishToRelays.length} relays`),
