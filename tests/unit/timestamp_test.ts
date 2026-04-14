@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
 import { parseTimestamp } from "../../src/lib/timestamp.ts";
+import { join } from "@std/path";
 
 describe("parseTimestamp", () => {
   describe("Unix epoch integers", () => {
@@ -92,4 +93,77 @@ describe("parseTimestamp", () => {
       );
     });
   });
+});
+
+describe("--created-at CLI global option", () => {
+  // Resolve the CLI entrypoint relative to the project root
+  const cliPath = join(new URL("../../src/cli.ts", import.meta.url).pathname);
+
+  it(
+    "accepts valid Unix epoch without 'Invalid' error",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+      const cmd = new Deno.Command("deno", {
+        args: ["run", "--allow-all", cliPath, "deploy", "--created-at", "1700000000"],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      const result = await cmd.output();
+      const combined = new TextDecoder().decode(result.stdout) +
+        new TextDecoder().decode(result.stderr);
+      // Valid input must NOT produce 'Invalid --created-at value'
+      assertEquals(
+        combined.includes("Invalid --created-at value"),
+        false,
+        `Expected no validation error, got: ${combined}`,
+      );
+    },
+  );
+
+  it(
+    "accepts valid ISO 8601 datetime without 'Invalid' error",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+      const cmd = new Deno.Command("deno", {
+        args: ["run", "--allow-all", cliPath, "deploy", "--created-at", "2024-01-15T12:00:00Z"],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      const result = await cmd.output();
+      const combined = new TextDecoder().decode(result.stdout) +
+        new TextDecoder().decode(result.stderr);
+      assertEquals(
+        combined.includes("Invalid --created-at value"),
+        false,
+        `Expected no validation error, got: ${combined}`,
+      );
+    },
+  );
+
+  it(
+    "exits non-zero with error message for invalid value",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+      const cmd = new Deno.Command("deno", {
+        args: ["run", "--allow-all", cliPath, "deploy", "--created-at", "garbage"],
+        stdout: "piped",
+        stderr: "piped",
+      });
+      const result = await cmd.output();
+      const combined = new TextDecoder().decode(result.stdout) +
+        new TextDecoder().decode(result.stderr);
+      // Must exit non-zero
+      assertEquals(
+        result.code !== 0,
+        true,
+        `Expected non-zero exit code, got: ${result.code}`,
+      );
+      // Must include the validation error message
+      assertEquals(
+        combined.includes("Invalid --created-at value"),
+        true,
+        `Expected 'Invalid --created-at value' in output, got: ${combined}`,
+      );
+    },
+  );
 });
