@@ -91,6 +91,8 @@ export interface DeployCommandOptions {
   skipSecretsScan: boolean;
   /** Secrets scan sensitivity level (low, medium, high) */
   scanLevel?: string;
+  /** Override created_at timestamp for nostr events (from --created-at global option) */
+  createdAt?: number;
 }
 
 /**
@@ -1673,6 +1675,7 @@ async function publishSiteManifest(
       fileMappings,
       siteId,
       metadata,
+      options.createdAt,
     );
 
     // Display event ID after signing
@@ -2109,6 +2112,7 @@ async function maybePublishMetadata(
     publishRelayList: options.publishRelayList || config.publishRelayList || false,
     publishServerList: options.publishServerList || config.publishServerList || false,
     handlerKinds: options.handlerKinds,
+    createdAt: options.createdAt,
   });
 
   if (messageCollector.hasMessageCategory(MessageCategory.RELAY)) {

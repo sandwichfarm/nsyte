@@ -546,6 +546,7 @@ export async function createSiteManifestEvent(
   files: FilePathMapping[],
   id?: string,
   metadata?: SiteManifestMetadata,
+  createdAt?: number,
 ): Promise<NostrEvent> {
   const tags: string[][] = [];
 
@@ -590,7 +591,7 @@ export async function createSiteManifestEvent(
   const eventTemplate = {
     kind,
     pubkey: pubkey,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };
@@ -632,6 +633,7 @@ export async function createAppHandlerEvent(
   },
   metadata?: Partial<ProfileContent>,
   handlerId?: string,
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Use provided handlerId or default to "default"
   const normalizedId = handlerId || "default";
@@ -695,7 +697,7 @@ export async function createAppHandlerEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31990,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content,
   };
@@ -710,6 +712,7 @@ export async function createAppHandlerEvent(
 export async function createProfileEvent(
   signer: ISigner,
   profile: Partial<ProfileContent>,
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Build the profile content object
   const profileContent: Partial<ProfileContent> = {};
@@ -726,7 +729,7 @@ export async function createProfileEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: kinds.Metadata,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags: [],
     content: JSON.stringify(profileContent),
   };
@@ -741,6 +744,7 @@ export async function createProfileEvent(
 export async function createRelayListEvent(
   signer: ISigner,
   relays: string[],
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Add all relays as outbox (write) relays
   // NIP-65: ["r", <relay-url>, "write"]
@@ -748,7 +752,7 @@ export async function createRelayListEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: kinds.RelayList,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };
@@ -762,6 +766,7 @@ export async function createRelayListEvent(
 export async function createServerListEvent(
   signer: ISigner,
   servers: string[],
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Add servers as tags
   // Format: ["server", <server-url>]
@@ -769,7 +774,7 @@ export async function createServerListEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: BLOSSOM_SERVER_LIST_KIND,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };
@@ -789,6 +794,7 @@ export async function createAppRecommendationEvent(
     relay?: string;
     identifier: string;
   },
+  createdAt?: number,
 ): Promise<NostrEvent> {
   const tags: string[][] = [
     ["d", eventKind.toString()],
@@ -802,7 +808,7 @@ export async function createAppRecommendationEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31989,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };

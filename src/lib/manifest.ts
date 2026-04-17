@@ -200,6 +200,7 @@ export function createSiteManifestTemplate(
     relays?: string[];
     source?: string;
   },
+  createdAt?: number,
 ): EventTemplate {
   const tags: string[][] = [];
 
@@ -248,7 +249,7 @@ export function createSiteManifestTemplate(
 
   return {
     kind,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: createdAt ?? Math.floor(Date.now() / 1000),
     tags,
     content: "",
   };

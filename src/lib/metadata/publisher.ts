@@ -5,6 +5,7 @@ import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
 import {
   createAppHandlerEvent,
+  createAppRecommendationEvent,
   createProfileEvent,
   createRelayListEvent,
   createServerListEvent,
@@ -22,6 +23,7 @@ export interface PublishOptions {
   publishRelayList?: boolean;
   publishServerList?: boolean;
   handlerKinds?: string;
+  createdAt?: number;
 }
 
 /**
@@ -41,7 +43,7 @@ export async function publishAppHandler(
   signer: ISigner,
   relays: string[],
   statusDisplay: StatusDisplay,
-  options: { handlerKinds?: string } = {},
+  options: { handlerKinds?: string; createdAt?: number } = {},
 ): Promise<void> {
   statusDisplay.update("Publishing NIP-89 app handler...");
 
@@ -139,6 +141,7 @@ export async function publishAppHandler(
       handlers,
       metadata,
       handlerId,
+      options.createdAt,
     );
 
     log.debug(`Created app handler event: ${JSON.stringify(handlerEvent)}`);
@@ -151,6 +154,77 @@ export async function publishAppHandler(
 }
 
 /**
+ * Publish app recommendation (kind 31989)
+ * Recommends the user's own app handler for the specified event kinds
+ */
+export async function publishAppRecommendation(
+  config: ProjectConfig,
+  signer: ISigner,
+  relays: string[],
+  statusDisplay: StatusDisplay,
+  options: { handlerKinds?: string; createdAt?: number } = {},
+): Promise<void> {
+  statusDisplay.update("Publishing NIP-89 app recommendation...");
+
+  try {
+    let kinds: number[] = [];
+    if (options.handlerKinds) {
+      kinds = options.handlerKinds.split(",").map((k) => parseInt(k.trim())).filter((k) =>
+        !isNaN(k)
+      );
+    } else if (config.appHandler?.kinds) {
+      kinds = config.appHandler.kinds;
+    }
+
+    if (kinds.length === 0) {
+      statusDisplay.error("No event kinds specified for app recommendation");
+      log.error("App recommendation requires event kinds to be specified");
+      return;
+    }
+
+    const isRootSite = config.id === null || config.id === "" || config.id === undefined;
+    let handlerId: string;
+
+    if (config.appHandler?.id) {
+      handlerId = config.appHandler.id;
+    } else if (!isRootSite && config.id) {
+      handlerId = config.id;
+    } else {
+      statusDisplay.error(
+        "App recommendation requires 'id' field when site is a root site (no site id configured)",
+      );
+      log.error(
+        "Root sites must specify 'appHandler.id' in config to publish app recommendations",
+      );
+      return;
+    }
+
+    const publisherPubkey = await signer.getPublicKey();
+
+    const events = await Promise.all(
+      kinds.map((kind) =>
+        createAppRecommendationEvent(
+          signer,
+          kind,
+          {
+            pubkey: publisherPubkey,
+            identifier: handlerId,
+          },
+          options.createdAt,
+        )
+      ),
+    );
+
+    log.debug(`Created ${events.length} app recommendation events`);
+    await publishEventsToRelays(relays, events);
+    statusDisplay.success(`App recommendations published for kinds: ${kinds.join(", ")}`);
+  } catch (e: unknown) {
+    statusDisplay.error(`Failed to publish app recommendation: ${getErrorMessage(e)}`);
+    log.error(`App recommendation publication error: ${getErrorMessage(e)}`);
+  }
+}
+
+/**
  * Publish kind 0 profile metadata
  */
 export async function publishProfile(
@@ -158,6 +232,7 @@ export async function publishProfile(
   signer: ISigner,
   relays: string[],
   statusDisplay: StatusDisplay,
+  createdAt?: number,
 ): Promise<void> {
   statusDisplay.update("Publishing profile (kind 0)...");
 
@@ -170,7 +245,7 @@ export async function publishProfile(
     log.debug(`Creating profile event for ${npubEncode(pubkey)}`);
 
     // Create and sign the event
-    const event = await createProfileEvent(signer, config.profile);
+    const event = await createProfileEvent(signer, config.profile, createdAt);
 
     // Publish to relays
     await publishEventsToRelays(relays, [event]);
@@ -195,6 +270,7 @@ export async function publishRelayList(
   signer: ISigner,
   relays: string[],
   statusDisplay: StatusDisplay,
+  createdAt?: number,
 ): Promise<void> {
   statusDisplay.update("Publishing relay list (kind 10002)...");
 
@@ -207,7 +283,7 @@ export async function publishRelayList(
     log.debug(`Creating relay list event for ${npubEncode(pubkey)}`);
 
     // Create and sign the event (all relays as outbox/write)
-    const event = await createRelayListEvent(signer, config.relays);
+    const event = await createRelayListEvent(signer, config.relays, createdAt);
 
     // Publish to relays
     await publishEventsToRelays(relays, [event]);
@@ -232,6 +308,7 @@ export async function publishServerList(
   signer: ISigner,
   relays: string[],
   statusDisplay: StatusDisplay,
+  createdAt?: number,
 ): Promise<void> {
   statusDisplay.update("Publishing Blossom server list (kind 10063)...");
 
@@ -244,7 +321,7 @@ export async function publishServerList(
     log.debug(`Creating server list event for ${npubEncode(pubkey)}`);
 
     // Create and sign the event
-    const event = await createServerListEvent(signer, config.servers);
+    const event = await createServerListEvent(signer, config.servers, createdAt);
 
     // Publish to relays
     await publishEventsToRelays(relays, [event]);
@@ -308,6 +385,7 @@ export async function publishMetadata(
       try {
         await publishAppHandler(config, signer, relays, statusDisplay, {
           handlerKinds: options.handlerKinds,
+          createdAt: options.createdAt,
         });
       } catch (e) {
         log.error(`App handler publishing failed: ${getErrorMessage(e)}`);
@@ -316,7 +394,7 @@ export async function publishMetadata(
 
     if (shouldPublishProfile) {
       try {
-        await publishProfile(config, signer, relays, statusDisplay);
+        await publishProfile(config, signer, relays, statusDisplay, options.createdAt);
       } catch (e) {
         log.error(`Profile publishing failed: ${getErrorMessage(e)}`);
       }
@@ -324,7 +402,7 @@ export async function publishMetadata(
 
     if (shouldPublishRelayList) {
       try {
-        await publishRelayList(config, signer, relays, statusDisplay);
+        await publishRelayList(config, signer, relays, statusDisplay, options.createdAt);
       } catch (e) {
         log.error(`Relay list publishing failed: ${getErrorMessage(e)}`);
       }
@@ -332,7 +410,7 @@ export async function publishMetadata(
 
     if (shouldPublishServerList) {
       try {
-        await publishServerList(config, signer, relays, statusDisplay);
+        await publishServerList(config, signer, relays, statusDisplay, options.createdAt);
       } catch (e) {
         log.error(`Server list publishing failed: ${getErrorMessage(e)}`);
       }

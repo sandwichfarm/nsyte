@@ -21,6 +21,8 @@ interface PutCommandOptions {
   name?: string;
   sec?: string;
   config?: string;
+  /** Override created_at timestamp for nostr events (from --created-at global option) */
+  createdAt?: number;
 }
 
 function normalizeSitePath(path: string): string {
@@ -47,6 +49,7 @@ function buildUpdatedManifestTemplate(
   existingManifest: { kind: number; pubkey: string; content: string; tags: string[][] },
   path: string,
   sha256: string,
+  createdAt?: number,
 ): NostrEventTemplate {
   const normalizedPath = normalizeSitePath(path);
   const tags = existingManifest.tags.filter((tag) => {
@@ -58,7 +61,7 @@ function buildUpdatedManifestTemplate(
   return {
     kind: existingManifest.kind,
     pubkey: existingManifest.pubkey,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: createdAt ?? Math.floor(Date.now() / 1000),
     content: existingManifest.content,
     tags,
   };
@@ -191,6 +194,7 @@ export function registerPutCommand(): void {
             trustedManifest.event,
             finalRemotePath,
             successfulUpload.file.sha256,
+            options.createdAt,
           ),
         );
 

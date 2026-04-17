@@ -45,10 +45,10 @@ You can also trigger a release from the GitHub Actions UI:
 For tag-triggered releases, `deno.json` already has the correct version from the tagging step, so
 the sync is skipped.
 
-## What Each Script Does
+## What Each Task Does
 
-| Script                    | Purpose                                                             |
-| ------------------------- | ------------------------------------------------------------------- |
-| `scripts/sync-version.ts` | Updates `deno.json` version field. No git operations.               |
-| `scripts/tag.ts`          | Reads version from `deno.json`, commits if needed, creates git tag. |
-| `scripts/release.ts`      | Reads version from `deno.json`, pushes commits and tag to origin.   |
+| Task                       | Purpose                                                             |
+| -------------------------- | ------------------------------------------------------------------- |
+| `deno task version <ver>`  | Updates `deno.json` version field. No git operations.               |
+| `deno task tag`            | Reads version from `deno.json`, commits if needed, creates git tag. |
+| `deno task release`        | Reads version from `deno.json`, pushes commits and tag to origin.   |
