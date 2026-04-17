@@ -104,7 +104,13 @@ describe("parseTimestamp", () => {
   });
 });
 
-describe("--created-at CLI global option", () => {
+// Spawning a subprocess requires --allow-run. CI's coverage task intentionally
+// omits --allow-run, so skip these CLI integration tests there; they still run
+// locally under --allow-all.
+const canRunDeno =
+  Deno.permissions.querySync({ name: "run", command: "deno" }).state === "granted";
+
+describe("--created-at CLI global option", { ignore: !canRunDeno }, () => {
   // Resolve the CLI entrypoint relative to the project root
   const cliPath = fromFileUrl(new URL("../../src/cli.ts", import.meta.url));
 
