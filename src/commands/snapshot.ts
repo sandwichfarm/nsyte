@@ -27,8 +27,6 @@ interface SnapshotCommandOptions {
   dryRun?: boolean;
   useFallbackRelays?: boolean;
   useFallbacks?: boolean;
-  /** Override created_at timestamp for nostr events (from --created-at global option) */
-  createdAt?: number;
 }
 
 export function formatSnapshotCreatedAt(createdAt: number): string {
@@ -121,7 +119,7 @@ export async function snapshotCommand(options: SnapshotCommandOptions): Promise<
 
   const sourceManifest = trustedManifest.event;
   const aggregateTag = await getOrComputeManifestAggregateTag(sourceManifest);
-  const snapshotTemplate = await createSnapshotTemplate(sourceManifest, options.createdAt);
+  const snapshotTemplate = await createSnapshotTemplate(sourceManifest);
 
   console.log(
     colors.gray(

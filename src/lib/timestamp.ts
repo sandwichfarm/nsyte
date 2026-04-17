@@ -58,7 +58,7 @@ export function parseTimestamp(value: string): number {
   }
 
   const seconds = Math.floor(date.getTime() / 1000);
-  if (seconds < 0) {
+  if (seconds < 0 || seconds > MAX_TIMESTAMP) {
     invalid(value);
   }
 

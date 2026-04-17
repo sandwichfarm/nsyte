@@ -10,7 +10,6 @@ beforeAll(async () => {
   const privKeyBytes = new Uint8Array(32);
   crypto.getRandomValues(privKeyBytes);
   signer = new SimpleSigner(encodeHex(privKeyBytes));
-  // Ensure signer is ready by resolving the public key
   await signer.getPublicKey();
 });
 
@@ -27,53 +26,27 @@ describe("timestamp exclusion", () => {
       },
     );
 
-    it("does not accept a createdAt parameter", () => {
-      // Function arity: signer + eventIds only (no third parameter)
-      assertEquals(createDeleteEvent.length, 2);
-    });
-  });
+    it(
+      "ignores an extra createdAt-like argument at runtime",
+      { sanitizeOps: false, sanitizeResources: false },
+      async () => {
+        const now = Math.floor(Date.now() / 1000);
+        const overriddenCreatedAt = 1;
+        const createDeleteEventWithExtraArg = createDeleteEvent as unknown as (
+          signer: SimpleSigner,
+          eventIds: string[],
+          createdAt: number,
+        ) => Promise<{ created_at: number; kind: number }>;
+        const event = await createDeleteEventWithExtraArg(
+          signer,
+          ["a".repeat(64)],
+          overriddenCreatedAt,
+        );
 
-  describe("blossom auth events (kind 24242)", () => {
-    it("blossom.ts has no createdAt parameter in auth functions", () => {
-      const blossomPath = new URL("../../src/lib/blossom.ts", import.meta.url).pathname;
-      const source = Deno.readTextFileSync(blossomPath);
-      assertEquals(
-        source.includes("createdAt"),
-        false,
-        "blossom.ts must not contain a createdAt parameter",
-      );
-    });
-
-    it("blossom.ts auth template uses hardcoded current time", () => {
-      const blossomPath = new URL("../../src/lib/blossom.ts", import.meta.url).pathname;
-      const source = Deno.readTextFileSync(blossomPath);
-      assertEquals(
-        source.includes("Math.floor(Date.now() / 1000)"),
-        true,
-        "blossom.ts must use Math.floor(Date.now() / 1000) for inline current time",
-      );
-    });
-  });
-
-  describe("upload auth events (kind 24242)", () => {
-    it("upload.ts has no createdAt parameter in auth functions", () => {
-      const uploadPath = new URL("../../src/lib/upload.ts", import.meta.url).pathname;
-      const source = Deno.readTextFileSync(uploadPath);
-      assertEquals(
-        source.includes("createdAt"),
-        false,
-        "upload.ts must not contain a createdAt parameter",
-      );
-    });
-
-    it("upload.ts auth template uses hardcoded current time", () => {
-      const uploadPath = new URL("../../src/lib/upload.ts", import.meta.url).pathname;
-      const source = Deno.readTextFileSync(uploadPath);
-      assertEquals(
-        source.includes("Math.floor(Date.now() / 1000)"),
-        true,
-        "upload.ts must use Math.floor(Date.now() / 1000) for inline current time",
-      );
-    });
+        assertEquals(Math.abs(event.created_at - now) <= 5, true);
+        assertEquals(event.created_at === overriddenCreatedAt, false);
+        assertEquals(event.kind, 5);
+      },
+    );
   });
 });

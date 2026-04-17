@@ -10,12 +10,7 @@ import {
   createServerListEvent,
   createSiteManifestEvent,
 } from "../../src/lib/nostr.ts";
-import {
-  createSiteManifestTemplate,
-  createSnapshotTemplate,
-  NSITE_ROOT_SITE_KIND,
-  NSITE_SNAPSHOT_KIND,
-} from "../../src/lib/manifest.ts";
+import { createSiteManifestTemplate } from "../../src/lib/manifest.ts";
 
 const CUSTOM_TS = 1700000000;
 
@@ -28,24 +23,6 @@ beforeAll(async () => {
   signer = new SimpleSigner(encodeHex(privKeyBytes));
   pubkey = await signer.getPublicKey();
 });
-
-function createManifest(overrides: Partial<{
-  id: string;
-  kind: number;
-  pubkey: string;
-  created_at: number;
-  tags: string[][];
-}> = {}) {
-  return {
-    id: overrides.id ?? "manifest-id",
-    kind: overrides.kind ?? 15128,
-    pubkey: overrides.pubkey ?? "f".repeat(64),
-    created_at: overrides.created_at ?? 123,
-    content: "",
-    sig: "sig",
-    tags: overrides.tags ?? [["path", "/index.html", "a".repeat(64)]],
-  };
-}
 
 describe("timestamp propagation", () => {
   it(
@@ -134,17 +111,6 @@ describe("timestamp propagation", () => {
       );
       assertEquals(event.created_at, CUSTOM_TS);
       assertEquals(event.kind, 31989);
-    },
-  );
-
-  it(
-    "createSnapshotTemplate (kind 5128) uses custom createdAt",
-    { sanitizeOps: false, sanitizeResources: false },
-    async () => {
-      const manifest = createManifest({ kind: NSITE_ROOT_SITE_KIND });
-      const template = await createSnapshotTemplate(manifest, CUSTOM_TS);
-      assertEquals(template.created_at, CUSTOM_TS);
-      assertEquals(template.kind, NSITE_SNAPSHOT_KIND);
     },
   );
 

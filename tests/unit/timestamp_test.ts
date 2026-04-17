@@ -1,7 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
+import { fromFileUrl } from "@std/path";
 import { parseTimestamp } from "../../src/lib/timestamp.ts";
-import { join } from "@std/path";
 
 describe("parseTimestamp", () => {
   describe("Unix epoch integers", () => {
@@ -43,6 +43,15 @@ describe("parseTimestamp", () => {
   });
 
   describe("ISO 8601 datetime strings", () => {
+    it("rejects far-future ISO 8601 dates beyond year 5000 sanity check", () => {
+      assertThrows(
+        () => parseTimestamp("6000-01-01T00:00:00Z"),
+        Error,
+        "Invalid --created-at value",
+      );
+    });
+
+
     it("parses ISO 8601 string with Z timezone to correct Unix seconds", () => {
       assertEquals(parseTimestamp("2024-01-15T12:00:00Z"), 1705320000);
     });
@@ -97,7 +106,7 @@ describe("parseTimestamp", () => {
 
 describe("--created-at CLI global option", () => {
   // Resolve the CLI entrypoint relative to the project root
-  const cliPath = join(new URL("../../src/cli.ts", import.meta.url).pathname);
+  const cliPath = fromFileUrl(new URL("../../src/cli.ts", import.meta.url));
 
   it(
     "accepts valid Unix epoch without 'Invalid' error",
