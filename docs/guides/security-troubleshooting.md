@@ -11,9 +11,20 @@ This guide helps resolve common issues with nsyte's credential storage system.
 
 ### Check Storage Backend
 
+For a quick health check, list stored bunkers — if the backend is healthy, the
+command returns without error:
+
 ```bash
-# Run the built-in test to see which storage backend is being used
-deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
+nsyte bunker list
+```
+
+If you have a checkout of the nsyte source tree, you can also run the
+end-to-end secrets-management test, which probes keychain availability,
+encrypted storage, and round-trip storage/retrieval:
+
+```bash
+# From the nsyte repo root
+deno run --allow-read --allow-write --allow-env --allow-run tests/test-secrets.ts
 ```
 
 ### Check Configuration
@@ -23,9 +34,9 @@ deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
 nsyte bunker list
 
 # Check if any legacy secrets exist
-ls ~/.config/nsyte/secrets.json      # Linux
+ls ~/.config/nsite/secrets.json      # Linux
 ls ~/Library/Application\ Support/nsyte/secrets.json  # macOS
-ls %APPDATA%\nsyte\secrets.json      # Windows
+ls %APPDATA%\nsite\secrets.json      # Windows
 ```
 
 ## Common Issues
@@ -118,18 +129,20 @@ storage - Security warnings shown
 
 ```bash
 # Check permissions
-ls -la ~/.config/nsyte/  # Linux/macOS
-dir %APPDATA%\nsyte\     # Windows
+ls -la ~/.config/nsite/                       # Linux
+ls -la ~/Library/Application\ Support/nsyte/  # macOS
+dir %APPDATA%\nsite\                          # Windows
 
 # Fix permissions
-chmod 700 ~/.config/nsyte/  # Linux/macOS
+chmod 700 ~/.config/nsite/                       # Linux
+chmod 700 ~/Library/Application\ Support/nsyte/  # macOS
 
 # Check disk space
 df -h ~/.config/  # Linux/macOS
 dir %APPDATA%\    # Windows
 
-# Recreate config directory
-rm -rf ~/.config/nsyte/
+# Recreate config directory (Linux example)
+rm -rf ~/.config/nsite/
 nsyte bunker list  # Will recreate directory
 ```
 
@@ -141,8 +154,8 @@ update
 **Diagnosis**:
 
 ```bash
-# Check for legacy file
-cat ~/.config/nsyte/secrets.json
+# Check for legacy file (Linux path; see Storage Locations below for other platforms)
+cat ~/.config/nsite/secrets.json
 
 # Check migration logs
 nsyte bunker list  # Should show migration messages
@@ -155,8 +168,8 @@ nsyte bunker export <pubkey>
 
 ```bash
 # Manual migration if automatic fails
-# 1. Backup legacy file
-cp ~/.config/nsyte/secrets.json ~/.config/nsyte/secrets.json.backup
+# 1. Backup legacy file (Linux)
+cp ~/.config/nsite/secrets.json ~/.config/nsite/secrets.json.backup
 
 # 2. Import each bunker manually
 nsyte bunker import <nbunksec-string>
@@ -164,8 +177,8 @@ nsyte bunker import <nbunksec-string>
 # 3. Verify all bunkers migrated
 nsyte bunker list
 
-# 4. Remove legacy file
-rm ~/.config/nsyte/secrets.json
+# 4. Remove legacy file (Linux)
+rm ~/.config/nsite/secrets.json
 ```
 
 ### 6. CI/CD Authentication Issues
@@ -204,8 +217,8 @@ Access denied errors
 
 ```bash
 # Linux: Fix directory permissions
-chmod 700 ~/.config/nsyte/
-chmod 600 ~/.config/nsyte/*
+chmod 700 ~/.config/nsite/
+chmod 600 ~/.config/nsite/*
 
 # macOS: Grant Full Disk Access
 # System Preferences > Security & Privacy > Privacy > Full Disk Access
@@ -221,11 +234,11 @@ chmod 600 ~/.config/nsyte/*
 
 ```bash
 # Set environment variable for detailed logs
-export NSYTE_LOG_LEVEL=debug
+export LOG_LEVEL=debug
 nsyte bunker list
 
 # Or for a single command
-NSYTE_LOG_LEVEL=debug nsyte bunker import <nbunksec>
+LOG_LEVEL=debug nsyte bunker import <nbunksec>
 ```
 
 ### Manual Backend Testing
@@ -259,11 +272,11 @@ ls -la ~/Library/Application\ Support/nsyte/
 security dump-keychain | grep nsyte
 
 # Linux:
-ls -la ~/.config/nsyte/
+ls -la ~/.config/nsite/
 secret-tool search service nsyte
 
 # Windows:
-dir %APPDATA%\nsyte\
+dir %APPDATA%\nsite\
 cmdkey /list | findstr nsyte
 ```
 
