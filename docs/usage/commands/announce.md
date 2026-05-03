@@ -114,6 +114,6 @@ Published app handler to 12/15 relays
 
 - [`nsyte deploy`](deploy.md) - Deploy files with optional metadata publishing
 - [`nsyte debug`](debug.md) - Debug and verify published metadata
-- [NIP-89 Handler Documentation](../nip89-handler.md) - Complete app handler guide
+- [NIP-89 Handler Documentation](../../nip89-handler.md) - Complete app handler guide
 
 Inherits global options. See [global options](_global-options.md).

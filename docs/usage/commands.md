@@ -143,6 +143,6 @@ nsyte deploy ./dist --sec $NSYTE_NBUNKSEC
 
 ## See Also
 
-- [Configuration Reference](../configuration.md)
+- [Configuration Reference](configuration.md)
 - [Security Guide](../guides/security.md)
 - [CI/CD Guide](../guides/ci-cd.md)

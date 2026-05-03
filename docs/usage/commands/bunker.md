@@ -144,6 +144,6 @@ options below apply to the `connect` subcommand (`nsyte bunker connect`):
 ## See Also
 
 - [`nsyte ci`](ci.md) - Create ephemeral bunker credentials for CI/CD
-- [Security Guide](../guides/security.md) - Bunker security best practices
+- [Security Guide](../../guides/security.md) - Bunker security best practices
 
 Inherits global options. See [global options](_global-options.md).
