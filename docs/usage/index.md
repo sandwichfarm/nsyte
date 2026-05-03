@@ -23,8 +23,6 @@ This interactive command will:
 2. Configure your relays and servers
 3. Create a `.nsite` directory with your configuration
 
-![nsyte init demo](../assets/init-demo.png)
-
 ## Deploying Your Site
 
 The most common command you'll use is `deploy`. This command publishes your website files to the
@@ -53,7 +51,7 @@ Common options:
 To see what files are currently published:
 
 ```bash
-nsyte ls
+nsyte list
 ```
 
 This will show:
