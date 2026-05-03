@@ -67,6 +67,21 @@ export interface PublishEventsResult {
 // Create a global relay pool for connections
 export const pool = new RelayPool();
 
+// Wire the global pool into NostrConnectSigner as the static fallback so any
+// code path that constructs / resumes a NIP-46 signer (including
+// NostrConnectSigner.fromBunkerURI for manually-entered bunker:// URIs)
+// inherits subscription/publish methods without per-call wiring.
+//
+// applesauce-signers v5 lookup chain (see applesauce-signers/dist/interop.js):
+//   options.subscriptionMethod
+//   -> options.pool?.subscription.bind(options.pool)
+//   -> cls?.subscriptionMethod
+//   -> cls?.pool?.subscription.bind(cls.pool)        // <-- this assignment
+// Without this, fromBunkerURI throws:
+// "Missing subscriptionMethod, either pass a method or set subscriptionMethod
+//  globally on the class" (GitHub #114).
+NostrConnectSigner.pool = pool;
+
 // Create an in-memory event store for managing events
 export const store = new EventStore();
 
