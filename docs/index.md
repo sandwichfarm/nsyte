@@ -33,7 +33,7 @@ nsyte deploy ./dist
 ### Core Features
 
 - [**Configuration**](usage/configuration.md) - Configure nsyte for your needs
-- [**Commands**](usage/commands/upload.md) - Complete command reference
+- [**Commands**](usage/commands.md) - Complete command reference
 
 ### Advanced Topics
 
@@ -53,7 +53,7 @@ nsyte deploy ./dist
 - Check the [Installation Guide](installation.md) if you're having trouble getting started
 - Review [Basic Usage](usage/index.md) for common workflows
 - See [Security Guide](guides/security.md) for best practices
-- Browse [Command Reference](usage/commands/upload.md) for detailed options
+- Browse [Command Reference](usage/commands.md) for detailed options
 
 ## About nsyte
 
