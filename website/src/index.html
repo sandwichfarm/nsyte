@@ -562,7 +562,7 @@
           setTimeout(() => {
             button.textContent = originalText;
             button.classList.remove("copied");
-          }, 2000);
+          }, 1500);
         }
       }
 
@@ -611,61 +611,24 @@
 
       // Tab switching functionality
       function initializeTabSwitching() {
-        // Installation method tabs
-        const installTabs = document.querySelectorAll(".install-tab-btn");
-        const installContents = document.querySelectorAll(".install-tab-content");
+        const tabs = document.querySelectorAll(".install-tab");
+        const panels = document.querySelectorAll(".install-panel");
 
-        installTabs.forEach((tab) => {
+        tabs.forEach((tab) => {
           tab.addEventListener("click", () => {
-            const method = tab.getAttribute("data-method");
+            const targetTab = tab.getAttribute("data-tab");
 
-            // Update active tab
-            installTabs.forEach((t) => {
-              t.classList.remove("active");
-              t.style.background = "transparent";
-              t.style.color = "var(--cyber-accent)";
-              t.style.borderColor = "var(--cyber-border)";
+            // Update aria-selected on all tabs
+            tabs.forEach((t) => {
+              t.setAttribute("aria-selected", t === tab ? "true" : "false");
             });
-            tab.classList.add("active");
-            tab.style.background = "var(--cyber-accent)";
-            tab.style.color = "var(--cyber-bg)";
-            tab.style.borderColor = "var(--cyber-accent)";
 
-            // Show corresponding content
-            installContents.forEach((content) => {
-              if (content.getAttribute("data-content") === method) {
-                content.style.display = "block";
+            // Toggle panels via the hidden attribute (CSS handles display)
+            panels.forEach((panel) => {
+              if (panel.getAttribute("data-panel") === targetTab) {
+                panel.removeAttribute("hidden");
               } else {
-                content.style.display = "none";
-              }
-            });
-          });
-        });
-
-        // Command tabs (curl/wget)
-        const cmdTabs = document.querySelectorAll(".cmd-tab-btn");
-        const cmdContents = document.querySelectorAll(".code-container[data-cmd-content]");
-
-        cmdTabs.forEach((tab) => {
-          tab.addEventListener("click", () => {
-            const cmd = tab.getAttribute("data-cmd");
-
-            // Update active tab
-            cmdTabs.forEach((t) => {
-              t.classList.remove("active");
-              t.style.background = "transparent";
-              t.style.color = "var(--cyber-text-secondary)";
-            });
-            tab.classList.add("active");
-            tab.style.background = "var(--cyber-surface-variant)";
-            tab.style.color = "var(--cyber-accent)";
-
-            // Show corresponding content
-            cmdContents.forEach((content) => {
-              if (content.getAttribute("data-cmd-content") === cmd) {
-                content.style.display = "block";
-              } else {
-                content.style.display = "none";
+                panel.setAttribute("hidden", "");
               }
             });
           });
