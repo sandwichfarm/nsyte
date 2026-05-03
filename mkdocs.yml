@@ -7,6 +7,13 @@ use_directory_urls: true
 repo_url: https://github.com/sandwichfarm/nsyte
 repo_name: sandwichfarm/nsyte
 
+# Exclude meta files that should not be served:
+# - README.md is a stale docs-structure overview (conflicts with index.md auto-detection in MkDocs 1.5+)
+# - JSR_SETUP.md is contributor tooling notes, not user-facing docs
+exclude_docs: |
+  README.md
+  JSR_SETUP.md
+
 theme:
   name: material
   font: false
