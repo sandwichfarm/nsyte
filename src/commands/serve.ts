@@ -48,8 +48,9 @@ export function registerServeCommand() {
         });
       };
 
-      // Start server using Deno.serve
-      await Deno.serve({ port }, handler).finished;
+      // Bind to loopback — Deno.serve defaults to all interfaces, which would
+      // expose this dev server on the LAN.
+      await Deno.serve({ port, hostname: "127.0.0.1" }, handler).finished;
     }).error((error) => {
       handleError("Error serving directory", error, {
         showConsole: true,

@@ -78,7 +78,7 @@ nav:
       - download: usage/commands/download.md
       - get: usage/commands/get.md
       - init: usage/commands/init.md
-      - ls: usage/commands/ls.md
+      - list: usage/commands/ls.md
       - put: usage/commands/put.md
       - run: usage/commands/run.md
       - scan: usage/commands/scan.md
