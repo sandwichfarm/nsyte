@@ -227,13 +227,20 @@
         letter-spacing: -1px;
         line-height: 1.1;
         position: relative;
+        display: inline-block;
       }
 
       .hero-title::before {
-        content: "> ";
+        content: ">";
+        position: absolute;
+        right: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        margin-right: 0.35em;
         color: var(--cyber-accent);
         font-family: var(--cyber-font-mono);
         font-size: 0.8em;
+        font-weight: 600;
         animation: cursor-blink 1.5s infinite;
       }
 
