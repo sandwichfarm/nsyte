@@ -16,9 +16,8 @@ nsyte validate [options]
 
 ## Options
 
-- `--file <path>`: Path to configuration file to validate (default: `.nsite/config.json`)
-- `--schema`: Show the JSON schema location and exit
-- `--help`: Show help information
+- `-f, --file <path>`: Path to configuration file to validate (default: `.nsite/config.json`)
+- `-s, --schema`: Show the JSON schema location and exit (default: `false`)
 
 ## Examples
 
@@ -180,3 +179,5 @@ Many editors support JSON schema validation when the `$schema` property is prese
 - [`nsyte init`](init.md) - Initialize a new project with valid configuration
 - [`nsyte debug`](debug.md) - Debug nsite setup and configuration
 - [`nsyte deploy`](deploy.md) - Deploy files (validates config automatically)
+
+Inherits global options. See [global options](_global-options.md).
