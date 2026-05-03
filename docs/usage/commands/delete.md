@@ -189,3 +189,5 @@ nsyte delete
 - [`nsyte ls`](ls.md) - List published files before deleting
 - [`nsyte download`](download.md) - Download files for backup
 - [`nsyte debug`](debug.md) - Debug connectivity issues
+
+Inherits global options. See [global options](_global-options.md).

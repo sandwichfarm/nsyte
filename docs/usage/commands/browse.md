@@ -175,3 +175,5 @@ The browser shows which relays and blossom servers have each file:
 - [`nsyte deploy`](deploy.md) - Deploy files to the network
 - [`nsyte delete`](delete.md) - Remove files using command-line options
 - [`nsyte download`](download.md) - Download files from the network
+
+Inherits global options. See [global options](_global-options.md).

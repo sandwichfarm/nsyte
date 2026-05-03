@@ -161,9 +161,8 @@ Error: "publishServerList" must be a boolean
 
 ## Exit Codes
 
-- `0`: Configuration is valid
-- `1`: Configuration is invalid (validation errors found)
-- `2`: File not found or not readable
+- `0`: Configuration is valid (or `--schema` was passed)
+- `1`: Configuration is invalid, file not found, JSON parse error, or read error
 
 ## Editor Support
 

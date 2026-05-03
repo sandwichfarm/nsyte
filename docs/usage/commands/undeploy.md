@@ -107,3 +107,5 @@ Authentication options (in order of precedence):
 - [`nsyte deploy`](deploy.md) - Deploy files to create nsites
 - [`nsyte ls`](ls.md) - List published files
 - [`nsyte download`](download.md) - Download files for backup
+
+Inherits global options. See [global options](_global-options.md).

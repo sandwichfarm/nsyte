@@ -85,3 +85,5 @@ with a unique identifier like `blog`, `docs`, `portfolio`, etc.
 - [`nsyte deploy`](deploy.md) - Deploy files to create or update sites
 - [`nsyte ls`](ls.md) - List files in a specific site
 - [`nsyte download`](download.md) - Download files from a site
+
+Inherits global options. See [global options](_global-options.md).

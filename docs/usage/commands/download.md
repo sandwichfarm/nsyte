@@ -66,7 +66,8 @@ nsyte download -v -o ./backup
 
 1. **Discovers site**: Queries relays for site manifest (kind 15128 or 35128)
 2. **Fetches file list**: Retrieves all files from the manifest
-3. **Auto-discovers servers**: If not specified, uses servers from the site manifest.
+3. **Resolves servers**: Uses servers from `--servers` if provided, otherwise from the project's
+   `.nsite/config.json`
 4. **Downloads concurrently**: Downloads up to 3 files in parallel
 5. **Preserves structure**: Recreates directory structure in output folder
 6. **Skips existing**: By default, won't overwrite existing files unless `--overwrite` is used
