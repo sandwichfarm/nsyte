@@ -29,235 +29,6 @@ The script will automatically:
 - Install using the best available method
 - Fall back to downloading the latest binary if no package managers are found
 
-<!-- ## Package Managers
-
-### macOS
-
-**Homebrew Installation**
-
-Homebrew is the most popular package manager for macOS. If you have Homebrew installed, you can
-install nsyte directly from our formula:
-
-```bash
-brew install https://raw.githubusercontent.com/sandwichfarm/homebrew-tap/main/Formula/nsyte.rb
-```
-
-This command will:
-
-- Download the nsyte formula from our tap repository
-- Install all required dependencies automatically
-- Make nsyte available system-wide
-- Allow easy updates with `brew upgrade`
-
-To verify the installation:
-
-```bash
-nsyte --version
-```
-
-To update nsyte later:
-
-```bash
-brew upgrade nsyte
-```
-
-**Note**: This installation method requires GitHub authentication the first time. If you prefer to
-avoid this, use the universal install script above.
-
-### Windows
-
-**Scoop Installation (Recommended)**
-
-Scoop is a command-line installer for Windows that makes it easy to install and manage developer
-tools. It's the recommended way to install nsyte on Windows.
-
-First, add the sandwichfarm bucket to access nsyte:
-
-```bash
-scoop bucket add sandwichfarm https://github.com/sandwichfarm/scoop-bucket.git
-```
-
-Then install nsyte:
-
-```bash
-scoop install nsyte
-```
-
-Benefits of using Scoop:
-
-- No admin privileges required
-- Clean installation and uninstallation
-- Easy updates with `scoop update nsyte`
-- Automatic PATH management
-- No UAC popups or GUI installers
-
-To verify the installation:
-
-```bash
-nsyte --version
-```
-
-To update nsyte later:
-
-```bash
-scoop update nsyte
-```
-
-**Chocolatey Installation**
-
-Chocolatey is another popular package manager for Windows. If you prefer Chocolatey or already have
-it installed:
-
-```bash
-choco install nsyte
-```
-
-**Note**: Chocolatey installation requires administrator privileges. Run this command in an elevated
-PowerShell or Command Prompt.
-
-To verify the installation:
-
-```bash
-nsyte --version
-```
-
-To update nsyte later:
-
-```bash
-choco upgrade nsyte
-```
-
-### Linux
-
-**Arch Linux (AUR)**
-
-For Arch Linux and Arch-based distributions (Manjaro, EndeavourOS, etc.), nsyte is available in the
-Arch User Repository (AUR).
-
-Using yay (or any AUR helper):
-
-```bash
-yay -S nsyte
-```
-
-Or manually from AUR:
-
-```bash
-git clone https://aur.archlinux.org/nsyte.git
-cd nsyte
-makepkg -si
-```
-
-The AUR package:
-
-- Automatically handles dependencies
-- Integrates with pacman for easy management
-- Provides systemd service files if needed
-- Follows Arch packaging standards
-
-To update nsyte later:
-
-```bash
-yay -Syu nsyte
-```
-
-**Debian/Ubuntu (.deb Package)**
-
-For Debian, Ubuntu, and derivatives (Linux Mint, Pop!_OS, etc.), we provide pre-built .deb packages.
-
-Download and install the latest release:
-
-```bash
-curl -fsSL https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte_0.7.0_amd64.deb -o nsyte.deb
-sudo dpkg -i nsyte.deb
-```
-
-If you encounter dependency issues:
-
-```bash
-sudo apt-get install -f
-```
-
-The .deb package:
-
-- Installs to `/usr/local/bin/nsyte`
-- Includes man pages and documentation
-- Registers with dpkg for clean uninstallation
-- Compatible with apt for dependency resolution
-
-To uninstall:
-
-```bash
-sudo dpkg -r nsyte
-```
-
-**Flatpak (Universal Linux Package)**
-
-Flatpak provides a universal packaging format that works across all Linux distributions. It's ideal
-if you want sandboxed applications or automatic updates.
-
-Install from Flathub:
-
-```bash
-flatpak install flathub org.github.sandwichfarm.nsyte
-```
-
-Run nsyte via Flatpak:
-
-```bash
-flatpak run org.github.sandwichfarm.nsyte
-```
-
-Create an alias for convenience:
-
-```bash
-echo "alias nsyte='flatpak run org.github.sandwichfarm.nsyte'" >> ~/.bashrc
-source ~/.bashrc
-```
-
-Benefits of Flatpak:
-
-- Works on any Linux distribution
-- Automatic updates through Flatpak
-- Sandboxed for additional security
-- No dependency conflicts
-- Easy rollback to previous versions
-
-To update:
-
-```bash
-flatpak update org.github.sandwichfarm.nsyte
-```
-
-**Snap Package**
-
-Snap is another universal package format, particularly popular on Ubuntu and its derivatives.
-
-Install from the Snap Store:
-
-```bash
-sudo snap install nsyte
-```
-
-The Snap package:
-
-- Auto-updates in the background
-- Confined by default for security
-- Works across many Linux distributions
-- Includes all dependencies
-
-To manually update:
-
-```bash
-sudo snap refresh nsyte
-```
-
-To view available versions:
-
-```bash
-snap info nsyte
-``` -->
-
 ## Universal Installation
 
 ### Using Deno
@@ -268,12 +39,6 @@ This method works on any platform where Deno is installed.
 **Prerequisites**: [Deno](https://deno.land/) version 2.0 or later
 
 **Install from JSR (recommended):**
-
-```bash
-deno install -A -f -g -n nsyte jsr:@nsyte/cli
-```
-
-**Install from GitHub source:**
 
 ```bash
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
@@ -297,22 +62,21 @@ Benefits of Deno installation:
 To update to the latest version:
 
 ```bash
-# From JSR
-deno install -A -f -g -n nsyte jsr:@nsyte/cli
-
-# From GitHub
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
+
+Re-running the install command always pulls the latest published JSR
+release.
 
 To install a specific version:
 
 ```bash
-# From JSR
-deno install -A -f -g -n nsyte jsr:@nsyte/cli@0.10.1
-
-# From GitHub
-deno install -A -f -g -n nsyte https://raw.githubusercontent.com/sandwichfarm/nsyte/v0.7.0/src/cli.ts
+# From JSR — replace the version with the desired tag
+deno install -A -f -g -n nsyte jsr:@nsyte/cli@0.26.0
 ```
+
+See [JSR releases](https://jsr.io/@nsyte/cli/versions) for the list of
+published versions.
 
 ### Pre-built Binaries
 
@@ -539,10 +303,9 @@ nsyte init
 
 If you encounter issues:
 
-1. Check the [troubleshooting guide](./guides/troubleshooting.md)
+1. Check the [security troubleshooting guide](./guides/security-troubleshooting.md)
 2. Search [existing issues](https://github.com/sandwichfarm/nsyte/issues)
-3. Join our [community chat](https://njump.me/npub1...)
-4. Open a [new issue](https://github.com/sandwichfarm/nsyte/issues/new) with:
+3. Open a [new issue](https://github.com/sandwichfarm/nsyte/issues/new) with:
    - Your operating system and version
    - Installation method used
    - Complete error messages
