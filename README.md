@@ -82,17 +82,22 @@ deno task compile:all
 | -------------------------- | ------------------------------------------------------------------ |
 | `nsyte`                    | Show help                                                          |
 | `nsyte init`               | Initialize configuration                                           |
+| `nsyte config`             | Interactive configuration editor                                   |
 | `nsyte deploy <dir>`       | Deploy a directory                                                 |
+| `nsyte announce`           | Publish app handler events                                         |
 | `nsyte list [path]`        | Show the current manifest and file tree                            |
+| `nsyte sites`              | List all published sites for a pubkey                              |
 | `nsyte status [path]`      | Show manifest history, relay coverage, and Blossom server coverage |
 | `nsyte get <remote-path>`  | Download one file from a site                                      |
 | `nsyte put <local> <path>` | Upload one file and update an existing manifest                    |
 | `nsyte browse`             | Interactive TUI browser for files                                  |
 | `nsyte download <dir>`     | Download a site to a directory                                     |
+| `nsyte snapshot`           | Create an immutable snapshot event for the current root or named site |
 | `nsyte run`                | Run resolver server for nsites                                     |
 | `nsyte serve`              | Serve local nsite files from the current directory                 |
 | `nsyte debug <npub>`       | Debug an nsite by checking relays and servers                      |
 | `nsyte validate`           | Validate configuration file                                        |
+| `nsyte scan`               | Scan a directory for secrets before deploying                      |
 | `nsyte delete`             | Selectively remove published files                                 |
 | `nsyte undeploy`           | Completely remove a deployed site                                  |
 | `nsyte ci`                 | Generate CI/CD credentials (nbunksec)                              |
@@ -524,7 +529,7 @@ nsyte bunker remove <pubkey>
 nsyte bunker migrate
 ```
 
-### Upload Command Options
+### Deploy Command Options
 
 ```
 --force            Force re-upload all files, bypassing server preflight checks
