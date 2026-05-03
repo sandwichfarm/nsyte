@@ -70,8 +70,11 @@ nsyte deploy .
 ### Verify Deployment
 
 ```bash
-nsyte ls
+nsyte list
 ```
+
+The canonical command is `list`; `ls` is also accepted as an alias (see the
+[list command reference](../usage/commands/ls.md)).
 
 ## Local Development Workflow
 
@@ -137,19 +140,25 @@ nsyte deploy . --verbose
 
 ### Multiple Environments
 
-Create different configurations for different environments:
+Use the global `-c, --config <path>` flag (inherited by every subcommand) to
+target a different config file per environment. The flag accepts an absolute
+path or one relative to the current working directory; the default is
+`.nsite/config.json`.
 
 ```bash
 # Development
-nsyte init --config .nsyte-dev.json
+nsyte --config .nsyte-dev.json init
 
-# Production  
-nsyte init --config .nsyte-prod.json
+# Production
+nsyte --config .nsyte-prod.json init
+
+# The flag works on every subcommand:
+nsyte --config .nsyte-prod.json deploy ./dist
 ```
 
 ### Ignore Files
 
-Create `.nsite-ignore` to exclude development files:
+Create `.nsyte-ignore` to exclude development files:
 
 ```
 node_modules/
@@ -158,6 +167,10 @@ node_modules/
 .env
 .nsyte-dev.json
 ```
+
+The legacy filename `.nsite-ignore` is also recognized by the file scanner for
+backwards compatibility, but `.nsyte-ignore` is the canonical name (matching
+the README and configuration reference).
 
 ## Troubleshooting
 
