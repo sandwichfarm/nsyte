@@ -250,147 +250,163 @@
         letter-spacing: 1px;
       }
 
-      /* Installation Section */
-      .installation {
-        padding: 2rem 0;
-        background: var(--cyber-surface);
-        position: relative;
-        border-top: 1px solid var(--cyber-border);
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 2rem;
-      }
-
-      .section-title {
-        font-size: clamp(1.75rem, 4.5vw, 2.5rem);
-        font-weight: 600;
-        text-align: center;
-        margin-bottom: 3rem;
-        color: var(--cyber-accent);
-        font-family: var(--cyber-font-sans);
-      }
-
-      .install-container {
+      /* Compact Install Component */
+      .install-component {
         background: var(--cyber-surface);
         border: 1px solid var(--cyber-border);
-        border-radius: 12px;
-        margin: 3rem auto;
-        overflow: hidden;
+        border-radius: 8px;
+        padding: 1.5rem;
+        max-width: 640px;
+        width: 100%;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         position: relative;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        max-width: 800px;
-        padding: 2rem;
       }
 
-      .install-container::before {
+      .install-component::before {
         content: "";
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         height: 1px;
-        background: linear-gradient(
-          90deg,
-          var(--cyber-accent),
-          var(--cyber-purple),
-          var(--cyber-blue),
-          var(--cyber-accent)
-        );
-      }
-
-      .install-method {
-        margin-bottom: 2rem;
-      }
-
-      .install-method:last-child {
-        margin-bottom: 0;
-      }
-
-      .install-method h4 {
-        margin: 0 0 1rem 0;
-        color: var(--cyber-accent);
-        font-size: 1.1rem;
-        font-family: var(--cyber-font-mono);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .recommended-badge {
-        background: var(--cyber-warning);
-        color: var(--cyber-bg);
-        font-size: 0.75rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-weight: 500;
-      }
-
-      .code-container {
-        position: relative;
-        background: var(--cyber-bg);
-        border: 1px solid var(--cyber-border);
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 10px 25px rgba(0, 255, 65, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-
-      .code-block {
-        padding: 1.5rem;
-        font-family: var(--cyber-font-mono);
-        font-size: 14px;
-        line-height: 1.6;
-        color: var(--cyber-accent-bright);
-        overflow-x: auto;
-        margin: 1rem 0;
-        background: var(--cyber-bg);
-        position: relative;
-      }
-
-      .code-block::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, var(--cyber-accent), var(--cyber-purple));
+        background: var(--cyber-accent);
         border-radius: 8px 8px 0 0;
       }
 
+      .install-tabs {
+        display: flex;
+        gap: 1.5rem;
+        border-bottom: 1px solid var(--cyber-border);
+        margin-bottom: 1rem;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .install-tab {
+        padding: 0.5rem 0;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-family: var(--cyber-font-mono);
+        font-size: 15px;
+        font-weight: 400;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        color: var(--cyber-text-secondary);
+        transition: color 0.2s ease, border-color 0.2s ease;
+        margin-bottom: -1px;
+      }
+
+      .install-tab:hover {
+        color: var(--cyber-accent);
+        border-bottom-color: var(--cyber-accent-dim);
+      }
+
+      .install-tab[aria-selected="true"] {
+        color: var(--cyber-accent);
+        border-bottom-color: var(--cyber-accent);
+      }
+
+      .install-tab:focus-visible {
+        outline: 2px solid var(--cyber-accent);
+        outline-offset: 4px;
+      }
+
+      .install-panel {
+        min-height: 120px;
+      }
+
+      .install-panel[hidden] {
+        display: none;
+      }
+
+      .install-code {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+        background: var(--cyber-bg);
+        border: 1px solid var(--cyber-border);
+        border-radius: 6px;
+        padding: 1rem;
+        box-shadow: 0 8px 24px rgba(52, 211, 153, 0.1);
+      }
+
+      .install-code code {
+        flex: 1 1 auto;
+        overflow-x: auto;
+        white-space: pre;
+        word-break: normal;
+        font-family: var(--cyber-font-mono);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--cyber-accent-bright);
+      }
+
       .copy-btn {
-        position: absolute;
-        top: 12px;
-        right: 12px;
+        flex: 0 0 auto;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
         background: var(--cyber-surface);
         color: var(--cyber-accent);
         border: 1px solid var(--cyber-border);
-        border-radius: 6px;
-        padding: 6px 12px;
-        cursor: pointer;
-        font-size: 12px;
         font-family: var(--cyber-font-mono);
+        font-size: 12px;
+        font-weight: 400;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        opacity: 0.8;
-        transition: all 0.3s ease;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 64px;
       }
 
       .copy-btn:hover {
-        opacity: 1;
         background: var(--cyber-accent);
         color: var(--cyber-bg);
-        transform: translateY(-1px);
+        border-color: var(--cyber-accent);
       }
 
       .copy-btn.copied {
-        background: var(--cyber-blue);
-        border-color: var(--cyber-blue);
+        background: var(--cyber-accent-dim);
+        color: var(--cyber-bg);
+        border-color: var(--cyber-accent-dim);
+        cursor: default;
+      }
+
+      .copy-btn:focus-visible {
+        outline: 2px solid var(--cyber-accent);
+        outline-offset: 2px;
+      }
+
+      .install-manual-blurb {
+        padding: 1rem 0;
+        color: var(--cyber-text-secondary);
+        font-family: var(--cyber-font-sans);
+        font-size: 15px;
+        font-weight: 400;
+        line-height: 1.5;
+      }
+
+      .more-install-link {
+        display: inline-block;
+        margin-top: 1rem;
+        color: var(--cyber-accent);
+        font-family: var(--cyber-font-sans);
+        font-size: 15px;
+        font-weight: 400;
+        line-height: 1.5;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transition: color 0.2s ease;
+      }
+
+      .more-install-link:hover {
+        color: var(--cyber-accent-bright);
+      }
+
+      .more-install-link:focus-visible {
+        outline: 2px solid var(--cyber-accent);
+        outline-offset: 2px;
       }
 
       /* Responsive Design */
@@ -405,8 +421,8 @@
           text-align: center;
         }
 
-        .code-block {
-          font-size: 0.875rem;
+        .install-component {
+          max-width: 100%;
         }
       }
 
@@ -414,6 +430,10 @@
         .top-nav {
           justify-content: center;
           gap: 0.5rem 1rem;
+        }
+
+        .install-code code {
+          font-size: 12px;
         }
       }
 
