@@ -581,6 +581,11 @@
                 behavior: "smooth",
                 block: "start",
               });
+              // Update the URL hash so the in-page anchor is reflected in
+              // history/window.location (must_haves contract for #install).
+              if (window.location.hash !== "#" + targetId) {
+                history.pushState(null, "", "#" + targetId);
+              }
             }
           });
         });
