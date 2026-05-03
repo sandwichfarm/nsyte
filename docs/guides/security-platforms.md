@@ -73,7 +73,7 @@ retrieval - User account access
 
 ### Encrypted Storage (Tier 2)
 
-**Location**: `%APPDATA%\nsyte\secrets.enc`\
+**Location**: `%APPDATA%\nsite\secrets.enc`\
 **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
 **Key Derivation Input**:
@@ -85,8 +85,14 @@ retrieval - User account access
 
 ### Legacy Fallback (Tier 3)
 
-**Location**: `%APPDATA%\nsyte\secrets.json`\
+**Location**: `%APPDATA%\nsite\secrets.json`\
 **Security**: Plain text with warnings
+
+!!! note "Why `nsite` and not `nsyte` on Windows?"
+    The Windows config directory is named `nsite` (and the Linux one is
+    `~/.config/nsite/`) for historical compatibility with the project's
+    pre-rename storage layout. The macOS path uses `nsyte`. See
+    `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
 
 ---
 
@@ -122,7 +128,7 @@ sudo pacman -S libsecret
 
 ### Encrypted Storage (Tier 2)
 
-**Location**: `~/.config/nsyte/secrets.enc` (or `$XDG_CONFIG_HOME/nsyte/secrets.enc`)\
+**Location**: `~/.config/nsite/secrets.enc` (or `$XDG_CONFIG_HOME/nsite/secrets.enc`)\
 **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
 **Key Derivation Input**:
@@ -134,8 +140,14 @@ sudo pacman -S libsecret
 
 ### Legacy Fallback (Tier 3)
 
-**Location**: `~/.config/nsyte/secrets.json`\
+**Location**: `~/.config/nsite/secrets.json`\
 **Security**: Plain text with warnings
+
+!!! note "Why `nsite` and not `nsyte` on Linux?"
+    The Linux config directory is named `nsite` (and the Windows one is
+    `%APPDATA%\nsite\`) for historical compatibility with the project's
+    pre-rename storage layout. The macOS path uses `nsyte`. See
+    `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
 
 ---
 
