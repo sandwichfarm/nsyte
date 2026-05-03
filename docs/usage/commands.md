@@ -138,7 +138,7 @@ nsyte delete --include-blobs
 nsyte ci
 
 # Use in CI pipeline
-nsyte deploy ./dist --sec $NSYTE_NBUNKSEC
+nsyte deploy ./dist --sec $NBUNK_SECRET
 ```
 
 ## See Also

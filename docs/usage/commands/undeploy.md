@@ -39,7 +39,7 @@ nsyte undeploy -d blog
 Undeploy in CI (skip type-to-confirm):
 
 ```bash
-nsyte undeploy --yes --sec $NSYTE_NBUNKSEC
+nsyte undeploy --yes --sec $NBUNK_SECRET
 ```
 
 Undeploy with custom relays and servers:

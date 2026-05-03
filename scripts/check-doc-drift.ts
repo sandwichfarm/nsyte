@@ -386,10 +386,20 @@ function parseArgs(argv: string[]): CliArgs {
     docsTree: "docs",
     help: false,
   };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
+  // Normalize `--key=value` into `--key value` so both CLI styles work
+  const tokens: string[] = [];
+  for (const a of argv) {
+    if (a.startsWith("--") && a.includes("=")) {
+      const eq = a.indexOf("=");
+      tokens.push(a.slice(0, eq), a.slice(eq + 1));
+    } else {
+      tokens.push(a);
+    }
+  }
+  for (let i = 0; i < tokens.length; i++) {
+    const a = tokens[i];
     const eat = () => {
-      const v = argv[++i];
+      const v = tokens[++i];
       if (v === undefined) throw new Error(`Missing value for ${a}`);
       return v;
     };
