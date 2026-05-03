@@ -36,9 +36,15 @@ nsyte uses a multi-tier security approach for storing sensitive bunker connectio
 
 **Config Directories**:
 
-- Linux: `~/.config/nsyte`
+- Linux: `~/.config/nsite` (or `$XDG_CONFIG_HOME/nsite`)
 - macOS: `~/Library/Application Support/nsyte`
-- Windows: `%APPDATA%\nsyte`
+- Windows: `%APPDATA%\nsite`
+
+!!! note "Linux/Windows directory name"
+    The Linux and Windows config directories are named `nsite`, not `nsyte`,
+    for historical compatibility with the pre-rename storage layout. macOS
+    uses `nsyte`. See [Platform-Specific Security](./security-platforms.md)
+    for details.
 
 ### Automatic Migration
 
