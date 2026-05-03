@@ -498,150 +498,32 @@
           <p class="hero-tagline">Unstoppable publishing for the sovereign web</p>
         </div>
 
-        <!-- Install component (rebuilt in plan 11-02) -->
-      </div>
-    </section>
+        <div class="install-component" id="install">
+          <div class="install-tabs" role="tablist" aria-label="Install methods">
+            <button class="install-tab" role="tab" data-tab="script" aria-selected="true" aria-controls="install-panel-script" id="install-tab-script">script (recommended)</button>
+            <button class="install-tab" role="tab" data-tab="packages" aria-selected="false" aria-controls="install-panel-packages" id="install-tab-packages">packages</button>
+            <button class="install-tab" role="tab" data-tab="manual" aria-selected="false" aria-controls="install-panel-manual" id="install-tab-manual">manual</button>
+          </div>
 
-    <!-- Installation Section -->
-    <section class="installation" id="installation">
-      <div class="container">
-        <h2 class="section-title">Quick Installation</h2>
-
-        <div class="install-container">
-          <div class="install-method">
-            <h4>Universal Install Script <span class="recommended-badge">All Platforms</span></h4>
-            <p
-              style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem; text-align: center"
-            >
-              Automatically detects your system and installs using the best available method
-            </p>
-
-            <!-- Installation method buttons -->
-            <div
-              class="install-tabs"
-              style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; justify-content: center; flex-wrap: wrap"
-            >
-              <button
-                class="install-tab-btn active"
-                data-method="script"
-                style="padding: 0.5rem 1.5rem; background: var(--cyber-accent); color: var(--cyber-bg); border: 1px solid var(--cyber-accent); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease"
-              >
-                Script
-              </button>
-              <button
-                class="install-tab-btn"
-                data-method="packages"
-                style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease"
-              >
-                Packages
-              </button>
-              <button
-                class="install-tab-btn"
-                data-method="manual"
-                style="padding: 0.5rem 1.5rem; background: transparent; color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.9rem; transition: all 0.3s ease"
-              >
-                Manual
-              </button>
-            </div>
-
-            <!-- Script tab content -->
-            <div class="install-tab-content" data-content="script">
-              <!-- Command tabs -->
-              <div class="command-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
-                <button
-                  class="cmd-tab-btn active"
-                  data-cmd="curl"
-                  style="padding: 0.5rem 1rem; background: var(--cyber-surface-variant); color: var(--cyber-accent); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease"
-                >
-                  curl
-                </button>
-                <button
-                  class="cmd-tab-btn"
-                  data-cmd="wget"
-                  style="padding: 0.5rem 1rem; background: transparent; color: var(--cyber-text-secondary); border: 1px solid var(--cyber-border); border-radius: 6px 6px 0 0; cursor: pointer; font-family: var(--cyber-font-mono); font-size: 0.85rem; transition: all 0.3s ease"
-                >
-                  wget
-                </button>
-              </div>
-
-              <div class="code-container" data-cmd-content="curl">
-                <div class="code-block">curl -fsSL https://nsyte.run/get/install.sh | bash</div>
-                <button
-                  class="copy-btn"
-                  data-copy="curl -fsSL https://nsyte.run/get/install.sh | bash"
-                >
-                  Copy
-                </button>
-              </div>
-
-              <div class="code-container" data-cmd-content="wget" style="display: none">
-                <div class="code-block">wget -qO- https://nsyte.run/get/install.sh | bash</div>
-                <button
-                  class="copy-btn"
-                  data-copy="wget -qO- https://nsyte.run/get/install.sh | bash"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <!-- Packages tab content -->
-            <div class="install-tab-content" data-content="packages" style="display: none">
-              <div style="display: grid; gap: 1rem">
-                <div class="code-container">
-                  <div class="code-block">
-                    <div
-                      style="color: var(--cyber-accent); margin-bottom: 0.5rem; font-weight: 600"
-                    >
-                      Deno (Recommended)
-                    </div>
-                    <div>deno install -A -f -g -n nsyte jsr:@nsyte/cli</div>
-                  </div>
-                  <button
-                    class="copy-btn"
-                    data-copy="deno install -A -f -g -n nsyte jsr:@nsyte/cli"
-                  >
-                    Copy
-                  </button>
-                </div>
-                <div
-                  style="margin-top: 1rem; padding: 1rem; background: var(--cyber-surface); border: 1px solid var(--cyber-border); border-radius: 8px"
-                >
-                  <div style="color: var(--cyber-text-secondary); margin-bottom: 0.5rem">
-                    <strong style="color: var(--cyber-accent)">Coming Soon:</strong> Package manager
-                    support
-                  </div>
-                  <div style="font-size: 0.9rem; color: var(--cyber-text-muted); line-height: 1.6">
-                    We're working on making nsyte available through popular package managers like
-                    Homebrew, Snap, and others. For now, please use the Deno install method above or
-                    download pre-built binaries from the releases page.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Manual tab content -->
-            <div class="install-tab-content" data-content="manual" style="display: none">
-              <div style="text-align: center; padding: 2rem">
-                <p style="color: var(--cyber-text-secondary); margin-bottom: 1.5rem">
-                  For detailed installation instructions including building from source, Docker, and
-                  platform-specific guides:
-                </p>
-                <a href="/docs/installation/" class="btn btn-primary" style="display: inline-block">
-                  <span>📖</span>
-                  View Complete Installation Guide
-                </a>
-              </div>
+          <div class="install-panel" role="tabpanel" data-panel="script" id="install-panel-script" aria-labelledby="install-tab-script">
+            <div class="install-code">
+              <code>curl -fsSL https://nsyte.run/get/install.sh | bash</code>
+              <button class="copy-btn" data-copy="curl -fsSL https://nsyte.run/get/install.sh | bash" aria-label="Copy install command">Copy</button>
             </div>
           </div>
-        </div>
 
-        <div style="text-align: center; margin-top: 2rem">
-          <p style="color: var(--cyber-text-secondary); font-size: 1.1rem">
-            After installation, run <code
-              style="background: var(--cyber-surface-variant); color: var(--cyber-accent); padding: 0.25rem 0.5rem; border-radius: 4px; font-family: var(--cyber-font-mono); border: 1px solid var(--cyber-border)"
-            >nsyte init</code> from a <strong>project root</strong> to get started
-          </p>
+          <div class="install-panel" role="tabpanel" data-panel="packages" id="install-panel-packages" aria-labelledby="install-tab-packages" hidden>
+            <div class="install-code">
+              <code>deno install -A -f -g -n nsyte jsr:@nsyte/cli</code>
+              <button class="copy-btn" data-copy="deno install -A -f -g -n nsyte jsr:@nsyte/cli" aria-label="Copy install command">Copy</button>
+            </div>
+          </div>
+
+          <div class="install-panel" role="tabpanel" data-panel="manual" id="install-panel-manual" aria-labelledby="install-tab-manual" hidden>
+            <p class="install-manual-blurb">For Docker, source builds, and platform-specific guides, see the docs.</p>
+          </div>
+
+          <a class="more-install-link" href="/docs/installation/">More install options &#8594;</a>
         </div>
       </div>
     </section>
