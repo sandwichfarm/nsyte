@@ -9,8 +9,9 @@ nsyte can be installed in several ways depending on your platform and preference
 
 ## Quick Install (Recommended)
 
-The easiest way to install nsyte is using our universal install script that automatically detects
-your system and uses the best available method:
+The easiest way to install nsyte is using the install script. It downloads the
+appropriate pre-compiled binary from the GitHub releases page for your platform
+and architecture.
 
 ```bash
 curl -fsSL https://nsyte.run/get/install.sh | bash
@@ -22,12 +23,16 @@ Or with wget:
 wget -qO- https://nsyte.run/get/install.sh | bash
 ```
 
-The script will automatically:
+The script will:
 
-- Detect your operating system (macOS, Linux, Windows)
-- Check for available package managers (Homebrew, Scoop, Chocolatey, AUR, Deno)
-- Install using the best available method
-- Fall back to downloading the latest binary if no package managers are found
+- Detect your operating system (macOS, Linux, Windows) and CPU architecture
+- Download the matching pre-compiled binary from the latest GitHub release
+- Place the binary in a directory on your PATH (`/usr/local/bin` on Linux/macOS by default)
+- Verify the binary runs
+
+The script does not use Homebrew, apt, dnf, pacman, AUR helpers, Scoop, or
+Chocolatey. There are no nsyte packages published to those registries today; the
+binary download is the only path the script takes.
 
 ## Universal Installation
 
@@ -96,13 +101,13 @@ Available platforms:
 1. Download the appropriate binary for your system:
 
 ```bash
-# For Linux (example)
+# For Linux (x86_64)
 curl -L -o nsyte https://github.com/sandwichfarm/nsyte/releases/latest/download/nsyte-linux
 
-# For macOS Intel
-curl -L -o nsyte https://github.com/sandwichfarm/nsyte/releases/latest/download/nsyte-macos
+# For macOS Intel (x86_64)
+curl -L -o nsyte https://github.com/sandwichfarm/nsyte/releases/latest/download/nsyte-macos-x64
 
-# For macOS Apple Silicon
+# For macOS Apple Silicon (arm64)
 curl -L -o nsyte https://github.com/sandwichfarm/nsyte/releases/latest/download/nsyte-macos-arm64
 ```
 
@@ -295,9 +300,8 @@ nsyte init
 
 **Missing dependencies**
 
-- Deno installation requires network access to download modules
-- Package manager installations handle dependencies automatically
-- Binary installations have no external dependencies
+- Deno installation requires network access to download the JSR package
+- Pre-compiled binary installations have no external dependencies
 
 ### Getting Help
 
