@@ -40,9 +40,11 @@ nsyte uses a multi-tier security approach for storing sensitive bunker connectio
 - macOS: `~/Library/Application Support/nsyte`
 - Windows: `%APPDATA%\nsite`
 
-::: info Linux/Windows directory name The Linux and Windows config directories are named `nsite`,
-not `nsyte`, for historical compatibility with the pre-rename storage layout. macOS uses `nsyte`.
-See [Platform-Specific Security](./security-platforms.md) for details. :::
+::: info Linux/Windows directory name
+The Linux and Windows config directories are named `nsite`, not `nsyte`, for historical
+compatibility with the pre-rename storage layout. macOS uses `nsyte`. See
+[Platform-Specific Security](./security-platforms.md) for details.
+:::
 
 ### Automatic Migration
 

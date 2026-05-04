@@ -46,7 +46,8 @@ ls %APPDATA%\nsite\secrets.json      # Windows
 
 - Error: "A keychain cannot be found to store..."
 - Dialog prompts cancelled
-- Falls back to encrypted storage :::
+- Falls back to encrypted storage
+:::
 
 **Causes**:
 
@@ -69,8 +70,9 @@ security create-keychain ~/Library/Keychains/login.keychain-db
 # Add Terminal or your app
 ```
 
-::: tip Workaround nsyte will automatically fall back to encrypted file storage if keychain access
-fails. :::
+::: tip Workaround
+nsyte will automatically fall back to encrypted file storage if keychain access fails.
+:::
 
 ### 2. "secret-tool: command not found" on Linux
 
@@ -78,7 +80,8 @@ fails. :::
 
 - Error about missing secret-tool
 - Falls back to encrypted storage
-- No native keychain integration :::
+- No native keychain integration
+:::
 
 **Solutions**:
 
@@ -97,8 +100,10 @@ sudo pacman -S libsecret
 which secret-tool
 ```
 
-::: info Alternative If you don't want to install secret-tool, nsyte will use encrypted file storage
-which is still secure. :::
+::: info Alternative
+If you don't want to install secret-tool, nsyte will use encrypted file storage which is still
+secure.
+:::
 
 ### 3. "cmdkey: Access Denied" on Windows
 
@@ -106,7 +111,8 @@ which is still secure. :::
 
 - Error when storing credentials
 - Access denied messages
-- Falls back to encrypted storage :::
+- Falls back to encrypted storage
+:::
 
 **Solutions**:
 
@@ -128,7 +134,8 @@ cmdkey /delete:nsyte:<pubkey>
 
 - Error: "Failed to initialize encrypted storage"
 - Falls back to plain JSON storage
-- Security warnings shown :::
+- Security warnings shown
+:::
 
 **Causes**:
 
@@ -163,7 +170,8 @@ nsyte bunker list  # Will recreate directory
 
 - Legacy secrets not migrated
 - Duplicated entries
-- Missing bunkers after update :::
+- Missing bunkers after update
+:::
 
 **Diagnosis**:
 
@@ -201,7 +209,8 @@ rm ~/.config/nsite/secrets.json
 
 - nbunksec not working in CI/CD
 - Authentication failures
-- Missing environment variables :::
+- Missing environment variables
+:::
 
 **Solutions**:
 
@@ -231,7 +240,8 @@ nsyte deploy ./dist --sec $NBUNK_SECRET
 
 - Permission denied accessing keychain
 - Can't write to config directory
-- Access denied errors :::
+- Access denied errors
+:::
 
 **Solutions**:
 
@@ -342,11 +352,13 @@ cmdkey /list | findstr nsyte
 
 ## Getting Help
 
-::: info Need More Help? If you're still experiencing issues:
+::: info Need More Help?
+If you're still experiencing issues:
 
 1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
 2. **Create Bug Report**: Include debug logs and system information
-3. **Security Issues**: Report privately to security@sandwichfarm.com :::
+3. **Security Issues**: Report privately to security@sandwichfarm.com
+:::
 
 ### Information to Include
 

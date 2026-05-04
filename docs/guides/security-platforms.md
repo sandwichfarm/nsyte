@@ -27,7 +27,8 @@ nsyte automatically selects the most secure storage method available on your pla
 ::: info Requirements
 
 - `security` command (included with macOS)
-- User keychain access (may prompt for password/Touch ID) :::
+- User keychain access (may prompt for password/Touch ID)
+:::
 
 **Security Benefits**:
 
@@ -67,7 +68,8 @@ nsyte automatically selects the most secure storage method available on your pla
 
 - `cmdkey` command (included with Windows)
 - PowerShell for credential retrieval
-- User account access :::
+- User account access
+:::
 
 **Security Benefits**:
 
@@ -93,10 +95,11 @@ nsyte automatically selects the most secure storage method available on your pla
 **Location**: `%APPDATA%\nsite\secrets.json`\
 **Security**: Plain text with warnings
 
-::: info Why `nsite` and not `nsyte` on Windows? The Windows config directory is named `nsite` (and
-the Linux one is `~/.config/nsite/`) for historical compatibility with the project's pre-rename
-storage layout. The macOS path uses `nsyte`. See `src/lib/secrets/utils.ts` for the source-of-truth
-path resolver. :::
+::: info Why `nsite` and not `nsyte` on Windows?
+The Windows config directory is named `nsite` (and the Linux one is `~/.config/nsite/`) for
+historical compatibility with the project's pre-rename storage layout. The macOS path uses `nsyte`.
+See `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+:::
 
 ---
 
@@ -112,7 +115,8 @@ path resolver. :::
 
 - `secret-tool` command installed
 - Secret service running (GNOME Keyring, KDE Wallet, etc.)
-- D-Bus session :::
+- D-Bus session
+:::
 
 **Installation**:
 
@@ -150,10 +154,11 @@ sudo pacman -S libsecret
 **Location**: `~/.config/nsite/secrets.json`\
 **Security**: Plain text with warnings
 
-::: info Why `nsite` and not `nsyte` on Linux? The Linux config directory is named `nsite` (and the
-Windows one is `%APPDATA%\nsite\`) for historical compatibility with the project's pre-rename
-storage layout. The macOS path uses `nsyte`. See `src/lib/secrets/utils.ts` for the source-of-truth
-path resolver. :::
+::: info Why `nsite` and not `nsyte` on Linux?
+The Linux config directory is named `nsite` (and the Windows one is `%APPDATA%\nsite\`) for
+historical compatibility with the project's pre-rename storage layout. The macOS path uses `nsyte`.
+See `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+:::
 
 ---
 
@@ -187,7 +192,8 @@ AES-256-GCM encryption with platform-specific key derivation.
 - Malware with keychain/credential manager access
 - Physical access with user credentials
 - Advanced persistent threats with system-level access
-- Side-channel attacks on encryption :::
+- Side-channel attacks on encryption
+:::
 
 ### Migration Security
 

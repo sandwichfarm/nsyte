@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { withBase } from "vitepress";
+
 const sections = [
   {
     title: "Installation",
@@ -42,7 +44,7 @@ const sections = [
         v-for="section in sections"
         :key="section.href"
         class="docs-landing-card"
-        :href="section.href"
+        :href="withBase(section.href)"
       >
         <span>{{ section.title }}</span>
         <p>{{ section.text }}</p>
