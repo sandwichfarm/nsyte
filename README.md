@@ -13,7 +13,7 @@
 
 [![nsyte.run](https://img.shields.io/badge/%3E-nsyte.run-purple)](https://nsyte.run])
 [![homepage](https://img.shields.io/badge/😂-nsite.lol-orange)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
-[![nostr](https://img.shields.io/badge/🦩-nostr-purple)](https://nsyte.run])
+[![nostr](https://img.shields.io/badge/🦩-nostr-purple)](https://nostr.com])
 
 </div>
 
