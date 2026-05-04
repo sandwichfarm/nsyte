@@ -14,42 +14,39 @@ in detail on its own page.
 
 - [`nsyte init`](commands/init.md) — Initialize a new nsyte project with configuration
 - [`nsyte config`](commands/config.md) — Interactive configuration editor
-- [`nsyte validate`](commands/validate.md) — Validate your nsyte configuration file
+- [`nsyte validate`](commands/validate.md) — Validate your nsyte configuration file (alias: `val`)
 
 ### File Operations
 
-- [`nsyte deploy`](commands/deploy.md) — Deploy files to nostr relays and blossom servers
+- [`nsyte deploy`](commands/deploy.md) — Deploy files to nostr relays and blossom servers (aliases: `upload`, `dpl`)
 - [`nsyte sites`](commands/sites.md) — List all published sites for a pubkey
-- [`nsyte ls`](commands/ls.md) — List published files
+- [`nsyte list`](commands/ls.md) — List published files (alias: `ls`)
 - [`nsyte browse`](commands/browse.md) — Interactive TUI browser for managing files
-- [`nsyte download`](commands/download.md) — Download published files
-- [`nsyte delete`](commands/delete.md) — Selectively remove published files
+- [`nsyte download`](commands/download.md) — Download all published files (alias: `dl`)
+- [`nsyte get`](commands/get.md) — Download a single file from a site manifest
+- [`nsyte put`](commands/put.md) — Upload a single file into an existing site manifest
+- [`nsyte delete`](commands/delete.md) — Selectively remove published files (aliases: `purge`, `prg`)
 - [`nsyte undeploy`](commands/undeploy.md) — Completely remove a deployed site
+- [`nsyte snapshot`](commands/snapshot.md) — Publish an immutable snapshot event for the current site
+- [`nsyte status`](commands/status.md) — Inspect manifest history, relay coverage, and server availability
 
 ### Development
 
-- [`nsyte serve`](commands/serve.md) — Serve files locally for development
-- [`nsyte run`](commands/run.md) — Run resolver server with npub subdomains
+- [`nsyte serve`](commands/serve.md) — Serve files locally for development (alias: `srv`)
+- [`nsyte run`](commands/run.md) — Run resolver server with npub subdomains (alias: `rn`)
 - [`nsyte debug`](commands/debug.md) — Debug nsites by checking relays and servers
-- [`nsyte announce`](commands/announce.md) — Publish app handler events
+- [`nsyte announce`](commands/announce.md) — Publish app handler announcements and metadata events (alias: `annc`)
+- [`nsyte scan`](commands/scan.md) — Scan files for secrets before deploying
 
 ### Authentication
 
 - [`nsyte bunker`](commands/bunker.md) — Manage NIP-46 bunker connections
 - [`nsyte ci`](commands/ci.md) — Generate CI/CD credentials (nbunksec)
 
-### Legacy
-
-- [`nsyte upload`](commands/upload.md) — **DEPRECATED**: Use `deploy` instead
-- [`nsyte purge`](commands/delete.md) — **DEPRECATED**: Use `delete` instead
-
 ## Global Options
 
-These options are available for all commands:
-
-- `--help` — Show help information
-- `--version` — Show version information
-- `-c, --config <path>` — Path to config file (default: `.nsite/config.json`)
+Every nsyte subcommand inherits a small set of global options (e.g. `--config`, `--created-at`).
+See [Global Options](commands/_global-options.md) for the complete list.
 
 ## Authentication Options
 
@@ -118,7 +115,7 @@ nsyte init
 nsyte deploy ./dist --publish-profile --publish-relay-list
 
 # Verify deployment
-nsyte ls
+nsyte list
 ```
 
 ### Managing Files
@@ -128,7 +125,7 @@ nsyte ls
 nsyte browse
 
 # List files in terminal
-nsyte ls
+nsyte list
 
 # Remove specific files
 nsyte delete --include-blobs
@@ -141,11 +138,11 @@ nsyte delete --include-blobs
 nsyte ci
 
 # Use in CI pipeline
-nsyte deploy ./dist --sec $NSYTE_NBUNKSEC
+nsyte deploy ./dist --sec $NBUNK_SECRET
 ```
 
 ## See Also
 
-- [Configuration Reference](../configuration.md)
+- [Configuration Reference](configuration.md)
 - [Security Guide](../guides/security.md)
 - [CI/CD Guide](../guides/ci-cd.md)

@@ -61,7 +61,6 @@ jobs:
       - name: Deploy
         if: github.ref == 'refs/heads/main'
         env:
-          FALLBACK: "/index.html"
           RELAYS: "wss://some.relay.xyz,wss://another.relay.abc"
           SERVERS: "https://a.blossom.server.com,https://another.blossom.server"
         run: |

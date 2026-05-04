@@ -186,7 +186,6 @@ Before deploying:
 
 - Check the [GitHub Issues](https://github.com/sandwichfarm/nsyte/issues)
 - Review the [Security Guide](./security.md)
-- Join the [Nostr channel](https://njump.me/npub1...)
 
 ## Next Steps
 

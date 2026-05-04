@@ -7,6 +7,13 @@ use_directory_urls: true
 repo_url: https://github.com/sandwichfarm/nsyte
 repo_name: sandwichfarm/nsyte
 
+# Exclude meta files that should not be served:
+# - README.md is a stale docs-structure overview (conflicts with index.md auto-detection in MkDocs 1.5+)
+# - JSR_SETUP.md is contributor tooling notes, not user-facing docs
+exclude_docs: |
+  README.md
+  JSR_SETUP.md
+
 theme:
   name: material
   font: false
@@ -59,19 +66,29 @@ nav:
   - Configuration: usage/configuration.md
   - Commands:
       - Overview: usage/commands.md
-      - init: usage/commands/init.md
-      - upload: usage/commands/upload.md
-      - download: usage/commands/download.md
-      - ls: usage/commands/ls.md
-      - serve: usage/commands/serve.md
-      - run: usage/commands/run.md
-      - validate: usage/commands/validate.md
-      - debug: usage/commands/debug.md
-      - deploy: usage/commands/deploy.md
-      - delete: usage/commands/delete.md
-      - undeploy: usage/commands/undeploy.md
-      - ci: usage/commands/ci.md
+      - Global Options: usage/commands/_global-options.md
+      - announce: usage/commands/announce.md
+      - browse: usage/commands/browse.md
       - bunker: usage/commands/bunker.md
+      - ci: usage/commands/ci.md
+      - config: usage/commands/config.md
+      - debug: usage/commands/debug.md
+      - delete: usage/commands/delete.md
+      - deploy: usage/commands/deploy.md
+      - download: usage/commands/download.md
+      - get: usage/commands/get.md
+      - init: usage/commands/init.md
+      - list: usage/commands/ls.md
+      - put: usage/commands/put.md
+      - run: usage/commands/run.md
+      - scan: usage/commands/scan.md
+      - serve: usage/commands/serve.md
+      - sites: usage/commands/sites.md
+      - snapshot: usage/commands/snapshot.md
+      - status: usage/commands/status.md
+      - undeploy: usage/commands/undeploy.md
+      - upload: usage/commands/upload.md
+      - validate: usage/commands/validate.md
   - Guides:
       - Deployment: guides/deployment.md
       - Security:

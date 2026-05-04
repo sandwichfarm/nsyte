@@ -36,9 +36,15 @@ nsyte uses a multi-tier security approach for storing sensitive bunker connectio
 
 **Config Directories**:
 
-- Linux: `~/.config/nsyte`
+- Linux: `~/.config/nsite` (or `$XDG_CONFIG_HOME/nsite`)
 - macOS: `~/Library/Application Support/nsyte`
-- Windows: `%APPDATA%\nsyte`
+- Windows: `%APPDATA%\nsite`
+
+!!! note "Linux/Windows directory name"
+    The Linux and Windows config directories are named `nsite`, not `nsyte`,
+    for historical compatibility with the pre-rename storage layout. macOS
+    uses `nsyte`. See [Platform-Specific Security](./security-platforms.md)
+    for details.
 
 ### Automatic Migration
 
@@ -126,10 +132,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Deploy
-        env:
-          NSYTE_BUNKER_KEY: ${{ secrets.NSYTE_BUNKER_KEY }}
-        run: nsyte deploy ./dist
+        run: nsyte deploy ./dist --sec ${{ secrets.NBUNK_SECRET }}
 ```
+
+The `--sec` flag accepts an `nbunksec`, an `nsec`, a `bunker://` URL, or a
+64-character hex secret. For CI/CD use generate a dedicated `nbunksec` with
+`nsyte ci` and store it in your platform's secret manager as `NBUNK_SECRET`.
 
 ### Content Security
 
@@ -137,7 +145,7 @@ jobs:
 
 - Review files before upload
 - Avoid uploading sensitive configuration files
-- Use `.nsyteignore` to exclude unnecessary files
+- Use `.nsyte-ignore` to exclude unnecessary files
 - Validate file sizes and types
 
 **Access Control**
@@ -193,19 +201,27 @@ jobs:
 
 ### Test Storage Backend
 
-You can test which storage backend nsyte is using:
+The fastest way to confirm storage is working is to list stored bunkers — if
+the backend is healthy, this returns without error:
 
 ```bash
-# Run the built-in security test
-deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
+nsyte bunker list
 ```
 
-This will show:
+If you have a checkout of the nsyte source repository, you can also run the
+end-to-end secrets-management test, which exercises keychain, encrypted
+storage, and storage/retrieval:
 
-- Which keychain provider is available
-- Whether encrypted storage works
-- Storage and retrieval functionality
-- Migration capabilities
+```bash
+# From the nsyte repo root
+deno run --allow-read --allow-write --allow-env --allow-run tests/test-secrets.ts
+```
+
+This script reports:
+
+- Whether a native keychain provider is available on this platform
+- Whether encrypted storage initializes successfully
+- That a test secret can be stored, retrieved, and deleted
 
 ### Verify Bunker Storage
 

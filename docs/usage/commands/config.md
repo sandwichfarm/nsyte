@@ -122,3 +122,5 @@ The editor validates your configuration before saving:
 - [`nsyte init`](init.md) - Initialize a new nsyte project with guided setup
 - [`nsyte validate`](validate.md) - Validate configuration file without editing
 - [Configuration Reference](../configuration.md) - Complete configuration options documentation
+
+Inherits global options. See [global options](_global-options.md).

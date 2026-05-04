@@ -15,9 +15,10 @@ nsyte announce [options]
 
 ## Options
 
-- `--publish-app-handler` — Publish NIP-89 app handler event (Kind 31990)
-- `--all` — Publish all available metadata configured in your project
-- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--publish-app-handler` — Publish app handler information (Kind 31990)
+- `--publish-app-recommendation` — Publish app recommendation (Kind 31989)
+- `--all` — Publish all available data
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex)
 
 ## Examples
 
@@ -113,4 +114,6 @@ Published app handler to 12/15 relays
 
 - [`nsyte deploy`](deploy.md) - Deploy files with optional metadata publishing
 - [`nsyte debug`](debug.md) - Debug and verify published metadata
-- [NIP-89 Handler Documentation](../nip89-handler.md) - Complete app handler guide
+- [NIP-89 Handler Documentation](../../nip89-handler.md) - Complete app handler guide
+
+Inherits global options. See [global options](_global-options.md).

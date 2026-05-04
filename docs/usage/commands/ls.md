@@ -1,9 +1,11 @@
 ---
-title: ls
+title: list
 description: List files available on the nostr network
 ---
 
-# ls
+# list
+
+> **Aliases:** `ls` — `nsyte ls` is equivalent to `nsyte list`.
 
 List files available on the nostr network for a given public key. This command shows which files
 have been published to nostr relays and indicates which files would be ignored based on local
@@ -12,7 +14,8 @@ have been published to nostr relays and indicates which files would be ignored b
 ## Usage
 
 ```bash
-nsyte ls [path] [options]
+nsyte list [path] [options]   # canonical
+nsyte ls   [path] [options]   # alias
 ```
 
 ## Arguments
@@ -88,3 +91,5 @@ Files marked in red in the output would be ignored during upload based on:
 
 This helps you understand which remote files would not be re-deployed in a subsequent `nsyte deploy`
 command.
+
+Inherits global options. See [global options](_global-options.md).

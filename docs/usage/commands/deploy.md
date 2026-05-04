@@ -33,8 +33,14 @@ nsyte deploy <folder> [options]
   false)
 - `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
 - `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma-separated)
-- `--fallback <file>` — An HTML file to copy and publish as 404.html
+- `--fallback <file>` — An HTML file to reference as 404.html (creates path mapping with same hash)
+- `-d, --name <name>` — The site identifier for named sites (kind 35128). If not provided, deploys
+  root site (kind 15128)
+- `--no-config` — Ignore config file and use only CLI arguments (default: false)
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
+- `--skip-secrets-scan` — Skip the pre-deploy secrets scan (default: false)
+- `--scan-level <level>` — Secrets scan sensitivity level: `low`, `medium`, or `high` (default:
+  `medium`)
 
 ## Examples
 
@@ -176,3 +182,6 @@ nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
 - [`nsyte delete`](delete.md) - Selectively remove deployed files
 - [`nsyte undeploy`](undeploy.md) - Completely remove a deployed site
 - [`nsyte serve`](serve.md) - Serve files locally for testing
+- [`nsyte scan`](scan.md) - Scan files for secrets before deploying
+
+Inherits global options. See [global options](_global-options.md).
