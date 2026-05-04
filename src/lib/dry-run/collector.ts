@@ -2,7 +2,9 @@ import type { EventTemplate } from "applesauce-core/helpers";
 import type { ProjectConfig } from "../config.ts";
 import type { FilePathMapping } from "../manifest.ts";
 import {
+  buildManifestFileMappings,
   createSiteManifestTemplate,
+  findFallbackFile,
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../manifest.ts";
@@ -37,7 +39,13 @@ export function collectDeployEvents(
   const manifestServers = options.servers?.split(",").map((s) => s.trim()).filter((s) => s) ||
     config.servers || [];
 
-  const manifestTemplate = createSiteManifestTemplate(files, siteId, {
+  const manifestFiles = buildManifestFileMappings(
+    files,
+    [],
+    findFallbackFile(config.fallback, files),
+  );
+
+  const manifestTemplate = createSiteManifestTemplate(manifestFiles, siteId, {
     title: config.title,
     description: config.description,
     servers: manifestServers,
@@ -158,10 +166,6 @@ function buildAppHandlerTemplate(
     return null; // Cannot determine handler ID
   }
 
-  const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-  // Use placeholder for npub-dependent URL in dry-run
-  const gatewayUrl = `https://<npub>.${gatewayHostname}`;
-
   const tags: string[][] = [
     ["d", handlerId],
     ["client", "nsyte"],
@@ -171,9 +175,10 @@ function buildAppHandlerTemplate(
     tags.push(["k", kind.toString()]);
   }
 
-  // Web handler URLs (using placeholder gateway URL)
-  if (config.appHandler?.platforms?.web?.patterns) {
-    for (const pattern of config.appHandler.platforms.web.patterns) {
+  // Web handler URLs are only emitted when explicitly configured.
+  const webPatterns = config.appHandler?.platforms?.web?.patterns;
+  if (webPatterns && webPatterns.length > 0) {
+    for (const pattern of webPatterns) {
       if (pattern.entities && pattern.entities.length > 0) {
         for (const entity of pattern.entities) {
           tags.push(["web", pattern.url, entity]);
@@ -182,11 +187,6 @@ function buildAppHandlerTemplate(
         tags.push(["web", pattern.url]);
       }
     }
-  } else {
-    tags.push(["web", `${gatewayUrl}/e/<bech32>`, "nevent"]);
-    tags.push(["web", `${gatewayUrl}/a/<bech32>`, "naddr"]);
-    tags.push(["web", `${gatewayUrl}/p/<bech32>`, "nprofile"]);
-    tags.push(["web", `${gatewayUrl}/e/<bech32>`]);
   }
 
   // Native platform handlers

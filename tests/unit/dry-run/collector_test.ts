@@ -3,10 +3,7 @@ import "../../test-setup-global.ts";
 
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
-import {
-  collectAnnounceEvents,
-  collectDeployEvents,
-} from "../../../src/lib/dry-run/collector.ts";
+import { collectAnnounceEvents, collectDeployEvents } from "../../../src/lib/dry-run/collector.ts";
 import type { ProjectConfig } from "../../../src/lib/config.ts";
 import type { FilePathMapping } from "../../../src/lib/manifest.ts";
 
@@ -44,6 +41,22 @@ describe("collectDeployEvents", () => {
     assertEquals(pathTags[1], ["path", "/style.css", "def456"]);
   });
 
+  it("adds /404.html path tag when config fallback points to a scanned file", () => {
+    const config = { ...baseConfig, fallback: "fallback.html" };
+    const events = collectDeployEvents(config, [
+      ...testFiles,
+      { path: "/fallback.html", sha256: "fallback-hash" },
+    ]);
+    const pathTags = events[0].template.tags.filter((t) => t[0] === "path");
+
+    assertEquals(
+      pathTags.some((tag) =>
+        tag[0] === "path" && tag[1] === "/404.html" && tag[2] === "fallback-hash"
+      ),
+      true,
+    );
+  });
+
   it("includes title and description in manifest metadata", () => {
     const config = { ...baseConfig, title: "My Site", description: "A blog" };
     const events = collectDeployEvents(config, testFiles);
@@ -63,6 +76,46 @@ describe("collectDeployEvents", () => {
     const handlerEvent = events.find((e) => e.kind === 31990);
     assertNotEquals(handlerEvent, undefined);
     assertEquals(handlerEvent!.filename, "app-handler-31990.json");
+  });
+
+  it("does not emit default web handler tags without configured patterns", () => {
+    const config: ProjectConfig = {
+      ...baseConfig,
+      id: "my-site",
+      appHandler: { kinds: [1, 30023], id: "my-handler" },
+    };
+    const events = collectDeployEvents(config, testFiles, { publishAppHandler: true });
+    const handlerEvent = events.find((e) => e.kind === 31990);
+    const webTags = handlerEvent!.template.tags.filter((t) => t[0] === "web");
+
+    assertEquals(webTags, []);
+  });
+
+  it("emits configured web handler patterns", () => {
+    const config: ProjectConfig = {
+      ...baseConfig,
+      id: "my-site",
+      appHandler: {
+        kinds: [1, 30023],
+        id: "my-handler",
+        platforms: {
+          web: {
+            patterns: [
+              { url: "https://example.com/e/<bech32>", entities: ["nevent"] },
+              { url: "https://example.com/view/<bech32>" },
+            ],
+          },
+        },
+      },
+    };
+    const events = collectDeployEvents(config, testFiles, { publishAppHandler: true });
+    const handlerEvent = events.find((e) => e.kind === 31990);
+    const webTags = handlerEvent!.template.tags.filter((t) => t[0] === "web");
+
+    assertEquals(webTags, [
+      ["web", "https://example.com/e/<bech32>", "nevent"],
+      ["web", "https://example.com/view/<bech32>"],
+    ]);
   });
 
   it("includes profile event when publishProfile is true", () => {

@@ -576,7 +576,7 @@ export async function createAppHandlerEvent(
   kinds: number[],
   handlers: {
     web?: {
-      url: string;
+      url?: string;
       patterns?: Array<{ url: string; entities?: string[] }>;
     };
     android?: string;
@@ -601,28 +601,19 @@ export async function createAppHandlerEvent(
     tags.push(["k", kind.toString()]);
   }
 
-  // Add web handler URLs following NIP-89 spec
-  if (handlers.web) {
-    const { url, patterns } = handlers.web;
-    if (patterns && patterns.length > 0) {
-      // Use custom patterns if provided - these should be full URLs
-      for (const pattern of patterns) {
-        if (pattern.entities && pattern.entities.length > 0) {
-          // Add handler with specific entity types
-          for (const entity of pattern.entities) {
-            tags.push(["web", pattern.url, entity]);
-          }
-        } else {
-          // Add handler without entity type restriction
-          tags.push(["web", pattern.url]);
+  // Add only explicitly configured web handler URLs.
+  const webPatterns = handlers.web?.patterns;
+  if (webPatterns && webPatterns.length > 0) {
+    for (const pattern of webPatterns) {
+      if (pattern.entities && pattern.entities.length > 0) {
+        // Add handler with specific entity types
+        for (const entity of pattern.entities) {
+          tags.push(["web", pattern.url, entity]);
         }
+      } else {
+        // Add handler without entity type restriction
+        tags.push(["web", pattern.url]);
       }
-    } else {
-      // Default patterns following NIP-89 spec
-      tags.push(["web", `${url}/e/<bech32>`, "nevent"]);
-      tags.push(["web", `${url}/a/<bech32>`, "naddr"]);
-      tags.push(["web", `${url}/p/<bech32>`, "nprofile"]);
-      tags.push(["web", `${url}/e/<bech32>`]); // Generic event handler
     }
   }
 

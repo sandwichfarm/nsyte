@@ -1,5 +1,5 @@
-import { npubEncode } from "applesauce-core/helpers";
 import type { ISigner } from "applesauce-signers";
+import { npubEncode } from "applesauce-core/helpers";
 import type { ProjectConfig } from "../config.ts";
 import { getErrorMessage } from "../error-utils.ts";
 import { createLogger } from "../logger.ts";
@@ -84,25 +84,6 @@ export async function publishAppHandler(
       return;
     }
 
-    // Get the gateway URL
-    const gatewayHostname = config.gatewayHostnames?.[0] || "nsite.lol";
-
-    // Add timeout to prevent hanging on getPublicKey
-    const getPublicKeyPromise = signer.getPublicKey();
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Timeout getting public key from signer")), 10000);
-    });
-
-    let publisherPubkey: string;
-    try {
-      publisherPubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
-    } catch (e) {
-      throw new Error(`Failed to get public key from signer: ${getErrorMessage(e)}`);
-    }
-
-    const npub = npubEncode(publisherPubkey);
-    const gatewayUrl = `https://${npub}.${gatewayHostname}`;
-
     // Get metadata from config if available
     // Map config fields to NIP-01 ProfileContent format
     const metadata = config.appHandler?.name ||
@@ -115,13 +96,19 @@ export async function publishAppHandler(
       }
       : undefined;
 
-    // Prepare handlers object
-    const handlers: Record<string, unknown> = {
-      web: {
-        url: gatewayUrl,
-        patterns: config.appHandler?.platforms?.web?.patterns,
-      },
-    };
+    const handlers: {
+      web?: { patterns?: Array<{ url: string; entities?: string[] }> };
+      android?: string;
+      ios?: string;
+      macos?: string;
+      windows?: string;
+      linux?: string;
+    } = {};
+
+    const webPatterns = config.appHandler?.platforms?.web?.patterns;
+    if (webPatterns && webPatterns.length > 0) {
+      handlers.web = { patterns: webPatterns };
+    }
 
     // Add other platform handlers if configured
     if (config.appHandler?.platforms) {
