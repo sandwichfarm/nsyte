@@ -1,4 +1,4 @@
-name: Simple Release (Fallback)
+name: simple release (fallback/override)
 
 on:
   workflow_dispatch:

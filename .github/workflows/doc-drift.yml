@@ -1,4 +1,4 @@
-name: Doc Drift Gate
+name: doc drift gate
 
 on:
   push:
