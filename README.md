@@ -2,6 +2,8 @@
 
 ![nsyte screen demo](./static/nsyte-readme-header.png)
 
+## **nsyte is command-line tool for publishing nsites, a decentralized, censorship-resistant website hosting protocol. [What's an nsite?](https://nsite.run)**
+
 [![Build](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml)
 [![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
 [![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
@@ -11,15 +13,28 @@
 ![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
-[![nsyte.run](https://img.shields.io/badge/%3E-nsyte.run-purple?labelColor=black)](https://nsyte.run])
-[![homepage](https://img.shields.io/badge/😂-nsite.lol-purple?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+![mirrors:](https://img.shields.io/badge/mirrors:-red?labelColor=red)
+[![mirror 1](https://img.shields.io/badge/mirror-1-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+[![mirror 2](https://img.shields.io/badge/mirror-2-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nwb.tf/)
+[![mirror 3](https://img.shields.io/badge/mirror-3-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.cloud/)
+[![mirror 4](https://img.shields.io/badge/mirror-4-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.run/)
+<!-- [![mirror 5](https://img.shields.io/badge/mirror-5-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.shakespear.to/) -->
+
+![gateways:](https://img.shields.io/badge/gateways:-violet?labelColor=violet)
+[![nsite.lol](https://img.shields.io/badge/😂-nsite.lol-violet?labelColor=black)](https://nsite.lol)
+[![nwb.tf](https://img.shields.io/badge/😾-nwb.tf-violet?labelColor=black)](https://nwb.tf)
+[![nsite.run](https://img.shields.io/badge/🌐-nsite.run-violet?labelColor=black)](https://nsite.run)
+
+![frenz:](https://img.shields.io/badge/frenz:-purple?labelColor=purple)
 [![nostr](https://img.shields.io/badge/☠️_sov-eng-purple?labelColor=black)](https://sovereignengineering.io])
 [![nostr](https://img.shields.io/badge/🦩-nostr-purple?labelColor=black)](https://nostr.com])
 
+
+
+
 </div>
 
-**nsyte is command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
-censorship-resistant website hosting.**
+
 
 ## Key Features
 
@@ -34,14 +49,13 @@ censorship-resistant website hosting.**
 
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
 
-[What's an nsite?](https://nsite.run)
+
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by florian
 > [github](https://github.com/flox1an)
 > [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc). nsyte
 > has been ported to deno and rewritten in the process.
 
-![nsyte screen demo](./static/nsyte.gif)
 
 ## Quick Start
 
