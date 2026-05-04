@@ -40,7 +40,7 @@ echo "📚 Building documentation..."
 ./scripts/build-docs.sh
 
 echo "Do brotli and gz compression"
-node scripts/compress-site-files.js
+node scripts/compress-site-files.mjs
 
 echo "✅ Website built successfully!"
 echo ""

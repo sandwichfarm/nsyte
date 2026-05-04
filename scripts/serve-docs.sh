@@ -2,4 +2,4 @@
 set -euo pipefail
 
 ./scripts/ensure-vitepress.sh
-exec ./node_modules/.bin/vitepress dev docs "$@"
+exec ./docs/node_modules/.bin/vitepress dev docs "$@"

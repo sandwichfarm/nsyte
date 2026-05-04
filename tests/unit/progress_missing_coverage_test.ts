@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { restore, spy, stub } from "@std/testing/mock";
 import {
   formatProgressBar,
@@ -38,8 +38,10 @@ Deno.test("Progress Missing Coverage - formatProgressBar", async (t) => {
 
     assertExists(result);
     assert(result.includes("50%"));
-    // Width should affect the bar visualization
-    assert(result.length > 60); // Longer bar
+    const plainResult = result.replace(/\x1b\[[0-9;]*m/g, "");
+    const bar = plainResult.match(/\[([█░]+)\]/)?.[1];
+    assertExists(bar);
+    assertEquals(bar.length, 50);
   });
 
   await t.step("should handle edge cases", () => {
