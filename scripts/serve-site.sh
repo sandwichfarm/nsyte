@@ -6,7 +6,7 @@ echo "🚀 Starting nsyte website development server..."
 # Function to cleanup background processes
 cleanup() {
     echo "🛑 Shutting down servers..."
-    kill $MKDOCS_PID $FILE_WATCHER_PID $HTTP_SERVER_PID 2>/dev/null || true
+    kill $VITEPRESS_PID $FILE_WATCHER_PID $HTTP_SERVER_PID 2>/dev/null || true
     exit 0
 }
 
@@ -17,10 +17,10 @@ trap cleanup EXIT INT TERM
 echo "📦 Building initial site..."
 ./scripts/build-site.sh
 
-# Start MkDocs serve for docs hot reloading in background
-echo "📚 Starting MkDocs server for docs..."
-.venv/docs/bin/mkdocs serve --dev-addr 127.0.0.1:8001 --config-file mkdocs.yml &
-MKDOCS_PID=$!
+# Start VitePress serve for docs hot reloading in background
+echo "📚 Starting VitePress server for docs..."
+./scripts/serve-docs.sh --host 127.0.0.1 --port 8001 &
+VITEPRESS_PID=$!
 
 # Start simple HTTP server for the splash page using Deno
 echo "🌐 Starting HTTP server for splash page..."
@@ -65,11 +65,11 @@ echo ""
 echo "🎉 Development servers running:"
 echo "   📱 Splash page: http://localhost:8000"
 echo "   📚 Documentation: http://localhost:8000/docs"
-echo "   🔧 MkDocs dev server: http://localhost:8001 (for docs-only editing)"
+echo "   🔧 VitePress dev server: http://localhost:8001/docs/ (for docs-only editing)"
 echo ""
 echo "✨ Changes to website/src/index.html will auto-rebuild the splash page"
 echo "✨ Changes to scripts/install.sh will auto-rebuild the install script"
-echo "✨ Changes to docs/ will auto-rebuild via MkDocs"
+echo "✨ Changes to docs/ will hot reload via VitePress"
 echo ""
 echo "Press Ctrl+C to stop all servers"
 

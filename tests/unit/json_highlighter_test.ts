@@ -1,14 +1,20 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
-import { addLineNumbers, highlightJson } from "../../src/ui/json-highlighter.ts";
+import {
+  addLineNumbers,
+  highlightJson,
+} from "../../src/ui/json-highlighter.ts";
+
+function assertColorizedWhenEnabled(result: string, input: string): void {
+  assertEquals(result === input, Deno.noColor);
+}
 
 describe("highlightJson", () => {
   describe("string tokens", () => {
     it("keys are colored cyan and string values are colored green", () => {
       const input = '{"key": "value"}';
       const result = highlightJson(input);
-      // Result should differ from input (ANSI codes were added)
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
       // Both "key" and "value" tokens should appear in the output
       assertStringIncludes(result, "key");
       assertStringIncludes(result, "value");
@@ -25,7 +31,7 @@ describe("highlightJson", () => {
     it("output differs from raw input proving ANSI codes were added", () => {
       const input = '{"a": "b"}';
       const result = highlightJson(input);
-      assertEquals(result === input, false);
+      assertColorizedWhenEnabled(result, input);
     });
   });
 
@@ -34,21 +40,21 @@ describe("highlightJson", () => {
       const input = '{"n": 42}';
       const result = highlightJson(input);
       assertStringIncludes(result, "42");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("negative numbers are colored yellow", () => {
       const input = '{"n": -5}';
       const result = highlightJson(input);
       assertStringIncludes(result, "-5");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("floating point numbers are colored yellow", () => {
       const input = '{"n": 3.14}';
       const result = highlightJson(input);
       assertStringIncludes(result, "3.14");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
   });
 
@@ -57,21 +63,21 @@ describe("highlightJson", () => {
       const input = '{"b": true}';
       const result = highlightJson(input);
       assertStringIncludes(result, "true");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("false is colored magenta", () => {
       const input = '{"b": false}';
       const result = highlightJson(input);
       assertStringIncludes(result, "false");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("null is colored gray", () => {
       const input = '{"n": null}';
       const result = highlightJson(input);
       assertStringIncludes(result, "null");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
   });
 
@@ -84,7 +90,7 @@ describe("highlightJson", () => {
       assertStringIncludes(result, "}");
       assertStringIncludes(result, "[");
       assertStringIncludes(result, "]");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("colons and commas are colored gray", () => {
@@ -92,7 +98,7 @@ describe("highlightJson", () => {
       const result = highlightJson(input);
       assertStringIncludes(result, ":");
       assertStringIncludes(result, ",");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
 
     it("nested objects produce colored output", () => {
@@ -101,7 +107,7 @@ describe("highlightJson", () => {
       assertStringIncludes(result, "outer");
       assertStringIncludes(result, "inner");
       assertStringIncludes(result, "val");
-      assertEquals(result !== input, true);
+      assertColorizedWhenEnabled(result, input);
     });
   });
 

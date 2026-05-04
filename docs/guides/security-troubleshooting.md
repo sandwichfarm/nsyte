@@ -11,16 +11,15 @@ This guide helps resolve common issues with nsyte's credential storage system.
 
 ### Check Storage Backend
 
-For a quick health check, list stored bunkers — if the backend is healthy, the
-command returns without error:
+For a quick health check, list stored bunkers — if the backend is healthy, the command returns
+without error:
 
 ```bash
 nsyte bunker list
 ```
 
-If you have a checkout of the nsyte source tree, you can also run the
-end-to-end secrets-management test, which probes keychain availability,
-encrypted storage, and round-trip storage/retrieval:
+If you have a checkout of the nsyte source tree, you can also run the end-to-end secrets-management
+test, which probes keychain availability, encrypted storage, and round-trip storage/retrieval:
 
 ```bash
 # From the nsyte repo root
@@ -43,8 +42,12 @@ ls %APPDATA%\nsite\secrets.json      # Windows
 
 ### 1. "Keychain Not Found" on macOS
 
-!!! error "Symptoms" - Error: "A keychain cannot be found to store..." - Dialog prompts cancelled -
-Falls back to encrypted storage
+::: danger Symptoms
+
+- Error: "A keychain cannot be found to store..."
+- Dialog prompts cancelled
+- Falls back to encrypted storage
+:::
 
 **Causes**:
 
@@ -67,13 +70,18 @@ security create-keychain ~/Library/Keychains/login.keychain-db
 # Add Terminal or your app
 ```
 
-!!! tip "Workaround" nsyte will automatically fall back to encrypted file storage if keychain access
-fails.
+::: tip Workaround
+nsyte will automatically fall back to encrypted file storage if keychain access fails.
+:::
 
 ### 2. "secret-tool: command not found" on Linux
 
-!!! error "Symptoms" - Error about missing secret-tool - Falls back to encrypted storage - No native
-keychain integration
+::: danger Symptoms
+
+- Error about missing secret-tool
+- Falls back to encrypted storage
+- No native keychain integration
+:::
 
 **Solutions**:
 
@@ -92,13 +100,19 @@ sudo pacman -S libsecret
 which secret-tool
 ```
 
-!!! note "Alternative" If you don't want to install secret-tool, nsyte will use encrypted file
-storage which is still secure.
+::: info Alternative
+If you don't want to install secret-tool, nsyte will use encrypted file storage which is still
+secure.
+:::
 
 ### 3. "cmdkey: Access Denied" on Windows
 
-!!! error "Symptoms" - Error when storing credentials - Access denied messages - Falls back to
-encrypted storage
+::: danger Symptoms
+
+- Error when storing credentials
+- Access denied messages
+- Falls back to encrypted storage
+:::
 
 **Solutions**:
 
@@ -116,8 +130,12 @@ cmdkey /delete:nsyte:<pubkey>
 
 ### 4. Encrypted Storage Initialization Failed
 
-!!! error "Symptoms" - Error: "Failed to initialize encrypted storage" - Falls back to plain JSON
-storage - Security warnings shown
+::: danger Symptoms
+
+- Error: "Failed to initialize encrypted storage"
+- Falls back to plain JSON storage
+- Security warnings shown
+:::
 
 **Causes**:
 
@@ -148,8 +166,12 @@ nsyte bunker list  # Will recreate directory
 
 ### 5. Migration Issues
 
-!!! error "Symptoms" - Legacy secrets not migrated - Duplicated entries - Missing bunkers after
-update
+::: danger Symptoms
+
+- Legacy secrets not migrated
+- Duplicated entries
+- Missing bunkers after update
+:::
 
 **Diagnosis**:
 
@@ -183,8 +205,12 @@ rm ~/.config/nsite/secrets.json
 
 ### 6. CI/CD Authentication Issues
 
-!!! error "Symptoms" - nbunksec not working in CI/CD - Authentication failures - Missing environment
-variables
+::: danger Symptoms
+
+- nbunksec not working in CI/CD
+- Authentication failures
+- Missing environment variables
+:::
 
 **Solutions**:
 
@@ -210,8 +236,12 @@ nsyte deploy ./dist --sec $NBUNK_SECRET
 
 ### 7. Permission Denied Errors
 
-!!! error "Symptoms" - Permission denied accessing keychain - Can't write to config directory -
-Access denied errors
+::: danger Symptoms
+
+- Permission denied accessing keychain
+- Can't write to config directory
+- Access denied errors
+:::
 
 **Solutions**:
 
@@ -322,11 +352,13 @@ cmdkey /list | findstr nsyte
 
 ## Getting Help
 
-!!! question "Need More Help?" If you're still experiencing issues:
+::: info Need More Help?
+If you're still experiencing issues:
 
-    1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
-    2. **Create Bug Report**: Include debug logs and system information
-    3. **Security Issues**: Report privately to security@sandwichfarm.com
+1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
+2. **Create Bug Report**: Include debug logs and system information
+3. **Security Issues**: Report privately to security@sandwichfarm.com
+:::
 
 ### Information to Include
 

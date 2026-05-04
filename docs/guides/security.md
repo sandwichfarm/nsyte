@@ -40,11 +40,11 @@ nsyte uses a multi-tier security approach for storing sensitive bunker connectio
 - macOS: `~/Library/Application Support/nsyte`
 - Windows: `%APPDATA%\nsite`
 
-!!! note "Linux/Windows directory name"
-    The Linux and Windows config directories are named `nsite`, not `nsyte`,
-    for historical compatibility with the pre-rename storage layout. macOS
-    uses `nsyte`. See [Platform-Specific Security](./security-platforms.md)
-    for details.
+::: info Linux/Windows directory name
+The Linux and Windows config directories are named `nsite`, not `nsyte`, for historical
+compatibility with the pre-rename storage layout. macOS uses `nsyte`. See
+[Platform-Specific Security](./security-platforms.md) for details.
+:::
 
 ### Automatic Migration
 
@@ -135,9 +135,9 @@ jobs:
         run: nsyte deploy ./dist --sec ${{ secrets.NBUNK_SECRET }}
 ```
 
-The `--sec` flag accepts an `nbunksec`, an `nsec`, a `bunker://` URL, or a
-64-character hex secret. For CI/CD use generate a dedicated `nbunksec` with
-`nsyte ci` and store it in your platform's secret manager as `NBUNK_SECRET`.
+The `--sec` flag accepts an `nbunksec`, an `nsec`, a `bunker://` URL, or a 64-character hex secret.
+For CI/CD use generate a dedicated `nbunksec` with `nsyte ci` and store it in your platform's secret
+manager as `NBUNK_SECRET`.
 
 ### Content Security
 
@@ -201,16 +201,15 @@ The `--sec` flag accepts an `nbunksec`, an `nsec`, a `bunker://` URL, or a
 
 ### Test Storage Backend
 
-The fastest way to confirm storage is working is to list stored bunkers — if
-the backend is healthy, this returns without error:
+The fastest way to confirm storage is working is to list stored bunkers — if the backend is healthy,
+this returns without error:
 
 ```bash
 nsyte bunker list
 ```
 
-If you have a checkout of the nsyte source repository, you can also run the
-end-to-end secrets-management test, which exercises keychain, encrypted
-storage, and storage/retrieval:
+If you have a checkout of the nsyte source repository, you can also run the end-to-end
+secrets-management test, which exercises keychain, encrypted storage, and storage/retrieval:
 
 ```bash
 # From the nsyte repo root

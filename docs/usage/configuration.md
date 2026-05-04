@@ -123,9 +123,10 @@ If you try to publish user-level metadata from a named site, you'll get a valida
 ### NIP-89 App Handler
 
 - `publishAppHandler`: Whether to publish app handler announcement (default: false)
-- `appHandler.id`: Optional unique identifier for this handler (defaults to site
-  id). Used as the `d` tag in kind 31990 events.
-- `appHandler.kinds`: Array of event kind numbers this nsite can handle (**required** when `appHandler` is configured)
+- `appHandler.id`: Optional unique identifier for this handler (defaults to site id). Used as the
+  `d` tag in kind 31990 events.
+- `appHandler.kinds`: Array of event kind numbers this nsite can handle (**required** when
+  `appHandler` is configured)
 
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description of what your handler does
@@ -144,21 +145,21 @@ If you try to publish user-level metadata from a named site, you'll get a valida
 The following environment variables affect nsyte's runtime behavior:
 
 - `LOG_LEVEL`: Logger verbosity (`debug`, `info`, `warn`, `error`; default: `info`)
-- `NSITE_DISPLAY_MODE`: Display mode override for progress UI (e.g., `interactive`, `non-interactive`)
-- `NSYTE_FORCE_ENCRYPTED_STORAGE`: Set to `true` to force encrypted file storage
-  even if a native OS keychain is available
+- `NSITE_DISPLAY_MODE`: Display mode override for progress UI (e.g., `interactive`,
+  `non-interactive`)
+- `NSYTE_FORCE_ENCRYPTED_STORAGE`: Set to `true` to force encrypted file storage even if a native OS
+  keychain is available
 - `NSYTE_DISABLE_KEYCHAIN`: Set to `true` to skip the OS keychain backend
-- `NSYTE_TEST_MODE`: Set to `true` to disable the keychain backend (used for
-  testing)
+- `NSYTE_TEST_MODE`: Set to `true` to disable the keychain backend (used for testing)
 
-To pass a config-file path, relay list, server list, or bunker secret, use the
-corresponding CLI flag instead of an environment variable:
+To pass a config-file path, relay list, server list, or bunker secret, use the corresponding CLI
+flag instead of an environment variable:
 
 - `--config <path>` (or `-c <path>`) — global flag, accepts the config file path
 - `--relays <list>` — per-command flag (e.g., `nsyte deploy --relays wss://relay1,wss://relay2`)
 - `--servers <list>` — per-command flag
-- `--sec <secret>` — per-command flag, accepts an `nsec`, `nbunksec`,
-  `bunker://` URL, or 64-char hex secret
+- `--sec <secret>` — per-command flag, accepts an `nsec`, `nbunksec`, `bunker://` URL, or 64-char
+  hex secret
 
 ## Ignoring Files
 
@@ -195,9 +196,9 @@ Use the interactive TUI editor:
 nsyte config
 ```
 
-This opens a full-screen terminal editor for `.nsite/config.json` (or pass
-`-p <path>` for a custom config file). See the [config command reference](./commands/config.md)
-for keyboard shortcuts and features.
+This opens a full-screen terminal editor for `.nsite/config.json` (or pass `-p <path>` for a custom
+config file). See the [config command reference](./commands/config.md) for keyboard shortcuts and
+features.
 
 ### Other Ways to Update Configuration
 
@@ -207,8 +208,8 @@ for keyboard shortcuts and features.
 # Edit .nsite/config.json with your editor of choice
 ```
 
-2. Override settings per-invocation via CLI flags (e.g., `--relays`, `--servers`,
-   `--sec`); see each command's reference page for the supported flags.
+2. Override settings per-invocation via CLI flags (e.g., `--relays`, `--servers`, `--sec`); see each
+   command's reference page for the supported flags.
 
 ## Best Practices
 

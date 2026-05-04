@@ -5,13 +5,11 @@ description: Download one file from a site manifest
 
 # get
 
-Download a single file from a published site manifest. By default the file
-contents are written to standard output, which makes `get` useful for piping
-into other tools or quickly inspecting a deployed asset; pass `-o` to save the
-file to disk instead. The command resolves the manifest from the configured (or
-specified) relays, then tries the configured Blossom servers, the manifest's
-declared servers, and the owner's public Blossom server list in turn until the
-blob is found.
+Download a single file from a published site manifest. By default the file contents are written to
+standard output, which makes `get` useful for piping into other tools or quickly inspecting a
+deployed asset; pass `-o` to save the file to disk instead. The command resolves the manifest from
+the configured (or specified) relays, then tries the configured Blossom servers, the manifest's
+declared servers, and the owner's public Blossom server list in turn until the blob is found.
 
 ## Usage
 
@@ -21,19 +19,18 @@ nsyte get <remote-path> [options]
 
 ## Arguments
 
-- `<remote-path>` — Path of the file inside the site manifest (e.g.
-  `/index.html`, `assets/logo.svg`). Leading slash is optional and a single
-  slash is added automatically.
+- `<remote-path>` — Path of the file inside the site manifest (e.g. `/index.html`,
+  `assets/logo.svg`). Leading slash is optional and a single slash is added automatically.
 
 ## Options
 
 - `-o, --output <file>` — Write the downloaded file to disk instead of stdout
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
 - `-s, --servers <servers>` — The blossom servers to try first (comma separated)
-- `-p, --pubkey <npub>` — The public key to download from (npub, hex, or NIP-05
-  identifier like `name@domain.com`)
-- `-d, --name <name>` — The site identifier for named sites (kind 35128). If
-  not provided, uses the root site (kind 15128)
+- `-p, --pubkey <npub>` — The public key to download from (npub, hex, or NIP-05 identifier like
+  `name@domain.com`)
+- `-d, --name <name>` — The site identifier for named sites (kind 35128). If not provided, uses the
+  root site (kind 15128)
 
 ## Examples
 

@@ -51,7 +51,7 @@ nsyte sites --use-fallbacks
 
 The sites command displays:
 
-- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:<identifier>" for named sites
+- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:&lt;identifier&gt;" for named sites
   (kind 35128)
 - **Title**: Site title from metadata
 - **Description**: Site description from metadata

@@ -140,10 +140,9 @@ nsyte deploy . --verbose
 
 ### Multiple Environments
 
-Use the global `-c, --config <path>` flag (inherited by every subcommand) to
-target a different config file per environment. The flag accepts an absolute
-path or one relative to the current working directory; the default is
-`.nsite/config.json`.
+Use the global `-c, --config <path>` flag (inherited by every subcommand) to target a different
+config file per environment. The flag accepts an absolute path or one relative to the current
+working directory; the default is `.nsite/config.json`.
 
 ```bash
 # Development
@@ -168,9 +167,9 @@ node_modules/
 .nsyte-dev.json
 ```
 
-The legacy filename `.nsite-ignore` is also recognized by the file scanner for
-backwards compatibility, but `.nsyte-ignore` is the canonical name (matching
-the README and configuration reference).
+The legacy filename `.nsite-ignore` is also recognized by the file scanner for backwards
+compatibility, but `.nsyte-ignore` is the canonical name (matching the README and configuration
+reference).
 
 ## Troubleshooting
 

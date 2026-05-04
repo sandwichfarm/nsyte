@@ -35,8 +35,7 @@ export const SCAN_PATTERNS: ScanPattern[] = [
     regex: /bunker:\/\/[^\s"'<>]+/,
     severity: "high",
     level: "low",
-    description:
-      "NIP-46 bunker connection URL containing relay and secret parameters.",
+    description: "NIP-46 bunker connection URL containing relay and secret parameters.",
   },
 
   // === MEDIUM LEVEL — Adds hex keys and env patterns ===
@@ -46,8 +45,7 @@ export const SCAN_PATTERNS: ScanPattern[] = [
     regex: /\b[0-9a-fA-F]{64}\b/,
     severity: "medium",
     level: "medium",
-    description:
-      "64-character hexadecimal string that could be a raw Nostr private key.",
+    description: "64-character hexadecimal string that could be a raw Nostr private key.",
   },
   {
     id: "env-secret",
@@ -56,8 +54,7 @@ export const SCAN_PATTERNS: ScanPattern[] = [
       /(?:PRIVATE_KEY|SECRET_KEY|SECRET|API_KEY|API_SECRET|TOKEN|PASSWORD|PASSPHRASE)\s*[=:]\s*\S+/i,
     severity: "medium",
     level: "medium",
-    description:
-      "Environment variable assignment containing a potentially sensitive value.",
+    description: "Environment variable assignment containing a potentially sensitive value.",
   },
   {
     id: "pem-private-key",
@@ -65,8 +62,7 @@ export const SCAN_PATTERNS: ScanPattern[] = [
     regex: /-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/,
     severity: "high",
     level: "medium",
-    description:
-      "PEM-encoded private key block header. File contains an unencrypted private key.",
+    description: "PEM-encoded private key block header. File contains an unencrypted private key.",
   },
 
   // === HIGH LEVEL — Adds entropy detection (handled separately in scanner) ===
@@ -78,8 +74,7 @@ export const SCAN_PATTERNS: ScanPattern[] = [
     regex: /[A-Za-z0-9+/=_-]{40,}/,
     severity: "low",
     level: "high",
-    description:
-      "Long string with high Shannon entropy — may be an API token or encoded secret.",
+    description: "Long string with high Shannon entropy — may be an API token or encoded secret.",
   },
 ];
 
@@ -101,8 +96,7 @@ export const SUSPICIOUS_FILENAMES: Array<{
     pattern: /^\.env(\..*)?$/,
     severity: "medium",
     level: "medium",
-    description:
-      "Environment file that typically contains secrets and credentials.",
+    description: "Environment file that typically contains secrets and credentials.",
   },
   {
     id: "pem-file",
@@ -110,8 +104,7 @@ export const SUSPICIOUS_FILENAMES: Array<{
     pattern: /\.(pem|key|p12|pfx)$/i,
     severity: "medium",
     level: "medium",
-    description:
-      "Certificate or key file that may contain private key material.",
+    description: "Certificate or key file that may contain private key material.",
   },
   {
     id: "credentials-file",
@@ -119,8 +112,7 @@ export const SUSPICIOUS_FILENAMES: Array<{
     pattern: /^(credentials|service[_-]?account)\.json$/i,
     severity: "medium",
     level: "medium",
-    description:
-      "Credentials or service account file that typically contains secrets.",
+    description: "Credentials or service account file that typically contains secrets.",
   },
 ];
 

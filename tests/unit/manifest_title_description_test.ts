@@ -2,10 +2,7 @@ import "../test-setup-global.ts";
 
 import { assertEquals } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
-import {
-  createSiteManifestTemplate,
-  type FilePathMapping,
-} from "../../src/lib/manifest.ts";
+import { createSiteManifestTemplate, type FilePathMapping } from "../../src/lib/manifest.ts";
 
 const testFiles: FilePathMapping[] = [
   { path: "/index.html", sha256: "abc123def456" },

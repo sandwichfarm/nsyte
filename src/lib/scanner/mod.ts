@@ -22,12 +22,7 @@ export {
   SCAN_PATTERNS,
   SUSPICIOUS_FILENAMES,
 } from "./patterns.ts";
-export {
-  BINARY_EXTENSIONS,
-  hasNullBytes,
-  isBinaryExtension,
-  shouldSkipFile,
-} from "./filter.ts";
+export { BINARY_EXTENSIONS, hasNullBytes, isBinaryExtension, shouldSkipFile } from "./filter.ts";
 
 // Types
 export type {

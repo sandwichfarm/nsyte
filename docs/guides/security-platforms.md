@@ -24,8 +24,11 @@ nsyte automatically selects the most secure storage method available on your pla
 **Location**: User's login keychain (`~/Library/Keychains/login.keychain-db`)\
 **Encryption**: Apple's hardware-backed encryption with Secure Enclave when available
 
-!!! info "Requirements" - `security` command (included with macOS) - User keychain access (may
-prompt for password/Touch ID)
+::: info Requirements
+
+- `security` command (included with macOS)
+- User keychain access (may prompt for password/Touch ID)
+:::
 
 **Security Benefits**:
 
@@ -61,8 +64,12 @@ prompt for password/Touch ID)
 **Location**: User's credential store (`%LOCALAPPDATA%\Microsoft\Credentials\`)\
 **Encryption**: Windows Data Protection API (DPAPI)
 
-!!! info "Requirements" - `cmdkey` command (included with Windows) - PowerShell for credential
-retrieval - User account access
+::: info Requirements
+
+- `cmdkey` command (included with Windows)
+- PowerShell for credential retrieval
+- User account access
+:::
 
 **Security Benefits**:
 
@@ -88,11 +95,11 @@ retrieval - User account access
 **Location**: `%APPDATA%\nsite\secrets.json`\
 **Security**: Plain text with warnings
 
-!!! note "Why `nsite` and not `nsyte` on Windows?"
-    The Windows config directory is named `nsite` (and the Linux one is
-    `~/.config/nsite/`) for historical compatibility with the project's
-    pre-rename storage layout. The macOS path uses `nsyte`. See
-    `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+::: info Why `nsite` and not `nsyte` on Windows?
+The Windows config directory is named `nsite` (and the Linux one is `~/.config/nsite/`) for
+historical compatibility with the project's pre-rename storage layout. The macOS path uses `nsyte`.
+See `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+:::
 
 ---
 
@@ -104,8 +111,12 @@ retrieval - User account access
 **Location**: D-Bus secret service (usually GNOME Keyring or KDE Wallet)\
 **Encryption**: Service-specific encryption
 
-!!! info "Requirements" - `secret-tool` command installed - Secret service running (GNOME Keyring,
-KDE Wallet, etc.) - D-Bus session
+::: info Requirements
+
+- `secret-tool` command installed
+- Secret service running (GNOME Keyring, KDE Wallet, etc.)
+- D-Bus session
+:::
 
 **Installation**:
 
@@ -143,11 +154,11 @@ sudo pacman -S libsecret
 **Location**: `~/.config/nsite/secrets.json`\
 **Security**: Plain text with warnings
 
-!!! note "Why `nsite` and not `nsyte` on Linux?"
-    The Linux config directory is named `nsite` (and the Windows one is
-    `%APPDATA%\nsite\`) for historical compatibility with the project's
-    pre-rename storage layout. The macOS path uses `nsyte`. See
-    `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+::: info Why `nsite` and not `nsyte` on Linux?
+The Linux config directory is named `nsite` (and the Windows one is `%APPDATA%\nsite\`) for
+historical compatibility with the project's pre-rename storage layout. The macOS path uses `nsyte`.
+See `src/lib/secrets/utils.ts` for the source-of-truth path resolver.
+:::
 
 ---
 
@@ -176,9 +187,13 @@ AES-256-GCM encryption with platform-specific key derivation.
 - Basic malware file scanning
 - Accidental credential exposure in backups
 
-!!! warning "Not Protected Against" - Malware with keychain/credential manager access - Physical
-access with user credentials - Advanced persistent threats with system-level access - Side-channel
-attacks on encryption
+::: warning Not Protected Against
+
+- Malware with keychain/credential manager access
+- Physical access with user credentials
+- Advanced persistent threats with system-level access
+- Side-channel attacks on encryption
+:::
 
 ### Migration Security
 

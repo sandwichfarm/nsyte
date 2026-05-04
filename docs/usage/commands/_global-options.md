@@ -21,9 +21,9 @@ only the flags specific to that command.
 ### `-c, --config`
 
 The config file holds project defaults: configured relays, blossom servers, optional bunker
-reference, optional profile, and the site identifier. The default location, `.nsite/config.json`,
-is created the first time you run [`nsyte init`](init.md). Pointing `--config` at a different file
-lets a single working directory drive multiple deployments without reconfiguring the project.
+reference, optional profile, and the site identifier. The default location, `.nsite/config.json`, is
+created the first time you run [`nsyte init`](init.md). Pointing `--config` at a different file lets
+a single working directory drive multiple deployments without reconfiguring the project.
 
 ### `--created-at`
 
@@ -34,9 +34,9 @@ events, profile events, relay/server lists, app handler events). Two input forma
 - ISO 8601 datetime, e.g. `2026-05-03T12:00:00Z`
 
 Useful for reproducible deploys, snapshot reconstruction, and aligning multiple events to the same
-moment. Note that authentication events used to talk to blossom servers are generated at the time
-of the request and are not affected by this flag — only the nostr events the command publishes use
-the override.
+moment. Note that authentication events used to talk to blossom servers are generated at the time of
+the request and are not affected by this flag — only the nostr events the command publishes use the
+override.
 
 ## See Also
 

@@ -150,8 +150,7 @@ export function registerAnnounceCommand(): void {
 
         // Summary
         const successCount = Object.values(results).filter((v) => v).length;
-        const totalCount =
-          Number(shouldPublishAppHandler) +
+        const totalCount = Number(shouldPublishAppHandler) +
           Number(shouldPublishAppRecommendation);
 
         console.log("\n" + colors.bold("Announcement Summary:"));

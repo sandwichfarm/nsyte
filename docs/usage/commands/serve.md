@@ -51,9 +51,9 @@ The serve command:
 
 1. **Resolves the directory**: Defaults to the current working directory; override with `-d, --dir`
 2. **Starts an HTTP server**: Listens on the chosen port (default `8080`) on `localhost`
-3. **Serves files with directory listing enabled**: Files are served via Deno's standard
-   `serveDir` helper, which sets MIME types automatically and renders an index for directories
-   without an `index.html`
+3. **Serves files with directory listing enabled**: Files are served via Deno's standard `serveDir`
+   helper, which sets MIME types automatically and renders an index for directories without an
+   `index.html`
 
 ## Use Cases
 
@@ -79,8 +79,8 @@ nsyte serve --dir ./public --port 3000
   preview across a LAN, use a separate tool such as `ssh -R` or a tunnel.
 - **No SPA fallback**: `nsyte serve` does not read `.nsite/config.json`, so the configured
   `fallback` is not applied. Non-existent paths return `404` rather than falling through to
-  `index.html`. If you need SPA-style routing during local preview, deploy to a staging nsite or
-  use a dedicated SPA dev server.
+  `index.html`. If you need SPA-style routing during local preview, deploy to a staging nsite or use
+  a dedicated SPA dev server.
 - **No live reload**: File changes do not trigger an automatic browser reload.
 
 ## Troubleshooting
