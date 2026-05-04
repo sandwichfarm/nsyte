@@ -2,7 +2,7 @@
 
 ![nsyte screen demo](./static/nsyte-readme-header.png)
 
-## **nsyte is command-line tool for publishing nsites, a decentralized, censorship-resistant website hosting protocol. [What's an nsite?](https://nsite.run)**
+## **nsyte is command-line tool for publishing nsites: a decentralized, censorship-resistant website hosting protocol. [Learn more](https://nsite.run/#what)**
 
 [![Build](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml)
 [![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
