@@ -18,24 +18,29 @@ in detail on its own page.
 
 ### File Operations
 
-- [`nsyte deploy`](commands/deploy.md) — Deploy files to nostr relays and blossom servers (aliases: `upload`, `dpl`)
+- [`nsyte deploy`](commands/deploy.md) — Deploy files to nostr relays and blossom servers (aliases:
+  `upload`, `dpl`)
 - [`nsyte sites`](commands/sites.md) — List all published sites for a pubkey
 - [`nsyte list`](commands/ls.md) — List published files (alias: `ls`)
 - [`nsyte browse`](commands/browse.md) — Interactive TUI browser for managing files
 - [`nsyte download`](commands/download.md) — Download all published files (alias: `dl`)
 - [`nsyte get`](commands/get.md) — Download a single file from a site manifest
 - [`nsyte put`](commands/put.md) — Upload a single file into an existing site manifest
-- [`nsyte delete`](commands/delete.md) — Selectively remove published files (aliases: `purge`, `prg`)
+- [`nsyte delete`](commands/delete.md) — Selectively remove published files (aliases: `purge`,
+  `prg`)
 - [`nsyte undeploy`](commands/undeploy.md) — Completely remove a deployed site
-- [`nsyte snapshot`](commands/snapshot.md) — Publish an immutable snapshot event for the current site
-- [`nsyte status`](commands/status.md) — Inspect manifest history, relay coverage, and server availability
+- [`nsyte snapshot`](commands/snapshot.md) — Publish an immutable snapshot event for the current
+  site
+- [`nsyte status`](commands/status.md) — Inspect manifest history, relay coverage, and server
+  availability
 
 ### Development
 
 - [`nsyte serve`](commands/serve.md) — Serve files locally for development (alias: `srv`)
 - [`nsyte run`](commands/run.md) — Run resolver server with npub subdomains (alias: `rn`)
 - [`nsyte debug`](commands/debug.md) — Debug nsites by checking relays and servers
-- [`nsyte announce`](commands/announce.md) — Publish app handler announcements and metadata events (alias: `annc`)
+- [`nsyte announce`](commands/announce.md) — Publish app handler announcements and metadata events
+  (alias: `annc`)
 - [`nsyte scan`](commands/scan.md) — Scan files for secrets before deploying
 
 ### Authentication
@@ -45,8 +50,8 @@ in detail on its own page.
 
 ## Global Options
 
-Every nsyte subcommand inherits a small set of global options (e.g. `--config`, `--created-at`).
-See [Global Options](commands/_global-options.md) for the complete list.
+Every nsyte subcommand inherits a small set of global options (e.g. `--config`, `--created-at`). See
+[Global Options](commands/_global-options.md) for the complete list.
 
 ## Authentication Options
 

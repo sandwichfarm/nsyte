@@ -167,8 +167,8 @@ nsyte run --relays wss://relay.nsite.lol,wss://relay.damus.io
 ### Blossom Server Configuration
 
 Configure blossom servers via `.nsite/config.json` or enable defaults with `--use-fallback-servers`.
-The `run` command does not accept a `--servers` flag — the resolver reads the configured server
-list from your project config (or from the manifest itself when serving an arbitrary site).
+The `run` command does not accept a `--servers` flag — the resolver reads the configured server list
+from your project config (or from the manifest itself when serving an arbitrary site).
 
 ```bash
 # Use servers from the project config
@@ -234,8 +234,8 @@ For production deployment:
 ## Production Deployment
 
 `nsyte run` always binds to `localhost`. There is no `--host` flag. To expose the resolver beyond
-localhost in production, run it behind a reverse proxy (nginx, Caddy, Cloudflare, etc.) that
-listens on a public interface and forwards to `localhost:<port>`.
+localhost in production, run it behind a reverse proxy (nginx, Caddy, Cloudflare, etc.) that listens
+on a public interface and forwards to `localhost:<port>`.
 
 ### Nginx Reverse Proxy
 

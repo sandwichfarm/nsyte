@@ -9,6 +9,7 @@
 .deprecated
 .devdocs
 .claude
+.omx
 .planning
 .packaging
 .venv
@@ -30,6 +31,7 @@ coverage-*.json
 # Build outputs
 dist/
 node_modules/
+docs/.vitepress/cache/
 
 # Temporary files
 *.tmp

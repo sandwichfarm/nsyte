@@ -169,8 +169,7 @@ function extractSectionFlags(text: string): Set<string> {
       const heading = sm[1].trim().toLowerCase();
       // Allow: heading equals "options" or "arguments", OR ends with " options" / " arguments"
       // (e.g., "Connect Options" on bunker.md)
-      inAllowed =
-        heading === "options" ||
+      inAllowed = heading === "options" ||
         heading === "arguments" ||
         heading.endsWith(" options") ||
         heading.endsWith(" arguments");
@@ -530,8 +529,7 @@ async function main(argv: string[]): Promise<number> {
 
   const aligned = flagRows.filter((r) => r.aligned).length;
   const drift = flagRows.length - aligned;
-  const anyCoverageDrift =
-    coverage.missing_docs.length + coverage.phantom_docs.length > 0;
+  const anyCoverageDrift = coverage.missing_docs.length + coverage.phantom_docs.length > 0;
   const anyEnvDrift = env.phantom.length > 0;
 
   const exit_code: 0 | 1 = anyCoverageDrift || drift > 0 || anyEnvDrift ? 1 : 0;

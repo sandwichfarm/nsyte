@@ -25,9 +25,9 @@ event types.
 
 ## Configuration
 
-Publication of the handler announcement is controlled by the top-level
-`publishAppHandler` boolean. The `appHandler` block describes the handler itself
-(supported kinds, optional name/description/icon, optional platform handlers).
+Publication of the handler announcement is controlled by the top-level `publishAppHandler` boolean.
+The `appHandler` block describes the handler itself (supported kinds, optional
+name/description/icon, optional platform handlers).
 
 Add both fields to your `.nsite/config.json`:
 
@@ -58,24 +58,22 @@ Add both fields to your `.nsite/config.json`:
 
 ### Configuration Options
 
-- `publishAppHandler` (boolean, top-level, default `false`): Whether to publish
-  the handler announcement. The `appHandler` block is only emitted when this is
-  `true` (or when the `--publish-app-handler` flag is passed).
-- `appHandler.kinds` (number[], **required** when `appHandler` is set): Array of
-  event kind numbers this nsite can handle.
-- `appHandler.id` (string, optional): Unique identifier used as the `d` tag in
-  the kind 31990 event. Defaults to the site `id` when omitted.
+- `publishAppHandler` (boolean, top-level, default `false`): Whether to publish the handler
+  announcement. The `appHandler` block is only emitted when this is `true` (or when the
+  `--publish-app-handler` flag is passed).
+- `appHandler.kinds` (number[], **required** when `appHandler` is set): Array of event kind numbers
+  this nsite can handle.
+- `appHandler.id` (string, optional): Unique identifier used as the `d` tag in the kind 31990 event.
+  Defaults to the site `id` when omitted.
 - `appHandler.name` (string, optional): Display name for your handler.
-- `appHandler.description` (string, optional): Description of what your handler
-  does.
-- `appHandler.icon` (string, optional): URL to an icon image; included as
-  `picture` in the handler metadata.
-- `appHandler.platforms` (object, optional): Platform-specific handler
-  configurations.
+- `appHandler.description` (string, optional): Description of what your handler does.
+- `appHandler.icon` (string, optional): URL to an icon image; included as `picture` in the handler
+  metadata.
+- `appHandler.platforms` (object, optional): Platform-specific handler configurations.
   - `web.patterns` (array, optional): Custom URL patterns for handling entities.
     - `url`: Full URL pattern (e.g., `https://example.com/e/<bech32>`).
-    - `entities`: Supported entity types (one or more of `nevent`, `naddr`,
-      `nprofile`, `note`, `npub`).
+    - `entities`: Supported entity types (one or more of `nevent`, `naddr`, `nprofile`, `note`,
+      `npub`).
   - `android` (string, optional): Android app intent URL or package name.
   - `ios` (string, optional): iOS app URL scheme or universal link.
   - `macos` (string, optional): macOS app URL scheme or bundle identifier.
@@ -94,9 +92,8 @@ nsyte deploy ./site --publish-app-handler --handler-kinds "1,30023,30311"
 nsyte deploy ./site --publish-app-handler
 ```
 
-The `--publish-app-handler` flag forces publication for that single deploy. If
-you would rather flip it on permanently, set `publishAppHandler: true` in your
-`.nsite/config.json`.
+The `--publish-app-handler` flag forces publication for that single deploy. If you would rather flip
+it on permanently, set `publishAppHandler: true` in your `.nsite/config.json`.
 
 ## Common Event Kinds
 

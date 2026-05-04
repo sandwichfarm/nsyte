@@ -1,9 +1,5 @@
 import { assertEquals } from "@std/assert";
-import {
-  scanContent,
-  scanFileList,
-  type ScanFileEntry,
-} from "../../src/lib/scanner/mod.ts";
+import { scanContent, type ScanFileEntry, scanFileList } from "../../src/lib/scanner/mod.ts";
 
 /**
  * Tests for the deploy scan gate logic.
@@ -122,8 +118,7 @@ Deno.test("deploy scan gate - scanner behavior", async (t) => {
   });
 
   await t.step("findings include severity for gate display", () => {
-    const content =
-      "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
+    const content = "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
     const findings = scanContent("leak.txt", content, "low");
 
     assertEquals(findings.length >= 1, true);

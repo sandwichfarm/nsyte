@@ -21,8 +21,10 @@ nsyte debug [npub] [options]
 ## Options
 
 - `-r, --relays <relays>`: Comma-separated list of relay URLs to use for debugging
-- `-v, --verbose`: Show detailed debug information including file lists and hash verification details (default: `false`)
-- `--show-events`: Pretty print events (kind 0, 10002, server list, and index.html nsite event) (default: `false`)
+- `-v, --verbose`: Show detailed debug information including file lists and hash verification
+  details (default: `false`)
+- `--show-events`: Pretty print events (kind 0, 10002, server list, and index.html nsite event)
+  (default: `false`)
 
 ## Examples
 

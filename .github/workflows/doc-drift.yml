@@ -6,16 +6,20 @@ on:
     paths:
       - "src/commands/**"
       - "docs/**"
-      - "mkdocs.yml"
+      - "docs/.vitepress/**"
       - "scripts/check-doc-drift.ts"
       - "deno.json"
+      - "package.json"
+      - "package-lock.json"
   pull_request:
     paths:
       - "src/commands/**"
       - "docs/**"
-      - "mkdocs.yml"
+      - "docs/.vitepress/**"
       - "scripts/check-doc-drift.ts"
       - "deno.json"
+      - "package.json"
+      - "package-lock.json"
   workflow_dispatch:
 
 permissions:

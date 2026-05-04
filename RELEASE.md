@@ -47,8 +47,8 @@ the sync is skipped.
 
 ## What Each Task Does
 
-| Task                       | Purpose                                                             |
-| -------------------------- | ------------------------------------------------------------------- |
-| `deno task version <ver>`  | Updates `deno.json` version field. No git operations.               |
-| `deno task tag`            | Reads version from `deno.json`, commits if needed, creates git tag. |
-| `deno task release`        | Reads version from `deno.json`, pushes commits and tag to origin.   |
+| Task                      | Purpose                                                             |
+| ------------------------- | ------------------------------------------------------------------- |
+| `deno task version <ver>` | Updates `deno.json` version field. No git operations.               |
+| `deno task tag`           | Reads version from `deno.json`, commits if needed, creates git tag. |
+| `deno task release`       | Reads version from `deno.json`, pushes commits and tag to origin.   |

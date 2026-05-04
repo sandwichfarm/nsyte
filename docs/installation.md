@@ -9,19 +9,20 @@ nsyte can be installed in several ways depending on your platform and preference
 
 ## Quick Install (Recommended)
 
-The easiest way to install nsyte is using the install script. It downloads the
-appropriate pre-compiled binary from the GitHub releases page for your platform
-and architecture.
+The easiest way to install nsyte is using the install script. It downloads the appropriate
+pre-compiled binary from the GitHub releases page for your platform and architecture.
 
-```bash
+::: code-group
+
+```bash [curl]
 curl -fsSL https://nsyte.run/get/install.sh | bash
 ```
 
-Or with wget:
-
-```bash
+```bash [wget]
 wget -qO- https://nsyte.run/get/install.sh | bash
 ```
+
+:::
 
 The script will:
 
@@ -30,9 +31,9 @@ The script will:
 - Place the binary in a directory on your PATH (`/usr/local/bin` on Linux/macOS by default)
 - Verify the binary runs
 
-The script does not use Homebrew, apt, dnf, pacman, AUR helpers, Scoop, or
-Chocolatey. There are no nsyte packages published to those registries today; the
-binary download is the only path the script takes.
+The script does not use Homebrew, apt, dnf, pacman, AUR helpers, Scoop, or Chocolatey. There are no
+nsyte packages published to those registries today; the binary download is the only path the script
+takes.
 
 ## Universal Installation
 
@@ -70,8 +71,7 @@ To update to the latest version:
 deno install -A -f -g -n nsyte jsr:@nsyte/cli
 ```
 
-Re-running the install command always pulls the latest published JSR
-release.
+Re-running the install command always pulls the latest published JSR release.
 
 To install a specific version:
 
@@ -80,8 +80,7 @@ To install a specific version:
 deno install -A -f -g -n nsyte jsr:@nsyte/cli@0.26.0
 ```
 
-See [JSR releases](https://jsr.io/@nsyte/cli/versions) for the list of
-published versions.
+See [JSR releases](https://jsr.io/@nsyte/cli/versions) for the list of published versions.
 
 ### Pre-built Binaries
 

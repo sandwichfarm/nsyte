@@ -1,4 +1,4 @@
-name: Deploy Docs
+name: Deploy Site
 on:
   push:
     branches:
@@ -6,18 +6,21 @@ on:
 
 jobs:
   build:
-    name: Build and Deploy Docs
+    name: Build and Deploy Site
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install site dependencies
+        run: npm ci
       - name: Build Site
         run: |
-          # Set up Python virtual environment for docs
-          python3 -m venv .venv/docs
-          .venv/docs/bin/pip install -r requirements-docs.txt
-
-          # Build the complete site (splash + docs)
+          # Build the complete site (splash + VitePress docs)
           ./scripts/build-site.sh
 
           # Remove root-level .sh file - Bunny.net blocks shell scripts at root

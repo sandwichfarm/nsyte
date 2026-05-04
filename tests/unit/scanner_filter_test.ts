@@ -1,9 +1,5 @@
 import { assertEquals } from "@std/assert";
-import {
-  BINARY_EXTENSIONS,
-  hasNullBytes,
-  isBinaryExtension,
-} from "../../src/lib/scanner/mod.ts";
+import { BINARY_EXTENSIONS, hasNullBytes, isBinaryExtension } from "../../src/lib/scanner/mod.ts";
 
 Deno.test("BINARY_EXTENSIONS", async (t) => {
   await t.step("contains common binary types", () => {

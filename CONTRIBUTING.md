@@ -96,9 +96,9 @@ deno task compile
 ## Documentation
 
 - Update documentation for any user-facing changes
-- Documentation is built with MkDocs
+- Documentation is built with VitePress
 - Source files are in the `docs/` directory
-- Build locally with: `mkdocs serve`
+- Build locally with: `deno task docs:dev`
 
 ## Code of Conduct
 

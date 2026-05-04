@@ -67,8 +67,7 @@ Deno.test("scanContent", async (t) => {
   });
 
   await t.step("detects bunker URL in file content", () => {
-    const content =
-      "const url = 'bunker://abc123?relay=wss://relay.example.com&secret=xyz'";
+    const content = "const url = 'bunker://abc123?relay=wss://relay.example.com&secret=xyz'";
     const findings = scanContent("test.js", content, "low");
     const bunkerFindings = findings.filter(
       (f) => f.patternId === "bunker-url",
@@ -126,15 +125,13 @@ Deno.test("scanContent", async (t) => {
   });
 
   await t.step("returns empty for clean content", () => {
-    const content =
-      "<!DOCTYPE html>\n<html>\n<body>Hello</body>\n</html>";
+    const content = "<!DOCTYPE html>\n<html>\n<body>Hello</body>\n</html>";
     const findings = scanContent("index.html", content, "medium");
     assertEquals(findings.length, 0);
   });
 
   await t.step("truncates match preview", () => {
-    const content =
-      "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
+    const content = "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
     const findings = scanContent("test.js", content, "low");
     assertEquals(findings.length >= 1, true);
     assertEquals(findings[0].matchPreview.length <= 7, true);

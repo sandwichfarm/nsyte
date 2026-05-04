@@ -18,7 +18,8 @@ nsyte announce [options]
 - `--publish-app-handler` — Publish app handler information (Kind 31990)
 - `--publish-app-recommendation` — Publish app recommendation (Kind 31989)
 - `--all` — Publish all available data
-- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex)
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
+  64-char hex)
 
 ## Examples
 

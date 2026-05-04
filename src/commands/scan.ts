@@ -32,19 +32,15 @@ export function formatFindings(
   });
 
   for (const finding of sorted) {
-    const severityColor =
-      finding.severity === "high"
-        ? colors.red
-        : finding.severity === "medium"
-          ? colors.yellow
-          : finding.severity === "warning"
-            ? colors.yellow
-            : colors.dim;
+    const severityColor = finding.severity === "high"
+      ? colors.red
+      : finding.severity === "medium"
+      ? colors.yellow
+      : finding.severity === "warning"
+      ? colors.yellow
+      : colors.dim;
 
-    const locationStr =
-      finding.line > 0
-        ? `${finding.filePath}:${finding.line}`
-        : finding.filePath;
+    const locationStr = finding.line > 0 ? `${finding.filePath}:${finding.line}` : finding.filePath;
 
     const tag = severityColor(`[${finding.severity.toUpperCase()}]`);
     const patternName = severityColor(finding.patternName);

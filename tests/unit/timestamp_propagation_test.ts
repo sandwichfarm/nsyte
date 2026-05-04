@@ -29,7 +29,14 @@ describe("timestamp propagation", () => {
     "createSiteManifestEvent (root, kind 15128) uses custom createdAt",
     { sanitizeOps: false, sanitizeResources: false },
     async () => {
-      const event = await createSiteManifestEvent(signer, pubkey, [], undefined, undefined, CUSTOM_TS);
+      const event = await createSiteManifestEvent(
+        signer,
+        pubkey,
+        [],
+        undefined,
+        undefined,
+        CUSTOM_TS,
+      );
       assertEquals(event.created_at, CUSTOM_TS);
       assertEquals(event.kind, 15128);
     },
