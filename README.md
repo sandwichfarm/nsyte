@@ -1,12 +1,21 @@
-> nsyte supports NIP-5A from v0.23.1+. v0.23.0 has support for root sites, but not named sites.
+<center>
 
-# nsyte
+![nsyte screen demo](./static/nsyte-readme-header.png)
+
+[![Build](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml)
+[![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
+[![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
 
 ![Coverage](./static/coverage-badge.svg) ![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
-A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
-censorship-resistant website hosting.
+[![nsyte.run](https://img.shields.io/badge/nsyte.run-purple)](https://nsyte.run])
+[![homepage](https://img.shields.io/badge/nsite.lol-orange)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+
+</center>
+
+**nsyte is command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
+censorship-resistant website hosting.**
 
 ## Key Features
 
