@@ -5,12 +5,15 @@
 [![Build](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml)
 [![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
 [![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
+[![Tests & Coverage](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml)
 
-![Coverage](./static/coverage-badge.svg) ![Line Coverage](./static/coverage-lines-badge.svg)
+![Coverage](./static/coverage-badge.svg) 
+![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
-[![nsyte.run](https://img.shields.io/badge/nsyte.run-purple)](https://nsyte.run])
-[![homepage](https://img.shields.io/badge/nsite.lol-orange)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+[![nsyte.run](https://img.shields.io/badge/%3E-nsyte.run-purple)](https://nsyte.run])
+[![homepage](https://img.shields.io/badge/😂-nsite.lol-orange)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+[![nostr](https://img.shields.io/badge/🦩-nostr-purple)](https://nsyte.run])
 
 </div>
 
