@@ -21,11 +21,8 @@ nsyte download [options]
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
 - `-p, --pubkey <npub>` — Public key to download files from (npub or hex)
 - `-d, --name <name>` — Site identifier for named sites. If not provided, downloads root site
-- `--overwrite` — Overwrite existing files (default: false)
-- `-v, --verbose` — Verbose output showing detailed download progress (default: false)
-- `--use-fallback-relays` — Include default nsyte relays for discovery
-- `--use-fallback-servers` — Include default blossom servers for downloading
-- `--use-fallbacks` — Enable both fallback relays and servers
+- `--overwrite` — Overwrite existing files (default: `false`)
+- `-v, --verbose` — Verbose output showing detailed download progress (default: `false`)
 
 ## Examples
 
@@ -59,12 +56,6 @@ Download with overwrite enabled:
 nsyte download -o ./backup --overwrite
 ```
 
-Download using fallback relays and servers:
-
-```bash
-nsyte download --use-fallbacks -o ./backup
-```
-
 Download with verbose output:
 
 ```bash
@@ -75,7 +66,8 @@ nsyte download -v -o ./backup
 
 1. **Discovers site**: Queries relays for site manifest (kind 15128 or 35128)
 2. **Fetches file list**: Retrieves all files from the manifest
-3. **Auto-discovers servers**: If not specified, uses servers from manifest and fallbacks
+3. **Resolves servers**: Uses servers from `--servers` if provided, otherwise from the project's
+   `.nsite/config.json`
 4. **Downloads concurrently**: Downloads up to 3 files in parallel
 5. **Preserves structure**: Recreates directory structure in output folder
 6. **Skips existing**: By default, won't overwrite existing files unless `--overwrite` is used
@@ -112,3 +104,5 @@ Use `--sec` with any supported format or rely on project config bunker.
 - [`nsyte ls`](ls.md) - List files before downloading
 - [`nsyte browse`](browse.md) - Interactive file browser
 - [`nsyte sites`](sites.md) - List all sites for a pubkey
+
+Inherits global options. See [global options](_global-options.md).

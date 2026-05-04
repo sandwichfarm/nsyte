@@ -72,6 +72,19 @@ export function printEventsToStdout(
 }
 
 /**
+ * Parse comma-separated event kind filters from CLI input.
+ */
+export function parseDryRunShowKinds(kinds?: string): number[] | undefined {
+  if (!kinds) return undefined;
+
+  const parsed = kinds.split(",")
+    .map((kind) => parseInt(kind.trim()))
+    .filter((kind) => !isNaN(kind));
+
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+/**
  * Print a summary of files that would be uploaded.
  */
 export function printFileSummary(

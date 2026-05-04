@@ -166,14 +166,19 @@ nsyte run --relays wss://relay.nsite.lol,wss://relay.damus.io
 
 ### Blossom Server Configuration
 
-Configure which blossom servers to use for file retrieval:
+Configure blossom servers via `.nsite/config.json` or enable defaults with `--use-fallback-servers`.
+The `run` command does not accept a `--servers` flag — the resolver reads the configured server list
+from your project config (or from the manifest itself when serving an arbitrary site).
 
 ```bash
-# Use default servers
+# Use servers from the project config
 nsyte run
 
-# Use specific servers
-nsyte run --servers https://cdn.hzrd149.com,https://cdn.sovbit.host
+# Add the default nsyte blossom servers as a fallback
+nsyte run --use-fallback-servers
+
+# Enable both relay and server fallbacks
+nsyte run --use-fallbacks
 ```
 
 ## Features
@@ -228,17 +233,22 @@ For production deployment:
 
 ## Production Deployment
 
-### Docker Example
+`nsyte run` always binds to `localhost`. There is no `--host` flag. To expose the resolver beyond
+localhost in production, run it behind a reverse proxy (nginx, Caddy, Cloudflare, etc.) that listens
+on a public interface and forwards to `localhost:<port>`.
 
-```dockerfile
-FROM denoland/deno:alpine
+### Nginx Reverse Proxy
 
-WORKDIR /app
-COPY . .
+```nginx
+server {
+    server_name *.nsites.example.com;
 
-EXPOSE 3000
-
-CMD ["deno", "run", "--allow-net", "--allow-read", "nsyte", "run", "--host", "0.0.0.0"]
+    location / {
+        proxy_pass http://localhost:6798;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
 ```
 
 ### systemd Service
@@ -252,25 +262,11 @@ After=network.target
 Type=simple
 User=nsyte
 WorkingDirectory=/opt/nsyte
-ExecStart=/usr/local/bin/nsyte run --host 0.0.0.0 --port 3000
+ExecStart=/usr/local/bin/nsyte run --port 6798
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
-```
-
-### Nginx Reverse Proxy
-
-```nginx
-server {
-    server_name *.nsites.example.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
 ```
 
 ## Monitoring
@@ -318,3 +314,5 @@ Monitor these metrics:
 - [`nsyte deploy`](deploy.md) - Deploy files to create nsites
 - [`nsyte debug`](debug.md) - Debug nsite configuration and connectivity
 - [`nsyte ls`](ls.md) - List published nsite files
+
+Inherits global options. See [global options](_global-options.md).

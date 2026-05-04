@@ -72,6 +72,21 @@ export interface PublishEventsResult {
 // Create a global relay pool for connections
 export const pool = new RelayPool();
 
+// Wire the global pool into NostrConnectSigner as the static fallback so any
+// code path that constructs / resumes a NIP-46 signer (including
+// NostrConnectSigner.fromBunkerURI for manually-entered bunker:// URIs)
+// inherits subscription/publish methods without per-call wiring.
+//
+// applesauce-signers v5 lookup chain (see applesauce-signers/dist/interop.js):
+//   options.subscriptionMethod
+//   -> options.pool?.subscription.bind(options.pool)
+//   -> cls?.subscriptionMethod
+//   -> cls?.pool?.subscription.bind(cls.pool)        // <-- this assignment
+// Without this, fromBunkerURI throws:
+// "Missing subscriptionMethod, either pass a method or set subscriptionMethod
+//  globally on the class" (GitHub #114).
+NostrConnectSigner.pool = pool;
+
 // Create an in-memory event store for managing events
 export const store = new EventStore();
 
@@ -545,25 +560,39 @@ export async function listRemoteFilesWithSources(
  */
 export async function createSiteManifestEvent(
   signer: ISigner,
+  _pubkey: string,
   files: FilePathMapping[],
   id?: string,
   metadata?: SiteManifestMetadata,
+  createdAt?: number,
 ): Promise<NostrEvent> {
-  const template = createSiteManifestTemplate(files, id, metadata);
+  const template = createSiteManifestTemplate(files, id, metadata, createdAt);
   return await signer.signEvent(template);
 }
 
 /** Create a delete event (NIP-09) */
-export async function createDeleteEvent(
-  signer: ISigner,
+export async function createDeleteEventTemplate(
   eventIds: string[],
-): Promise<NostrEvent> {
+  createdAt?: number,
+): Promise<EventTemplate> {
   const draft = await buildEvent(
     { kind: kinds.EventDeletion },
     { client: { name: "nsyte" } },
     setDeleteEvents(eventIds),
   );
 
+  if (createdAt !== undefined) {
+    draft.created_at = createdAt;
+  }
+
+  return draft;
+}
+
+export async function createDeleteEvent(
+  signer: ISigner,
+  eventIds: string[],
+): Promise<NostrEvent> {
+  const draft = await createDeleteEventTemplate(eventIds);
   return await signer.signEvent(draft);
 }
 
@@ -587,6 +616,7 @@ export async function createAppHandlerEvent(
   },
   metadata?: Partial<ProfileContent>,
   handlerId?: string,
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Use provided handlerId or default to "default"
   const normalizedId = handlerId || "default";
@@ -641,7 +671,7 @@ export async function createAppHandlerEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31990,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content,
   };
@@ -656,6 +686,7 @@ export async function createAppHandlerEvent(
 export async function createProfileEvent(
   signer: ISigner,
   profile: Partial<ProfileContent>,
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Build the profile content object
   const profileContent: Partial<ProfileContent> = {};
@@ -672,7 +703,7 @@ export async function createProfileEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: kinds.Metadata,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags: [],
     content: JSON.stringify(profileContent),
   };
@@ -687,6 +718,7 @@ export async function createProfileEvent(
 export async function createRelayListEvent(
   signer: ISigner,
   relays: string[],
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Add all relays as outbox (write) relays
   // NIP-65: ["r", <relay-url>, "write"]
@@ -694,7 +726,7 @@ export async function createRelayListEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: kinds.RelayList,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };
@@ -708,6 +740,7 @@ export async function createRelayListEvent(
 export async function createServerListEvent(
   signer: ISigner,
   servers: string[],
+  createdAt?: number,
 ): Promise<NostrEvent> {
   // Add servers as tags
   // Format: ["server", <server-url>]
@@ -715,7 +748,7 @@ export async function createServerListEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: BLOSSOM_SERVER_LIST_KIND,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };
@@ -735,6 +768,7 @@ export async function createAppRecommendationEvent(
     relay?: string;
     identifier: string;
   },
+  createdAt?: number,
 ): Promise<NostrEvent> {
   const tags: string[][] = [
     ["d", eventKind.toString()],
@@ -748,7 +782,7 @@ export async function createAppRecommendationEvent(
 
   const eventTemplate: NostrEventTemplate = {
     kind: 31989,
-    created_at: unixNow(),
+    created_at: createdAt ?? unixNow(),
     tags,
     content: "",
   };

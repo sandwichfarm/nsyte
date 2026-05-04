@@ -1,39 +1,16 @@
 ---
-title: upload (DEPRECATED)
-description: Legacy command - use deploy instead
+title: upload (alias for deploy)
+description: Alias for the deploy command
 ---
 
-# upload (DEPRECATED)
+# upload
 
-⚠️ **This command is deprecated and will be removed in a future version.**
+The `upload` command is an alias for [`deploy`](deploy.md). Both names invoke the same handler, so
+`nsyte upload <folder>` behaves identically to `nsyte deploy <folder>`.
 
-Please use [`deploy`](deploy.md) instead.
+When the alias is invoked, the runtime prints a soft deprecation notice recommending `deploy`. The
+alias itself remains supported and is not scheduled for removal in any specific release.
 
-## Migration
+See [`deploy`](deploy.md) for the full reference: usage, arguments, options, examples, and behavior.
 
-The `upload` command has been renamed to `deploy` with identical functionality:
-
-```bash
-# Old (deprecated)
-nsyte upload dist
-
-# New (recommended)
-nsyte deploy dist
-```
-
-All options and behaviors are the same. Simply replace `upload` with `deploy` in your commands and
-scripts.
-
-## Why the Change?
-
-The command was renamed to better reflect its purpose: deploying complete sites rather than just
-uploading files. The `deploy` command handles:
-
-- Uploading files to blossom servers
-- Publishing events to nostr relays
-- Publishing metadata (profile, relay lists, app handlers)
-- Managing site manifests
-
-## See Also
-
-- [`nsyte deploy`](deploy.md) - Deploy files to nostr relays and blossom servers
+Inherits global options. See [global options](_global-options.md).

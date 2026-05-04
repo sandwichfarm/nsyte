@@ -31,5 +31,11 @@ nsyte ci
 Create a new nbunksec string using a specific bunker URL:
 
 ```bash
-nsyte ci bunker://pubkey?relay=wss://relay.example&secret=xxx
+nsyte ci 'bunker://pubkey?relay=wss://relay.example&secret=xxx'
 ```
+
+## See Also
+
+- [`nsyte bunker`](bunker.md) — Manage stored NIP-46 bunker connections
+
+Inherits global options. See [global options](_global-options.md).

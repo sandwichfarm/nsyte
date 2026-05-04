@@ -18,14 +18,12 @@ The `init` command creates a new nsyte site by:
 ## Usage
 
 ```bash
-nsyte init [options]
+nsyte init
 ```
 
 ## Options
 
-- `--force`: Overwrite existing configuration
-- `--template`: Use a specific template
-- `--no-git`: Skip git initialization
+This command has no per-command options. See [global options](_global-options.md).
 
 ## Examples
 
@@ -33,18 +31,6 @@ Basic initialization:
 
 ```bash
 nsyte init
-```
-
-Force initialization:
-
-```bash
-nsyte init --force
-```
-
-Use template:
-
-```bash
-nsyte init --template=blog
 ```
 
 ## Configuration
@@ -69,11 +55,12 @@ After initialization, your project will have this structure:
 
 ```
 .
-├── .nsite/
-│   └── config.json
-├── .nsyte-ignore
-└── README.md
+└── .nsite/
+    └── config.json
 ```
+
+`init` only creates the `.nsite/` directory and `config.json`. Add a `.nsyte-ignore` file by hand if
+you need to exclude files from deployment.
 
 ## Next Steps
 
@@ -82,3 +69,5 @@ After initialization:
 1. Configure your [relays and servers](../configuration.md#relays-and-servers)
 2. Set up your [authentication](../configuration.md#authentication)
 3. Start [building your site](../index.md#building-your-site)
+
+Inherits global options. See [global options](_global-options.md).

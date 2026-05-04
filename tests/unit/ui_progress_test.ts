@@ -7,6 +7,18 @@ import {
   ProgressRenderer,
 } from "../../src/ui/progress.ts";
 
+function assertAnsiPresenceMatchesColorMode(output: string): void {
+  assertEquals(output.includes("\x1b["), !Deno.noColor);
+}
+
+function assertColorCodeWhenEnabled(output: string, code: string): void {
+  if (Deno.noColor) {
+    assertEquals(output.includes(code), false);
+  } else {
+    assertStringIncludes(output, code);
+  }
+}
+
 Deno.test("UI Progress - formatProgressBar", async (t) => {
   await t.step("should format progress bar with default width", () => {
     const result = formatProgressBar(50, 100);
@@ -40,17 +52,17 @@ Deno.test("UI Progress - formatProgressBar", async (t) => {
   });
 
   await t.step("should apply colors based on percentage", () => {
-    // Low percentage (< 30%) - should have red color code
+    // Low percentage (< 30%) - should have red color code when colors are enabled
     const low = formatProgressBar(20, 100);
-    assertStringIncludes(low, "\x1b[");
+    assertAnsiPresenceMatchesColorMode(low);
 
-    // Medium percentage (30-70%) - should have yellow color code
+    // Medium percentage (30-70%) - should have yellow color code when colors are enabled
     const medium = formatProgressBar(50, 100);
-    assertStringIncludes(medium, "\x1b[");
+    assertAnsiPresenceMatchesColorMode(medium);
 
-    // High percentage (>= 70%) - should have green color code
+    // High percentage (>= 70%) - should have green color code when colors are enabled
     const high = formatProgressBar(80, 100);
-    assertStringIncludes(high, "\x1b[");
+    assertAnsiPresenceMatchesColorMode(high);
   });
 
   await t.step("should handle various percentages", () => {
@@ -144,8 +156,20 @@ Deno.test("UI Progress - formatServerProgressBars", async (t) => {
     const output = formatServerProgressBars(
       ["https://cdn-a.example", "https://cdn-b.example"],
       {
-        "https://cdn-a.example": { total: 4, completed: 4, failed: 0, retrying: 0, skipped: 0 },
-        "https://cdn-b.example": { total: 4, completed: 2, failed: 2, retrying: 0, skipped: 0 },
+        "https://cdn-a.example": {
+          total: 4,
+          completed: 4,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
+        "https://cdn-b.example": {
+          total: 4,
+          completed: 2,
+          failed: 2,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     );
 
@@ -358,35 +382,50 @@ Deno.test("UI Progress - ProgressRenderer", async (t) => {
     stdoutStub.restore();
   });
 
-  await t.step("should show server progress when serverProgress provided", () => {
-    restore(); // Clean up any previous stubs
-    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+  await t.step(
+    "should show server progress when serverProgress provided",
+    () => {
+      restore(); // Clean up any previous stubs
+      stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
 
-    const progress = new ProgressRenderer(6, [
-      "https://server1.com",
-      "https://server2.com",
-    ]);
-    progress.update({
-      total: 6,
-      completed: 3,
-      failed: 0,
-      inProgress: 2,
-      serverProgress: {
-        "https://server1.com": { total: 3, completed: 2, failed: 0, retrying: 0, skipped: 0 },
-        "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-      },
-    });
+      const progress = new ProgressRenderer(6, [
+        "https://server1.com",
+        "https://server2.com",
+      ]);
+      progress.update({
+        total: 6,
+        completed: 3,
+        failed: 0,
+        inProgress: 2,
+        serverProgress: {
+          "https://server1.com": {
+            total: 3,
+            completed: 2,
+            failed: 0,
+            retrying: 0,
+            skipped: 0,
+          },
+          "https://server2.com": {
+            total: 3,
+            completed: 1,
+            failed: 0,
+            retrying: 0,
+            skipped: 0,
+          },
+        },
+      });
 
-    // Should have written progress output
-    let allOutput = "";
-    for (let i = 0; i < stdoutStub.calls.length; i++) {
-      allOutput += new TextDecoder().decode(stdoutStub.calls[i].args[0]);
-    }
-    // Main progress bar should show 50% (3/6)
-    assertStringIncludes(allOutput, "50%");
+      // Should have written progress output
+      let allOutput = "";
+      for (let i = 0; i < stdoutStub.calls.length; i++) {
+        allOutput += new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      }
+      // Main progress bar should show 50% (3/6)
+      assertStringIncludes(allOutput, "50%");
 
-    stdoutStub.restore();
-  });
+      stdoutStub.restore();
+    },
+  );
 
   await t.step("should handle edge case percentages", () => {
     restore(); // Clean up any previous stubs
@@ -432,7 +471,11 @@ Deno.test("UI Progress - ProgressRenderer", async (t) => {
   await t.step("should clear interval on update", () => {
     restore(); // Clean up any previous stubs
     const mockIntervalId = 789;
-    const setIntervalStub = stub(globalThis, "setInterval", () => mockIntervalId);
+    const setIntervalStub = stub(
+      globalThis,
+      "setInterval",
+      () => mockIntervalId,
+    );
     const clearIntervalStub = stub(globalThis, "clearInterval", () => {});
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
 
@@ -508,7 +551,7 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
       const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
       if (output.includes("█")) {
         // Should contain green ANSI code and not contain red blocks
-        assertStringIncludes(output, "\x1b[32m"); // green
+        assertColorCodeWhenEnabled(output, "\x1b[32m"); // green
         found = true;
         break;
       }
@@ -534,7 +577,7 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
     for (let i = 0; i < stdoutStub.calls.length; i++) {
       const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
       if (output.includes("█")) {
-        assertStringIncludes(output, "\x1b[31m"); // red
+        assertColorCodeWhenEnabled(output, "\x1b[31m"); // red
         found = true;
         break;
       }
@@ -561,7 +604,7 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
     for (let i = 0; i < stdoutStub.calls.length; i++) {
       const output = new TextDecoder().decode(stdoutStub.calls[i].args[0]);
       if (output.includes("█")) {
-        assertStringIncludes(output, "\x1b[33m"); // yellow
+        assertColorCodeWhenEnabled(output, "\x1b[33m"); // yellow
         found = true;
         break;
       }
@@ -604,9 +647,16 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should render server bars when showServerBars is true", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
-    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    const renderer = new ProgressRenderer(6, [
+      "https://server1.com",
+      "https://server2.com",
+    ]);
     (renderer as any).showServerBars = true;
     renderer.update({
       total: 6,
@@ -614,8 +664,20 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       failed: 0,
       inProgress: 3,
       serverProgress: {
-        "https://server1.com": { total: 3, completed: 2, failed: 0, retrying: 0, skipped: 0 },
-        "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+        "https://server1.com": {
+          total: 3,
+          completed: 2,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
+        "https://server2.com": {
+          total: 3,
+          completed: 1,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     });
 
@@ -634,7 +696,11 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should show server failed count in red", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(6, ["https://server1.com"]);
     (renderer as any).showServerBars = true;
@@ -644,7 +710,13 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       failed: 0,
       inProgress: 4,
       serverProgress: {
-        "https://server1.com": { total: 6, completed: 2, failed: 2, retrying: 0, skipped: 0 },
+        "https://server1.com": {
+          total: 6,
+          completed: 2,
+          failed: 2,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     });
 
@@ -660,7 +732,11 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should show server retrying count", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(6, ["https://server1.com"]);
     (renderer as any).showServerBars = true;
@@ -670,7 +746,13 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       failed: 0,
       inProgress: 3,
       serverProgress: {
-        "https://server1.com": { total: 6, completed: 2, failed: 0, retrying: 1, skipped: 0 },
+        "https://server1.com": {
+          total: 6,
+          completed: 2,
+          failed: 0,
+          retrying: 1,
+          skipped: 0,
+        },
       },
     });
 
@@ -686,7 +768,11 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should show server skipped count", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(6, ["https://server1.com"]);
     (renderer as any).showServerBars = true;
@@ -696,7 +782,13 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       failed: 0,
       inProgress: 1,
       serverProgress: {
-        "https://server1.com": { total: 6, completed: 2, failed: 0, retrying: 0, skipped: 3 },
+        "https://server1.com": {
+          total: 6,
+          completed: 2,
+          failed: 0,
+          retrying: 0,
+          skipped: 3,
+        },
       },
     });
 
@@ -712,7 +804,11 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should show server finished time", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(3, ["https://server1.com"]);
     const startTime = (renderer as any).startTime;
@@ -746,9 +842,16 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 
   await t.step("should skip server not in serverProgress", () => {
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
-    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    const renderer = new ProgressRenderer(6, [
+      "https://server1.com",
+      "https://server2.com",
+    ]);
     (renderer as any).showServerBars = true;
     renderer.update({
       total: 6,
@@ -757,7 +860,13 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       inProgress: 3,
       serverProgress: {
         // Only server1 in progress data, server2 is omitted
-        "https://server1.com": { total: 3, completed: 2, failed: 0, retrying: 0, skipped: 0 },
+        "https://server1.com": {
+          total: 3,
+          completed: 2,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     });
 
@@ -777,20 +886,51 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
 Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
   await t.step("should use cursor-up sequences on second render", () => {
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    const consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
-    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
+    const renderer = new ProgressRenderer(6, [
+      "https://server1.com",
+      "https://server2.com",
+    ]);
     (renderer as any).showServerBars = true;
 
     const spData = {
-      "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-      "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
+      "https://server1.com": {
+        total: 3,
+        completed: 1,
+        failed: 0,
+        retrying: 0,
+        skipped: 0,
+      },
+      "https://server2.com": {
+        total: 3,
+        completed: 1,
+        failed: 0,
+        retrying: 0,
+        skipped: 0,
+      },
     };
 
     // First update to set lastLineCount
-    renderer.update({ total: 6, completed: 2, failed: 0, inProgress: 4, serverProgress: spData });
+    renderer.update({
+      total: 6,
+      completed: 2,
+      failed: 0,
+      inProgress: 4,
+      serverProgress: spData,
+    });
     // Second update triggers cursor-up path
-    renderer.update({ total: 6, completed: 4, failed: 0, inProgress: 2, serverProgress: spData });
+    renderer.update({
+      total: 6,
+      completed: 4,
+      failed: 0,
+      inProgress: 2,
+      serverProgress: spData,
+    });
 
     let allOutput = "";
     for (const call of stdoutStub.calls) {
@@ -803,47 +943,73 @@ Deno.test("UI Progress - ProgressRenderer multi-line rendering", async (t) => {
     stdoutStub.restore();
   });
 
-  await t.step("should clear rendered lines when stopping after multi-line render", () => {
-    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+  await t.step(
+    "should clear rendered lines when stopping after multi-line render",
+    () => {
+      const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+      const consoleSizeStub = stub(
+        Deno,
+        "consoleSize",
+        () => ({ columns: 200, rows: 50 }),
+      );
 
-    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
-    (renderer as any).showServerBars = true;
+      const renderer = new ProgressRenderer(6, [
+        "https://server1.com",
+        "https://server2.com",
+      ]);
+      (renderer as any).showServerBars = true;
 
-    // Update to set lastLineCount > 1
-    renderer.update({
-      total: 6,
-      completed: 2,
-      failed: 0,
-      inProgress: 4,
-      serverProgress: {
-        "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-        "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-      },
-    });
+      // Update to set lastLineCount > 1
+      renderer.update({
+        total: 6,
+        completed: 2,
+        failed: 0,
+        inProgress: 4,
+        serverProgress: {
+          "https://server1.com": {
+            total: 3,
+            completed: 1,
+            failed: 0,
+            retrying: 0,
+            skipped: 0,
+          },
+          "https://server2.com": {
+            total: 3,
+            completed: 1,
+            failed: 0,
+            retrying: 0,
+            skipped: 0,
+          },
+        },
+      });
 
-    // Capture writes before stop
-    const beforeStopCount = stdoutStub.calls.length;
+      // Capture writes before stop
+      const beforeStopCount = stdoutStub.calls.length;
 
-    // Stop should emit cursor-up for clearing multi-line output
-    renderer.stop();
+      // Stop should emit cursor-up for clearing multi-line output
+      renderer.stop();
 
-    let stopOutput = "";
-    for (let i = beforeStopCount; i < stdoutStub.calls.length; i++) {
-      stopOutput += new TextDecoder().decode(stdoutStub.calls[i].args[0]);
-    }
-    // clearRenderedLines should emit cursor-up escape when lastLineCount > 1
-    assertStringIncludes(stopOutput, "\x1b[");
+      let stopOutput = "";
+      for (let i = beforeStopCount; i < stdoutStub.calls.length; i++) {
+        stopOutput += new TextDecoder().decode(stdoutStub.calls[i].args[0]);
+      }
+      // clearRenderedLines should emit cursor-up escape when lastLineCount > 1
+      assertStringIncludes(stopOutput, "\x1b[");
 
-    consoleSizeStub.restore();
-    stdoutStub.restore();
-  });
+      consoleSizeStub.restore();
+      stdoutStub.restore();
+    },
+  );
 });
 
 Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) => {
   await t.step("should truncate segments when terminal is narrow", () => {
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 40, rows: 50 }));
+    const consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 40, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(100);
     renderer.update({ total: 100, completed: 50, failed: 0, inProgress: 50 });
@@ -861,7 +1027,11 @@ Deno.test("UI Progress - ProgressRenderer terminal width truncation", async (t) 
 
   await t.step("should show all segments when terminal is wide", () => {
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 300, rows: 50 }));
+    const consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 300, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(100);
     renderer.update({ total: 100, completed: 50, failed: 0, inProgress: 50 });
@@ -932,72 +1102,113 @@ Deno.test("UI Progress - ProgressRenderer interval clearing", async (t) => {
 });
 
 Deno.test("UI Progress - ProgressRenderer shrinking line count", async (t) => {
-  await t.step("should clear leftover lines when new render has fewer lines than previous", () => {
-    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+  await t.step(
+    "should clear leftover lines when new render has fewer lines than previous",
+    () => {
+      const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+      const consoleSizeStub = stub(
+        Deno,
+        "consoleSize",
+        () => ({ columns: 200, rows: 50 }),
+      );
 
-    const renderer = new ProgressRenderer(6, ["https://server1.com", "https://server2.com"]);
-    (renderer as any).showServerBars = true;
+      const renderer = new ProgressRenderer(6, [
+        "https://server1.com",
+        "https://server2.com",
+      ]);
+      (renderer as any).showServerBars = true;
 
-    const spData = {
-      "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-      "https://server2.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-    };
-    // First render: multiple lines (main bar + separator + 2 server bars = 4 lines)
-    renderer.update({ total: 6, completed: 2, failed: 0, inProgress: 4, serverProgress: spData });
+      const spData = {
+        "https://server1.com": {
+          total: 3,
+          completed: 1,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
+        "https://server2.com": {
+          total: 3,
+          completed: 1,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
+      };
+      // First render: multiple lines (main bar + separator + 2 server bars = 4 lines)
+      renderer.update({
+        total: 6,
+        completed: 2,
+        failed: 0,
+        inProgress: 4,
+        serverProgress: spData,
+      });
 
-    // Turn off server bars for second render: only 1 line
-    (renderer as any).showServerBars = false;
-    renderer.update({ total: 6, completed: 4, failed: 0, inProgress: 2 });
+      // Turn off server bars for second render: only 1 line
+      (renderer as any).showServerBars = false;
+      renderer.update({ total: 6, completed: 4, failed: 0, inProgress: 2 });
 
-    // Collect all output
-    let allOutput = "";
-    for (const call of stdoutStub.calls) {
-      allOutput += new TextDecoder().decode(call.args[0]);
-    }
-    // Output should contain escape sequences for clearing extra lines
-    assertStringIncludes(allOutput, "\x1b[");
+      // Collect all output
+      let allOutput = "";
+      for (const call of stdoutStub.calls) {
+        allOutput += new TextDecoder().decode(call.args[0]);
+      }
+      // Output should contain escape sequences for clearing extra lines
+      assertStringIncludes(allOutput, "\x1b[");
 
-    consoleSizeStub.restore();
-    stdoutStub.restore();
-  });
+      consoleSizeStub.restore();
+      stdoutStub.restore();
+    },
+  );
 });
 
 Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async (t) => {
-  await t.step("should use fallback sepWidth when consoleSize throws during server bars", () => {
-    const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    // Make consoleSize throw so columns = 0, triggering the : 60 fallback for sepWidth
-    const consoleSizeStub = stub(Deno, "consoleSize", () => {
-      throw new Error("not a tty");
-    });
+  await t.step(
+    "should use fallback sepWidth when consoleSize throws during server bars",
+    () => {
+      const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+      // Make consoleSize throw so columns = 0, triggering the : 60 fallback for sepWidth
+      const consoleSizeStub = stub(Deno, "consoleSize", () => {
+        throw new Error("not a tty");
+      });
 
-    const renderer = new ProgressRenderer(3, ["https://server1.com"]);
-    (renderer as any).showServerBars = true;
-    renderer.update({
-      total: 3,
-      completed: 1,
-      failed: 0,
-      inProgress: 2,
-      serverProgress: {
-        "https://server1.com": { total: 3, completed: 1, failed: 0, retrying: 0, skipped: 0 },
-      },
-    });
+      const renderer = new ProgressRenderer(3, ["https://server1.com"]);
+      (renderer as any).showServerBars = true;
+      renderer.update({
+        total: 3,
+        completed: 1,
+        failed: 0,
+        inProgress: 2,
+        serverProgress: {
+          "https://server1.com": {
+            total: 3,
+            completed: 1,
+            failed: 0,
+            retrying: 0,
+            skipped: 0,
+          },
+        },
+      });
 
-    let allOutput = "";
-    for (const call of stdoutStub.calls) {
-      allOutput += new TextDecoder().decode(call.args[0]);
-    }
-    // Server bars should still render with the separator
-    assertStringIncludes(allOutput, "─");
-    assertStringIncludes(allOutput, "server1.com");
+      let allOutput = "";
+      for (const call of stdoutStub.calls) {
+        allOutput += new TextDecoder().decode(call.args[0]);
+      }
+      // Server bars should still render with the separator
+      assertStringIncludes(allOutput, "─");
+      assertStringIncludes(allOutput, "server1.com");
 
-    consoleSizeStub.restore();
-    stdoutStub.restore();
-  });
+      consoleSizeStub.restore();
+      stdoutStub.restore();
+    },
+  );
 
   await t.step("should handle server with total=0 in server bars", () => {
     const stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
-    const consoleSizeStub = stub(Deno, "consoleSize", () => ({ columns: 200, rows: 50 }));
+    const consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
 
     const renderer = new ProgressRenderer(3, ["https://server1.com"]);
     (renderer as any).showServerBars = true;
@@ -1008,7 +1219,13 @@ Deno.test("UI Progress - ProgressRenderer server bars with zero columns", async 
       inProgress: 0,
       serverProgress: {
         // total=0 triggers the 0% branch
-        "https://server1.com": { total: 0, completed: 0, failed: 0, retrying: 0, skipped: 0 },
+        "https://server1.com": {
+          total: 0,
+          completed: 0,
+          failed: 0,
+          retrying: 0,
+          skipped: 0,
+        },
       },
     });
 

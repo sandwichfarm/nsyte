@@ -62,8 +62,7 @@ Deno.test("nsec pattern matching", async (t) => {
   const nsecPattern = SCAN_PATTERNS.find((p) => p.id === "nsec-key")!;
 
   await t.step("matches valid nsec string", () => {
-    const testNsec =
-      "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
+    const testNsec = "nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqe5ycp";
     assertEquals(nsecPattern.regex.test(testNsec), true);
   });
 

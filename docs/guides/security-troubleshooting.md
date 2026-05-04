@@ -11,9 +11,19 @@ This guide helps resolve common issues with nsyte's credential storage system.
 
 ### Check Storage Backend
 
+For a quick health check, list stored bunkers — if the backend is healthy, the command returns
+without error:
+
 ```bash
-# Run the built-in test to see which storage backend is being used
-deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
+nsyte bunker list
+```
+
+If you have a checkout of the nsyte source tree, you can also run the end-to-end secrets-management
+test, which probes keychain availability, encrypted storage, and round-trip storage/retrieval:
+
+```bash
+# From the nsyte repo root
+deno run --allow-read --allow-write --allow-env --allow-run tests/test-secrets.ts
 ```
 
 ### Check Configuration
@@ -23,17 +33,21 @@ deno run --allow-read --allow-write --allow-env --allow-run test-secrets.ts
 nsyte bunker list
 
 # Check if any legacy secrets exist
-ls ~/.config/nsyte/secrets.json      # Linux
+ls ~/.config/nsite/secrets.json      # Linux
 ls ~/Library/Application\ Support/nsyte/secrets.json  # macOS
-ls %APPDATA%\nsyte\secrets.json      # Windows
+ls %APPDATA%\nsite\secrets.json      # Windows
 ```
 
 ## Common Issues
 
 ### 1. "Keychain Not Found" on macOS
 
-!!! error "Symptoms" - Error: "A keychain cannot be found to store..." - Dialog prompts cancelled -
-Falls back to encrypted storage
+::: danger Symptoms
+
+- Error: "A keychain cannot be found to store..."
+- Dialog prompts cancelled
+- Falls back to encrypted storage
+:::
 
 **Causes**:
 
@@ -56,13 +70,18 @@ security create-keychain ~/Library/Keychains/login.keychain-db
 # Add Terminal or your app
 ```
 
-!!! tip "Workaround" nsyte will automatically fall back to encrypted file storage if keychain access
-fails.
+::: tip Workaround
+nsyte will automatically fall back to encrypted file storage if keychain access fails.
+:::
 
 ### 2. "secret-tool: command not found" on Linux
 
-!!! error "Symptoms" - Error about missing secret-tool - Falls back to encrypted storage - No native
-keychain integration
+::: danger Symptoms
+
+- Error about missing secret-tool
+- Falls back to encrypted storage
+- No native keychain integration
+:::
 
 **Solutions**:
 
@@ -81,13 +100,19 @@ sudo pacman -S libsecret
 which secret-tool
 ```
 
-!!! note "Alternative" If you don't want to install secret-tool, nsyte will use encrypted file
-storage which is still secure.
+::: info Alternative
+If you don't want to install secret-tool, nsyte will use encrypted file storage which is still
+secure.
+:::
 
 ### 3. "cmdkey: Access Denied" on Windows
 
-!!! error "Symptoms" - Error when storing credentials - Access denied messages - Falls back to
-encrypted storage
+::: danger Symptoms
+
+- Error when storing credentials
+- Access denied messages
+- Falls back to encrypted storage
+:::
 
 **Solutions**:
 
@@ -105,8 +130,12 @@ cmdkey /delete:nsyte:<pubkey>
 
 ### 4. Encrypted Storage Initialization Failed
 
-!!! error "Symptoms" - Error: "Failed to initialize encrypted storage" - Falls back to plain JSON
-storage - Security warnings shown
+::: danger Symptoms
+
+- Error: "Failed to initialize encrypted storage"
+- Falls back to plain JSON storage
+- Security warnings shown
+:::
 
 **Causes**:
 
@@ -118,31 +147,37 @@ storage - Security warnings shown
 
 ```bash
 # Check permissions
-ls -la ~/.config/nsyte/  # Linux/macOS
-dir %APPDATA%\nsyte\     # Windows
+ls -la ~/.config/nsite/                       # Linux
+ls -la ~/Library/Application\ Support/nsyte/  # macOS
+dir %APPDATA%\nsite\                          # Windows
 
 # Fix permissions
-chmod 700 ~/.config/nsyte/  # Linux/macOS
+chmod 700 ~/.config/nsite/                       # Linux
+chmod 700 ~/Library/Application\ Support/nsyte/  # macOS
 
 # Check disk space
 df -h ~/.config/  # Linux/macOS
 dir %APPDATA%\    # Windows
 
-# Recreate config directory
-rm -rf ~/.config/nsyte/
+# Recreate config directory (Linux example)
+rm -rf ~/.config/nsite/
 nsyte bunker list  # Will recreate directory
 ```
 
 ### 5. Migration Issues
 
-!!! error "Symptoms" - Legacy secrets not migrated - Duplicated entries - Missing bunkers after
-update
+::: danger Symptoms
+
+- Legacy secrets not migrated
+- Duplicated entries
+- Missing bunkers after update
+:::
 
 **Diagnosis**:
 
 ```bash
-# Check for legacy file
-cat ~/.config/nsyte/secrets.json
+# Check for legacy file (Linux path; see Storage Locations below for other platforms)
+cat ~/.config/nsite/secrets.json
 
 # Check migration logs
 nsyte bunker list  # Should show migration messages
@@ -155,8 +190,8 @@ nsyte bunker export <pubkey>
 
 ```bash
 # Manual migration if automatic fails
-# 1. Backup legacy file
-cp ~/.config/nsyte/secrets.json ~/.config/nsyte/secrets.json.backup
+# 1. Backup legacy file (Linux)
+cp ~/.config/nsite/secrets.json ~/.config/nsite/secrets.json.backup
 
 # 2. Import each bunker manually
 nsyte bunker import <nbunksec-string>
@@ -164,14 +199,18 @@ nsyte bunker import <nbunksec-string>
 # 3. Verify all bunkers migrated
 nsyte bunker list
 
-# 4. Remove legacy file
-rm ~/.config/nsyte/secrets.json
+# 4. Remove legacy file (Linux)
+rm ~/.config/nsite/secrets.json
 ```
 
 ### 6. CI/CD Authentication Issues
 
-!!! error "Symptoms" - nbunksec not working in CI/CD - Authentication failures - Missing environment
-variables
+::: danger Symptoms
+
+- nbunksec not working in CI/CD
+- Authentication failures
+- Missing environment variables
+:::
 
 **Solutions**:
 
@@ -197,15 +236,19 @@ nsyte deploy ./dist --sec $NBUNK_SECRET
 
 ### 7. Permission Denied Errors
 
-!!! error "Symptoms" - Permission denied accessing keychain - Can't write to config directory -
-Access denied errors
+::: danger Symptoms
+
+- Permission denied accessing keychain
+- Can't write to config directory
+- Access denied errors
+:::
 
 **Solutions**:
 
 ```bash
 # Linux: Fix directory permissions
-chmod 700 ~/.config/nsyte/
-chmod 600 ~/.config/nsyte/*
+chmod 700 ~/.config/nsite/
+chmod 600 ~/.config/nsite/*
 
 # macOS: Grant Full Disk Access
 # System Preferences > Security & Privacy > Privacy > Full Disk Access
@@ -221,11 +264,11 @@ chmod 600 ~/.config/nsyte/*
 
 ```bash
 # Set environment variable for detailed logs
-export NSYTE_LOG_LEVEL=debug
+export LOG_LEVEL=debug
 nsyte bunker list
 
 # Or for a single command
-NSYTE_LOG_LEVEL=debug nsyte bunker import <nbunksec>
+LOG_LEVEL=debug nsyte bunker import <nbunksec>
 ```
 
 ### Manual Backend Testing
@@ -259,11 +302,11 @@ ls -la ~/Library/Application\ Support/nsyte/
 security dump-keychain | grep nsyte
 
 # Linux:
-ls -la ~/.config/nsyte/
+ls -la ~/.config/nsite/
 secret-tool search service nsyte
 
 # Windows:
-dir %APPDATA%\nsyte\
+dir %APPDATA%\nsite\
 cmdkey /list | findstr nsyte
 ```
 
@@ -309,11 +352,13 @@ cmdkey /list | findstr nsyte
 
 ## Getting Help
 
-!!! question "Need More Help?" If you're still experiencing issues:
+::: info Need More Help?
+If you're still experiencing issues:
 
-    1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
-    2. **Create Bug Report**: Include debug logs and system information
-    3. **Security Issues**: Report privately to security@sandwichfarm.com
+1. **Check GitHub Issues**: [nsyte Issues](https://github.com/sandwichfarm/nsyte/issues)
+2. **Create Bug Report**: Include debug logs and system information
+3. **Security Issues**: Report privately to security@sandwichfarm.com
+:::
 
 ### Information to Include
 

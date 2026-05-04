@@ -27,7 +27,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
         return "Object with custom toString";
       },
     };
-    assertEquals(getErrorMessage(objWithToString), "Object with custom toString");
+    assertEquals(
+      getErrorMessage(objWithToString),
+      "Object with custom toString",
+    );
 
     // Test with symbols
     const symbol = Symbol("test");
@@ -84,7 +87,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
 
       assertEquals(result, "Test with custom logger");
       assertEquals(mockLogger.error.calls.length, 1);
-      assertEquals(mockLogger.error.calls[0].args[0], "Custom context: Test with custom logger");
+      assertEquals(
+        mockLogger.error.calls[0].args[0],
+        "Custom context: Test with custom logger",
+      );
       assertEquals(consoleErrorSpy.calls.length, 1);
     } finally {
       restore();
@@ -106,26 +112,38 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       logError("String error context", "Simple string error", {
         logger: mockLogger as any,
       });
-      assertEquals(mockLogger.error.calls[0].args[0], "String error context: Simple string error");
+      assertEquals(
+        mockLogger.error.calls[0].args[0],
+        "String error context: Simple string error",
+      );
 
       // Test with number error
       logError("Number error context", 404, {
         logger: mockLogger as any,
       });
-      assertEquals(mockLogger.error.calls[1].args[0], "Number error context: 404");
+      assertEquals(
+        mockLogger.error.calls[1].args[0],
+        "Number error context: 404",
+      );
 
       // Test with object error
       const objError = { code: "ERR_001", detail: "Something went wrong" };
       logError("Object error context", objError, {
         logger: mockLogger as any,
       });
-      assertEquals(mockLogger.error.calls[2].args[0], "Object error context: [object Object]");
+      assertEquals(
+        mockLogger.error.calls[2].args[0],
+        "Object error context: [object Object]",
+      );
 
       // Test with null/undefined
       logError("Null error context", null, {
         logger: mockLogger as any,
       });
-      assertEquals(mockLogger.error.calls[3].args[0], "Null error context: null");
+      assertEquals(
+        mockLogger.error.calls[3].args[0],
+        "Null error context: null",
+      );
     } finally {
       restore();
     }
@@ -146,8 +164,8 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       );
       assertExists(coloredCall);
       const coloredMessage = coloredCall.args[0] as string;
-      // Should contain ANSI color codes
-      assertEquals(coloredMessage.includes("\x1b["), true);
+      // Should contain ANSI color codes unless color output is explicitly disabled.
+      assertEquals(coloredMessage.includes("\x1b["), !Deno.noColor);
 
       // Test uncolored console output
       logError("No color test", new Error("Uncolored error"), {
@@ -209,7 +227,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       assertEquals(exitStub.calls.length, 3);
       assertEquals(exitStub.calls[2].args[0], 255);
       assertEquals(consoleErrorSpy.calls.length, 1);
-      assertEquals(consoleErrorSpy.calls[0].args[0], "Error: All options: full error");
+      assertEquals(
+        consoleErrorSpy.calls[0].args[0],
+        "Error: All options: full error",
+      );
     } finally {
       restore();
     }
@@ -232,7 +253,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       });
 
       assertEquals(mockLogger.error.calls.length, 1);
-      assertEquals(mockLogger.error.calls[0].args[0], "Custom logger context: logger error");
+      assertEquals(
+        mockLogger.error.calls[0].args[0],
+        "Custom logger context: logger error",
+      );
       assertEquals(exitStub.calls.length, 0);
     } finally {
       restore();
@@ -292,7 +316,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
       });
       assertEquals(result2, undefined);
       assertEquals(consoleErrorSpy.calls.length, 1);
-      assertEquals(consoleErrorSpy.calls[0].args[0], "Error: Console error: String error thrown");
+      assertEquals(
+        consoleErrorSpy.calls[0].args[0],
+        "Error: Console error: String error thrown",
+      );
 
       // Test with exit (use mock logger)
       const result3 = await withErrorHandling("Exit error", async () => {
@@ -327,7 +354,10 @@ Deno.test("Error Utils - Comprehensive Coverage", async (t) => {
 
       assertEquals(result, undefined);
       assertEquals(mockLogger.error.calls.length, 1);
-      assertEquals(mockLogger.error.calls[0].args[0], "Logger error: Type mismatch");
+      assertEquals(
+        mockLogger.error.calls[0].args[0],
+        "Logger error: Type mismatch",
+      );
     } finally {
       restore();
     }

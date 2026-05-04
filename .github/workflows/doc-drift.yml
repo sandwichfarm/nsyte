@@ -1,0 +1,58 @@
+name: doc drift gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/commands/**"
+      - "docs/**"
+      - "docs/.vitepress/**"
+      - "scripts/check-doc-drift.ts"
+      - "scripts/prepare-vitepress-directory-urls.mjs"
+      - "scripts/compress-site-files.mjs"
+      - "deno.json"
+      - "docs/package.json"
+      - "docs/package-lock.json"
+  pull_request:
+    paths:
+      - "src/commands/**"
+      - "docs/**"
+      - "docs/.vitepress/**"
+      - "scripts/check-doc-drift.ts"
+      - "scripts/prepare-vitepress-directory-urls.mjs"
+      - "scripts/compress-site-files.mjs"
+      - "deno.json"
+      - "docs/package.json"
+      - "docs/package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doc-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift-check:
+    name: Check source/docs drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+
+      - name: Check source/docs drift
+        run: deno task check-doc-drift
+
+      - name: Drift gate failure hint
+        if: failure()
+        run: |
+          echo "::error::Doc drift detected. See the previous step for details."
+          echo "Run locally: deno task check-doc-drift"
+          echo "Help:        deno run --allow-read scripts/check-doc-drift.ts --help"
+          echo "Context:     .planning/v1.4-PHANTOM-LOG.md"

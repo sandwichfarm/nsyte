@@ -5,8 +5,9 @@ description: Completely remove a deployed site from relays and blossom servers
 
 # `nsyte undeploy`
 
-Completely remove a deployed site: delete all blobs from blossom servers and remove the site
-manifest from relays. This is the nuclear option for fully taking down a site.
+Completely remove a deployed site: delete all blobs from blossom servers and
+remove the site manifest from relays. This is the nuclear option for fully
+taking down a site.
 
 ## Usage
 
@@ -17,9 +18,17 @@ nsyte undeploy [options]
 ## Options
 
 - `-r, --relays <relays>` — Nostr relays to use (comma-separated)
-- `-s, --servers <servers>` — Blossom servers to delete blobs from (comma-separated)
-- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
-- `-d, --name <name>` — Site identifier for named sites. If not provided, undeploys root site
+- `-s, --servers <servers>` — Blossom servers to delete blobs from
+  (comma-separated)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
+  bunker://, hex)
+- `-d, --name <name>` — Site identifier for named sites. If not provided,
+  undeploys root site
+- `--dry-run` — Preview undeploy events without publishing or deleting blobs
+  (default: false)
+- `--dry-run-output <dir>` — Directory to write dry-run event JSON files
+- `--dry-run-show-kinds <kinds>` — Also print events of these kinds to stdout
+  (comma-separated kind numbers)
 - `-y, --yes` — Skip confirmation prompts (default: false)
 
 ## Examples
@@ -39,7 +48,7 @@ nsyte undeploy -d blog
 Undeploy in CI (skip type-to-confirm):
 
 ```bash
-nsyte undeploy --yes --sec $NSYTE_NBUNKSEC
+nsyte undeploy --yes --sec $NBUNK_SECRET
 ```
 
 Undeploy with custom relays and servers:
@@ -48,16 +57,24 @@ Undeploy with custom relays and servers:
 nsyte undeploy -r wss://relay1.com,wss://relay2.com -s https://server1.com
 ```
 
+Preview the manifest delete event and blob count without changing anything:
+
+```bash
+nsyte undeploy --dry-run --dry-run-show-kinds 5
+```
+
 ## How it Works
 
 1. **Fetches manifest**: Retrieves the current site manifest from relays
 2. **Shows summary**: Displays number of blobs, servers, and relays affected
-3. **Type-to-confirm**: Requires typing the site name (or "undeploy" for root sites) to confirm
+3. **Type-to-confirm**: Requires typing the site name (or "undeploy" for root
+   sites) to confirm
 4. **Deletes blobs**: Removes all blob files from all configured blossom servers
-5. **Removes manifest**: Publishes NIP-09 Kind 5 delete event for the site manifest
+5. **Removes manifest**: Publishes NIP-09 Kind 5 delete event for the site
+   manifest
 
-Unlike `delete`, which selectively removes site events, `undeploy` always deletes both the blobs
-from blossom servers and the manifest from relays.
+Unlike `delete`, which selectively removes site events, `undeploy` always
+deletes both the blobs from blossom servers and the manifest from relays.
 
 ## Confirmation
 
@@ -107,3 +124,5 @@ Authentication options (in order of precedence):
 - [`nsyte deploy`](deploy.md) - Deploy files to create nsites
 - [`nsyte ls`](ls.md) - List published files
 - [`nsyte download`](download.md) - Download files for backup
+
+Inherits global options. See [global options](_global-options.md).

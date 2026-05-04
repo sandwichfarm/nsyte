@@ -21,6 +21,8 @@ describe("snapshot command", () => {
     assertExists(snapshotCommand.getOption("name"));
     assertExists(snapshotCommand.getOption("relays"));
     assertExists(snapshotCommand.getOption("dry-run"));
+    assertExists(snapshotCommand.getOption("dry-run-output"));
+    assertExists(snapshotCommand.getOption("dry-run-show-kinds"));
   });
 
   it("formats snapshot created_at as unix and human-readable text", () => {

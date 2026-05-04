@@ -6,6 +6,7 @@ import { afterEach, describe, it } from "@std/testing/bdd";
 import {
   defaultOutputDir,
   handleDryRunOutput,
+  parseDryRunShowKinds,
   writeDryRunEvents,
 } from "../../../src/lib/dry-run/writer.ts";
 import type { DryRunEvent } from "../../../src/lib/dry-run/types.ts";
@@ -139,5 +140,16 @@ describe("handleDryRunOutput", () => {
 
     assertStringIncludes(result.outputDir, "/tmp/nsyte-dry-run-");
     assertEquals(result.files.length, 1);
+  });
+});
+
+describe("parseDryRunShowKinds", () => {
+  it("parses comma-separated kind filters", () => {
+    assertEquals(parseDryRunShowKinds("15128, 31990"), [15128, 31990]);
+  });
+
+  it("returns undefined for empty or invalid input", () => {
+    assertEquals(parseDryRunShowKinds(undefined), undefined);
+    assertEquals(parseDryRunShowKinds("abc"), undefined);
   });
 });

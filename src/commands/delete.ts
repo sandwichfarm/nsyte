@@ -3,8 +3,14 @@ import { Confirm } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
+import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { createLogger } from "../lib/logger.ts";
-import { createDeleteEvent, getUserDisplayName, publishEventsToRelays } from "../lib/nostr.ts";
+import {
+  createDeleteEvent,
+  createDeleteEventTemplate,
+  getUserDisplayName,
+  publishEventsToRelays,
+} from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
@@ -17,6 +23,58 @@ import type { ISigner } from "applesauce-signers";
 import { handleError } from "../lib/error-utils.ts";
 
 const DELETE_AUTH_BATCH_SIZE = 20;
+
+interface DeleteDryRunOptions {
+  createdAt?: number;
+  dryRunOutput?: string;
+  dryRunShowKinds?: string;
+  includeBlobs?: boolean;
+}
+
+function collectBlobHashes(pathTags: string[][]): Set<string> {
+  const blobHashes = new Set<string>();
+  for (const pathTag of pathTags) {
+    if (pathTag.length >= 3 && pathTag[2]) {
+      blobHashes.add(pathTag[2]);
+    }
+  }
+  return blobHashes;
+}
+
+async function handleDeleteDryRun(
+  siteType: string,
+  manifestId: string,
+  pathTags: string[][],
+  options: DeleteDryRunOptions,
+  servers: string[],
+): Promise<void> {
+  const deleteTemplate = await createDeleteEventTemplate([manifestId], options.createdAt);
+
+  await handleDryRunOutput(
+    [{
+      label: `Delete ${siteType} (kind ${deleteTemplate.kind})`,
+      kind: deleteTemplate.kind,
+      template: deleteTemplate,
+      filename: `delete-${deleteTemplate.kind}.json`,
+    }],
+    {
+      outputDir: options.dryRunOutput,
+      showKinds: parseDryRunShowKinds(options.dryRunShowKinds),
+      interactive: false,
+    },
+  );
+
+  if (options.includeBlobs) {
+    const blobHashes = collectBlobHashes(pathTags);
+    console.log(
+      colors.yellow(
+        `Dry run only: ${blobHashes.size} blob(s) would be deleted from ${servers.length} server(s).`,
+      ),
+    );
+  }
+
+  console.log(colors.yellow("Dry run only: delete event was not signed or published."));
+}
 
 /**
  * Sign a batch delete authorization covering up to DELETE_AUTH_BATCH_SIZE hashes.
@@ -97,6 +155,14 @@ export function registerDeleteCommand() {
     .option(
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, deletes root site (kind 15128).",
+    )
+    .option("--dry-run", "Preview delete events without publishing or deleting blobs.", {
+      default: false,
+    })
+    .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers).",
     )
     .option("-y, --yes", "Skip confirmation prompts", { default: false })
     .action(async (options) => {
@@ -192,6 +258,23 @@ export function registerDeleteCommand() {
         paths.forEach((path) => console.log(`  - ${path}`));
         if (fileCount > 5) {
           console.log(`  ... and ${fileCount - 5} more files`);
+        }
+
+        if (options.dryRun) {
+          const servers = options.servers
+            ? options.servers.split(",").map((s: string) => s.trim()).filter((s: string) => s)
+            : (config.servers || []);
+          await handleDeleteDryRun(
+            `named site "${options.name}"`,
+            manifest.id,
+            pathTags,
+            options,
+            servers,
+          );
+          if ("close" in signer && typeof signer.close === "function") {
+            await signer.close();
+          }
+          return Deno.exit(0);
         }
 
         // Confirm deletion
@@ -395,6 +478,14 @@ export function registerDeleteCommand() {
       paths.forEach((path) => console.log(`  - ${path}`));
       if (fileCount > 5) {
         console.log(`  ... and ${fileCount - 5} more files`);
+      }
+
+      if (options.dryRun) {
+        await handleDeleteDryRun("root site", manifest.id, pathTags, options, servers);
+        if ("close" in signer && typeof signer.close === "function") {
+          await signer.close();
+        }
+        return Deno.exit(0);
       }
 
       // Confirm deletion

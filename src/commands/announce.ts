@@ -3,10 +3,14 @@ import nsyte from "./root.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
-import { collectAnnounceEvents, handleDryRunOutput } from "../lib/dry-run/mod.ts";
+import {
+  collectAnnounceEvents,
+  handleDryRunOutput,
+  parseDryRunShowKinds,
+} from "../lib/dry-run/mod.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { publishAppHandler } from "../lib/metadata/publisher.ts";
+import { publishAppHandler, publishAppRecommendation } from "../lib/metadata/publisher.ts";
 import { getUserDisplayName, getUserOutboxes } from "../lib/nostr.ts";
 import { StatusDisplay } from "../ui/status.ts";
 
@@ -18,6 +22,7 @@ export function registerAnnounceCommand(): void {
     .alias("annc")
     .description("Publish app handlers to Nostr")
     .option("--publish-app-handler", "Publish app handler information (Kind 31990)")
+    .option("--publish-app-recommendation", "Publish app recommendation (Kind 31989)")
     .option("--all", "Publish all available data")
     .option(
       "--sec <secret:string>",
@@ -26,6 +31,11 @@ export function registerAnnounceCommand(): void {
     .option("--dry-run", "Preview what would be announced without publishing.", {
       default: false,
     })
+    .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers).",
+    )
     .action(async (options) => {
       const status = new StatusDisplay();
 
@@ -41,13 +51,15 @@ export function registerAnnounceCommand(): void {
         // Determine what to publish
         const publishAll = options.all === true;
         const shouldPublishAppHandler = publishAll || options.publishAppHandler === true;
+        const shouldPublishAppRecommendation = publishAll ||
+          options.publishAppRecommendation === true;
 
         // Check if anything needs to be published
-        if (!shouldPublishAppHandler) {
+        if (!shouldPublishAppHandler && !shouldPublishAppRecommendation) {
           console.error(colors.red("No publish options specified."));
           console.error(
             colors.yellow(
-              "Use --publish-app-handler or --all",
+              "Use --publish-app-handler, --publish-app-recommendation, or --all",
             ),
           );
           Deno.exit(1);
@@ -65,6 +77,8 @@ export function registerAnnounceCommand(): void {
           }
 
           await handleDryRunOutput(events, {
+            outputDir: options.dryRunOutput,
+            showKinds: parseDryRunShowKinds(options.dryRunShowKinds),
             interactive: false, // Announce dry-run is simpler, no TUI needed
           });
 
@@ -94,6 +108,7 @@ export function registerAnnounceCommand(): void {
 
         const results = {
           appHandler: false,
+          appRecommendation: false,
         };
 
         // Discover user's existing relay list and display name in parallel
@@ -127,7 +142,9 @@ export function registerAnnounceCommand(): void {
         if (shouldPublishAppHandler) {
           status.update("Publishing app handler...");
           try {
-            await publishAppHandler(config, signer, publishToRelays, status);
+            await publishAppHandler(config, signer, publishToRelays, status, {
+              createdAt: options.createdAt,
+            });
             results.appHandler = true;
             status.addMessage(
               colors.green(`✓ App handler published to ${publishToRelays.length} relays`),
@@ -139,14 +156,35 @@ export function registerAnnounceCommand(): void {
           }
         }
 
+        // Publish app recommendation
+        if (shouldPublishAppRecommendation) {
+          status.update("Publishing app recommendation...");
+          try {
+            await publishAppRecommendation(config, signer, publishToRelays, status, {
+              createdAt: options.createdAt,
+            });
+            results.appRecommendation = true;
+            status.addMessage(
+              colors.green(
+                `✓ App recommendation published to ${publishToRelays.length} relays`,
+              ),
+            );
+          } catch (error) {
+            const errorMsg = getErrorMessage(error);
+            status.addMessage(
+              colors.red(`✗ Failed to publish app recommendation: ${errorMsg}`),
+            );
+            logger.error(`Failed to publish app recommendation: ${errorMsg}`);
+          }
+        }
+
         // Clear the status display before showing summary
         status.complete();
 
         // Summary
         const successCount = Object.values(results).filter((v) => v).length;
-        const totalCount = Object.values(results).filter((_, i) => (publishAll || [
-          options.publishAppHandler,
-        ][i])).length;
+        const totalCount = Number(shouldPublishAppHandler) +
+          Number(shouldPublishAppRecommendation);
 
         console.log("\n" + colors.bold("Announcement Summary:"));
         console.log(colors.green(`Successfully published ${successCount}/${totalCount} items`));

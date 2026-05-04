@@ -1,12 +1,40 @@
-> nsyte supports NIP-5A from v0.23.1+. v0.23.0 has support for root sites, but not named sites.
+<div align="center">
 
-# nsyte
+![nsyte screen demo](./static/nsyte-readme-header.png)
 
-![Coverage](./static/coverage-badge.svg) ![Line Coverage](./static/coverage-lines-badge.svg)
+## **nsyte is command-line tool for publishing _nsites_: a decentralized, censorship-resistant website hosting protocol. [Learn more](https://nsite.run/#what)**
+
+[![Build](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/release.yml)
+[![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
+[![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
+[![Tests & Coverage](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml)
+
+![Coverage](./static/coverage-badge.svg)
+![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
-A command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
-censorship-resistant website hosting.
+![mirrors:](https://img.shields.io/badge/mirrors:-red?labelColor=red)
+[![mirror 1](https://img.shields.io/badge/mirror-1-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
+[![mirror 2](https://img.shields.io/badge/mirror-2-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nwb.tf/)
+[![mirror 3](https://img.shields.io/badge/mirror-3-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.cloud/)
+[![mirror 4](https://img.shields.io/badge/mirror-4-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.run/)
+<!-- [![mirror 5](https://img.shields.io/badge/mirror-5-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.shakespear.to/) -->
+
+![gateways:](https://img.shields.io/badge/gateways:-violet?labelColor=violet)
+[![nsite.lol](https://img.shields.io/badge/😂-nsite.lol-violet?labelColor=black)](https://nsite.lol)
+[![nwb.tf](https://img.shields.io/badge/😾-nwb.tf-violet?labelColor=black)](https://nwb.tf)
+[![nsite.run](https://img.shields.io/badge/🌐-nsite.run-violet?labelColor=black)](https://nsite.run)
+
+![frenz:](https://img.shields.io/badge/frenz:-purple?labelColor=purple)
+[![nostr](https://img.shields.io/badge/☠️_sov-eng-purple?labelColor=black)](https://sovereignengineering.io)
+[![nostr](https://img.shields.io/badge/🦩-nostr-purple?labelColor=black)](https://nostr.com)
+
+
+
+
+</div>
+
+
 
 ## Key Features
 
@@ -21,14 +49,13 @@ censorship-resistant website hosting.
 
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
 
-[What's an nsite?](https://nsite.run)
+
 
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by florian
 > [github](https://github.com/flox1an)
 > [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc). nsyte
 > has been ported to deno and rewritten in the process.
 
-![nsyte screen demo](./static/nsyte.gif)
 
 ## Quick Start
 
@@ -78,25 +105,30 @@ deno task compile:all
 
 ## Core Commands
 
-| Command                    | Description                                                        |
-| -------------------------- | ------------------------------------------------------------------ |
-| `nsyte`                    | Show help                                                          |
-| `nsyte init`               | Initialize configuration                                           |
-| `nsyte deploy <dir>`       | Deploy a directory                                                 |
-| `nsyte list [path]`        | Show the current manifest and file tree                            |
-| `nsyte status [path]`      | Show manifest history, relay coverage, and Blossom server coverage |
-| `nsyte get <remote-path>`  | Download one file from a site                                      |
-| `nsyte put <local> <path>` | Upload one file and update an existing manifest                    |
-| `nsyte browse`             | Interactive TUI browser for files                                  |
-| `nsyte download <dir>`     | Download a site to a directory                                     |
-| `nsyte run`                | Run resolver server for nsites                                     |
-| `nsyte serve`              | Serve local nsite files from the current directory                 |
-| `nsyte debug <npub>`       | Debug an nsite by checking relays and servers                      |
-| `nsyte validate`           | Validate configuration file                                        |
-| `nsyte delete`             | Selectively remove published files                                 |
-| `nsyte undeploy`           | Completely remove a deployed site                                  |
-| `nsyte ci`                 | Generate CI/CD credentials (nbunksec)                              |
-| `nsyte bunker <action>`    | Manage NIP-46 bunkers                                              |
+| Command                    | Description                                                           |
+| -------------------------- | --------------------------------------------------------------------- |
+| `nsyte`                    | Show help                                                             |
+| `nsyte init`               | Initialize configuration                                              |
+| `nsyte config`             | Interactive configuration editor                                      |
+| `nsyte deploy <dir>`       | Deploy a directory                                                    |
+| `nsyte announce`           | Publish app handler events                                            |
+| `nsyte list [path]`        | Show the current manifest and file tree                               |
+| `nsyte sites`              | List all published sites for a pubkey                                 |
+| `nsyte status [path]`      | Show manifest history, relay coverage, and Blossom server coverage    |
+| `nsyte get <remote-path>`  | Download one file from a site                                         |
+| `nsyte put <local> <path>` | Upload one file and update an existing manifest                       |
+| `nsyte browse`             | Interactive TUI browser for files                                     |
+| `nsyte download <dir>`     | Download a site to a directory                                        |
+| `nsyte snapshot`           | Create an immutable snapshot event for the current root or named site |
+| `nsyte run`                | Run resolver server for nsites                                        |
+| `nsyte serve`              | Serve local nsite files from the current directory                    |
+| `nsyte debug <npub>`       | Debug an nsite by checking relays and servers                         |
+| `nsyte validate`           | Validate configuration file                                           |
+| `nsyte scan`               | Scan a directory for secrets before deploying                         |
+| `nsyte delete`             | Selectively remove published files                                    |
+| `nsyte undeploy`           | Completely remove a deployed site                                     |
+| `nsyte ci`                 | Generate CI/CD credentials (nbunksec)                                 |
+| `nsyte bunker <action>`    | Manage NIP-46 bunkers                                                 |
 
 ### Deploying Files
 
@@ -524,7 +556,7 @@ nsyte bunker remove <pubkey>
 nsyte bunker migrate
 ```
 
-### Upload Command Options
+### Deploy Command Options
 
 ```
 --force            Force re-upload all files, bypassing server preflight checks
@@ -613,18 +645,15 @@ deno task site:build
 
 ### Building Documentation
 
-The website build includes MkDocs documentation. On first run, the build script will automatically
-set up the Python environment. You can also manually set it up:
+The website build includes VitePress documentation. On first run, the docs scripts install the Node
+dependencies declared in `package-lock.json`.
 
 ```bash
-# Set up documentation environment (auto-runs on first site:build)
-./scripts/setup-docs.sh
-
 # Serve docs locally for development
-./scripts/serve-docs.sh
+deno task docs:dev
 
 # Build docs only
-./scripts/build-docs.sh
+deno task docs:build
 ```
 
 ## Resources

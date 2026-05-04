@@ -51,7 +51,7 @@ nsyte sites --use-fallbacks
 
 The sites command displays:
 
-- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:<identifier>" for named sites
+- **Site type**: "ROOT" for root sites (kind 15128) or "NAMED:&lt;identifier&gt;" for named sites
   (kind 35128)
 - **Title**: Site title from metadata
 - **Description**: Site description from metadata
@@ -85,3 +85,5 @@ with a unique identifier like `blog`, `docs`, `portfolio`, etc.
 - [`nsyte deploy`](deploy.md) - Deploy files to create or update sites
 - [`nsyte ls`](ls.md) - List files in a specific site
 - [`nsyte download`](download.md) - Download files from a site
+
+Inherits global options. See [global options](_global-options.md).

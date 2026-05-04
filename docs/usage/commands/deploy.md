@@ -17,24 +17,45 @@ nsyte deploy <folder> [options]
 
 ## Options
 
-- `-f, --force` — Force re-upload all files, bypassing server preflight checks (default: false)
+- `-f, --force` — Force re-upload all files, bypassing server preflight checks
+  (default: false)
 - `-s, --servers <servers>` — The blossom servers to use (comma-separated)
 - `-r, --relays <relays>` — The nostr relays to use (comma-separated)
-- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
+  bunker://, hex)
 - `--sync` — Check all servers and upload missing blobs (default: false)
-- `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
-- `--use-fallback-servers` — Include default blossom servers in addition to configured servers
+- `--use-fallback-relays` — Include default nsyte relays in addition to
+  configured relays
+- `--use-fallback-servers` — Include default blossom servers in addition to
+  configured servers
 - `--use-fallbacks` — Enable both fallback relays and servers
 - `-v, --verbose` — Verbose output (default: false)
 - `-c, --concurrency <number>` — Number of parallel uploads (default: 4)
-- `--publish-profile` — Publish profile metadata (Kind 0) - **root sites only** (default: false)
-- `--publish-relay-list` — Publish relay list (Kind 10002) - **root sites only** (default: false)
-- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root sites only** (default:
-  false)
-- `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990) (default: false)
-- `--handler-kinds <kinds>` — Event kinds this nsite can handle (comma-separated)
-- `--fallback <file>` — An HTML file to copy and publish as 404.html
+- `--publish-profile` — Publish profile metadata (Kind 0) - **root sites only**
+  (default: false)
+- `--publish-relay-list` — Publish relay list (Kind 10002) - **root sites only**
+  (default: false)
+- `--publish-server-list` — Publish Blossom server list (Kind 10063) - **root
+  sites only** (default: false)
+- `--publish-app-handler` — Publish NIP-89 app handler announcement (Kind 31990)
+  (default: false)
+- `--handler-kinds <kinds>` — Event kinds this nsite can handle
+  (comma-separated)
+- `--fallback <file>` — An HTML file to reference as 404.html (creates path
+  mapping with same hash)
+- `-d, --name <name>` — The site identifier for named sites (kind 35128). If not
+  provided, deploys root site (kind 15128)
+- `--dry-run` — Preview events and upload changes without uploading or
+  publishing (default: false)
+- `--dry-run-output <dir>` — Output directory for dry-run event previews
+  (default: `/tmp/nsyte-dry-run-{timestamp}/`)
+- `--dry-run-show-kinds <kinds>` — Also print events of these kinds to stdout
+  (comma-separated kind numbers)
+- `--no-config` — Ignore config file and use only CLI arguments (default: false)
 - `-i, --non-interactive` — Run in non-interactive mode (default: false)
+- `--skip-secrets-scan` — Skip the pre-deploy secrets scan (default: false)
+- `--scan-level <level>` — Secrets scan sensitivity level: `low`, `medium`, or
+  `high` (default: `medium`)
 
 ## Examples
 
@@ -80,6 +101,12 @@ Deploy with fallback relays and servers:
 nsyte deploy dist --use-fallbacks
 ```
 
+Preview deploy events without uploading or publishing:
+
+```bash
+nsyte deploy dist --dry-run --dry-run-show-kinds 15128,31990
+```
+
 ## How it Works
 
 The deploy command:
@@ -92,10 +119,11 @@ The deploy command:
 
 ## Authentication
 
-The deploy command requires authentication to sign nostr events. You can provide authentication
-through:
+The deploy command requires authentication to sign nostr events. You can provide
+authentication through:
 
-1. **Unified `--sec` flag**: Auto-detects format (nsec, nbunksec, bunker://, or hex private key)
+1. **Unified `--sec` flag**: Auto-detects format (nsec, nbunksec, bunker://, or
+   hex private key)
 2. **Project config**: Uses bunker configured during `nsyte init`
 
 The `--sec` flag accepts multiple formats:
@@ -113,14 +141,15 @@ The `--sec` flag accepts multiple formats:
 
 ## Metadata Publishing
 
-**Important**: Profile, relay list, and server list can only be published from **root sites** (where
-`id` is `null` or empty in your config). These are user-level metadata and cannot be published from
-named sites to prevent conflicts.
+**Important**: Profile, relay list, and server list can only be published from
+**root sites** (where `id` is `null` or empty in your config). These are
+user-level metadata and cannot be published from named sites to prevent
+conflicts.
 
 ### Profile (Kind 0) - Root Sites Only
 
-Use `--publish-profile` to publish your Nostr profile metadata. Configure the profile data in your
-`.nsite/config.json`:
+Use `--publish-profile` to publish your Nostr profile metadata. Configure the
+profile data in your `.nsite/config.json`:
 
 ```json
 {
@@ -136,8 +165,8 @@ Use `--publish-profile` to publish your Nostr profile metadata. Configure the pr
 
 ### Relay List (Kind 10002) - Root Sites Only
 
-Use `--publish-relay-list` to publish your outbox relays (NIP-65). This publishes all relays from
-your config as write-only (outbox) relays:
+Use `--publish-relay-list` to publish your outbox relays (NIP-65). This
+publishes all relays from your config as write-only (outbox) relays:
 
 ```bash
 nsyte deploy dist --publish-relay-list
@@ -145,8 +174,8 @@ nsyte deploy dist --publish-relay-list
 
 ### Server List (Kind 10063) - Root Sites Only
 
-Use `--publish-server-list` to publish your Blossom servers. This helps clients know where to
-download your media files:
+Use `--publish-server-list` to publish your Blossom servers. This helps clients
+know where to download your media files:
 
 ```bash
 nsyte deploy dist --publish-server-list
@@ -154,8 +183,9 @@ nsyte deploy dist --publish-server-list
 
 ### App Handler (Kind 31990)
 
-Use `--publish-app-handler` to announce your nsite as a NIP-89 application handler. This works for
-both root and named sites. Specify which event kinds your app can handle with `--handler-kinds`:
+Use `--publish-app-handler` to announce your nsite as a NIP-89 application
+handler. This works for both root and named sites. Specify which event kinds
+your app can handle with `--handler-kinds`:
 
 ```bash
 nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
@@ -176,3 +206,6 @@ nsyte deploy dist --publish-app-handler --handler-kinds "1,30023"
 - [`nsyte delete`](delete.md) - Selectively remove deployed files
 - [`nsyte undeploy`](undeploy.md) - Completely remove a deployed site
 - [`nsyte serve`](serve.md) - Serve files locally for testing
+- [`nsyte scan`](scan.md) - Scan files for secrets before deploying
+
+Inherits global options. See [global options](_global-options.md).

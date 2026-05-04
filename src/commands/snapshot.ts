@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
+import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import {
   createSnapshotTemplate,
@@ -25,6 +26,9 @@ interface SnapshotCommandOptions {
   sec?: string;
   name?: string;
   dryRun?: boolean;
+  dryRunOutput?: string;
+  dryRunShowKinds?: string;
+  createdAt?: number;
   useFallbackRelays?: boolean;
   useFallbacks?: boolean;
 }
@@ -47,6 +51,11 @@ export function registerSnapshotCommand(): void {
       "The site identifier for named sites (kind 35128). If not provided, snapshots the root site (kind 15128).",
     )
     .option("--dry-run", "Preview the snapshot event without signing or publishing it.")
+    .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers).",
+    )
     .option("--no-config", "Ignore config file and use only CLI arguments.", { default: false })
     .option(
       "--use-fallback-relays",
@@ -119,7 +128,7 @@ export async function snapshotCommand(options: SnapshotCommandOptions): Promise<
 
   const sourceManifest = trustedManifest.event;
   const aggregateTag = await getOrComputeManifestAggregateTag(sourceManifest);
-  const snapshotTemplate = await createSnapshotTemplate(sourceManifest);
+  const snapshotTemplate = await createSnapshotTemplate(sourceManifest, options.createdAt);
 
   console.log(
     colors.gray(
@@ -134,6 +143,20 @@ export async function snapshotCommand(options: SnapshotCommandOptions): Promise<
   console.log("");
 
   if (options.dryRun) {
+    await handleDryRunOutput(
+      [{
+        label: `Snapshot (kind ${NSITE_SNAPSHOT_KIND})`,
+        kind: NSITE_SNAPSHOT_KIND,
+        template: snapshotTemplate,
+        filename: `snapshot-${NSITE_SNAPSHOT_KIND}.json`,
+      }],
+      {
+        outputDir: options.dryRunOutput,
+        showKinds: parseDryRunShowKinds(options.dryRunShowKinds),
+        interactive: false,
+      },
+    );
+
     console.log(colors.yellow("Dry run only: snapshot was not signed or published."));
     return;
   }

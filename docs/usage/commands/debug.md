@@ -20,9 +20,11 @@ nsyte debug [npub] [options]
 
 ## Options
 
-- `--relays <relays>`: Comma-separated list of relay URLs to use for debugging
-- `--verbose`: Show detailed debug information including file lists and hash verification details
-- `--help`: Show help information
+- `-r, --relays <relays>`: Comma-separated list of relay URLs to use for debugging
+- `-v, --verbose`: Show detailed debug information including file lists and hash verification
+  details (default: `false`)
+- `--show-events`: Pretty print events (kind 0, 10002, server list, and index.html nsite event)
+  (default: `false`)
 
 ## Examples
 
@@ -138,12 +140,12 @@ The debug command provides color-coded output:
 
 ### "No relay list found"
 
-- Publish a relay list using `nsyte upload --publish-relay-list`
+- Publish a relay list using `nsyte deploy --publish-relay-list`
 - Or manually create a kind 10002 event with your preferred relays
 
 ### "No blossom server list found"
 
-- Publish a server list using `nsyte upload --publish-server-list`
+- Publish a server list using `nsyte deploy --publish-server-list`
 - Or ensure your config has servers configured
 
 ### "All blossom servers unavailable"
@@ -160,6 +162,8 @@ The debug command provides color-coded output:
 
 ## Related Commands
 
-- [`nsyte upload`](upload.md) - Upload files and publish metadata
+- [`nsyte deploy`](deploy.md) - Deploy files and publish metadata
 - [`nsyte validate`](validate.md) - Validate configuration
 - [`nsyte ls`](ls.md) - List published files
+
+Inherits global options. See [global options](_global-options.md).
