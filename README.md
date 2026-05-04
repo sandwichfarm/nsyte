@@ -26,8 +26,8 @@
 [![nsite.run](https://img.shields.io/badge/🌐-nsite.run-violet?labelColor=black)](https://nsite.run)
 
 ![frenz:](https://img.shields.io/badge/frenz:-purple?labelColor=purple)
-[![nostr](https://img.shields.io/badge/☠️_sov-eng-purple?labelColor=black)](https://sovereignengineering.io])
-[![nostr](https://img.shields.io/badge/🦩-nostr-purple?labelColor=black)](https://nostr.com])
+[![nostr](https://img.shields.io/badge/☠️_sov-eng-purple?labelColor=black)](https://sovereignengineering.io)
+[![nostr](https://img.shields.io/badge/🦩-nostr-purple?labelColor=black)](https://nostr.com)
 
 
 
