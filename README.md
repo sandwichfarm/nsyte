@@ -1,4 +1,4 @@
-<center>
+<div align="center">
 
 ![nsyte screen demo](./static/nsyte-readme-header.png)
 
@@ -12,7 +12,7 @@
 [![nsyte.run](https://img.shields.io/badge/nsyte.run-purple)](https://nsyte.run])
 [![homepage](https://img.shields.io/badge/nsite.lol-orange)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.lol/)
 
-</center>
+</div>
 
 **nsyte is command-line tool for publishing nsites to nostr and Blossom servers. Enables decentralized,
 censorship-resistant website hosting.**
