@@ -227,13 +227,47 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: TODO — phase 24 will replace this stub
+      - name: Checkout nsyte repo (for manifest template)
+        uses: actions/checkout@v4
+
+      - name: Clone Scoop bucket repo
+        env:
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          git clone "https://github.com/sandwichfarm/scoop-nsyte.git" /tmp/scoop
+          git -C /tmp/scoop remote set-url origin "https://x-access-token:${SCOOP_BUCKET_TOKEN}@github.com/sandwichfarm/scoop-nsyte.git"
+
+      - name: Patch manifest from template
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_WINDOWS: ${{ needs.setup.outputs.sha256_windows }}
+        run: |
+          mkdir -p /tmp/scoop/bucket
+          cp packages/scoop/bucket/nsyte.json /tmp/scoop/bucket/nsyte.json
+          sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"               /tmp/scoop/bucket/nsyte.json
+          sed -i "s|PLACEHOLDER_SHA256_WINDOWS|${SHA256_WINDOWS}|g" /tmp/scoop/bucket/nsyte.json
+          # Sanity: fail fast if any placeholder survived substitution
+          if grep -q "PLACEHOLDER_" /tmp/scoop/bucket/nsyte.json; then
+            echo "::error::Manifest still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" /tmp/scoop/bucket/nsyte.json
+            exit 1
+          fi
+          # JSON validation
+          jq empty /tmp/scoop/bucket/nsyte.json
+
+      - name: Commit and push to bucket repo
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          echo "TODO: phase 24 will implement Scoop publish here."
-          echo "Version available: ${VERSION}"
-          echo "Stub exiting 0 — workflow scaffold validation only."
+          git -C /tmp/scoop config user.name "nsyte-bot"
+          git -C /tmp/scoop config user.email "nsyte-bot@users.noreply.github.com"
+          git -C /tmp/scoop add bucket/nsyte.json
+          if git -C /tmp/scoop diff --cached --quiet; then
+            echo "No changes to bucket/nsyte.json — bucket already up to date for v${VERSION}. Skipping push."
+            exit 0
+          fi
+          git -C /tmp/scoop commit -m "nsyte ${VERSION}"
+          git -C /tmp/scoop push origin main
 
   publish-winget:
     name: Publish to Winget
