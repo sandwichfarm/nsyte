@@ -174,12 +174,50 @@ jobs:
     needs: [setup]
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: TODO — phase 23 will replace this stub
+      - name: Checkout nsyte repo (for formula template)
+        uses: actions/checkout@v4
+
+      - name: Clone Homebrew tap repo
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          echo "TODO: phase 23 will implement Homebrew publish here."
-          echo "Version available: ${{ needs.setup.outputs.version }}"
-          echo "Stub exiting 0 — workflow scaffold validation only."
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/sandwichfarm/homebrew-nsyte.git" /tmp/tap
+
+      - name: Patch formula from template
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_MACOS_ARM64: ${{ needs.setup.outputs.sha256_macos_arm64 }}
+          SHA256_MACOS_X64: ${{ needs.setup.outputs.sha256_macos_x64 }}
+          SHA256_LINUX_X64: ${{ needs.setup.outputs.sha256_linux_x64 }}
+        run: |
+          mkdir -p /tmp/tap/Formula
+          cp packages/homebrew/Formula/nsyte.rb /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"                       /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_MACOS_ARM64|${SHA256_MACOS_ARM64}|g" /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_MACOS_X64|${SHA256_MACOS_X64}|g"     /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_LINUX_X86_64|${SHA256_LINUX_X64}|g"  /tmp/tap/Formula/nsyte.rb
+          # Sanity: fail fast if any placeholder survived substitution
+          if grep -q "PLACEHOLDER_" /tmp/tap/Formula/nsyte.rb; then
+            echo "::error::Formula still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" /tmp/tap/Formula/nsyte.rb
+            exit 1
+          fi
+
+      - name: Commit and push to tap repo
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          git -C /tmp/tap config user.name "nsyte-bot"
+          git -C /tmp/tap config user.email "nsyte-bot@users.noreply.github.com"
+          git -C /tmp/tap add Formula/nsyte.rb
+          if git -C /tmp/tap diff --cached --quiet; then
+            echo "No changes to Formula/nsyte.rb — tap already up to date for v${VERSION}. Skipping push."
+            exit 0
+          fi
+          git -C /tmp/tap commit -m "nsyte ${VERSION}"
+          git -C /tmp/tap push origin main
 
   publish-scoop:
     name: Publish to Scoop
