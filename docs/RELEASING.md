@@ -204,8 +204,130 @@ This is the same substitution logic and same container image the `publish-aur` C
 
 ---
 
+## HOMEBREW_TAP_TOKEN prerequisite
+
+A Personal Access Token (PAT) named `HOMEBREW_TAP_TOKEN` **must** be configured as a
+repository secret before the `publish-homebrew` CI job can push to the Homebrew tap repo.
+
+**Why this is required:** The Homebrew tap (`sandwichfarm/homebrew-nsyte`) is a separate
+GitHub repository. The `publish-homebrew` job clones it, patches `Formula/nsyte.rb` with
+the release version and SHA256 hashes, and pushes the commit back. `GITHUB_TOKEN` only has
+write access to the repo it runs in (`sandwichfarm/nsyte`), not to the separate tap repo.
+A PAT with Contents write permission on `sandwichfarm/homebrew-nsyte` is required.
+
+**Symptom of forgetting the secret:** The `publish-homebrew` job fails at the clone or
+push step with `Authentication failed` or `repository not found`. The sibling jobs
+(`publish-aur`, `publish-scoop`, etc.) are unaffected — failure isolation is by design
+(INFRA-05).
+
+---
+
+## Creating the HOMEBREW_TAP_TOKEN PAT (fine-grained, preferred)
+
+1. Navigate to https://github.com/settings/personal-access-tokens
+2. Click **Generate new token**.
+3. Set a descriptive name (e.g., `nsyte homebrew tap publish`).
+4. Set an expiry date (90 days recommended). Avoid "No expiration".
+5. Under **Repository access**, select **Only select repositories** → choose
+   `sandwichfarm/homebrew-nsyte`. Do **not** grant access to `sandwichfarm/nsyte` — that
+   would violate least privilege.
+6. Under **Repository permissions**, set **Contents** to **Read and write**. No other
+   permissions are needed.
+7. Click **Generate token**. Copy immediately — it starts with `github_pat_`.
+
+---
+
+## Adding HOMEBREW_TAP_TOKEN to repository secrets
+
+1. Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions
+2. Click **New repository secret**.
+3. Name: `HOMEBREW_TAP_TOKEN` — exactly this, case-sensitive, no whitespace.
+4. Value: paste the PAT string from above.
+5. Click **Add secret**.
+
+Confirm the secret exists with the GitHub CLI:
+
+```bash
+gh secret list -R sandwichfarm/nsyte
+```
+
+Both `HOMEBREW_TAP_TOKEN` and `AUR_SSH_PRIVATE_KEY` should appear alongside `RELEASE_TOKEN`.
+
+---
+
+## Bootstrapping the Homebrew tap (one-time)
+
+The `sandwichfarm/homebrew-nsyte` repository must exist before CI can push to it. This is a
+one-time manual step.
+
+1. **Create the tap repo** — navigate to https://github.com/new and create a **public** repo
+   named `homebrew-nsyte` under the `sandwichfarm` account. Homebrew tap convention requires
+   the `homebrew-` prefix. Initialize with a `README.md` so the default branch (`main`)
+   exists.
+2. **Add `HOMEBREW_TAP_TOKEN` secret** — follow the steps above.
+3. **Trigger a release** — the `publish-homebrew` job will clone the repo, create
+   `Formula/nsyte.rb`, commit, and push. The first CI push populates the Formula directory.
+
+**Empty-repo note:** `git clone` of a repo that contains only `README.md` succeeds. The
+`mkdir -p /tmp/tap/Formula` in the patch step ensures `Formula/` is created even if it
+does not exist in the tap repo yet. The first push creates the `Formula/` directory in the
+tap.
+
+**If the tap repo does not exist at clone time:** The clone step fails with
+`repository not found`. Create the repo first, then re-run the workflow via
+`workflow_dispatch`.
+
+---
+
+## Verifying the Homebrew formula locally (BREW-04)
+
+A maintainer can verify the patched formula installs correctly before a real CI run.
+This requires Homebrew installed on macOS (or Homebrew on Linux).
+
+```bash
+# Pick a published version
+VERSION="1.5.0"
+
+# Compute SHA256s for each platform binary
+SHA256_MACOS_ARM64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-macos-arm64-${VERSION}" | sha256sum | awk '{print $1}')
+SHA256_MACOS_X64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-macos-x64-${VERSION}" | sha256sum | awk '{print $1}')
+SHA256_LINUX_X64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-linux-${VERSION}" | sha256sum | awk '{print $1}')
+
+# Patch a working copy (same logic as CI)
+mkdir -p /tmp/brew-test/Formula
+cp packages/homebrew/Formula/nsyte.rb /tmp/brew-test/Formula/nsyte.rb
+sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"                       /tmp/brew-test/Formula/nsyte.rb
+sed -i "s|PLACEHOLDER_SHA256_MACOS_ARM64|${SHA256_MACOS_ARM64}|g" /tmp/brew-test/Formula/nsyte.rb
+sed -i "s|PLACEHOLDER_SHA256_MACOS_X64|${SHA256_MACOS_X64}|g"     /tmp/brew-test/Formula/nsyte.rb
+sed -i "s|PLACEHOLDER_SHA256_LINUX_X86_64|${SHA256_LINUX_X64}|g"  /tmp/brew-test/Formula/nsyte.rb
+
+# Sanity check: no PLACEHOLDER markers should remain
+grep "PLACEHOLDER_" /tmp/brew-test/Formula/nsyte.rb && { echo "substitution failed"; exit 1; }
+
+# On macOS with Homebrew installed — install directly from the patched local formula file
+brew install --formula /tmp/brew-test/Formula/nsyte.rb
+nsyte --version
+```
+
+If `nsyte --version` prints the correct version, the formula is well-formed and the binary
+is installable. The same substitution logic runs in CI; a green local run gives confidence
+in the upcoming CI push to the tap.
+
+**Alternatively — verify via the tap after a CI push:**
+
+```bash
+brew tap sandwichfarm/nsyte https://github.com/sandwichfarm/homebrew-nsyte
+brew install nsyte
+nsyte --version
+```
+
+This is the end-user install path and the final functional check after a real release.
+
+---
+
 ## Related files
 
 - `.github/workflows/release.yml` — the release-creation workflow. Line 446 uses `RELEASE_TOKEN` in the `softprops/action-gh-release` step to create the release that fires the downstream event.
 - `.github/workflows/publish-packages.yml` — the publish workflow. Triggered by `release: published`. Depends entirely on the PAT-initiated release event to start; will never run if `release.yml` uses `GITHUB_TOKEN` instead. The `publish-aur` job consumes `AUR_SSH_PRIVATE_KEY` from secrets and pushes to `ssh://aur@aur.archlinux.org/nsyte-bin.git`.
 - `packages/aur/PKGBUILD` — the AUR template. Contains `PLACEHOLDER_VERSION` and `PLACEHOLDER_SHA256_X86_64` which CI substitutes by name before pushing. Maintainers can substitute these by hand for local verification (see "Verifying the AUR PKGBUILD locally" above).
+- `packages/homebrew/Formula/nsyte.rb` — the Homebrew formula template. Contains four `PLACEHOLDER_` markers that CI substitutes per-release before pushing to the tap. Maintainers can substitute these by hand for local verification (see "Verifying the Homebrew formula locally" above).
