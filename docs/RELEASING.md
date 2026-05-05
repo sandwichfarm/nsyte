@@ -289,6 +289,7 @@ This requires Homebrew installed on macOS (or Homebrew on Linux).
 VERSION="1.5.0"
 
 # Compute SHA256s for each platform binary
+# Note: on macOS use `shasum -a 256` in place of `sha256sum` (GNU coreutils is not pre-installed on macOS)
 SHA256_MACOS_ARM64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-macos-arm64-${VERSION}" | sha256sum | awk '{print $1}')
 SHA256_MACOS_X64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-macos-x64-${VERSION}" | sha256sum | awk '{print $1}')
 SHA256_LINUX_X64=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-linux-${VERSION}" | sha256sum | awk '{print $1}')
