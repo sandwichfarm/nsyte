@@ -275,6 +275,6 @@ Full archive: [`.planning/milestones/v1.5-ROADMAP.md`](milestones/v1.5-ROADMAP.m
 | 21. CI Workflow Foundation | v1.6 | 3/3 | Complete   | 2026-05-05 |
 | 22. AUR Pipeline | v1.6 | 2/2 | Complete    | 2026-05-05 |
 | 23. Homebrew Tap Pipeline | v1.6 | 1/1 | Complete   | 2026-05-05 |
-| 24. Scoop Bucket Pipeline | v1.6 | 0/? | Not started | - |
+| 24. Scoop Bucket Pipeline | v1.6 | 1/1 | Complete   | 2026-05-05 |
 | 25. Winget Pipeline | v1.6 | 0/? | Not started | - |
 | 26. Nix Flake | v1.6 | 0/? | Not started | - |

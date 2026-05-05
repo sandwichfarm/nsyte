@@ -42,9 +42,9 @@ macOS and Linux — personal tap repo, open submission, live instantly on push.
 Windows — personal bucket repo, open submission, autoupdate built in.
 
 - [ ] **SCOOP-01**: `sandwichfarm/scoop-nsyte` bucket repo is created and contains `bucket/nsyte.json` manifest with correct `version`, `url`, `hash`, `checkver`, and `autoupdate` fields (no `v` prefix in `version` field).
-- [ ] **SCOOP-02**: CI updates the Scoop manifest's `url` and `hash` on release and pushes to the bucket repo.
-- [ ] **SCOOP-03**: `SCOOP_BUCKET_TOKEN` PAT secret is configured and the `publish-scoop` job pushes successfully on release.
-- [ ] **SCOOP-04**: Maintainer can verify the manifest locally with `scoop install <path>/nsyte.json` before a real release.
+- [x] **SCOOP-02**: CI updates the Scoop manifest's `url` and `hash` on release and pushes to the bucket repo.
+- [x] **SCOOP-03**: `SCOOP_BUCKET_TOKEN` PAT secret is configured and the `publish-scoop` job pushes successfully on release.
+- [x] **SCOOP-04**: Maintainer can verify the manifest locally with `scoop install <path>/nsyte.json` before a real release.
 
 ### Winget
 
@@ -115,9 +115,9 @@ Deferred to a later milestone.
 | BREW-03 | Phase 23 | Complete |
 | BREW-04 | Phase 23 | Complete |
 | SCOOP-01 | Phase 20 | Pending |
-| SCOOP-02 | Phase 24 | Pending |
-| SCOOP-03 | Phase 24 | Pending |
-| SCOOP-04 | Phase 24 | Pending |
+| SCOOP-02 | Phase 24 | Complete |
+| SCOOP-03 | Phase 24 | Complete |
+| SCOOP-04 | Phase 24 | Complete |
 | WINGET-01 | Phase 20 | Pending |
 | WINGET-02 | Phase 25 | Pending |
 | WINGET-03 | Phase 25 | Pending |
