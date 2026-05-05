@@ -273,16 +273,55 @@ jobs:
     name: Publish to Winget
     needs: [setup]
     if: needs.setup.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: windows-latest
+    timeout-minutes: 15
     steps:
-      - name: TODO — phase 25 will replace this stub
+      - name: Checkout nsyte repo (for ManifestVersion sanity check)
+        uses: actions/checkout@v4
+
+      - name: Verify ManifestVersion in templates (informational, resolves WR-02)
+        shell: pwsh
+        run: |
+          $expected = "1.12.0"
+          $match = Select-String -Path "packages\winget\sandwichfarm.nsyte.installer.yaml" `
+            -Pattern "ManifestVersion:\s*(.+)"
+          $templateMV = $match.Matches[0].Groups[1].Value.Trim()
+          if ($templateMV -ne $expected) {
+            Write-Host "::warning::Template ManifestVersion ($templateMV) differs from expected ($expected). Update packages/winget/ templates before the next bootstrap."
+          } else {
+            Write-Host "ManifestVersion verified: $templateMV"
+          }
+
+      - name: Download wingetcreate (self-contained, no .NET dependency)
+        shell: pwsh
+        run: |
+          iwr https://aka.ms/wingetcreate/latest/self-contained -OutFile wingetcreate.exe
+
+      - name: Submit manifest PR to winget-pkgs
         env:
           VERSION: ${{ needs.setup.outputs.version }}
+          REPO: ${{ github.repository }}
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_FORK_TOKEN }}
+        shell: pwsh
         run: |
-          echo "TODO: phase 25 will implement Winget publish here."
-          echo "Version available: ${VERSION}"
-          echo "Stub exiting 0 — workflow scaffold validation only."
+          $installerUrl = "https://github.com/$($env:REPO)/releases/download/v$($env:VERSION)/nsyte-windows-$($env:VERSION).exe"
+          Write-Host "Submitting winget manifest for version $($env:VERSION)"
+          Write-Host "Installer URL: $installerUrl"
+
+          .\wingetcreate.exe update sandwichfarm.nsyte `
+            --version $env:VERSION `
+            --urls "$installerUrl|x64" `
+            --submit `
+            --no-open
+
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) {
+            Write-Host "::warning::wingetcreate exited with code $exitCode."
+            Write-Host "::warning::If sandwichfarm.nsyte is not yet in the winget-pkgs index, this is expected before the manual bootstrap PR is merged."
+            Write-Host "::warning::See docs/RELEASING.md for winget bootstrap instructions."
+            exit 0
+          }
+          Write-Host "Winget manifest PR submitted successfully."
 
   publish-nix:
     name: Update Nix flake
