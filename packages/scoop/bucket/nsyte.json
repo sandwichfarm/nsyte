@@ -1,0 +1,19 @@
+{
+  "version": "PLACEHOLDER_VERSION",
+  "description": "Publish your site to nostr and blossom servers",
+  "homepage": "https://github.com/sandwichfarm/nsyte",
+  "license": "MIT",
+  "url": "https://github.com/sandwichfarm/nsyte/releases/download/vPLACEHOLDER_VERSION/nsyte-windows-PLACEHOLDER_VERSION.exe#/nsyte.exe",
+  "hash": "PLACEHOLDER_SHA256_WINDOWS",
+  "bin": "nsyte.exe",
+  "checkver": {
+    "github": "https://github.com/sandwichfarm/nsyte"
+  },
+  "autoupdate": {
+    "url": "https://github.com/sandwichfarm/nsyte/releases/download/v$version/nsyte-windows-$version.exe#/nsyte.exe",
+    "hash": {
+      "url": "https://github.com/sandwichfarm/nsyte/releases/download/v$version/nsyte-windows-$version.exe",
+      "mode": "download"
+    }
+  }
+}
