@@ -160,7 +160,7 @@ jobs:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
           git -C /tmp/aur-nsyte-bin config user.name "nsyte-bot"
-          git -C /tmp/aur-nsyte-bin config user.email "sandwich.farm@protonmail.com"
+          git -C /tmp/aur-nsyte-bin config user.email "nsyte-bot@users.noreply.github.com"
           git -C /tmp/aur-nsyte-bin add PKGBUILD .SRCINFO
           if git -C /tmp/aur-nsyte-bin diff --cached --quiet; then
             echo "No changes to PKGBUILD/.SRCINFO — AUR already up to date for v${VERSION}. Skipping push."
