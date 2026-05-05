@@ -224,11 +224,14 @@ jobs:
     needs: [setup]
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: TODO — phase 24 will replace this stub
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           echo "TODO: phase 24 will implement Scoop publish here."
-          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Version available: ${VERSION}"
           echo "Stub exiting 0 — workflow scaffold validation only."
 
   publish-winget:
@@ -236,11 +239,14 @@ jobs:
     needs: [setup]
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: TODO — phase 25 will replace this stub
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           echo "TODO: phase 25 will implement Winget publish here."
-          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Version available: ${VERSION}"
           echo "Stub exiting 0 — workflow scaffold validation only."
 
   publish-nix:
@@ -248,9 +254,12 @@ jobs:
     needs: [setup]
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: TODO — phase 26 will replace this stub
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           echo "TODO: phase 26 will implement Nix flake update here."
-          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Version available: ${VERSION}"
           echo "Stub exiting 0 — workflow scaffold validation only."
