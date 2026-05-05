@@ -326,9 +326,141 @@ This is the end-user install path and the final functional check after a real re
 
 ---
 
+## SCOOP_BUCKET_TOKEN prerequisite
+
+A Personal Access Token (PAT) named `SCOOP_BUCKET_TOKEN` **must** be configured as a
+repository secret before the `publish-scoop` CI job can push to the Scoop bucket repo.
+
+**Why this is required:** The Scoop bucket (`sandwichfarm/scoop-nsyte`) is a separate
+GitHub repository. The `publish-scoop` job clones it, patches `bucket/nsyte.json` with
+the release version and SHA256 hash, and pushes the commit back. `GITHUB_TOKEN` only has
+write access to the repo it runs in (`sandwichfarm/nsyte`), not to the separate bucket
+repo. A PAT with Contents write permission on `sandwichfarm/scoop-nsyte` is required.
+
+**Symptom of forgetting the secret:** The `publish-scoop` job fails at the clone or
+push step with `Authentication failed` or `repository not found`. The sibling jobs
+(`publish-aur`, `publish-homebrew`, etc.) are unaffected — failure isolation is by
+design (INFRA-05).
+
+---
+
+## Creating the SCOOP_BUCKET_TOKEN PAT (fine-grained, preferred)
+
+1. Navigate to https://github.com/settings/personal-access-tokens
+2. Click **Generate new token**.
+3. Set a descriptive name (e.g., `nsyte scoop bucket publish`).
+4. Set an expiry date (90 days recommended). Avoid "No expiration".
+5. Under **Repository access**, select **Only select repositories** → choose
+   `sandwichfarm/scoop-nsyte`. Do **not** grant access to `sandwichfarm/nsyte` — that
+   would violate least privilege.
+6. Under **Repository permissions**, set **Contents** to **Read and write**. No other
+   permissions are needed.
+7. Click **Generate token**. Copy immediately — it starts with `github_pat_`.
+
+---
+
+## Adding SCOOP_BUCKET_TOKEN to repository secrets
+
+1. Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions
+2. Click **New repository secret**.
+3. Name: `SCOOP_BUCKET_TOKEN` — exactly this, case-sensitive, no whitespace.
+4. Value: paste the PAT string from above.
+5. Click **Add secret**.
+
+Confirm the secret exists with the GitHub CLI:
+
+```bash
+gh secret list -R sandwichfarm/nsyte
+```
+
+`SCOOP_BUCKET_TOKEN` should appear alongside `HOMEBREW_TAP_TOKEN`, `AUR_SSH_PRIVATE_KEY`,
+and `RELEASE_TOKEN`.
+
+---
+
+## Bootstrapping the Scoop bucket (one-time)
+
+The `sandwichfarm/scoop-nsyte` repository must exist before CI can push to it. This is a
+one-time manual step.
+
+1. **Create the bucket repo** — navigate to https://github.com/new and create a **public**
+   repo named `scoop-nsyte` under the `sandwichfarm` account. Unlike Homebrew, Scoop bucket
+   repos do **not** require a `scoop-` prefix — the repo name is arbitrary; the bucket name
+   that users register is what matters (`nsyte`). Initialize with a `README.md` so the
+   default branch (`main`) exists.
+2. **Ensure the default branch is `main`** — GitHub's current default is `main`; if the
+   repo was created with `master`, rename it before the first CI push or update the push
+   target in the workflow.
+3. **Add `SCOOP_BUCKET_TOKEN` secret** — follow the steps above.
+4. **Trigger a release** — the `publish-scoop` job will clone the repo, create
+   `bucket/nsyte.json`, commit, and push. The first CI push populates the `bucket/`
+   directory.
+
+**End-user install command (after first CI push):**
+```bash
+scoop bucket add nsyte https://github.com/sandwichfarm/scoop-nsyte
+scoop install nsyte
+```
+
+**Empty-repo note:** `git clone` of a repo that contains only `README.md` succeeds.
+The `mkdir -p /tmp/scoop/bucket` in the patch step ensures `bucket/` is created even if
+it does not exist in the cloned bucket repo yet.
+
+**If the bucket repo does not exist at clone time:** The clone step fails with
+`repository not found`. Create the repo first, then re-run the workflow via
+`workflow_dispatch`.
+
+---
+
+## Verifying the Scoop manifest locally (SCOOP-04)
+
+A maintainer can verify the patched manifest is well-formed before a real CI run.
+This requires `jq` and `curl` (standard on Linux maintainer machines).
+
+```bash
+# Pick a real published version that has a Windows .exe on the GitHub release page
+VERSION="1.5.0"  # replace with a real published version
+
+# Compute SHA256 of the published Windows binary
+SHA256_WINDOWS=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-windows-${VERSION}.exe" | sha256sum | awk '{print $1}')
+
+# Patch a working copy (same logic as CI)
+mkdir -p /tmp/scoop-test/bucket
+cp packages/scoop/bucket/nsyte.json /tmp/scoop-test/bucket/nsyte.json
+sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"               /tmp/scoop-test/bucket/nsyte.json
+sed -i "s|PLACEHOLDER_SHA256_WINDOWS|${SHA256_WINDOWS}|g" /tmp/scoop-test/bucket/nsyte.json
+
+# Sanity check: no PLACEHOLDER markers should remain
+grep "PLACEHOLDER_" /tmp/scoop-test/bucket/nsyte.json && { echo "substitution failed"; exit 1; }
+
+# JSON validation
+jq empty /tmp/scoop-test/bucket/nsyte.json && echo "JSON is valid"
+
+# Pretty-print for visual inspection
+jq . /tmp/scoop-test/bucket/nsyte.json
+```
+
+If `jq .` prints the manifest cleanly with no PLACEHOLDER strings and the `url` and `hash`
+fields contain real values, the manifest is correct. Note that `PLACEHOLDER_VERSION` is
+embedded in the `url` field as well as the `version` field — the `sed /g` flag in the CI
+step (and in the recipe above) replaces both occurrences in a single pass.
+
+**End-to-end functional check (after a real CI push to the bucket):**
+
+```bash
+scoop bucket add nsyte https://github.com/sandwichfarm/scoop-nsyte
+scoop install nsyte
+nsyte --version
+```
+
+This is the end-user install path and the final functional check after a real release.
+
+---
+
 ## Related files
 
 - `.github/workflows/release.yml` — the release-creation workflow. Line 446 uses `RELEASE_TOKEN` in the `softprops/action-gh-release` step to create the release that fires the downstream event.
 - `.github/workflows/publish-packages.yml` — the publish workflow. Triggered by `release: published`. Depends entirely on the PAT-initiated release event to start; will never run if `release.yml` uses `GITHUB_TOKEN` instead. The `publish-aur` job consumes `AUR_SSH_PRIVATE_KEY` from secrets and pushes to `ssh://aur@aur.archlinux.org/nsyte-bin.git`.
 - `packages/aur/PKGBUILD` — the AUR template. Contains `PLACEHOLDER_VERSION` and `PLACEHOLDER_SHA256_X86_64` which CI substitutes by name before pushing. Maintainers can substitute these by hand for local verification (see "Verifying the AUR PKGBUILD locally" above).
 - `packages/homebrew/Formula/nsyte.rb` — the Homebrew formula template. Contains four `PLACEHOLDER_` markers that CI substitutes per-release before pushing to the tap. Maintainers can substitute these by hand for local verification (see "Verifying the Homebrew formula locally" above).
+- `packages/scoop/bucket/nsyte.json` — the Scoop manifest template. Contains `PLACEHOLDER_VERSION` (appears in both the `version` field and the `url` field) and `PLACEHOLDER_SHA256_WINDOWS`, which CI substitutes per-release before pushing to the bucket. Maintainers can substitute these by hand for local verification (see "Verifying the Scoop manifest locally" above).
