@@ -3,6 +3,7 @@ class Nsyte < Formula
   homepage "https://github.com/sandwichfarm/nsyte"
   license "MIT"
   version "PLACEHOLDER_VERSION"
+  bottle :unneeded
 
   on_macos do
     on_arm do
