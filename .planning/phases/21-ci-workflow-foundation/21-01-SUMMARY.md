@@ -93,6 +93,15 @@ Until `RELEASE_TOKEN` is configured, the release workflow will fail at the "Crea
 - The `RELEASE_TOKEN` secret must be configured in GitHub for the trigger to work on real releases
 - Functional verification (confirming `release:published` actually fires) is deferred until the first real release with this change live
 
+## Self-Check: PASSED
+
+- FOUND: `.github/workflows/release.yml` (modified, committed at `03d4353`)
+- FOUND: `.planning/phases/21-ci-workflow-foundation/21-01-SUMMARY.md` (committed at `f03dd4d`)
+- Commit `03d4353` verified in git log
+- `secrets.GITHUB_TOKEN` count: 1 (only line 390, unchanged)
+- `secrets.RELEASE_TOKEN` count: 1 (line 446, updated)
+- Git diff shows exactly one line changed
+
 ---
 *Phase: 21-ci-workflow-foundation*
 *Completed: 2026-05-05*
