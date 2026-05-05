@@ -184,7 +184,7 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           git clone "https://github.com/sandwichfarm/homebrew-nsyte.git" /tmp/tap
-          git -C /tmp/tap remote set-url origin "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/sandwichfarm/homebrew-nsyte.git"
+          git -C /tmp/tap config credential.helper '!f() { echo "username=x-access-token"; echo "password=${HOMEBREW_TAP_TOKEN}"; }; f'
 
       - name: Patch formula from template
         env:
@@ -235,7 +235,7 @@ jobs:
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
         run: |
           git clone "https://github.com/sandwichfarm/scoop-nsyte.git" /tmp/scoop
-          git -C /tmp/scoop remote set-url origin "https://x-access-token:${SCOOP_BUCKET_TOKEN}@github.com/sandwichfarm/scoop-nsyte.git"
+          git -C /tmp/scoop config credential.helper '!f() { echo "username=x-access-token"; echo "password=${SCOOP_BUCKET_TOKEN}"; }; f'
 
       - name: Patch manifest from template
         env:
