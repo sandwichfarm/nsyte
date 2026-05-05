@@ -14,11 +14,7 @@
           url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-linux-${version}";
           hash = "sha256-PLACEHOLDER_HASH_X86_64_LINUX=";
         };
-        # NOTE: aarch64-linux binary requires release.yml aarch64 build step (not yet present).
-        "aarch64-linux" = {
-          url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-linux-aarch64-${version}";
-          hash = "sha256-PLACEHOLDER_HASH_AARCH64_LINUX=";
-        };
+        # "aarch64-linux" pending release.yml aarch64 Linux build step — add back when binary is published
         "x86_64-darwin" = {
           url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-macos-x64-${version}";
           hash = "sha256-PLACEHOLDER_HASH_X86_64_DARWIN=";
