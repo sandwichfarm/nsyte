@@ -378,6 +378,18 @@ and `RELEASE_TOKEN`.
 
 ---
 
+## Rotating the SCOOP_BUCKET_TOKEN
+
+If the token expires or is revoked:
+
+1. Generate a replacement fine-grained PAT following the same steps in "Creating the SCOOP_BUCKET_TOKEN PAT" above.
+2. Update the `SCOOP_BUCKET_TOKEN` secret in repository settings.
+3. Re-run the `publish-scoop` job (or the full `publish-packages` workflow) via **Actions → Run workflow**.
+
+The symptom of an expired or missing token is `Authentication failed for 'https://github.com/sandwichfarm/scoop-nsyte.git/'` in the `publish-scoop` job log.
+
+---
+
 ## Bootstrapping the Scoop bucket (one-time)
 
 The `sandwichfarm/scoop-nsyte` repository must exist before CI can push to it. This is a
