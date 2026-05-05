@@ -203,8 +203,8 @@ Full archive: [`.planning/milestones/v1.5-ROADMAP.md`](milestones/v1.5-ROADMAP.m
   3. The `publish-aur` CI job completes successfully on a test release, and the AUR package page reflects the new version within minutes of the push
   4. A maintainer can run `makepkg -si` inside a Docker Arch Linux container using the `packages/aur/PKGBUILD` template and install the binary successfully before any real release
 **Plans**: 2 plans
-  - [ ] 22-01-PLAN.md — Replace publish-aur stub with real AUR publish pipeline (AUR-02, AUR-03, AUR-04, AUR-05)
-  - [ ] 22-02-PLAN.md — Document AUR_SSH_PRIVATE_KEY secret + AUR account bootstrap + local-verify recipe in docs/RELEASING.md (AUR-04, AUR-05)
+  - [x] 22-01-PLAN.md — Replace publish-aur stub with real AUR publish pipeline (AUR-02, AUR-03, AUR-04, AUR-05)
+  - [x] 22-02-PLAN.md — Document AUR_SSH_PRIVATE_KEY secret + AUR account bootstrap + local-verify recipe in docs/RELEASING.md (AUR-04, AUR-05)
 
 #### Phase 23: Homebrew Tap Pipeline
 **Goal**: The `sandwichfarm/homebrew-nsyte` tap is live and the formula is automatically updated on every release with correct per-platform URLs and SHA256 hashes
@@ -273,7 +273,7 @@ Full archive: [`.planning/milestones/v1.5-ROADMAP.md`](milestones/v1.5-ROADMAP.m
 | 19. Deploy Cutover | v1.5 | 1/1 | Complete | 2026-05-04 |
 | 20. Packaging Infrastructure and Templates | v1.6 | 3/3 | Complete   | 2026-05-05 |
 | 21. CI Workflow Foundation | v1.6 | 3/3 | Complete   | 2026-05-05 |
-| 22. AUR Pipeline | v1.6 | 0/2 | Not started | - |
+| 22. AUR Pipeline | v1.6 | 2/2 | Complete   | 2026-05-05 |
 | 23. Homebrew Tap Pipeline | v1.6 | 0/? | Not started | - |
 | 24. Scoop Bucket Pipeline | v1.6 | 0/? | Not started | - |
 | 25. Winget Pipeline | v1.6 | 0/? | Not started | - |

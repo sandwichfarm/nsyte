@@ -30,8 +30,10 @@ jobs:
     steps:
       - name: Extract version and tag
         id: extract
+        env:
+          INPUT_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
         run: |
-          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          TAG="${INPUT_TAG}"
           VERSION="${TAG#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -40,9 +42,11 @@ jobs:
         id: poll
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.extract.outputs.tag }}
+          VERSION: ${{ steps.extract.outputs.version }}
         run: |
-          TAG="${{ steps.extract.outputs.tag }}"
-          VERSION="${{ steps.extract.outputs.version }}"
+          TAG="${TAG}"
+          VERSION="${VERSION}"
           EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
           TIMEOUT=300
           INTERVAL=15
@@ -74,9 +78,11 @@ jobs:
 
       - name: Compute SHA256 checksums
         id: checksums
+        env:
+          VERSION: ${{ steps.extract.outputs.version }}
+          REPO: ${{ github.repository }}
         run: |
-          VERSION="${{ steps.extract.outputs.version }}"
-          BASE="https://github.com/${{ github.repository }}/releases/download/v${VERSION}"
+          BASE="https://github.com/${REPO}/releases/download/v${VERSION}"
           curl -fsSL -o nsyte-linux       "${BASE}/nsyte-linux-${VERSION}"
           curl -fsSL -o nsyte-macos-arm64 "${BASE}/nsyte-macos-arm64-${VERSION}"
           curl -fsSL -o nsyte-macos-x64   "${BASE}/nsyte-macos-x64-${VERSION}"
