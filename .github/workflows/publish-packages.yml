@@ -21,6 +21,7 @@ jobs:
   setup:
     name: Setup — poll assets and compute checksums
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       version: ${{ steps.extract.outputs.version }}
       sha256_linux_x64: ${{ steps.checksums.outputs.sha256_linux_x64 }}
