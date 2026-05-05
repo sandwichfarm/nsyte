@@ -1,0 +1,149 @@
+# IMPORTANT: This workflow triggers on "release: published".
+# GitHub suppresses this event when releases are created with GITHUB_TOKEN.
+# release.yml MUST use secrets.RELEASE_TOKEN (a PAT with "repo" scope) in its
+# softprops/action-gh-release step for this workflow to fire. If publish-packages.yml
+# never runs after a release, check that release.yml is not using GITHUB_TOKEN for
+# the "Create GitHub Release" step. See docs/RELEASING.md for the full setup.
+
+name: publish packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v1.6.0)"
+        required: true
+        type: string
+
+jobs:
+  setup:
+    name: Setup — poll assets and compute checksums
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      sha256_linux_x64: ${{ steps.checksums.outputs.sha256_linux_x64 }}
+      sha256_macos_arm64: ${{ steps.checksums.outputs.sha256_macos_arm64 }}
+      sha256_macos_x64: ${{ steps.checksums.outputs.sha256_macos_x64 }}
+      sha256_windows: ${{ steps.checksums.outputs.sha256_windows }}
+    steps:
+      - name: Extract version and tag
+        id: extract
+        run: |
+          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Poll for release asset readiness
+        id: poll
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.extract.outputs.tag }}"
+          VERSION="${{ steps.extract.outputs.version }}"
+          EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
+          TIMEOUT=300
+          INTERVAL=15
+          ELAPSED=0
+          ALL_PRESENT=false
+
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+            NAMES=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
+            ALL_PRESENT=true
+            for expected in $EXPECTED; do
+              if ! echo "$NAMES" | grep -qF "$expected"; then
+                ALL_PRESENT=false
+                break
+              fi
+            done
+            if [ "$ALL_PRESENT" = "true" ]; then
+              echo "All expected assets present after ${ELAPSED}s."
+              break
+            fi
+            echo "Assets not yet complete (${ELAPSED}s elapsed). Waiting ${INTERVAL}s..."
+            sleep "$INTERVAL"
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          if [ "$ALL_PRESENT" != "true" ]; then
+            echo "::error::Release assets not available after ${TIMEOUT}s. Aborting."
+            exit 1
+          fi
+
+      - name: Compute SHA256 checksums
+        id: checksums
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/v${VERSION}"
+          curl -fsSL -o nsyte-linux       "${BASE}/nsyte-linux-${VERSION}"
+          curl -fsSL -o nsyte-macos-arm64 "${BASE}/nsyte-macos-arm64-${VERSION}"
+          curl -fsSL -o nsyte-macos-x64   "${BASE}/nsyte-macos-x64-${VERSION}"
+          curl -fsSL -o nsyte-windows.exe "${BASE}/nsyte-windows-${VERSION}.exe"
+          {
+            echo "sha256_linux_x64=$(sha256sum nsyte-linux       | awk '{print $1}')"
+            echo "sha256_macos_arm64=$(sha256sum nsyte-macos-arm64 | awk '{print $1}')"
+            echo "sha256_macos_x64=$(sha256sum nsyte-macos-x64   | awk '{print $1}')"
+            echo "sha256_windows=$(sha256sum nsyte-windows.exe   | awk '{print $1}')"
+          } >> "$GITHUB_OUTPUT"
+
+  publish-aur:
+    name: Publish to AUR
+    needs: [setup]
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: TODO — phase 22 will replace this stub
+        run: |
+          echo "TODO: phase 22 will implement AUR publish here."
+          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Stub exiting 0 — workflow scaffold validation only."
+
+  publish-homebrew:
+    name: Publish to Homebrew
+    needs: [setup]
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: TODO — phase 23 will replace this stub
+        run: |
+          echo "TODO: phase 23 will implement Homebrew publish here."
+          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Stub exiting 0 — workflow scaffold validation only."
+
+  publish-scoop:
+    name: Publish to Scoop
+    needs: [setup]
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: TODO — phase 24 will replace this stub
+        run: |
+          echo "TODO: phase 24 will implement Scoop publish here."
+          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Stub exiting 0 — workflow scaffold validation only."
+
+  publish-winget:
+    name: Publish to Winget
+    needs: [setup]
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: TODO — phase 25 will replace this stub
+        run: |
+          echo "TODO: phase 25 will implement Winget publish here."
+          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Stub exiting 0 — workflow scaffold validation only."
+
+  publish-nix:
+    name: Update Nix flake
+    needs: [setup]
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: TODO — phase 26 will replace this stub
+        run: |
+          echo "TODO: phase 26 will implement Nix flake update here."
+          echo "Version available: ${{ needs.setup.outputs.version }}"
+          echo "Stub exiting 0 — workflow scaffold validation only."
