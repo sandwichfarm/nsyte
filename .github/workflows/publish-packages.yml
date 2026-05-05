@@ -93,12 +93,71 @@ jobs:
     needs: [setup]
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: TODO — phase 22 will replace this stub
+      - name: Checkout nsyte repo (for PKGBUILD template)
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent with AUR key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+      - name: Add AUR host to known_hosts
         run: |
-          echo "TODO: phase 22 will implement AUR publish here."
-          echo "Version available: ${{ needs.setup.outputs.version }}"
-          echo "Stub exiting 0 — workflow scaffold validation only."
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+      - name: Clone AUR remote
+        run: |
+          git clone ssh://aur@aur.archlinux.org/nsyte-bin.git /tmp/aur-nsyte-bin
+          # Note: "You appear to have cloned an empty repository" on first run is
+          # the documented bootstrap path. The first push creates the AUR package.
+
+      - name: Patch PKGBUILD from template
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_X86_64: ${{ needs.setup.outputs.sha256_linux_x64 }}
+        run: |
+          cp packages/aur/PKGBUILD /tmp/aur-nsyte-bin/PKGBUILD
+          sed -i "s/PLACEHOLDER_VERSION/${VERSION}/g"             /tmp/aur-nsyte-bin/PKGBUILD
+          sed -i "s/PLACEHOLDER_SHA256_X86_64/${SHA256_X86_64}/g" /tmp/aur-nsyte-bin/PKGBUILD
+          # Sanity: fail fast if any placeholder survived substitution
+          if grep -q "PLACEHOLDER_" /tmp/aur-nsyte-bin/PKGBUILD; then
+            echo "::error::PKGBUILD still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" /tmp/aur-nsyte-bin/PKGBUILD
+            exit 1
+          fi
+
+      - name: Regenerate .SRCINFO in Arch Linux container
+        run: |
+          docker run --rm \
+            -v /tmp/aur-nsyte-bin:/pkg \
+            archlinux:base-devel \
+            bash -c '
+              set -euo pipefail
+              pacman -Sy --noconfirm 2>/dev/null || true
+              useradd -m builder
+              chown -R builder /pkg
+              cd /pkg
+              sudo -u builder makepkg --printsrcinfo > .SRCINFO
+            '
+          # Sanity: ensure .SRCINFO actually landed on the host filesystem
+          test -s /tmp/aur-nsyte-bin/.SRCINFO || {
+            echo "::error::.SRCINFO was not generated or is empty."
+            exit 1
+          }
+
+      - name: Commit and push to AUR
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          git -C /tmp/aur-nsyte-bin config user.name "nsyte-bot"
+          git -C /tmp/aur-nsyte-bin config user.email "sandwich.farm@protonmail.com"
+          git -C /tmp/aur-nsyte-bin add PKGBUILD .SRCINFO
+          git -C /tmp/aur-nsyte-bin commit -m "chore: update to v${VERSION}"
+          git -C /tmp/aur-nsyte-bin push origin master
 
   publish-homebrew:
     name: Publish to Homebrew
