@@ -105,7 +105,107 @@ Check in this order:
 
 ---
 
+## AUR_SSH_PRIVATE_KEY prerequisite
+
+A private SSH key named `AUR_SSH_PRIVATE_KEY` **must** be configured as a repository secret before the `publish-aur` CI job can push to the AUR git remote.
+
+**Why this is required:** The AUR (Arch User Repository) accepts package updates only via SSH-authenticated `git push` to `ssh://aur@aur.archlinux.org/<pkgname>.git`. The `publish-aur` job in `.github/workflows/publish-packages.yml` loads this secret into an ssh-agent (via `webfactory/ssh-agent@v0.10.0`) and performs an authenticated push of the patched PKGBUILD and regenerated `.SRCINFO`. Without the secret, the SSH agent has no key to present and the push fails immediately.
+
+**Symptom of forgetting the secret (or registering an unmatched key):** The `publish-aur` job fails at the `Clone AUR remote` step with `Permission denied (publickey)`. The four sibling jobs (`publish-homebrew`, `publish-scoop`, `publish-winget`, `publish-nix`) are unaffected — failure isolation is by design (INFRA-05).
+
+---
+
+## Generating and registering the AUR SSH key
+
+This is a one-time human bootstrap. CI cannot self-register the SSH key or the package name.
+
+1. **Create an AUR account** at https://aur.archlinux.org/register/ if not already done.
+2. **Generate an SSH keypair** (or reuse an existing one):
+   ```bash
+   ssh-keygen -t ed25519 -C "nsyte AUR CI" -f ~/.ssh/aur_nsyte_ed25519
+   ```
+   This produces `~/.ssh/aur_nsyte_ed25519` (private) and `~/.ssh/aur_nsyte_ed25519.pub` (public).
+3. **Register the public key** in the AUR account settings:
+   - Navigate to https://aur.archlinux.org/account/<your-username>/edit
+   - Paste the contents of `~/.ssh/aur_nsyte_ed25519.pub` into the **SSH Public Key** field.
+   - Save.
+4. **Bootstrap the `nsyte-bin` package name** by cloning the empty AUR remote once from your local machine — this registers the package under your account so future pushes are authorized:
+   ```bash
+   GIT_SSH_COMMAND="ssh -i ~/.ssh/aur_nsyte_ed25519" \
+     git clone ssh://aur@aur.archlinux.org/nsyte-bin.git
+   # warning: You appear to have cloned an empty repository.
+   ```
+   The empty-repo warning is the documented bootstrap path. Do not commit anything from your local machine — leave the empty clone alone; CI's first push will populate it.
+5. **Add the private key as the `AUR_SSH_PRIVATE_KEY` secret:**
+   - Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions
+   - Click **New repository secret**.
+   - Name: `AUR_SSH_PRIVATE_KEY` — exactly this, case-sensitive, no whitespace.
+   - Value: paste the **entire** contents of `~/.ssh/aur_nsyte_ed25519` (private key file), including the `-----BEGIN OPENSSH PRIVATE KEY-----` and `-----END OPENSSH PRIVATE KEY-----` lines and the trailing newline.
+   - Click **Add secret**.
+
+**Verifying the setup:**
+
+Confirm the secret exists with the GitHub CLI:
+
+```bash
+gh secret list -R sandwichfarm/nsyte
+```
+
+`AUR_SSH_PRIVATE_KEY` should appear alongside `RELEASE_TOKEN`. (Values are not shown — masked is correct.)
+
+**Functional check (after the next real release):**
+
+When `release.yml` publishes a new release, `publish-packages.yml` fires, the `setup` job computes checksums, and the `publish-aur` job clones the AUR remote, patches PKGBUILD, regenerates `.SRCINFO`, and pushes. The AUR `nsyte-bin` package page should show the new version within minutes. If the job fails at `Clone AUR remote` or `Commit and push to AUR`, re-check the SSH key registration and that step 4 above (empty-repo bootstrap clone) was done.
+
+**Rotation:** SSH keys do not expire on their own. Rotate by generating a new keypair, updating the public key in your AUR account settings, and updating the `AUR_SSH_PRIVATE_KEY` secret value in repo settings. The old key can be removed from the AUR account once the new one is confirmed working.
+
+---
+
+## Verifying the AUR PKGBUILD locally (AUR-05)
+
+Before the first real release, a maintainer can verify the PKGBUILD installs cleanly using the same Arch Linux container the CI job uses. This builds confidence that the template is well-formed and that a published release is actually installable, independent of the CI plumbing.
+
+This recipe assumes a published GitHub release exists at the version under test (e.g., from a previous release before the AUR pipeline was wired). If no such release exists yet, skip this step — the first CI run on the next release will exercise the same logic.
+
+```bash
+# 1. Pick a real published version that has a Linux x86_64 binary on the GitHub release page.
+VERSION="1.5.0"  # replace with a real published version
+
+# 2. Compute the SHA256 of the published Linux binary.
+SHA256=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-linux-${VERSION}" | sha256sum | awk '{print $1}')
+
+# 3. Make a working copy of the PKGBUILD template and substitute the placeholders by name.
+mkdir -p /tmp/aur-test
+cp packages/aur/PKGBUILD /tmp/aur-test/PKGBUILD
+sed -i "s/PLACEHOLDER_VERSION/${VERSION}/g"           /tmp/aur-test/PKGBUILD
+sed -i "s/PLACEHOLDER_SHA256_X86_64/${SHA256}/g"      /tmp/aur-test/PKGBUILD
+
+# 4. Sanity check: no PLACEHOLDER markers should remain.
+grep "PLACEHOLDER_" /tmp/aur-test/PKGBUILD && { echo "substitution failed"; exit 1; }
+
+# 5. Run makepkg -si inside an Arch Linux container as a non-root user.
+docker run --rm -it \
+  -v /tmp/aur-test:/pkg \
+  archlinux:base-devel \
+  bash -c '
+    set -euo pipefail
+    pacman -Syu --noconfirm
+    useradd -m builder
+    chown -R builder /pkg
+    cd /pkg
+    sudo -u builder makepkg -si --noconfirm
+    nsyte --version
+  '
+```
+
+If `nsyte --version` prints the version cleanly inside the container, the PKGBUILD is correct and the binary is installable. If the SHA256 mismatch error appears, the published release asset has been modified since publish — investigate before pushing the AUR update.
+
+This is the same substitution logic and same container image the `publish-aur` CI job runs (just with `--printsrcinfo` instead of `-si`); a green local verification gives confidence in the upcoming CI run.
+
+---
+
 ## Related files
 
 - `.github/workflows/release.yml` — the release-creation workflow. Line 446 uses `RELEASE_TOKEN` in the `softprops/action-gh-release` step to create the release that fires the downstream event.
-- `.github/workflows/publish-packages.yml` — the publish workflow. Triggered by `release: published`. Depends entirely on the PAT-initiated release event to start; will never run if `release.yml` uses `GITHUB_TOKEN` instead.
+- `.github/workflows/publish-packages.yml` — the publish workflow. Triggered by `release: published`. Depends entirely on the PAT-initiated release event to start; will never run if `release.yml` uses `GITHUB_TOKEN` instead. The `publish-aur` job consumes `AUR_SSH_PRIVATE_KEY` from secrets and pushes to `ssh://aur@aur.archlinux.org/nsyte-bin.git`.
+- `packages/aur/PKGBUILD` — the AUR template. Contains `PLACEHOLDER_VERSION` and `PLACEHOLDER_SHA256_X86_64` which CI substitutes by name before pushing. Maintainers can substitute these by hand for local verification (see "Verifying the AUR PKGBUILD locally" above).
