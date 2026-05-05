@@ -183,7 +183,8 @@ jobs:
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/sandwichfarm/homebrew-nsyte.git" /tmp/tap
+          git clone "https://github.com/sandwichfarm/homebrew-nsyte.git" /tmp/tap
+          git -C /tmp/tap remote set-url origin "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/sandwichfarm/homebrew-nsyte.git"
 
       - name: Patch formula from template
         env:
