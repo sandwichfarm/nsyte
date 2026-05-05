@@ -144,7 +144,6 @@ jobs:
             archlinux:base-devel \
             bash -c '
               set -euo pipefail
-              pacman -Sy --noconfirm 2>/dev/null || true
               useradd -m builder
               chown -R builder /pkg
               cd /pkg
