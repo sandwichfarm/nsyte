@@ -469,6 +469,169 @@ This is the end-user install path and the final functional check after a real re
 
 ---
 
+## WINGET_FORK_TOKEN prerequisite
+
+A Personal Access Token (PAT) named `WINGET_FORK_TOKEN` **must** be configured as a
+repository secret before the `publish-winget` CI job can submit manifest PRs to
+`microsoft/winget-pkgs`.
+
+**Why this is required:** `wingetcreate update --submit` forks `microsoft/winget-pkgs`
+under the token owner's GitHub account, commits the updated manifests, and opens a PR.
+This requires write access to the fork (which wingetcreate creates automatically) and
+the ability to open PRs on the upstream repo. `GITHUB_TOKEN` does not have access to
+external repos.
+
+**Token type: classic PAT only.** wingetcreate does not support fine-grained tokens.
+Fine-grained PATs will produce an authentication error. See
+[wingetcreate token docs](https://github.com/microsoft/winget-create/blob/main/doc/token.md).
+
+**Required scopes:**
+- `public_repo` — mandatory; allows forking and PR creation on public repos
+- `delete_repo` — optional; allows wingetcreate to clean up failed fork attempts
+
+**Symptom of missing or expired token:** The `publish-winget` job completes with exit 0
+but logs `::warning::wingetcreate exited with code <N>`. If the bootstrap PR has already
+been merged (the package is in the index), a non-zero exit is most likely a token problem.
+Check that the secret is set and the PAT has not expired.
+
+---
+
+## Creating the WINGET_FORK_TOKEN PAT
+
+wingetcreate requires a **classic** PAT. Fine-grained tokens are explicitly not supported.
+
+1. Navigate to https://github.com/settings/tokens (classic tokens page)
+2. Click **Generate new token (classic)**.
+3. Set a descriptive note (e.g., `nsyte winget publish`).
+4. Set an expiry date — 90 days recommended. Avoid "No expiration".
+5. Select scope: `public_repo` (under the `repo` group). Optionally also select
+   `delete_repo` (under the top-level `delete_repo` checkbox).
+6. Click **Generate token**. Copy the value immediately — it starts with `ghp_`.
+
+---
+
+## Adding WINGET_FORK_TOKEN to repository secrets
+
+1. Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions
+2. Click **New repository secret**.
+3. Name: `WINGET_FORK_TOKEN` — exactly this, case-sensitive, no whitespace.
+4. Value: paste the classic PAT from above.
+5. Click **Add secret**.
+
+Confirm the secret exists with the GitHub CLI:
+
+```bash
+gh secret list -R sandwichfarm/nsyte
+```
+
+`WINGET_FORK_TOKEN` should appear alongside the other publish secrets.
+
+**Rotation:** Classic PATs expire. Set a calendar reminder before the expiry date.
+Create a replacement PAT following the same steps, then update the secret value in
+repository settings. The symptom of an expired token is the `publish-winget` job
+exiting 0 with a warning after the bootstrap PR has been merged.
+
+---
+
+## Bootstrapping the winget package (one-time, WINGET-04)
+
+The very first submission of `sandwichfarm.nsyte` to `microsoft/winget-pkgs` must be a
+**manual PR**. This is Microsoft's preferred path for new packages — it allows human
+review of publisher metadata, license, and installer type before automation takes over.
+After the bootstrap PR is merged and the package appears in the index, all subsequent
+version bumps are handled automatically by the `publish-winget` CI job.
+
+### Bootstrap procedure
+
+1. **Fork `microsoft/winget-pkgs`** at https://github.com/microsoft/winget-pkgs — click
+   **Fork** and create the fork under the `sandwichfarm` account.
+
+2. **Create the manifest directory in your fork:**
+   ```
+   manifests/s/sandwichfarm/nsyte/<VERSION>/
+   ```
+   where `<VERSION>` is the release version string (e.g., `1.6.0`).
+
+3. **Copy and fill in the three YAML files** from `packages/winget/` in this repo:
+
+   For each file, replace the PLACEHOLDER values:
+   - `PLACEHOLDER_VERSION` → the real version (e.g., `1.6.0`)
+   - `PLACEHOLDER_SHA256_WINDOWS` → the SHA256 of `nsyte-windows-<VERSION>.exe` from the
+     GitHub release page
+
+   ```bash
+   VERSION="1.6.0"
+   SHA256=$(curl -fsSL "https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-windows-${VERSION}.exe" | sha256sum | awk '{print $1}')
+
+   mkdir -p /tmp/winget-bootstrap/manifests/s/sandwichfarm/nsyte/${VERSION}
+
+   for f in packages/winget/sandwichfarm.nsyte.*.yaml; do
+     dest="/tmp/winget-bootstrap/manifests/s/sandwichfarm/nsyte/${VERSION}/$(basename $f)"
+     sed -e "s/PLACEHOLDER_VERSION/${VERSION}/g" \
+         -e "s/PLACEHOLDER_SHA256_WINDOWS/${SHA256}/g" \
+         "$f" > "$dest"
+   done
+
+   # Sanity: no PLACEHOLDER markers should remain
+   grep -r "PLACEHOLDER_" /tmp/winget-bootstrap/ && { echo "substitution failed"; exit 1; }
+   ```
+
+4. **Commit the three YAML files** to a branch in your fork named
+   `sandwichfarm.nsyte-<VERSION>` (convention; not enforced).
+
+5. **Open a PR** from your fork branch to `microsoft/winget-pkgs` main.
+   PR title convention: `New package: sandwichfarm.nsyte version <VERSION>`
+
+6. **Wait for Microsoft review.** The winget-pkgs maintainers typically review new package
+   PRs within 1–3 business days. Automated checks (validation bots) run first; manual
+   review follows if validation passes.
+
+7. **After the PR is merged**, the `publish-winget` CI job will work automatically on the
+   next release — wingetcreate will find the package in the index and submit a version-bump
+   PR.
+
+**Note on the `publish-winget` job before bootstrap merge:** Until the bootstrap PR is
+merged, the `publish-winget` CI job will exit 0 with a warning
+(`wingetcreate exited with code <N>`). This is expected and by design — the job does not
+fail the workflow while the package is not yet in the index.
+
+---
+
+## Verifying the winget manifests locally (WINGET-02)
+
+A maintainer can generate the manifests locally without submitting to verify they are
+well-formed. This requires Windows (or a Windows runner) and `wingetcreate`.
+
+```powershell
+# Pick a published version
+$VERSION = "1.6.0"
+$REPO = "sandwichfarm/nsyte"
+
+# Download wingetcreate (self-contained, no .NET install needed)
+iwr https://aka.ms/wingetcreate/latest/self-contained -OutFile $env:TEMP\wingetcreate.exe
+
+# Generate manifests locally without submitting
+# --out writes to a local directory; --submit is omitted
+& "$env:TEMP\wingetcreate.exe" update sandwichfarm.nsyte `
+  --version $VERSION `
+  --urls "https://github.com/$REPO/releases/download/v$VERSION/nsyte-windows-$VERSION.exe|x64" `
+  --out "$env:TEMP\winget-test"
+
+# Inspect the generated manifests
+Get-ChildItem "$env:TEMP\winget-test\manifests\s\sandwichfarm\nsyte\$VERSION\"
+```
+
+If wingetcreate produces three YAML files (version, installer, locale) in the output
+directory with the correct version and a real SHA256 (which wingetcreate downloads and
+computes from the installer URL), the manifests are well-formed and ready for submission.
+
+**Note:** `wingetcreate update` without `--submit` requires the package to already exist
+in the winget-pkgs index. Before the bootstrap PR is merged, use the manual substitution
+steps in "Bootstrapping the winget package" above to produce and visually inspect the
+initial YAML files instead.
+
+---
+
 ## Related files
 
 - `.github/workflows/release.yml` — the release-creation workflow. Line 446 uses `RELEASE_TOKEN` in the `softprops/action-gh-release` step to create the release that fires the downstream event.
