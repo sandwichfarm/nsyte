@@ -9,7 +9,7 @@
 [![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
 [![Tests & Coverage](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml)
 
-![Coverage](./static/coverage-badge.svg) 
+![Coverage](./static/coverage-badge.svg)
 ![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 

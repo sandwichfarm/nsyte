@@ -156,7 +156,7 @@ export async function scanFileList(
         line: 0,
         patternId: "unreadable-file",
         patternName: "Unreadable file",
-        severity: "warning" as const,
+        severity: "low",
         matchPreview: "(file could not be read — scan incomplete for this file)",
       });
     }

@@ -5,11 +5,12 @@ description: Create an immutable snapshot event for the current root or named si
 
 # snapshot
 
-Publish an immutable snapshot event (kind 30128) that pins the current state of the root or a named
-site at a specific moment. The snapshot is built from the current site manifest's aggregate hash and
-contents, so future readers can verify they are looking at the same blob set the snapshot was made
-from. Unlike the regular site manifest, a snapshot event is not meant to be replaced — each publish
-records a new historical point.
+Publish an immutable snapshot event (kind 5128) that pins the current state of
+the root or a named site at a specific moment. The snapshot is built from the
+current site manifest's aggregate hash and contents, so future readers can
+verify they are looking at the same blob set the snapshot was made from. Unlike
+the regular site manifest, a snapshot event is not meant to be replaced — each
+publish records a new historical point.
 
 ## Usage
 
@@ -20,14 +21,20 @@ nsyte snapshot [options]
 ## Options
 
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
-- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or
-  64-char hex)
-- `-d, --name <name>` — The site identifier for named sites (kind 35128). If not provided, snapshots
-  the root site (kind 15128)
+- `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec,
+  bunker:// URL, or 64-char hex)
+- `-d, --name <name>` — The site identifier for named sites (kind 35128). If not
+  provided, snapshots the root site (kind 15128)
 - `--dry-run` — Preview the snapshot event without signing or publishing it
-- `--no-config` — Ignore config file and use only CLI arguments (default: `false`)
-- `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
-- `--use-fallbacks` — Enable all fallbacks (currently only relays for this command)
+- `--dry-run-output <dir>` — Directory to write dry-run event JSON files
+- `--dry-run-show-kinds <kinds>` — Also print events of these kinds to stdout
+  (comma-separated kind numbers)
+- `--no-config` — Ignore config file and use only CLI arguments (default:
+  `false`)
+- `--use-fallback-relays` — Include default nsyte relays in addition to
+  configured relays
+- `--use-fallbacks` — Enable all fallbacks (currently only relays for this
+  command)
 
 ## Examples
 

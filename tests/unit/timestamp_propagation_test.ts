@@ -5,6 +5,7 @@ import { encodeHex } from "@std/encoding/hex";
 import {
   createAppHandlerEvent,
   createAppRecommendationEvent,
+  createDeleteEventTemplate,
   createProfileEvent,
   createRelayListEvent,
   createServerListEvent,
@@ -118,6 +119,16 @@ describe("timestamp propagation", () => {
       );
       assertEquals(event.created_at, CUSTOM_TS);
       assertEquals(event.kind, 31989);
+    },
+  );
+
+  it(
+    "createDeleteEventTemplate (kind 5) uses custom createdAt",
+    { sanitizeOps: false, sanitizeResources: false },
+    async () => {
+      const template = await createDeleteEventTemplate(["a".repeat(64)], CUSTOM_TS);
+      assertEquals(template.created_at, CUSTOM_TS);
+      assertEquals(template.kind, 5);
     },
   );
 

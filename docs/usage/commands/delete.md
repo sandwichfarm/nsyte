@@ -5,11 +5,12 @@ description: Selectively remove published files from relays and optionally from 
 
 # `nsyte delete`
 
-Selectively delete nsite events from relays and optionally delete blobs from blossom servers. This
-command creates NIP-09 delete events to remove your published nsite files.
+Selectively delete nsite events from relays and optionally delete blobs from
+blossom servers. This command creates NIP-09 delete events to remove your
+published nsite files.
 
-> **Note**: The `purge` command still works as an alias but is deprecated. Please use `delete`
-> instead.
+> **Note**: The `purge` command still works as an alias but is deprecated.
+> Please use `delete` instead.
 
 ## Usage
 
@@ -19,11 +20,20 @@ nsyte delete [options]
 
 ## Options
 
-- `-r, --relays <relays>` — Nostr relays to publish delete events to (comma-separated)
-- `-s, --servers <servers>` — Blossom servers to delete blobs from (comma-separated)
+- `-r, --relays <relays>` — Nostr relays to publish delete events to
+  (comma-separated)
+- `-s, --servers <servers>` — Blossom servers to delete blobs from
+  (comma-separated)
 - `--include-blobs` — Also delete blobs from blossom servers (default: false)
-- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
-- `-d, --name <name>` — Site identifier for named sites. If not provided, deletes root site
+- `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
+  bunker://, hex)
+- `-d, --name <name>` — Site identifier for named sites. If not provided,
+  deletes root site
+- `--dry-run` — Preview delete events without publishing or deleting blobs
+  (default: false)
+- `--dry-run-output <dir>` — Directory to write dry-run event JSON files
+- `--dry-run-show-kinds <kinds>` — Also print events of these kinds to stdout
+  (comma-separated kind numbers)
 - `-y, --yes` — Skip confirmation prompts (default: false)
 
 ## Examples
@@ -52,6 +62,12 @@ Delete without confirmation (for CI/CD):
 nsyte delete -y
 ```
 
+Preview delete events and blob counts without changing anything:
+
+```bash
+nsyte delete --include-blobs --dry-run --dry-run-show-kinds 5
+```
+
 Delete with custom relays and servers:
 
 ```bash
@@ -69,23 +85,27 @@ nsyte delete -d blog --include-blobs -y
 1. **Identifies site**: Determines which site to delete (root or named)
 2. **Fetches manifest**: Retrieves current site manifest from relays
 3. **Confirmation**: Shows preview of files to be deleted (first 5 + count)
-4. **Creates delete event**: Publishes NIP-09 Kind 5 delete event for the site manifest
-5. **Deletes blobs** (if `--include-blobs`): Attempts to delete blobs from blossom servers using
-   BUD-04 auth
+4. **Creates delete event**: Publishes NIP-09 Kind 5 delete event for the site
+   manifest
+5. **Deletes blobs** (if `--include-blobs`): Attempts to delete blobs from
+   blossom servers using BUD-04 auth
 
 ## Blob Deletion
 
-When using `--include-blobs`, nsyte attempts to delete the actual blob files from blossom servers:
+When using `--include-blobs`, nsyte attempts to delete the actual blob files
+from blossom servers:
 
 - **Batch deletion**: Signs batch delete auth tokens (up to 20 hashes per token)
-- **Best effort**: Some servers may not support deletion or may reject the request
+- **Best effort**: Some servers may not support deletion or may reject the
+  request
 
-Note: Delete events only remove references from relays. Use `--include-blobs` to also remove the
-actual files from storage servers.
+Note: Delete events only remove references from relays. Use `--include-blobs` to
+also remove the actual files from storage servers.
 
 ## NIP-09 Delete Events
 
-The delete command creates [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete
+The delete command creates
+[NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) delete
 events:
 
 - Each delete event references the original nsite event

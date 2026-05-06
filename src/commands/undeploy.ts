@@ -4,9 +4,15 @@ import { encodeBase64 } from "@std/encoding/base64";
 import type { ISigner } from "applesauce-signers";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { readProjectFile } from "../lib/config.ts";
+import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { handleError } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { createDeleteEvent, getUserDisplayName, publishEventsToRelays } from "../lib/nostr.ts";
+import {
+  createDeleteEvent,
+  createDeleteEventTemplate,
+  getUserDisplayName,
+  publishEventsToRelays,
+} from "../lib/nostr.ts";
 import { resolveRelays, resolveServers } from "../lib/resolver-utils.ts";
 import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
 import { formatSectionHeader } from "../ui/formatters.ts";
@@ -16,6 +22,12 @@ import nsyte from "./root.ts";
 const log = createLogger("undeploy");
 
 const DELETE_AUTH_BATCH_SIZE = 20;
+
+interface UndeployDryRunOptions {
+  createdAt?: number;
+  dryRunOutput?: string;
+  dryRunShowKinds?: string;
+}
 
 /**
  * Sign a batch delete authorization covering up to DELETE_AUTH_BATCH_SIZE hashes.
@@ -95,6 +107,14 @@ export function registerUndeployCommand() {
     .option(
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, undeploys root site (kind 15128).",
+    )
+    .option("--dry-run", "Preview undeploy events without publishing or deleting blobs.", {
+      default: false,
+    })
+    .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers).",
     )
     .option("-y, --yes", "Skip confirmation prompts", { default: false })
     .action(async (options) => {
@@ -198,6 +218,37 @@ export function registerUndeployCommand() {
       paths.forEach((path) => console.log(`  - ${path}`));
       if (fileCount > 5) {
         console.log(`  ... and ${fileCount - 5} more files`);
+      }
+
+      if (options.dryRun) {
+        const dryRunOptions = options as UndeployDryRunOptions;
+        const deleteTemplate = await createDeleteEventTemplate(
+          [manifest.id],
+          dryRunOptions.createdAt,
+        );
+        await handleDryRunOutput(
+          [{
+            label: `Delete ${siteLabel} Manifest (kind ${deleteTemplate.kind})`,
+            kind: deleteTemplate.kind,
+            template: deleteTemplate,
+            filename: `undeploy-delete-${deleteTemplate.kind}.json`,
+          }],
+          {
+            outputDir: dryRunOptions.dryRunOutput,
+            showKinds: parseDryRunShowKinds(dryRunOptions.dryRunShowKinds),
+            interactive: false,
+          },
+        );
+        console.log(
+          colors.yellow(
+            `Dry run only: ${uniqueBlobCount} blob(s) would be deleted from ${servers.length} server(s).`,
+          ),
+        );
+        console.log(colors.yellow("Dry run only: delete event was not signed or published."));
+        if ("close" in signer && typeof signer.close === "function") {
+          await signer.close();
+        }
+        return Deno.exit(0);
       }
 
       // Type-to-confirm

@@ -8,6 +8,7 @@ import nsyte from "./root.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
+import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { createLogger } from "../lib/logger.ts";
 import { getManifestServers } from "../lib/manifest.ts";
 import { getUserBlossomServers, publishEventsToRelaysDetailed } from "../lib/nostr.ts";
@@ -23,6 +24,9 @@ interface PutCommandOptions {
   config?: string;
   /** Override created_at timestamp for nostr events (from --created-at global option) */
   createdAt?: number;
+  dryRun?: boolean;
+  dryRunOutput?: string;
+  dryRunShowKinds?: string;
 }
 
 function normalizeSitePath(path: string): string {
@@ -141,6 +145,18 @@ export function registerPutCommand(): void {
       "-n, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, updates the root site (kind 15128).",
     )
+    .option(
+      "--dry-run",
+      "Preview the upload and manifest update without uploading or publishing.",
+      {
+        default: false,
+      },
+    )
+    .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
+    .option(
+      "--dry-run-show-kinds <kinds:string>",
+      "Also print events of these kinds to stdout (comma-separated kind numbers).",
+    )
     .action(async (options: PutCommandOptions, localFile: string, remotePath: string) => {
       try {
         const config = readProjectFile(options.config);
@@ -170,6 +186,36 @@ export function registerPutCommand(): void {
 
         const finalRemotePath = resolvePutRemotePath(localFile, remotePath);
         const uploadFile = await loadLocalFileForPut(localFile, finalRemotePath);
+
+        if (options.dryRun) {
+          const template = buildUpdatedManifestTemplate(
+            trustedManifest.event,
+            finalRemotePath,
+            uploadFile.sha256,
+            options.createdAt,
+          );
+
+          await handleDryRunOutput(
+            [{
+              label: `Updated Site Manifest (kind ${template.kind})`,
+              kind: template.kind,
+              template,
+              filename: `put-manifest-${template.kind}.json`,
+            }],
+            {
+              outputDir: options.dryRunOutput,
+              showKinds: parseDryRunShowKinds(options.dryRunShowKinds),
+              interactive: false,
+            },
+            { totalFiles: 1, toTransferCount: 1 },
+          );
+
+          console.log(
+            colors.yellow("Dry run only: file was not uploaded and manifest was not published."),
+          );
+          return;
+        }
+
         const servers = await resolvePutServers(trustedManifest.event, signerResult.pubkey);
         if (servers.length === 0) {
           throw new Error("No upload servers found in the manifest or your Blossom server list.");
