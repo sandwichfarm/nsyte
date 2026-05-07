@@ -1,10 +1,12 @@
 ---
 id: SEED-001
-status: dormant
+status: implemented
 planted: 2026-05-07
 planted_during: main packaging reconciliation
 trigger_when: when packaging work resumes, before changing .packaging release/package-manager logic, or when reconciling main with feat/package-management-pipeline
 scope: Medium
+implemented: 2026-05-07
+implemented_by: v1.6 Phase 20 packaging reconciliation
 ---
 
 # SEED-001: Migrate .packaging using package-management-pipeline patterns
@@ -105,3 +107,20 @@ rediscover later:
 
 Do not discard `.packaging` managers that have no branch equivalent unless a
 future plan explicitly removes that platform from scope.
+
+## Implementation Closure
+
+Closed during v1.6 milestone artifact audit. Phase 20 migrated package-manager
+sources into `packages/`, used the pipeline branch's placeholder/checksum
+patterns for overlapping managers, and preserved Chocolatey, Debian, Flatpak,
+and Snap templates that had no live-publication scope in v1.6.
+
+Evidence:
+
+- `packages/aur/PKGBUILD`
+- `packages/homebrew/Formula/nsyte.rb`
+- `packages/scoop/bucket/nsyte.json`
+- `packages/winget/*.yaml`
+- `flake.nix`
+- `packages/chocolatey/`, `packages/debian/`, `packages/flatpak/`, `packages/snap/`
+- `.planning/phases/20-packaging-infrastructure-and-templates/*-SUMMARY.md`
