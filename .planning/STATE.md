@@ -2,8 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: OS Package Manager/Distributors
-status: human_needed
-last_updated: "2026-05-07T15:20:00.000Z"
+status: complete
+completed_at: "2026-05-07T16:47:53.377Z"
+last_updated: "2026-05-07T16:47:53.377Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 7
@@ -20,16 +21,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Reliable site deployment to the nostr + blossom ecosystem with a simple CLI workflow.
-**Current focus:** v1.6 package manager/distributor pipeline runtime validation.
+**Current focus:** Planning next milestone. v1.6 implementation is archived; external package-manager runtime UAT is deferred.
 
 ## Current Position
 
-Phase: 26
-Plan: 26-01
-Status: Human verification required
+Phase: none
+Plan: none
+Status: v1.6 milestone complete; external runtime UAT deferred
 Last activity: 2026-05-07
 
-Progress: [██████████] 100% implementation complete; runtime UAT pending.
+Progress: [██████████] 100% implementation complete; milestone archived.
 
 ## Performance Metrics
 
@@ -67,17 +68,11 @@ Decisions are logged in PROJECT.md and phase summaries. Recent decisions affecti
 
 ### Pending Todos
 
-- Run external/runtime UAT for AUR, Homebrew, Scoop, Winget, and Nix using the checklists in the phase verification and human-UAT files.
-- Confirm package-manager secrets and external repos exist before the first public package release.
-- Run local Nix verification on a machine with `nix` installed, or rely on the first `publish-nix` CI run for the initial proof.
+- Start the next milestone with `$gsd-new-milestone`.
 
 ### Blockers/Concerns
 
-- [Phase 22] AUR: Live push requires `AUR_SSH_PRIVATE_KEY`, AUR account/bootstrap, and a published release tag.
-- [Phase 23] Homebrew: Live tap push and install require `sandwichfarm/homebrew-nsyte`, `HOMEBREW_TAP_TOKEN`, a published release tag, and macOS/Homebrew runtime verification.
-- [Phase 24] Scoop: Live bucket push and install require `sandwichfarm/scoop-nsyte`, `SCOOP_BUCKET_TOKEN`, a published release tag, and Windows/Scoop runtime verification.
-- [Phase 25] Winget: Runtime proof requires initial `microsoft/winget-pkgs` bootstrap PR and `wingetcreate` update behavior with `WINGET_FORK_TOKEN`.
-- [Phase 26] Nix: Local `nix flake check` was not run here because `nix` is not installed; live `publish-nix` CI and/or local Nix smoke testing must prove the flake.
+None blocking the closed v1.6 milestone. External package-manager runtime UAT is tracked under Deferred Items.
 
 ## Deferred Items
 
@@ -93,9 +88,14 @@ Items carried forward from previous milestone close:
 | Package managers | Debian live publication | Deferred; template preserved | v1.6 |
 | Package managers | Flatpak live publication | Deferred; template preserved | v1.6 |
 | Package managers | Snap live publication | Deferred; template preserved | v1.6 |
+| Package managers | Phase 22 AUR live push and makepkg UAT | Deferred; requires `AUR_SSH_PRIVATE_KEY`, AUR account/bootstrap, release tag, and Arch runtime | v1.6 close |
+| Package managers | Phase 23 Homebrew tap push and install UAT | Deferred; `sandwichfarm/homebrew-nsyte` returned 404 and `HOMEBREW_TAP_TOKEN` was not present in `gh secret list -R sandwichfarm/nsyte` | v1.6 close |
+| Package managers | Phase 24 Scoop bucket push and install UAT | Deferred; `sandwichfarm/scoop-nsyte` returned 404 and `SCOOP_BUCKET_TOKEN` was not present in `gh secret list -R sandwichfarm/nsyte` | v1.6 close |
+| Package managers | Phase 25 Winget bootstrap/index runtime UAT | Deferred; requires winget/Windows runtime and initial `microsoft/winget-pkgs` bootstrap PR | v1.6 close |
+| Package managers | Phase 26 Nix runtime UAT | Deferred; requires local Nix or live `publish-nix` CI run | v1.6 close |
 
 ## Session Continuity
 
 Last session: 2026-05-07
-Stopped at: human/runtime UAT boundary after package-management pipeline reconciliation.
+Stopped at: v1.6 milestone complete; next step is a fresh milestone.
 Resume file: None
