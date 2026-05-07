@@ -1,12 +1,15 @@
 #!/bin/bash
 set -e
 
-# Script to build Debian package for nsyte
+# Build a Debian package for nsyte from a published Linux release asset.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERSION="0.7.0"
+VERSION="${VERSION:?Set VERSION to the release version, for example VERSION=1.6.0}"
+SHA256="${SHA256:-}"
 PACKAGE_DIR="$SCRIPT_DIR/nsyte_${VERSION}_amd64"
+BINARY_PATH="$PROJECT_ROOT/dist/nsyte-linux-${VERSION}"
+RELEASE_URL="https://github.com/sandwichfarm/nsyte/releases/download/v${VERSION}/nsyte-linux-${VERSION}"
 
 echo "Building nsyte Debian package v$VERSION..."
 
@@ -27,14 +30,17 @@ cp "$SCRIPT_DIR/DEBIAN/prerm" "$PACKAGE_DIR/DEBIAN/"
 chmod 755 "$PACKAGE_DIR/DEBIAN/postinst"
 chmod 755 "$PACKAGE_DIR/DEBIAN/prerm"
 
-# Copy the binary (you need to build it first)
-if [ ! -f "$PROJECT_ROOT/dist/nsyte-linux" ]; then
-    echo "Building nsyte binary..."
-    cd "$PROJECT_ROOT"
-    deno task compile:linux
+# Fetch the release binary when it is not already present locally.
+if [ ! -f "$BINARY_PATH" ]; then
+    mkdir -p "$PROJECT_ROOT/dist"
+    curl -fsSL "$RELEASE_URL" -o "$BINARY_PATH"
 fi
 
-cp "$PROJECT_ROOT/dist/nsyte-linux" "$PACKAGE_DIR/usr/bin/nsyte"
+if [ -n "$SHA256" ]; then
+    echo "${SHA256}  ${BINARY_PATH}" | sha256sum -c -
+fi
+
+cp "$BINARY_PATH" "$PACKAGE_DIR/usr/bin/nsyte"
 chmod 755 "$PACKAGE_DIR/usr/bin/nsyte"
 
 # Copy documentation

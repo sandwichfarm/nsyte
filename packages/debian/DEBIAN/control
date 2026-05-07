@@ -1,11 +1,11 @@
 Package: nsyte
-Version: 0.7.0
+Version: PLACEHOLDER_VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: sandwichfarm <noreply@github.com>
-Description: Command-line tool for publishing websites to nostr and Blossom servers
- nsyte is a command-line tool for publishing websites to nostr and Blossom servers.
+Maintainer: sandwichfarm <sandwich.farm@protonmail.com>
+Description: Publish your site to nostr and blossom servers
+ nsyte is a command-line tool for publishing websites to nostr and blossom servers.
  It enables decentralized, censorship-resistant website hosting.
  .
  Features:

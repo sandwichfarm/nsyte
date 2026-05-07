@@ -1,6 +1,6 @@
 name: nsyte
 base: core22
-version: '0.7.0'
+version: 'PLACEHOLDER_VERSION'
 summary: Command-line tool for publishing websites to nostr and Blossom servers
 description: |
   nsyte is a command-line tool for publishing websites to nostr and Blossom servers.
@@ -31,9 +31,9 @@ apps:
 parts:
   nsyte:
     plugin: dump
-    source: https://github.com/sandwichfarm/nsyte/releases/download/v0.7.0/nsyte-linux
+    source: https://github.com/sandwichfarm/nsyte/releases/download/vPLACEHOLDER_VERSION/nsyte-linux-PLACEHOLDER_VERSION
     source-type: file
-    source-checksum: sha256/PLACEHOLDER_SHA256
+    source-checksum: sha256/PLACEHOLDER_SHA256_LINUX_X86_64
     organize:
       nsyte-linux: bin/nsyte
     stage:
