@@ -8,16 +8,11 @@ A CLI tool for publishing static sites to nostr relays and blossom servers. User
 
 Reliable site deployment to the nostr + blossom ecosystem with a simple CLI workflow.
 
-## Current Milestone: v1.6 OS Package Manager/Distributors
+## Current State
 
-**Goal:** Ship locally-testable publish pipelines for OS package managers that accept open submissions, integrated into the release workflow as triggered independent manager jobs.
+**Shipped:** v1.6 OS Package Manager/Distributors on 2026-05-07.
 
-**Target features:**
-- Package manager targeting — identify which managers allow open submissions (no popularity gatekeeping); AUR is the confirmed starting point
-- Cohesive file structure convention under `packages/<manager>/...`
-- Per-manager build + upload procedure (locally executable for testing)
-- GitHub Actions release integration — independent manager jobs triggered by a successful release
-- Manual re-run / per-manager maintenance workflow for when individual targets fail
+**Current package-management state:** Package templates live under `packages/`, release-triggered package jobs are wired in `.github/workflows/publish-packages.yml`, and maintainer runbooks live in `docs/RELEASING.md`. Live package-manager publication UAT remains deferred until external repos, secrets, package-manager runtimes, and release runs are available.
 
 ## Requirements
 
@@ -44,14 +39,18 @@ Reliable site deployment to the nostr + blossom ecosystem with a simple CLI work
 - Persistent links from homepage to the existing docs site — v1.3
 - Documentation aligned 1:1 with the actual CLI surface (commands, flags, behavior) — v1.4
 - Drift gate (`scripts/check-doc-drift.ts` + GitHub Actions workflow) catches future drift in CI — v1.4
+- VitePress docs/site migration with homepage-matched theme and local search — v1.5
+- Package source-of-truth under `packages/` with AUR, Homebrew, Scoop, Winget, and Nix templates — v1.6
+- Release-triggered package publication workflow with independent manager jobs and shared asset/checksum setup — v1.6
+- Package-manager maintainer runbooks for tokens, repo bootstrap, local verification, and troubleshooting — v1.6
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-v1.6 — OS Package Manager/Distributors. See "Current Milestone" above. Requirements live in `.planning/REQUIREMENTS.md`.
+Next milestone not selected yet. Start with `$gsd-new-milestone`.
 
-(Backlog still standing from v1.4 phantom log: env-var override support, `nsyte config show`/`set` subcommands, `validate` redundant `-f` flag fix, `deploy` duplicate `-c` short-flag fix. Deferred until after v1.6.)
+Backlog still standing from v1.4 phantom log: env-var override support, `nsyte config show`/`set` subcommands, `validate` redundant `-f` flag fix, `deploy` duplicate `-c` short-flag fix.
 
 ### Out of Scope
 
@@ -63,6 +62,7 @@ v1.6 — OS Package Manager/Distributors. See "Current Milestone" above. Require
 - Marketing content on homepage (features, CI/CD, "what's nsite") — migrated to docs to enforce no-scroll constraint
 - CLI source changes during the v1.4 docs pass — if a doc audit reveals a real source bug or missing feature, it's flagged for a future milestone, not fixed in this one
 - CLI source changes during v1.5 — same rule: docs migration only; phantom-log backlog stays deferred
+- Live Chocolatey, Debian, Flatpak, and Snap publication — templates are preserved under `packages/`, but v1.6 intentionally did not add live jobs for those managers
 
 ## Context
 
@@ -73,7 +73,8 @@ v1.6 — OS Package Manager/Distributors. See "Current Milestone" above. Require
 - **Event timestamps:** `--created-at` global option overrides timestamp on most event kinds; delete (kind 5) and blossom auth (kind 24242) events always use current time
 - **Commands:** init, deploy, list, status, snapshot, sites, browse, download, get, ci, put, run, serve, delete, undeploy, validate, debug, announce, config, bunker, scan
 - **Marketing site:** Single-page HTML at `website/src/index.html` (~653 lines after v1.3 redesign, down from ~1890). Cypherpunk theme, `--cyber-bg #06070d`, `--cyber-accent #34d399`. Single `<section class="hero">` with flex-centered content (wordmark + tagline + compact install component + top-link nav). UI-audit score 24/24 at v1.3 close.
-- **Docs site:** historically a mkdocs build at `docs/`; **migrating to VitePress in v1.5** with palette/typography matched to the homepage. Homepage links to preserve: `/docs/installation/`, `/docs/`.
+- **Docs site:** VitePress build under `docs/`, with palette/typography matched to the homepage. Homepage links to preserve: `/docs/installation/`, `/docs/`.
+- **Package managers:** `packages/` is the package source-of-truth. AUR, Homebrew, Scoop, Winget, and Nix have v1.6 publication/update automation; Chocolatey, Debian, Flatpak, and Snap templates are preserved without live jobs.
 
 ## Constraints
 
@@ -125,6 +126,9 @@ This document evolves at phase transitions and milestone boundaries.
 | `_global-options.md` canonical reference | Don't duplicate `--config`/`--created-at` across 22 pages | ✓ Good (v1.4) |
 | Drift gate: 3 checks (coverage, flag, env-var) | Maps directly to the top-3 phantom patterns from the audit | ✓ Good (v1.4) |
 | Phase 14 audit folded color findings from Phase 11 audit (UI carry-over) — n/a in v1.4 (docs-only) | — | — |
+| `packages/` as package source-of-truth | Keeps manager templates versioned with the release workflow and avoids hidden `.packaging` drift | ✓ Good (v1.6) |
+| Independent package manager jobs instead of a matrix | One package-manager failure should not cancel unrelated publication targets | ✓ Good (v1.6) |
+| External package UAT deferred at close | Live pushes require repos, secrets, package-manager runtimes, and package index workflows outside local static verification | ⚠ Revisit before public package announcement |
 
 ---
-*Last updated: 2026-05-07 — v1.6 package pipeline implementation reconciled; runtime UAT pending*
+*Last updated: 2026-05-07 — after v1.6 milestone close*
