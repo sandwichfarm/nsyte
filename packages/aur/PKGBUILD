@@ -1,6 +1,6 @@
 # Maintainer: sandwichfarm <sandwich.farm@protonmail.com>
 
-pkgname=nsyte-bin
+pkgname=nsyte
 pkgver=PLACEHOLDER_VERSION
 pkgrel=1
 pkgdesc="Publish your site to nostr and blossom servers"
@@ -8,9 +8,6 @@ arch=('x86_64')
 # NOTE: aarch64 support pending release.yml aarch64 Linux build step - re-add when binary is published
 url="https://github.com/sandwichfarm/nsyte"
 license=('MIT')
-provides=('nsyte')
-conflicts=('nsyte')
-
 source_x86_64=(
   "nsyte-linux-${pkgver}::https://github.com/sandwichfarm/nsyte/releases/download/v${pkgver}/nsyte-linux-${pkgver}"
 )

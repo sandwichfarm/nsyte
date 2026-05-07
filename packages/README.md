@@ -5,7 +5,7 @@ automation.
 
 ## Active release pipelines
 
-- `aur/` - AUR `nsyte-bin` template, published by `.github/workflows/publish-packages.yml`
+- `aur/` - AUR `nsyte` template, published by `.github/workflows/publish-packages.yml`
 - `homebrew/` - Homebrew tap formula template, published to `sandwichfarm/homebrew-nsyte`
 - `scoop/` - Scoop bucket manifest template, published to `sandwichfarm/scoop-nsyte`
 - `winget/` - Winget bootstrap manifests, used with `wingetcreate` after the first manual PR

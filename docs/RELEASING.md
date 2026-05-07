@@ -185,11 +185,11 @@ This is a one-time human bootstrap. CI cannot self-register the SSH key or the p
    - Navigate to https://aur.archlinux.org/account/<your-username>/edit
    - Paste the contents of `~/.ssh/aur_nsyte_ed25519.pub` into the **SSH Public Key** field.
    - Save.
-4. **Bootstrap the `nsyte-bin` package name** by cloning the empty AUR remote once from your local
+4. **Bootstrap the `nsyte` package name** by cloning the empty AUR remote once from your local
    machine — this registers the package under your account so future pushes are authorized:
    ```bash
    GIT_SSH_COMMAND="ssh -i ~/.ssh/aur_nsyte_ed25519" \
-     git clone ssh://aur@aur.archlinux.org/nsyte-bin.git
+     git clone ssh://aur@aur.archlinux.org/nsyte.git
    # warning: You appear to have cloned an empty repository.
    ```
    The empty-repo warning is the documented bootstrap path. Do not commit anything from your local
@@ -218,7 +218,7 @@ correct.)
 
 When `release.yml` publishes a new release, `publish-packages.yml` fires, the `setup` job computes
 checksums, and the `publish-aur` job clones the AUR remote, patches PKGBUILD, regenerates
-`.SRCINFO`, and pushes. The AUR `nsyte-bin` package page should show the new version within minutes.
+`.SRCINFO`, and pushes. The AUR `nsyte` package page should show the new version within minutes.
 If the job fails at `Clone AUR remote` or `Commit and push to AUR`, re-check the SSH key
 registration and that step 4 above (empty-repo bootstrap clone) was done.
 
