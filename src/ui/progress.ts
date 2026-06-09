@@ -121,9 +121,10 @@ export function formatServerProgressBars(
     let sGray = SERVER_BAR_WIDTH;
 
     if (sp.total > 0) {
+      const retryingForBar = Math.min(sp.retrying, Math.max(0, sp.total - serverDone));
       sGreen = Math.floor((serverUploaded / sp.total) * SERVER_BAR_WIDTH);
       sSkipped = Math.floor((skipped / sp.total) * SERVER_BAR_WIDTH);
-      sYellow = Math.floor((sp.retrying / sp.total) * SERVER_BAR_WIDTH);
+      sYellow = Math.floor((retryingForBar / sp.total) * SERVER_BAR_WIDTH);
       sRed = Math.floor((sp.failed / sp.total) * SERVER_BAR_WIDTH);
       sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sSkipped - sYellow - sRed);
     }
@@ -387,9 +388,10 @@ export class ProgressRenderer {
     let grayW = this.barLength;
 
     if (data.total > 0) {
+      const retryingForBar = Math.min(retrying, Math.max(0, data.total - done));
       greenW = Math.floor((uploadedCompleted / data.total) * this.barLength);
       skippedW = Math.floor((skipped / data.total) * this.barLength);
-      yellowW = Math.floor((retrying / data.total) * this.barLength);
+      yellowW = Math.floor((retryingForBar / data.total) * this.barLength);
       redW = Math.floor((data.failed / data.total) * this.barLength);
       grayW = Math.max(0, this.barLength - greenW - skippedW - yellowW - redW);
     }

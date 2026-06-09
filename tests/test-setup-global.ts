@@ -77,15 +77,23 @@ const originalDynamicImport = (globalThis as any).import;
 
 // Mock Deno commands that could access system resources
 const originalCommand = Deno.Command;
-Deno.Command = class MockCommand extends originalCommand {
-  constructor(command: string, options?: any) {
+class MockCommand extends originalCommand {
+  constructor(command: string | URL, options?: Deno.CommandOptions) {
+    const commandName = command instanceof URL ? command.toString() : command;
+
     // Block any security-related commands
-    if (command === "security" || command === "cmdkey" || command === "secret-tool") {
-      throw new Error(`Command '${command}' blocked in tests - no keychain access allowed`);
+    if (commandName === "security" || commandName === "cmdkey" || commandName === "secret-tool") {
+      throw new Error(`Command '${commandName}' blocked in tests - no keychain access allowed`);
     }
     super(command, options);
   }
-} as any;
+}
+
+Object.defineProperty(Deno, "Command", {
+  value: MockCommand,
+  configurable: true,
+  writable: true,
+});
 
 console.log("🔒 Test environment setup complete - all keychain access blocked");
 
