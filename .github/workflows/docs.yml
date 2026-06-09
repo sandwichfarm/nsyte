@@ -69,14 +69,13 @@ jobs:
           directory: './dist'  # Your built website directory
           version: 'latest'
           relays: |
-            wss://relay.damus.io
+            wss://relay.primal.net
             wss://nos.lol
             wss://relay.nsite.lol
             wss://relay.nosto.re/
             wss://nsite.run
           servers: |
             https://cdn.hzrd149.com/
-            https://cdn.sovbit.host
             https://nostr.download 
             https://nsite.run
             https://blssm.us
@@ -94,14 +93,13 @@ jobs:
           version: 'latest'
           name: 'nsyte'
           relays: |
-            wss://relay.damus.io
+            wss://relay.primal.net
             wss://nos.lol
             wss://relay.nsite.lol
             wss://relay.nosto.re/
             wss://nsite.run
           servers: |
             https://cdn.hzrd149.com/
-            https://cdn.sovbit.host
             https://nostr.download 
             https://nsite.run
             https://blssm.us
