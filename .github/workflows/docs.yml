@@ -61,7 +61,7 @@ jobs:
             -H "Content-Type: application/json"
 
       - name: deploy nsite 1
-        uses: sandwichfarm/nsite-action@v0.4.0
+        uses: sandwichfarm/nsite-action@v0.5.0
         id: nsite_deploy
         timeout-minutes: 15
         with:
@@ -85,13 +85,14 @@ jobs:
           publish_profile: "true"
       
       - name: deploy nsite 2
-        uses: sandwichfarm/nsite-action@v0.4.0
+        uses: sandwichfarm/nsite-action@v0.5.0
         id: nsite_deploy2
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET_MAINTAINER }}
           directory: './dist'  # Your built website directory
           version: 'latest'
+          name: 'nsyte'
           relays: |
             wss://relay.damus.io
             wss://nos.lol
