@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { restore, returnsNext, stub } from "@std/testing/mock";
 import {
@@ -614,6 +615,35 @@ Deno.test("UI Progress - ProgressRenderer colored bar and retry count", async (t
     stdoutStub.restore();
   });
 
+  await t.step("should render skipped files separately from green completions", () => {
+    restore();
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    stub(Deno, "consoleSize", () => ({ columns: 300, rows: 50 }));
+
+    const progress = new ProgressRenderer(10);
+    progress.update({
+      total: 10,
+      completed: 10,
+      failed: 0,
+      inProgress: 0,
+      skipped: 10,
+      retrying: 0,
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+
+    assertStringIncludes(allOutput, "0 ok, 10 skip");
+    if (!Deno.noColor) {
+      assertStringIncludes(allOutput, "\x1b[2m");
+      assertEquals(allOutput.includes("\x1b[32m"), false);
+    }
+
+    stdoutStub.restore();
+  });
+
   await t.step("should default retrying to 0 when not provided", () => {
     restore();
     stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
@@ -778,13 +808,13 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
     (renderer as any).showServerBars = true;
     renderer.update({
       total: 6,
-      completed: 2,
+      completed: 5,
       failed: 0,
       inProgress: 1,
       serverProgress: {
         "https://server1.com": {
           total: 6,
-          completed: 2,
+          completed: 5,
           failed: 0,
           retrying: 0,
           skipped: 3,
@@ -797,6 +827,49 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       allOutput += new TextDecoder().decode(call.args[0]);
     }
     assertStringIncludes(allOutput, "3 skip");
+
+    consoleSizeStub.restore();
+    stdoutStub.restore();
+  });
+
+  await t.step("should render server skips as their own bar segment", () => {
+    stdoutStub = stub(Deno.stdout, "writeSync", () => 0);
+    consoleSizeStub = stub(
+      Deno,
+      "consoleSize",
+      () => ({ columns: 200, rows: 50 }),
+    );
+
+    const renderer = new ProgressRenderer(6, ["https://server1.com"]);
+    (renderer as any).showServerBars = true;
+    renderer.update({
+      total: 6,
+      completed: 6,
+      failed: 0,
+      inProgress: 0,
+      skipped: 4,
+      retrying: 0,
+      serverProgress: {
+        "https://server1.com": {
+          total: 6,
+          completed: 6,
+          failed: 0,
+          retrying: 0,
+          skipped: 4,
+        },
+      },
+    });
+
+    let allOutput = "";
+    for (const call of stdoutStub.calls) {
+      allOutput += new TextDecoder().decode(call.args[0]);
+    }
+
+    assertStringIncludes(allOutput, "2 ok");
+    assertStringIncludes(allOutput, "4 skip");
+    if (!Deno.noColor) {
+      assertStringIncludes(allOutput, "\x1b[2m");
+    }
 
     consoleSizeStub.restore();
     stdoutStub.restore();

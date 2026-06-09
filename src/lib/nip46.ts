@@ -509,7 +509,7 @@ export async function initiateNostrConnect(
     }
   };
 
-  let timeoutHandle: number | undefined = undefined;
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined = undefined;
 
   const signerPromise = signer
     .waitForSigner()

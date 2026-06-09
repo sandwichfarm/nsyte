@@ -144,7 +144,7 @@ export interface UploadProgress {
   completed: number;
   /** Server-file pairs that failed after retries */
   failed: number;
-  /** Files currently being processed */
+  /** Server-file pairs currently being processed */
   inProgress: number;
   /** Server-file pairs where file already existed */
   skipped: number;
@@ -170,6 +170,8 @@ export type UploadResponse = {
     };
   };
 };
+
+type ServerUploadResult = UploadResponse["serverResults"][string];
 
 /**
  * Sign a batch blob upload authorization covering up to UPLOAD_AUTH_BATCH_SIZE hashes.
@@ -249,7 +251,7 @@ async function uploadToServer(
     try {
       const uploadLabel = `PUT upload ${file.path} to ${server}`;
       log.debug(`Trying PUT to ${serverUrl}upload with auth header`);
-      // Single attempt — retries are handled by uploadFile() with progress visibility
+      // Single attempt — retries are handled by uploadFileToServer() with progress visibility
       const response = await fetchWithTimeout(
         `${serverUrl}upload`,
         {
@@ -345,7 +347,7 @@ export async function processUploads(
   }
 
   log.info(
-    `Starting upload of ${files.length} files to ${servers.length} servers with concurrency ${concurrency}`,
+    `Starting upload of ${files.length} files to ${servers.length} servers with ${concurrency} worker(s) per server`,
   );
 
   const serverProgress: Record<string, ServerProgressEntry> = {};
@@ -369,8 +371,15 @@ export async function processUploads(
     serverProgress,
   };
 
+  const getProgressSnapshot = (): UploadProgress => ({
+    ...progress,
+    serverProgress: Object.fromEntries(
+      Object.entries(serverProgress).map(([server, sp]) => [server, { ...sp }]),
+    ),
+  });
+
   if (progressCallback) {
-    progressCallback({ ...progress, serverProgress: { ...serverProgress } });
+    progressCallback(getProgressSnapshot());
   }
 
   // Pre-sign batch upload auth tokens (up to UPLOAD_AUTH_BATCH_SIZE hashes per token).
@@ -400,92 +409,114 @@ export async function processUploads(
     } batch auth token(s) for ${allHashes.length} files`,
   );
 
-  const results: UploadResponse[] = [];
-  const queue = [...files];
-
+  const results: UploadResponse[] = files.map((file) => ({
+    file,
+    success: false,
+    serverResults: {},
+    eventPublished: false,
+    skipped: false,
+  }));
   const errors: Array<{ file: string; error: string }> = [];
 
   const emitProgress = () => {
     if (progressCallback) {
-      progressCallback({ ...progress, serverProgress: { ...serverProgress } });
+      progressCallback(getProgressSnapshot());
     }
   };
 
-  while (queue.length > 0) {
-    const chunk = queue.splice(0, Math.min(concurrency, queue.length));
-    progress.inProgress = chunk.length;
+  const recordServerEvent = (server: string, event: ServerEventType) => {
+    const sp = serverProgress[server];
+    if (!sp) return;
 
-    emitProgress();
-
-    const chunkResults = await Promise.all(
-      chunk.map(async (file) => {
-        return await uploadFile(
-          file,
-          servers,
-          authTokenMap,
-          force,
-          (server: string, event: string) => {
-            const sp = serverProgress[server];
-            switch (event) {
-              case "completed":
-                progress.completed++;
-                sp.completed++;
-                break;
-              case "skipped":
-                progress.completed++;
-                progress.skipped++;
-                sp.completed++;
-                sp.skipped++;
-                break;
-              case "failed":
-                progress.failed++;
-                sp.failed++;
-                break;
-              case "retry-start":
-                progress.retrying++;
-                sp.retrying++;
-                break;
-              case "retry-end":
-                progress.retrying--;
-                sp.retrying--;
-                break;
-            }
-            // Record when a server finishes all its files
-            if (!sp.finishedAt && sp.completed + sp.failed >= sp.total) {
-              sp.finishedAt = Date.now();
-            }
-            emitProgress();
-          },
-        );
-      }),
-    ).catch((error) => {
-      log.error(`Error processing batch: ${error.message || error}`);
-      return chunk.map((file) => ({
-        file,
-        success: false,
-        error: `Batch processing error: ${error.message || error}`,
-        serverResults: {},
-        eventPublished: false,
-        skipped: false,
-      }));
-    });
-
-    for (const result of chunkResults) {
-      results.push(result);
-
-      if (!result.success) {
-        errors.push({
-          file: result.file.path,
-          error: result.error || "Unknown error",
-        });
-      }
-
-      progress.inProgress = Math.max(0, progress.inProgress - 1);
-      emitProgress();
+    switch (event) {
+      case "completed":
+        progress.completed++;
+        sp.completed++;
+        break;
+      case "skipped":
+        progress.completed++;
+        progress.skipped++;
+        sp.completed++;
+        sp.skipped++;
+        break;
+      case "failed":
+        progress.failed++;
+        sp.failed++;
+        break;
+      case "retry-start":
+        progress.retrying++;
+        sp.retrying++;
+        break;
+      case "retry-end":
+        progress.retrying = Math.max(0, progress.retrying - 1);
+        sp.retrying = Math.max(0, sp.retrying - 1);
+        break;
     }
 
-    if (queue.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+    // Record when a server finishes all its files.
+    if (!sp.finishedAt && sp.completed + sp.failed >= sp.total) {
+      sp.finishedAt = Date.now();
+    }
+
+    emitProgress();
+  };
+
+  const workersPerServer = Math.max(1, Math.floor(concurrency));
+
+  const processServerQueue = async (server: string): Promise<void> => {
+    let nextFileIndex = 0;
+
+    const worker = async () => {
+      while (nextFileIndex < files.length) {
+        const fileIndex = nextFileIndex++;
+        const response = results[fileIndex];
+
+        progress.inProgress++;
+        emitProgress();
+
+        try {
+          response.serverResults[server] = await uploadFileToServer(
+            response.file,
+            server,
+            authTokenMap,
+            force,
+            recordServerEvent,
+          );
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          response.serverResults[server] = {
+            success: false,
+            error: errorMessage,
+            retries: 0,
+          };
+          recordServerEvent(server, "failed");
+        } finally {
+          progress.inProgress = Math.max(0, progress.inProgress - 1);
+          emitProgress();
+        }
+      }
+    };
+
+    const workerCount = Math.min(workersPerServer, files.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  };
+
+  await Promise.all(servers.map((server) => processServerQueue(server)));
+
+  for (const result of results) {
+    const serverResults = Object.values(result.serverResults);
+    const anySuccess = serverResults.some((r) => r.success);
+    const allAlready = serverResults.length > 0 && serverResults.every((r) => r.alreadyExists);
+
+    result.success = anySuccess;
+    result.skipped = allAlready;
+    result.error = anySuccess ? undefined : "Failed to upload to any server";
+
+    if (!result.success) {
+      errors.push({
+        file: result.file.path,
+        error: result.error || "Unknown error",
+      });
     }
   }
 
@@ -503,128 +534,107 @@ export async function processUploads(
 type ServerEventType = "completed" | "failed" | "skipped" | "retry-start" | "retry-end";
 
 /**
- * Upload a single file to all servers with per-server retries.
- * Each server retries in parallel so a slow server doesn't block others.
- * Fires onServerEvent for each server completion/failure/retry for real-time progress.
+ * Upload a single file to one server with retries.
+ * Server queues call this independently so one server cannot block another.
+ * Fires onServerEvent for completion/failure/retry for real-time progress.
  */
-async function uploadFile(
+async function uploadFileToServer(
   file: FileEntry,
-  servers: string[],
+  server: string,
   authTokenMap: Map<string, string>,
   force = false,
   onServerEvent?: (server: string, event: ServerEventType) => void,
-): Promise<UploadResponse> {
-  const serverResults: {
-    [server: string]: {
-      success: boolean;
-      error?: string;
-      alreadyExists?: boolean;
-      retries?: number;
-    };
-  } = {};
-
-  log.debug(`Uploading file ${file.path}`);
-
+): Promise<ServerUploadResult> {
   if (!file.data) {
+    onServerEvent?.(server, "failed");
     return {
-      file,
       success: false,
-      skipped: false,
       error: "File data missing",
-      serverResults,
-      eventPublished: false,
+      retries: 0,
     };
   }
 
   const authHeader = authTokenMap.get(file.sha256);
   if (!authHeader) {
+    onServerEvent?.(server, "failed");
     return {
-      file,
       success: false,
-      skipped: false,
       error: `No auth token found for blob ${file.sha256.substring(0, 8)}...`,
-      serverResults,
-      eventPublished: false,
+      retries: 0,
     };
   }
 
-  // Upload to each server with independent per-server retries, all in parallel
-  await Promise.all(
-    servers.map(async (server) => {
-      // Initial attempt
-      let shouldRetry = true;
+  log.debug(`Uploading file ${file.path} to ${server}`);
+
+  let result: ServerUploadResult = {
+    success: false,
+    error: "Upload failed",
+    retries: 0,
+  };
+  let shouldRetry = true;
+
+  try {
+    const outcome = await uploadToServer(server, file, authHeader, force);
+    const success = outcome.success || outcome.alreadyExists;
+    result = {
+      success,
+      alreadyExists: outcome.alreadyExists,
+      error: success ? undefined : outcome.error,
+      retries: 0,
+    };
+    if (success) {
+      onServerEvent?.(server, outcome.alreadyExists ? "skipped" : "completed");
+      return result;
+    }
+
+    // Don't retry non-retryable HTTP statuses (e.g. 400, 401, 403).
+    if (outcome.httpStatus && !shouldRetryStatus(outcome.httpStatus)) {
+      shouldRetry = false;
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    result = { success: false, error: errorMessage, retries: 0 };
+  }
+
+  if (!shouldRetry) {
+    onServerEvent?.(server, "failed");
+    return result;
+  }
+
+  // Retries for this server run independently from every other server queue.
+  onServerEvent?.(server, "retry-start");
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      await delay(RETRY_DELAY_MS * attempt);
+      log.debug(`Retrying ${file.path} on ${server} (attempt ${attempt}/${MAX_RETRIES})`);
       try {
         const outcome = await uploadToServer(server, file, authHeader, force);
         const success = outcome.success || outcome.alreadyExists;
-        serverResults[server] = {
+        result = {
           success,
           alreadyExists: outcome.alreadyExists,
           error: success ? undefined : outcome.error,
-          retries: 0,
+          retries: attempt,
         };
         if (success) {
           onServerEvent?.(server, outcome.alreadyExists ? "skipped" : "completed");
-          return;
+          return result;
         }
-        // Don't retry non-retryable HTTP statuses (e.g. 400, 401, 403)
+
+        // Stop retrying on non-retryable HTTP statuses.
         if (outcome.httpStatus && !shouldRetryStatus(outcome.httpStatus)) {
-          shouldRetry = false;
+          break;
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        serverResults[server] = { success: false, error: errorMessage, retries: 0 };
+        result = { success: false, error: errorMessage, retries: attempt };
       }
+    }
 
-      if (!shouldRetry) {
-        onServerEvent?.(server, "failed");
-        return;
-      }
-
-      // Retries for this server (runs concurrently with other servers' retries)
-      onServerEvent?.(server, "retry-start");
-      try {
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-          log.debug(`Retrying ${file.path} on ${server} (attempt ${attempt}/${MAX_RETRIES})`);
-          try {
-            const outcome = await uploadToServer(server, file, authHeader, force);
-            const success = outcome.success || outcome.alreadyExists;
-            serverResults[server] = {
-              success,
-              alreadyExists: outcome.alreadyExists,
-              error: success ? undefined : outcome.error,
-              retries: attempt,
-            };
-            if (success) {
-              onServerEvent?.(server, outcome.alreadyExists ? "skipped" : "completed");
-              return;
-            }
-            // Stop retrying on non-retryable HTTP statuses
-            if (outcome.httpStatus && !shouldRetryStatus(outcome.httpStatus)) {
-              break;
-            }
-          } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            serverResults[server] = { success: false, error: errorMessage, retries: attempt };
-          }
-        }
-        // All retries exhausted or non-retryable
-        onServerEvent?.(server, "failed");
-      } finally {
-        onServerEvent?.(server, "retry-end");
-      }
-    }),
-  );
-
-  const anySuccess = Object.values(serverResults).some((r) => r.success);
-  const allAlready = Object.values(serverResults).every((r) => r.alreadyExists);
-
-  return {
-    file,
-    success: anySuccess,
-    skipped: allAlready,
-    serverResults,
-    eventPublished: false,
-    error: anySuccess ? undefined : "Failed to upload to any server",
-  };
+    // All retries exhausted or stopped by a non-retryable response.
+    onServerEvent?.(server, "failed");
+    return result;
+  } finally {
+    onServerEvent?.(server, "retry-end");
+  }
 }
