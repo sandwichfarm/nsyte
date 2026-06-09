@@ -254,7 +254,7 @@ export function registerBrowseCommand(): void {
             };
 
             // Set up terminal resize handler
-            let resizeTimeout: number | undefined;
+            let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
             const handleResize = () => {
               if (resizeTimeout) {
                 clearTimeout(resizeTimeout);
@@ -278,7 +278,7 @@ export function registerBrowseCommand(): void {
             Deno.addSignalListener("SIGWINCH", handleResize);
 
             // Create throttled render function to prevent flickering
-            let renderTimer: number | null = null;
+            let renderTimer: ReturnType<typeof setTimeout> | null = null;
             let lastRenderTime = 0;
             const RENDER_THROTTLE_MS = 100; // Max 10 renders per second
 
@@ -646,7 +646,7 @@ export function registerBrowseCommand(): void {
                 key.includes("\u001b[8;") || key.includes("\u001b[9;") ||
                 key.includes("\u001b\u001b") || // Double escape sequences
                 (key.length > 10) || // Very long sequences
-                (key.length > 4 && key.startsWith("\u001b[") && !key.match(/^\u001b\[[ABCD]$/)) || // Complex escape sequences (but allow arrow keys)
+                (key.length > 4 && key.startsWith("\u001b[")) || // Complex escape sequences
                 key.includes("\u001b[2~") || key.includes("\u001b[3~") || // Insert/Delete
                 key.includes("\u001b[5~") || key.includes("\u001b[6~") || // Page Up/Down
                 key.includes("\u001b[H") || key.includes("\u001b[F") || // Home/End\
