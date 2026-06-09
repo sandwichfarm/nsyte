@@ -61,7 +61,7 @@ jobs:
             -H "Content-Type: application/json"
 
       - name: deploy nsite 1
-        uses: sandwichfarm/nsite-action@v0.5.0
+        uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy
         timeout-minutes: 15
         with:
@@ -85,7 +85,7 @@ jobs:
           publish_profile: "true"
       
       - name: deploy nsite 2
-        uses: sandwichfarm/nsite-action@v0.5.0
+        uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy2
         timeout-minutes: 15
         with:
