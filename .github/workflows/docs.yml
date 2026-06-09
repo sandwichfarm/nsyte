@@ -60,23 +60,50 @@ jobs:
             -H "AccessKey: ${{ secrets.BUNNY_ACCESS_KEY }}" \
             -H "Content-Type: application/json"
 
-      - name: deploy nsite
-        uses: sandwichfarm/nsite-action@multi-tool-support
+      - name: deploy nsite 1
+        uses: sandwichfarm/nsite-action@v0.4.0
         id: nsite_deploy
         timeout-minutes: 15
         with:
-          directory: "./dist"
-          nbunksec: ${{ secrets.NSITE_NBUNKSEC }}
-          fallback: "/index.html"
-          version: "v0.21.0"
+          nbunksec: ${{ secrets.NBUNK_SECRET }}
+          directory: './dist'  # Your built website directory
+          version: 'latest'
           relays: |
             wss://relay.damus.io
             wss://nos.lol
             wss://relay.nsite.lol
+            wss://relay.nosto.re/
+            wss://nsite.run
           servers: |
             https://cdn.hzrd149.com/
             https://cdn.sovbit.host
+            https://nostr.download 
+            https://nsite.run
+            https://blssm.us
           publish_server_list: "true"
           publish_relay_list: "true"
           publish_profile: "true"
-          purge: false
+      
+      - name: deploy nsite 2
+        uses: sandwichfarm/nsite-action@v0.4.0
+        id: nsite_deploy2
+        timeout-minutes: 15
+        with:
+          nbunksec: ${{ secrets.NBUNK_SECRET_MAINTAINER }}
+          directory: './dist'  # Your built website directory
+          version: 'latest'
+          relays: |
+            wss://relay.damus.io
+            wss://nos.lol
+            wss://relay.nsite.lol
+            wss://relay.nosto.re/
+            wss://nsite.run
+          servers: |
+            https://cdn.hzrd149.com/
+            https://cdn.sovbit.host
+            https://nostr.download 
+            https://nsite.run
+            https://blssm.us
+          publish_server_list: "false"
+          publish_relay_list: "false"
+          publish_profile: "false"
