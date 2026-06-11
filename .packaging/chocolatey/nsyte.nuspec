@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>nsyte</id>
-    <version>0.7.0</version>
+    <version>0.27.1</version>
     <packageSourceUrl>https://github.com/sandwichfarm/nsyte</packageSourceUrl>
     <owners>sandwichfarm</owners>
     <title>nsyte</title>
@@ -28,7 +28,7 @@ Features:
 - File ignore patterns (.nsite-ignore)
 - Interactive and non-interactive modes
 ]]></description>
-    <releaseNotes>https://github.com/sandwichfarm/nsyte/releases/tag/v0.7.0</releaseNotes>
+    <releaseNotes>https://github.com/sandwichfarm/nsyte/releases/tag/v0.27.1</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />

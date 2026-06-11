@@ -31,9 +31,35 @@ The script will:
 - Place the binary in a directory on your PATH (`/usr/local/bin` on Linux/macOS by default)
 - Verify the binary runs
 
-The script does not use Homebrew, apt, dnf, pacman, AUR helpers, Scoop, or Chocolatey. There are no
-nsyte packages published to those registries today; the binary download is the only path the script
-takes.
+The script does not use Homebrew, apt, dnf, pacman, AUR helpers, Scoop, or Chocolatey. It always
+uses the direct binary download path. Package-manager installs are available separately where noted
+below.
+
+## Package Managers
+
+### Homebrew
+
+```bash
+brew tap sandwichfarm/nsyte https://github.com/sandwichfarm/homebrew-nsyte
+brew install nsyte
+```
+
+### Scoop
+
+```powershell
+scoop bucket add nsyte https://github.com/sandwichfarm/scoop-nsyte
+scoop install nsyte
+```
+
+### AUR
+
+```bash
+yay -S nsyte
+yay -S nsyte-bin
+```
+
+`nsite-git` is prepared for AUR but is not public until the first authenticated AUR push is
+completed.
 
 ## Universal Installation
 

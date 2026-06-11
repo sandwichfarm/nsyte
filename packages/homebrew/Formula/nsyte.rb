@@ -3,7 +3,6 @@ class Nsyte < Formula
   homepage "https://github.com/sandwichfarm/nsyte"
   license "MIT"
   version "PLACEHOLDER_VERSION"
-  bottle :unneeded
 
   on_macos do
     on_arm do
@@ -21,7 +20,7 @@ class Nsyte < Formula
       url "https://github.com/sandwichfarm/nsyte/releases/download/v#{version}/nsyte-linux-#{version}"
       sha256 "PLACEHOLDER_SHA256_LINUX_X86_64"
     end
-    # on_arm: Linux aarch64 binary not yet built — pending release.yml aarch64 build step
+    # on_arm: Linux aarch64 binary not yet built - pending release.yml aarch64 build step
   end
 
   def install
