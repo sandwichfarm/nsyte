@@ -1,5 +1,5 @@
 Package: nsyte
-Version: 0.7.0
+Version: 0.27.1
 Section: utils
 Priority: optional
 Architecture: amd64

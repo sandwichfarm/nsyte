@@ -1,0 +1,9 @@
+PackageIdentifier: "sandwichfarm.nsyte"
+PackageVersion: "PLACEHOLDER_VERSION"
+InstallerType: "portable"
+Installers:
+  - Architecture: "x64"
+    InstallerUrl: "https://github.com/sandwichfarm/nsyte/releases/download/vPLACEHOLDER_VERSION/nsyte-windows-PLACEHOLDER_VERSION.exe"
+    InstallerSha256: "PLACEHOLDER_SHA256_WINDOWS"
+ManifestType: "installer"
+ManifestVersion: "1.12.0"

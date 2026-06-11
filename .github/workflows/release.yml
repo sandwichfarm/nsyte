@@ -443,7 +443,7 @@ jobs:
           name: nsyte v${{ env.VERSION }}
           draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: false
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
           body: |
             ## nsyte v${{ env.VERSION }}
 

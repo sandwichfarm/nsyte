@@ -1,0 +1,436 @@
+# IMPORTANT: This workflow triggers on "release: published".
+# GitHub suppresses this event when releases are created with GITHUB_TOKEN.
+# release.yml MUST use secrets.RELEASE_TOKEN (a PAT with "repo" scope) in its
+# softprops/action-gh-release step for this workflow to fire. If publish-packages.yml
+# never runs after a release, check that release.yml is not using GITHUB_TOKEN for
+# the "Create GitHub Release" step. See docs/RELEASING.md for the full setup.
+
+name: publish packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v1.6.0)"
+        required: true
+        type: string
+      manager:
+        description: "Package manager to publish"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - aur
+          - homebrew
+          - scoop
+          - winget
+          - nix
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    name: Setup - poll assets and compute checksums
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      sha256_linux_x64: ${{ steps.checksums.outputs.sha256_linux_x64 }}
+      sha256_macos_arm64: ${{ steps.checksums.outputs.sha256_macos_arm64 }}
+      sha256_macos_x64: ${{ steps.checksums.outputs.sha256_macos_x64 }}
+      sha256_windows: ${{ steps.checksums.outputs.sha256_windows }}
+      sha256_source: ${{ steps.checksums.outputs.sha256_source }}
+      sri_linux_x64: ${{ steps.checksums.outputs.sri_linux_x64 }}
+      sri_macos_arm64: ${{ steps.checksums.outputs.sri_macos_arm64 }}
+      sri_macos_x64: ${{ steps.checksums.outputs.sri_macos_x64 }}
+    steps:
+      - name: Extract version and tag
+        id: extract
+        env:
+          INPUT_TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Poll for release asset readiness
+        id: poll
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.extract.outputs.tag }}
+          VERSION: ${{ steps.extract.outputs.version }}
+        run: |
+          TAG="${TAG}"
+          VERSION="${VERSION}"
+          EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
+          TIMEOUT=300
+          INTERVAL=15
+          ELAPSED=0
+          ALL_PRESENT=false
+
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+            NAMES=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
+            ALL_PRESENT=true
+            for expected in $EXPECTED; do
+              if ! echo "$NAMES" | grep -qF "$expected"; then
+                ALL_PRESENT=false
+                break
+              fi
+            done
+            if [ "$ALL_PRESENT" = "true" ]; then
+              echo "All expected assets present after ${ELAPSED}s."
+              break
+            fi
+            echo "Assets not yet complete (${ELAPSED}s elapsed). Waiting ${INTERVAL}s..."
+            sleep "$INTERVAL"
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          if [ "$ALL_PRESENT" != "true" ]; then
+            echo "::error::Release assets not available after ${TIMEOUT}s. Aborting."
+            exit 1
+          fi
+
+      - name: Compute SHA256 checksums
+        id: checksums
+        env:
+          VERSION: ${{ steps.extract.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          BASE="https://github.com/${REPO}/releases/download/v${VERSION}"
+          SOURCE_URL="https://github.com/${REPO}/archive/refs/tags/v${VERSION}.tar.gz"
+          curl -fsSL -o nsyte-source.tar.gz "${SOURCE_URL}"
+          curl -fsSL -o nsyte-linux       "${BASE}/nsyte-linux-${VERSION}"
+          curl -fsSL -o nsyte-macos-arm64 "${BASE}/nsyte-macos-arm64-${VERSION}"
+          curl -fsSL -o nsyte-macos-x64   "${BASE}/nsyte-macos-x64-${VERSION}"
+          curl -fsSL -o nsyte-windows.exe "${BASE}/nsyte-windows-${VERSION}.exe"
+
+          to_sri() {
+            printf '%s' "$1" | xxd -r -p | base64 -w0
+          }
+
+          SHA256_SOURCE=$(sha256sum nsyte-source.tar.gz | awk '{print $1}')
+          SHA256_LINUX_X64=$(sha256sum nsyte-linux | awk '{print $1}')
+          SHA256_MACOS_ARM64=$(sha256sum nsyte-macos-arm64 | awk '{print $1}')
+          SHA256_MACOS_X64=$(sha256sum nsyte-macos-x64 | awk '{print $1}')
+          SHA256_WINDOWS=$(sha256sum nsyte-windows.exe | awk '{print $1}')
+
+          {
+            echo "sha256_source=${SHA256_SOURCE}"
+            echo "sha256_linux_x64=${SHA256_LINUX_X64}"
+            echo "sha256_macos_arm64=${SHA256_MACOS_ARM64}"
+            echo "sha256_macos_x64=${SHA256_MACOS_X64}"
+            echo "sha256_windows=${SHA256_WINDOWS}"
+            echo "sri_linux_x64=sha256-$(to_sri "${SHA256_LINUX_X64}")"
+            echo "sri_macos_arm64=sha256-$(to_sri "${SHA256_MACOS_ARM64}")"
+            echo "sri_macos_x64=sha256-$(to_sri "${SHA256_MACOS_X64}")"
+          } >> "$GITHUB_OUTPUT"
+
+  publish-aur:
+    name: Publish to AUR
+    needs: [setup]
+    if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'aur')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout nsyte repo (for PKGBUILD template)
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent with AUR key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+      - name: Add AUR host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+      - name: Clone, patch, and regenerate AUR packages
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_SOURCE: ${{ needs.setup.outputs.sha256_source }}
+          SHA256_X86_64: ${{ needs.setup.outputs.sha256_linux_x64 }}
+        run: |
+          set -euo pipefail
+
+          for package in nsyte nsyte-bin nsite-git; do
+            repo="/tmp/aur-${package}"
+            git clone "ssh://aur@aur.archlinux.org/${package}.git" "${repo}"
+            git -C "${repo}" checkout -B master
+
+            cp "packages/aur/${package}/PKGBUILD" "${repo}/PKGBUILD"
+            sed -i "s/PLACEHOLDER_VERSION/${VERSION}/g" "${repo}/PKGBUILD"
+
+            case "${package}" in
+              nsyte)
+                sed -i "s/PLACEHOLDER_SHA256_SOURCE/${SHA256_SOURCE}/g" "${repo}/PKGBUILD"
+                ;;
+              nsyte-bin)
+                sed -i "s/PLACEHOLDER_SHA256_X86_64/${SHA256_X86_64}/g" "${repo}/PKGBUILD"
+                ;;
+            esac
+
+            if grep -q "PLACEHOLDER_" "${repo}/PKGBUILD"; then
+              echo "::error::${package} PKGBUILD still contains PLACEHOLDER_ markers after substitution."
+              grep "PLACEHOLDER_" "${repo}/PKGBUILD"
+              exit 1
+            fi
+
+            docker run --rm \
+              -v "${repo}:/pkg" \
+              archlinux:base-devel \
+              bash -c '
+                set -euo pipefail
+                useradd -m builder
+                chown -R builder /pkg
+                cd /pkg
+                runuser -u builder -- makepkg --printsrcinfo > .SRCINFO
+              '
+
+            test -s "${repo}/.SRCINFO" || {
+              echo "::error::${package} .SRCINFO was not generated or is empty."
+              exit 1
+            }
+          done
+
+      - name: Commit and push AUR packages
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          for package in nsyte nsyte-bin nsite-git; do
+            repo="/tmp/aur-${package}"
+            git -C "${repo}" config user.name "nsyte-bot"
+            git -C "${repo}" config user.email "nsyte-bot@users.noreply.github.com"
+            git -C "${repo}" add PKGBUILD .SRCINFO
+            if git -C "${repo}" diff --cached --quiet; then
+              echo "${package} already up to date for v${VERSION}. Skipping push."
+              continue
+            fi
+            git -C "${repo}" commit -m "chore: update ${package} to v${VERSION}"
+            git -C "${repo}" push origin master
+          done
+
+  publish-homebrew:
+    name: Publish to Homebrew
+    needs: [setup]
+    if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'homebrew')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout nsyte repo (for formula template)
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent with Homebrew tap deploy key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.HOMEBREW_TAP_SSH_KEY }}
+
+      - name: Add GitHub host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone Homebrew tap repo
+        run: |
+          git clone "git@github.com:sandwichfarm/homebrew-nsyte.git" /tmp/tap
+
+      - name: Patch formula from template
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_MACOS_ARM64: ${{ needs.setup.outputs.sha256_macos_arm64 }}
+          SHA256_MACOS_X64: ${{ needs.setup.outputs.sha256_macos_x64 }}
+          SHA256_LINUX_X64: ${{ needs.setup.outputs.sha256_linux_x64 }}
+        run: |
+          mkdir -p /tmp/tap/Formula
+          cp packages/homebrew/Formula/nsyte.rb /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"                       /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_MACOS_ARM64|${SHA256_MACOS_ARM64}|g" /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_MACOS_X64|${SHA256_MACOS_X64}|g"     /tmp/tap/Formula/nsyte.rb
+          sed -i "s|PLACEHOLDER_SHA256_LINUX_X86_64|${SHA256_LINUX_X64}|g"  /tmp/tap/Formula/nsyte.rb
+          # Sanity: fail fast if any placeholder survived substitution
+          if grep -q "PLACEHOLDER_" /tmp/tap/Formula/nsyte.rb; then
+            echo "::error::Formula still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" /tmp/tap/Formula/nsyte.rb
+            exit 1
+          fi
+
+      - name: Commit and push to tap repo
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          git -C /tmp/tap config user.name "nsyte-bot"
+          git -C /tmp/tap config user.email "nsyte-bot@users.noreply.github.com"
+          git -C /tmp/tap add Formula/nsyte.rb
+          if git -C /tmp/tap diff --cached --quiet; then
+            echo "No changes to Formula/nsyte.rb — tap already up to date for v${VERSION}. Skipping push."
+            exit 0
+          fi
+          git -C /tmp/tap commit -m "nsyte ${VERSION}"
+          git -C /tmp/tap push origin main
+
+  publish-scoop:
+    name: Publish to Scoop
+    needs: [setup]
+    if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'scoop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout nsyte repo (for manifest template)
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent with Scoop bucket deploy key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SCOOP_BUCKET_SSH_KEY }}
+
+      - name: Add GitHub host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone Scoop bucket repo
+        run: |
+          git clone "git@github.com:sandwichfarm/scoop-nsyte.git" /tmp/scoop
+
+      - name: Patch manifest from template
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SHA256_WINDOWS: ${{ needs.setup.outputs.sha256_windows }}
+        run: |
+          mkdir -p /tmp/scoop/bucket
+          cp packages/scoop/bucket/nsyte.json /tmp/scoop/bucket/nsyte.json
+          sed -i "s|PLACEHOLDER_VERSION|${VERSION}|g"               /tmp/scoop/bucket/nsyte.json
+          sed -i "s|PLACEHOLDER_SHA256_WINDOWS|${SHA256_WINDOWS}|g" /tmp/scoop/bucket/nsyte.json
+          # Sanity: fail fast if any placeholder survived substitution
+          if grep -q "PLACEHOLDER_" /tmp/scoop/bucket/nsyte.json; then
+            echo "::error::Manifest still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" /tmp/scoop/bucket/nsyte.json
+            exit 1
+          fi
+          # JSON validation
+          jq empty /tmp/scoop/bucket/nsyte.json
+
+      - name: Commit and push to bucket repo
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          git -C /tmp/scoop config user.name "nsyte-bot"
+          git -C /tmp/scoop config user.email "nsyte-bot@users.noreply.github.com"
+          git -C /tmp/scoop add bucket/nsyte.json
+          if git -C /tmp/scoop diff --cached --quiet; then
+            echo "No changes to bucket/nsyte.json — bucket already up to date for v${VERSION}. Skipping push."
+            exit 0
+          fi
+          git -C /tmp/scoop commit -m "nsyte ${VERSION}"
+          git -C /tmp/scoop push origin main
+
+  publish-winget:
+    name: Publish to Winget
+    needs: [setup]
+    if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'winget')
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout nsyte repo (for ManifestVersion sanity check)
+        uses: actions/checkout@v4
+
+      - name: Verify ManifestVersion in templates (informational, resolves WR-02)
+        shell: pwsh
+        run: |
+          $expected = "1.12.0"
+          $match = Select-String -Path "packages\winget\sandwichfarm.nsyte.installer.yaml" `
+            -Pattern "ManifestVersion:\s*(.+)"
+          $templateMV = $match.Matches[0].Groups[1].Value.Trim()
+          if ($templateMV -ne $expected) {
+            Write-Host "::warning::Template ManifestVersion ($templateMV) differs from expected ($expected). Update packages/winget/ templates before the next bootstrap."
+          } else {
+            Write-Host "ManifestVersion verified: $templateMV"
+          }
+
+      - name: Download wingetcreate (self-contained, no .NET dependency)
+        shell: pwsh
+        run: |
+          iwr https://aka.ms/wingetcreate/latest/self-contained -OutFile wingetcreate.exe
+
+      - name: Submit manifest PR to winget-pkgs
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          REPO: ${{ github.repository }}
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_FORK_TOKEN }}
+        shell: pwsh
+        run: |
+          $installerUrl = "https://github.com/$($env:REPO)/releases/download/v$($env:VERSION)/nsyte-windows-$($env:VERSION).exe"
+          Write-Host "Submitting winget manifest for version $($env:VERSION)"
+          Write-Host "Installer URL: $installerUrl"
+
+          .\wingetcreate.exe update sandwichfarm.nsyte `
+            --version $env:VERSION `
+            --urls "$installerUrl|x64" `
+            --submit `
+            --no-open
+
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) {
+            Write-Host "::warning::wingetcreate exited with code $exitCode."
+            Write-Host "::warning::If sandwichfarm.nsyte is not yet in the winget-pkgs index, this is expected before the manual bootstrap PR is merged."
+            Write-Host "::warning::See docs/RELEASING.md for winget bootstrap instructions."
+            exit 0
+          }
+          Write-Host "Winget manifest PR submitted successfully."
+
+  publish-nix:
+    name: Update Nix flake
+    needs: [setup]
+    if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'nix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Patch flake hashes
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+          SRI_X86_64_LINUX: ${{ needs.setup.outputs.sri_linux_x64 }}
+          SRI_AARCH64_DARWIN: ${{ needs.setup.outputs.sri_macos_arm64 }}
+          SRI_X86_64_DARWIN: ${{ needs.setup.outputs.sri_macos_x64 }}
+        run: |
+          set -euo pipefail
+
+          sed -i -E "s|version = \"[^\"]+\";|version = \"${VERSION}\";|" flake.nix
+          sed -i -E '/"x86_64-linux" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_LINUX}"'";|' flake.nix
+          sed -i -E '/"x86_64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_DARWIN}"'";|' flake.nix
+          sed -i -E '/"aarch64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_AARCH64_DARWIN}"'";|' flake.nix
+
+          if grep -q "PLACEHOLDER_" flake.nix; then
+            echo "::error::flake.nix still contains PLACEHOLDER_ markers after substitution."
+            grep "PLACEHOLDER_" flake.nix
+            exit 1
+          fi
+
+      - name: Commit and push flake update
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          git config user.name "nsyte-bot"
+          git config user.email "nsyte-bot@users.noreply.github.com"
+          git add flake.nix
+          if git diff --cached --quiet; then
+            echo "flake.nix already up to date for v${VERSION}. Skipping push."
+            exit 0
+          fi
+          git commit -m "chore: update Nix flake to v${VERSION}"
+          git push

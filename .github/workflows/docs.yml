@@ -66,8 +66,8 @@ jobs:
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET }}
-          directory: './dist'  # Your built website directory
-          version: 'latest'
+          directory: "./dist" # Your built website directory
+          version: "latest"
           relays: |
             wss://relay.primal.net
             wss://nos.lol
@@ -76,22 +76,22 @@ jobs:
             wss://nsite.run
           servers: |
             https://cdn.hzrd149.com/
-            https://nostr.download 
+            https://nostr.download
             https://nsite.run
             https://blssm.us
           publish_server_list: "true"
           publish_relay_list: "true"
           publish_profile: "true"
-      
+
       - name: deploy nsite 2
         uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy2
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET_MAINTAINER }}
-          directory: './dist'  # Your built website directory
-          version: 'latest'
-          name: 'nsyte'
+          directory: "./dist" # Your built website directory
+          version: "latest"
+          name: "nsyte"
           relays: |
             wss://relay.primal.net
             wss://nos.lol
@@ -100,7 +100,7 @@ jobs:
             wss://nsite.run
           servers: |
             https://cdn.hzrd149.com/
-            https://nostr.download 
+            https://nostr.download
             https://nsite.run
             https://blssm.us
           publish_server_list: "false"

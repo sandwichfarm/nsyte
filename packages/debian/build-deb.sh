@@ -5,7 +5,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VERSION="0.7.0"
+VERSION="${VERSION:-0.27.1}"
 PACKAGE_DIR="$SCRIPT_DIR/nsyte_${VERSION}_amd64"
 
 echo "Building nsyte Debian package v$VERSION..."
