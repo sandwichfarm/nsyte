@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assert, assertEquals, assertExists } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { processUploads, type Signer } from "../../src/lib/upload.ts";
 import type { FileEntry, NostrEvent, NostrEventTemplate } from "../../src/lib/nostr.ts";
@@ -8,6 +8,29 @@ const originalFetch = globalThis.fetch;
 const originalWebSocket = globalThis.WebSocket;
 let originalSetTimeout: typeof globalThis.setTimeout;
 
+function createDeferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+async function waitFor(
+  predicate: () => boolean,
+  message: string,
+  timeoutMs = 500,
+): Promise<void> {
+  const startedAt = Date.now();
+
+  while (!predicate()) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error(message);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+}
+
 describe({
   name: "Upload Module File Existence",
   sanitizeOps: false,
@@ -15,8 +38,8 @@ describe({
 }, () => {
   // Mock signer for testing
   const mockSigner: Signer = {
-    async signEvent(event: NostrEventTemplate): Promise<NostrEvent> {
-      return {
+    signEvent(event: NostrEventTemplate): Promise<NostrEvent> {
+      return Promise.resolve({
         id: "mock-event-id",
         pubkey: "mock-pubkey",
         created_at: event.created_at,
@@ -24,7 +47,7 @@ describe({
         tags: event.tags,
         content: event.content,
         sig: "mock-signature",
-      };
+      });
     },
     getPublicKey(): string {
       return "mock-pubkey";
@@ -56,7 +79,7 @@ describe({
     storedBlobs.add("existing1234567890");
 
     // Setup mock fetch
-    globalThis.fetch = async (
+    globalThis.fetch = (
       url: string | URL | Request,
       options?: RequestInit,
     ): Promise<Response> => {
@@ -67,17 +90,17 @@ describe({
         // Extract hash from auth or just mark all known hashes as stored
         // The upload puts the file on the server; mark test file hash as stored
         storedBlobs.add("abcdef1234567890");
-        return new Response("", { status: 200 });
+        return Promise.resolve(new Response("", { status: 200 }));
       } else if (method === "HEAD") {
         // Check if the blob hash is in our store
         for (const hash of storedBlobs) {
           if (urlStr.includes(hash)) {
-            return new Response("", { status: 200 });
+            return Promise.resolve(new Response("", { status: 200 }));
           }
         }
-        return new Response("", { status: 404 });
+        return Promise.resolve(new Response("", { status: 404 }));
       } else {
-        return new Response("", { status: 404 });
+        return Promise.resolve(new Response("", { status: 404 }));
       }
     };
 
@@ -113,7 +136,7 @@ describe({
         }, 5);
       }
 
-      send(data: string): void {
+      send(_data: string): void {
         // ignore in this simple mock
       }
 
@@ -173,7 +196,7 @@ describe({
 
   it("should correctly mark files that already exist", async () => {
     // Override fetch to specifically test already existing file case
-    globalThis.fetch = async (
+    globalThis.fetch = (
       url: string | URL | Request,
       options?: RequestInit,
     ): Promise<Response> => {
@@ -181,11 +204,11 @@ describe({
       const method = options?.method || "GET";
 
       if (urlStr.includes("existing1234567890") && method === "HEAD") {
-        return new Response("", { status: 200 });
+        return Promise.resolve(new Response("", { status: 200 }));
       } else if (method === "HEAD") {
-        return new Response("", { status: 404 });
+        return Promise.resolve(new Response("", { status: 404 }));
       } else {
-        return new Response("", { status: 200 });
+        return Promise.resolve(new Response("", { status: 200 }));
       }
     };
 
@@ -215,5 +238,135 @@ describe({
       true,
       "Server should report success for already existing file",
     );
+  });
+
+  it("should let each server drain its upload queue independently", async () => {
+    const fastServer = "https://fast-server.test";
+    const slowServer = "https://slow-server.test";
+    const relays = ["wss://test-relay.com"];
+    const files: FileEntry[] = [
+      {
+        path: "/one.txt",
+        data: new TextEncoder().encode("one"),
+        sha256: "hash-one",
+        contentType: "text/plain",
+        size: 3,
+      },
+      {
+        path: "/two.txt",
+        data: new TextEncoder().encode("two"),
+        sha256: "hash-two",
+        contentType: "text/plain",
+        size: 3,
+      },
+      {
+        path: "/three.txt",
+        data: new TextEncoder().encode("three"),
+        sha256: "hash-three",
+        contentType: "text/plain",
+        size: 5,
+      },
+    ];
+    const hashByFileName = new Map(files.map((file) => [
+      file.path.split("/").pop() || file.path,
+      file.sha256,
+    ]));
+    const storedBlobs = new Map<string, Set<string>>([
+      [fastServer, new Set<string>()],
+      [slowServer, new Set<string>()],
+    ]);
+    const slowHeadStarted = createDeferred();
+    const releaseSlowHead = createDeferred();
+    const fastPutOrder: string[] = [];
+    let delayedSlowPreflight = false;
+    let slowFirstHeadResolved = false;
+
+    globalThis.fetch = async (
+      url: string | URL | Request,
+      options?: RequestInit,
+    ): Promise<Response> => {
+      const urlStr = url.toString();
+      const method = options?.method || "GET";
+      const server = urlStr.startsWith(slowServer) ? slowServer : fastServer;
+      const hash = urlStr.slice(urlStr.lastIndexOf("/") + 1);
+      const serverBlobs = storedBlobs.get(server);
+
+      if (method === "HEAD") {
+        if (
+          server === slowServer &&
+          hash === files[0].sha256 &&
+          !delayedSlowPreflight &&
+          !serverBlobs?.has(hash)
+        ) {
+          delayedSlowPreflight = true;
+          slowHeadStarted.resolve();
+          await releaseSlowHead.promise;
+          slowFirstHeadResolved = true;
+        }
+
+        return new Response("", { status: serverBlobs?.has(hash) ? 200 : 404 });
+      }
+
+      if (urlStr.endsWith("/upload") && method === "PUT") {
+        const body = options?.body;
+        assert(body instanceof File, "Upload body should be a File");
+        const uploadedHash = hashByFileName.get(body.name);
+        assertExists(uploadedHash, `Unexpected uploaded file ${body.name}`);
+
+        serverBlobs?.add(uploadedHash);
+        if (server === fastServer) {
+          fastPutOrder.push(uploadedHash);
+        }
+
+        return new Response("", { status: 200 });
+      }
+
+      return new Response("", { status: 404 });
+    };
+
+    const uploadPromise = processUploads(
+      files,
+      "/test",
+      [fastServer, slowServer],
+      mockSigner,
+      relays,
+      1,
+    );
+
+    await slowHeadStarted.promise;
+
+    let regressionError: unknown;
+    try {
+      await waitFor(
+        () => fastPutOrder.length >= 2,
+        "Fast server did not advance past the first file while slow server was blocked",
+      );
+      assertEquals(
+        slowFirstHeadResolved,
+        false,
+        "Fast server should start later files before the slow server releases its first file",
+      );
+    } catch (error) {
+      regressionError = error;
+    } finally {
+      releaseSlowHead.resolve();
+    }
+
+    const results = await uploadPromise;
+    if (regressionError) {
+      throw regressionError;
+    }
+
+    assertEquals(
+      fastPutOrder,
+      files.map((file) => file.sha256),
+      "Fast server should drain its full queue in file order",
+    );
+    assertEquals(results.length, files.length);
+    assertEquals(results.every((result) => result.success), true);
+    for (const result of results) {
+      assertEquals(result.serverResults[fastServer].success, true);
+      assertEquals(result.serverResults[slowServer].success, true);
+    }
   });
 });

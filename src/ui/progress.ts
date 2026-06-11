@@ -9,7 +9,8 @@ const PROGRESS_CHAR = "█";
 const INCOMPLETE_CHAR = "░";
 
 function stripAnsi(text: string): string {
-  return text.replace(/\x1b\[[0-9;]*m/g, "");
+  const escape = String.fromCharCode(27);
+  return text.replace(new RegExp(`${escape}\\[[0-9;]*m`, "g"), "");
 }
 
 /**
@@ -108,31 +109,37 @@ export function formatServerProgressBars(
     const symbol = SERVER_SYMBOLS[i % SERVER_SYMBOLS.length];
     const colorFn = SERVER_COLORS[i % SERVER_COLORS.length];
     const name = shortServerName(server).padEnd(maxNameLen);
+    const skipped = Math.min(sp.skipped, sp.completed);
+    const serverUploaded = Math.max(0, sp.completed - skipped);
     const serverDone = sp.completed + sp.failed;
     const serverPercent = sp.total === 0 ? 0 : Math.floor((serverDone / sp.total) * 100);
 
     let sGreen = 0;
+    let sSkipped = 0;
     let sYellow = 0;
     let sRed = 0;
     let sGray = SERVER_BAR_WIDTH;
 
     if (sp.total > 0) {
-      sGreen = Math.floor((sp.completed / sp.total) * SERVER_BAR_WIDTH);
-      sYellow = Math.floor((sp.retrying / sp.total) * SERVER_BAR_WIDTH);
+      const retryingForBar = Math.min(sp.retrying, Math.max(0, sp.total - serverDone));
+      sGreen = Math.floor((serverUploaded / sp.total) * SERVER_BAR_WIDTH);
+      sSkipped = Math.floor((skipped / sp.total) * SERVER_BAR_WIDTH);
+      sYellow = Math.floor((retryingForBar / sp.total) * SERVER_BAR_WIDTH);
       sRed = Math.floor((sp.failed / sp.total) * SERVER_BAR_WIDTH);
-      sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sYellow - sRed);
+      sGray = Math.max(0, SERVER_BAR_WIDTH - sGreen - sSkipped - sYellow - sRed);
     }
 
     const sBar = colors.green("█".repeat(sGreen)) +
+      colors.dim("█".repeat(sSkipped)) +
       colors.yellow("█".repeat(sYellow)) +
       colors.red("█".repeat(sRed)) +
       "░".repeat(sGray);
 
     const pctStr = `${serverPercent}%`.padStart(4);
-    const statParts = [`${sp.completed} ok`];
+    const statParts = [`${serverUploaded} ok`];
     if (sp.failed > 0) statParts.push(colors.red(`${sp.failed} fail`));
     if (sp.retrying > 0) statParts.push(colors.yellow(`${sp.retrying} retry`));
-    if (sp.skipped > 0) statParts.push(colors.dim(`${sp.skipped} skip`));
+    if (skipped > 0) statParts.push(colors.dim(`${skipped} skip`));
 
     let timeStr = "";
     if (sp.finishedAt && startTime) {
@@ -369,32 +376,37 @@ export class ProgressRenderer {
       eta = etaSeconds <= 0 ? "0s" : `${etaSeconds}s`;
     }
 
+    const skipped = Math.min(data.skipped ?? 0, data.completed);
+    const retrying = data.retrying ?? 0;
+    const uploadedCompleted = Math.max(0, data.completed - skipped);
+
     // Build the colored bar segments
     let greenW = 0;
+    let skippedW = 0;
     let yellowW = 0;
     let redW = 0;
     let grayW = this.barLength;
 
     if (data.total > 0) {
-      greenW = Math.floor((data.completed / data.total) * this.barLength);
-      yellowW = Math.floor(((data.retrying ?? 0) / data.total) * this.barLength);
+      const retryingForBar = Math.min(retrying, Math.max(0, data.total - done));
+      greenW = Math.floor((uploadedCompleted / data.total) * this.barLength);
+      skippedW = Math.floor((skipped / data.total) * this.barLength);
+      yellowW = Math.floor((retryingForBar / data.total) * this.barLength);
       redW = Math.floor((data.failed / data.total) * this.barLength);
-      grayW = Math.max(0, this.barLength - greenW - yellowW - redW);
+      grayW = Math.max(0, this.barLength - greenW - skippedW - yellowW - redW);
     }
 
     const bar = colors.green("█".repeat(greenW)) +
+      colors.dim("█".repeat(skippedW)) +
       colors.yellow("█".repeat(yellowW)) +
       colors.red("█".repeat(redW)) +
       "░".repeat(grayW);
-
-    const skipped = data.skipped ?? 0;
-    const retrying = data.retrying ?? 0;
 
     // Build main progress line with droppable segments
     const segments = [
       `[${bar}] ${percent}%`,
       `${done}/${data.total}`,
-      `${data.completed} ok, ${skipped} skip, ${retrying} retry, ${data.failed} fail`,
+      `${uploadedCompleted} ok, ${skipped} skip, ${retrying} retry, ${data.failed} fail`,
       `${elapsed}s`,
       `ETA: ${eta}`,
     ];
