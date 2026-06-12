@@ -2,6 +2,7 @@ import { colors } from "@cliffy/ansi/colors";
 import { Confirm } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { createLogger } from "../lib/logger.ts";
@@ -153,6 +154,10 @@ export function registerDeleteCommand() {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, deletes root site (kind 15128).",
     )
@@ -176,6 +181,9 @@ export function registerDeleteCommand() {
 
       log.debug(`Starting deleteCommand with options: ${JSON.stringify(options)}`);
       console.log(colors.bold.magenta("\nnsyte delete\n"));
+
+      // Prompt for the secret at runtime if requested
+      await resolvePromptSec(options, readProjectFile(options.config)?.bunkerPubkey);
 
       // Get config
       log.debug("Reading project file...");

@@ -7,6 +7,7 @@ import type { NostrEventTemplate } from "../lib/nostr.ts";
 import nsyte from "./root.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { createLogger } from "../lib/logger.ts";
@@ -21,6 +22,7 @@ const log = createLogger("put");
 interface PutCommandOptions {
   name?: string;
   sec?: string;
+  promptSec?: boolean;
   config?: string;
   /** Override created_at timestamp for nostr events (from --created-at global option) */
   createdAt?: number;
@@ -142,6 +144,10 @@ export function registerPutCommand(): void {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-n, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, updates the root site (kind 15128).",
     )
@@ -163,6 +169,8 @@ export function registerPutCommand(): void {
         if (!config) {
           throw new Error("No .nsite/config.json found. Run 'nsyte init' first.");
         }
+
+        await resolvePromptSec(options, config.bunkerPubkey);
 
         const signerResult = await createSigner({
           sec: options.sec,

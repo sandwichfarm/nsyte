@@ -5,6 +5,7 @@ import { handleError } from "../lib/error-utils.ts";
 import { getManifestFiles } from "../lib/manifest.ts";
 import { getUserDisplayName } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { fetchTrustedSiteManifestEvent } from "../lib/site-manifest.ts";
 import { buildListTreeItems } from "../ui/file-tree.ts";
 import { formatManifestIdWithAge } from "../ui/time-formatter.ts";
@@ -14,6 +15,7 @@ interface ListCommandOptions {
   config?: string;
   relays?: string;
   sec?: string;
+  promptSec?: boolean;
   pubkey?: string;
   name?: string;
   useFallbackRelays?: boolean;
@@ -59,6 +61,10 @@ export function registerListCommand() {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-p, --pubkey <npub:string>",
       "The public key to list files for (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
@@ -72,6 +78,7 @@ export function registerListCommand() {
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .action(async (options: ListCommandOptions, pathFilter?: string) => {
+      await resolvePromptSec(options, readProjectFile(options.config)?.bunkerPubkey);
       const pubkey = await resolvePubkey(options);
       const projectConfig = readProjectFile(options.config);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;

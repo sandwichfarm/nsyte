@@ -74,6 +74,10 @@ export function registerRunCommand(): void {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-c, --cache-dir <dir:string>",
       "Directory to cache downloaded files (default: /tmp/nsyte)",
     )

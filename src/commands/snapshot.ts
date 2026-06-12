@@ -1,5 +1,6 @@
 import { colors } from "@cliffy/ansi/colors";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
@@ -24,6 +25,7 @@ interface SnapshotCommandOptions {
   config?: string | false;
   relays?: string;
   sec?: string;
+  promptSec?: boolean;
   name?: string;
   dryRun?: boolean;
   dryRunOutput?: string;
@@ -45,6 +47,10 @@ export function registerSnapshotCommand(): void {
     .option(
       "--sec <secret:string>",
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
+    .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
     )
     .option(
       "-d, --name <name:string>",
@@ -84,6 +90,9 @@ export function registerSnapshotCommand(): void {
 export async function snapshotCommand(options: SnapshotCommandOptions): Promise<void> {
   const configPath = typeof options.config === "string" ? options.config : undefined;
   const config = options.config === false ? null : readProjectFile(configPath);
+
+  await resolvePromptSec(options, config?.bunkerPubkey);
+
   const signerResult = await createSigner({
     sec: options.sec,
     bunkerPubkey: config?.bunkerPubkey,
