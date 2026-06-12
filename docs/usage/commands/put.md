@@ -29,6 +29,8 @@ nsyte put <local-file> <remote-path> [options]
 
 - `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec,
   bunker:// URL, or 64-char hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-n, --name <name>` — The site identifier for named sites (kind 35128). If not
   provided, updates the root site (kind 15128)
 - `--dry-run` — Preview the upload and manifest update without uploading or

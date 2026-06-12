@@ -17,6 +17,7 @@ nsyte sites [options]
 
 - `-r, --relays <relays>` — Nostr relays to query (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of shell history)
 - `-p, --pubkey <npub>` — Public key to list sites for (npub or hex format)
 - `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
 - `--use-fallbacks` — Enable all fallback options (relays)
