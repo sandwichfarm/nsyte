@@ -7,6 +7,7 @@ import { formatValidationErrors, validateConfigWithFeedback } from "./config-val
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
+import type { NappConfig } from "./napp/types.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
@@ -59,6 +60,7 @@ export type ProjectConfig = {
       linux?: string;
     };
   };
+  napp?: NappConfig; // NIP-5B napp listing section (optional). Present => this project is a napp. See src/lib/napp/.
 };
 
 export interface ProjectContext {
