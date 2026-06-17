@@ -8,6 +8,8 @@ import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
 import type { NappConfig } from "./napp/types.ts";
+import { NAPP_CATEGORIES } from "./napp/categories.ts";
+import { validateNappConfig } from "./napp/detect.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
@@ -585,6 +587,61 @@ async function selectKeySource(
 }
 
 /**
+ * Build a `napp.<category>:<subcategory>` label from a category + subcategory.
+ *
+ * PURE string join — no validation here (the caller validates the assembled label or
+ * the whole config via validateCategoryLabel/validateNappConfig). Subcategories are
+ * stored verbatim, including spaces (e.g. `categoryLabel("utilities", "text editor")`
+ * yields `napp.utilities:text editor`).
+ */
+export function categoryLabel(category: string, subcategory: string): string {
+  return `napp.${category}:${subcategory}`;
+}
+
+/**
+ * The SINGLE pure assembly helper that shapes wizard/`napp init` answers into a
+ * {@link NappConfig}. Reused verbatim by the `nsyte init` project-type wizard AND by
+ * `nsyte napp init`.
+ *
+ * This is a PURE shaper: it does NOT validate or throw. Callers run
+ * {@link validateNappConfig} on the result before writing, warning (wizard) or
+ * refusing to write (`napp init`) on errors.
+ *
+ * - `name` -> `{ value }`
+ * - `icon.mime` defaults to `"image/png"` when omitted/blank
+ * - `countries` defaults to `["*"]` when omitted/empty
+ * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`)
+ */
+export function buildNappConfigFromAnswers(answers: {
+  name: string;
+  iconHash: string;
+  iconMime?: string;
+  categories: string[];
+  countries?: string[];
+  summary?: string;
+  description?: string;
+}): NappConfig {
+  const napp: NappConfig = {
+    name: { value: answers.name },
+    icon: {
+      hash: answers.iconHash,
+      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime : "image/png",
+    },
+    categories: answers.categories,
+    countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
+  };
+
+  if (answers.summary && answers.summary.trim()) {
+    napp.summary = { value: answers.summary };
+  }
+  if (answers.description && answers.description.trim()) {
+    napp.description = { value: answers.description };
+  }
+
+  return napp;
+}
+
+/**
  * Interactive project setup
  */
 async function interactiveSetup(): Promise<ProjectContext> {
@@ -793,6 +850,81 @@ Generated and stored nbunksec string.`));
     title: siteTitle || undefined,
     description: siteDescription || undefined,
   };
+
+  // Project-type step (additive, nsite-default). The nsite branch returns the EXACT
+  // pre-phase config above (zero regression); the napp branch only ADDS `config.napp`.
+  const projectType = await Select.prompt<string>({
+    message: "Project type",
+    options: [
+      { name: "nsite (static site)", value: "nsite" },
+      { name: "napp (discoverable app)", value: "napp" },
+    ],
+    default: "nsite",
+  });
+
+  if (projectType === "napp") {
+    const name = await Input.prompt({
+      message: "App name:",
+      validate: (v: string) => v.trim().length > 0 || "Name is required",
+    });
+    const iconHash = await Input.prompt({
+      message: "Icon (sha256 hash or URL):",
+      validate: (v: string) => v.trim().length > 0 || "Icon is required",
+    });
+    const iconMime = await Input.prompt({
+      message: "Icon MIME type:",
+      default: "image/png",
+    });
+
+    const category = await Select.prompt<string>({
+      message: "Category",
+      options: Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
+    });
+    const subcategory = await Select.prompt<string>({
+      message: "Subcategory",
+      options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
+    });
+    const label = categoryLabel(category, subcategory);
+
+    const countriesInput = await Input.prompt({
+      message: "Countries (comma-separated ISO codes, or * for worldwide):",
+      default: "*",
+    });
+    const countries = countriesInput
+      .split(",")
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+
+    const summary = await Input.prompt({ message: "Summary (optional):" });
+    const description = await Input.prompt({ message: "Description (optional):" });
+
+    const napp = buildNappConfigFromAnswers({
+      name,
+      iconHash,
+      iconMime,
+      categories: [label],
+      countries: (countries.length === 0 || (countries.length === 1 && countries[0] === "*"))
+        ? ["*"]
+        : countries,
+      summary,
+      description,
+    });
+
+    // Validate before writing. On errors, WARN but still attach the scaffold so the
+    // author can fix `.nsite/config.json` by hand rather than losing their answers.
+    const nappErrors = validateNappConfig(napp);
+    if (nappErrors.length > 0) {
+      for (const e of nappErrors) {
+        console.log(colors.yellow(`  ${e.path}: ${e.message}`));
+      }
+      console.log(
+        colors.yellow(
+          "The napp section may need manual fixes in .nsite/config.json before deploying.",
+        ),
+      );
+    }
+    config.napp = napp;
+  }
 
   return { config, privateKey };
 }
