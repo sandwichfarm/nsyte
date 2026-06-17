@@ -33,8 +33,9 @@ export interface NappAsset {
  *
  * Present (and structurally valid) => the project is a napp; see `isNapp()` in `./detect.ts`.
  *
- * NOTE: `indexerRelays` is intentionally deferred to Phase 22 to keep this foundation
- * phase minimal — do NOT add it here.
+ * NOTE: `indexerRelays` (Phase 22) is part of the App Listing publish targeting — the
+ * kind-37348 listing is published to the deduped union of NIP-65 write relays and these
+ * indexer relays (defaults to DEFAULT_NAPP_INDEXER_RELAYS when unset; see ./identifier.ts).
  */
 export interface NappConfig {
   /** Display name of the app. */
@@ -63,4 +64,9 @@ export interface NappConfig {
   screenshots?: NappAsset[];
   /** Optional free-form `t` tags. */
   tags?: string[];
+  /**
+   * Optional NIP-5B indexer relays the listing is also published to. Defaults to
+   * DEFAULT_NAPP_INDEXER_RELAYS when unset (see ../napp/identifier.ts).
+   */
+  indexerRelays?: string[];
 }

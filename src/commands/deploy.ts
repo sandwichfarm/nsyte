@@ -32,6 +32,7 @@ import {
 } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
 import { isNapp } from "../lib/napp/detect.ts";
+import { resolveIndexerRelays } from "../lib/napp/identifier.ts";
 import {
   createAppListingEvent,
   createAppListingTemplate,
@@ -2124,8 +2125,12 @@ async function maybePublishAppListing(
   // config.id here (root -> "", named -> config.id) so it matches the manifest builder.
   const manifestDTag = deriveListingDTag({ id: config.id });
 
+  // Indexer relays (NAPP-ID-03): config override or DEFAULT_NAPP_INDEXER_RELAYS.
+  const indexerRelays = resolveIndexerRelays(config);
+
   console.log(formatSectionHeader("App Listing (napp)"));
   console.log(colors.cyan("napp detected — publishing app listing (kind 37348)"));
+  console.log(colors.cyan(`indexer relays: ${indexerRelays.join(", ")}`));
   statusDisplay.update("Publishing app listing (kind 37348)...");
 
   try {
@@ -2137,9 +2142,11 @@ async function maybePublishAppListing(
       options.createdAt,
     );
 
-    // Publish to the SAME relay set the manifest used (NIP-65 write/resolved relays).
-    // Phase 22: also publish to configured indexer relays.
-    const result = await publishEventsToRelaysDetailed(resolvedRelays, [listingEvent]);
+    // Publish to the deduped UNION of the manifest's relay set (NIP-65 write/resolved
+    // relays) and the configured indexer relays — so the listing reaches both the
+    // author's normal relays and the NIP-5B indexers. A relay in both appears once.
+    const publishRelays = Array.from(new Set([...resolvedRelays, ...indexerRelays]));
+    const result = await publishEventsToRelaysDetailed(publishRelays, [listingEvent]);
 
     if (result.allEventsPublished) {
       statusDisplay.success(`App listing published (kind ${NSITE_APP_LISTING_KIND})`);

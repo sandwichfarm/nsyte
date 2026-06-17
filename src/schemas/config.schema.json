@@ -397,6 +397,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "indexerRelays": {
+          "type": "array",
+          "description": "Optional NIP-5B indexer relays the App Listing is also published to. Defaults to wss://relay.44billion.net when unset.",
+          "items": { "type": "string", "pattern": "^wss?://" }
         }
       },
       "required": ["name", "icon", "categories", "countries"],
