@@ -18,6 +18,8 @@ export interface ResolverOptions {
   servers?: string;
   /** Unified secret parameter (auto-detects format: nsec, nbunksec, bunker URL, or hex) */
   sec?: string;
+  /** When true, prompt for the secret at runtime instead of reading it from --sec */
+  promptSec?: boolean;
   pubkey?: string;
 }
 

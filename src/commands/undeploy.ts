@@ -3,6 +3,7 @@ import { Input } from "@cliffy/prompt";
 import { encodeBase64 } from "@std/encoding/base64";
 import type { ISigner } from "applesauce-signers";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { handleDryRunOutput, parseDryRunShowKinds } from "../lib/dry-run/mod.ts";
 import { handleError } from "../lib/error-utils.ts";
@@ -105,6 +106,10 @@ export function registerUndeployCommand() {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, undeploys root site (kind 15128).",
     )
@@ -128,6 +133,9 @@ export function registerUndeployCommand() {
         console.log(colors.red("No .nsite/config.json found. Please run 'nsyte init' first."));
         return Deno.exit(1);
       }
+
+      // Prompt for the secret at runtime if requested
+      await resolvePromptSec(options, config.bunkerPubkey);
 
       // Initialize signer
       const signerResult = await createSigner({

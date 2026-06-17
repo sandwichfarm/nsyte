@@ -19,6 +19,7 @@ nsyte download [options]
 - `-r, --relays <relays>` — Nostr relays to query (comma-separated)
 - `-s, --servers <servers>` — Blossom servers to download from (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of shell history)
 - `-p, --pubkey <npub>` — Public key to download files from (npub or hex)
 - `-d, --name <name>` — Site identifier for named sites. If not provided, downloads root site
 - `--overwrite` — Overwrite existing files (default: `false`)

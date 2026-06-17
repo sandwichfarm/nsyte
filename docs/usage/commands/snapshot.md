@@ -23,6 +23,8 @@ nsyte snapshot [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma separated)
 - `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec,
   bunker:// URL, or 64-char hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — The site identifier for named sites (kind 35128). If not
   provided, snapshots the root site (kind 15128)
 - `--dry-run` — Preview the snapshot event without signing or publishing it

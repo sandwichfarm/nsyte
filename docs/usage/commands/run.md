@@ -28,6 +28,7 @@ nsyte run [npub] [options]
 - `-r, --relays <relays>` — Nostr relays to query (comma-separated)
 - `-p, --port <port>` — Port number to run the resolver on (default: 6798)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of shell history)
 - `-c, --cache-dir <dir>` — Directory to cache files (default: `/tmp/nsyte` or `%TEMP%\nsyte`)
 - `--no-cache` — Disable file caching entirely
 - `--use-fallback-relays` — Include default nsyte relays for file discovery

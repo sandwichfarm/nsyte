@@ -22,6 +22,8 @@ nsyte undeploy [options]
   (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — Site identifier for named sites. If not provided,
   undeploys root site
 - `--dry-run` — Preview undeploy events without publishing or deleting blobs
