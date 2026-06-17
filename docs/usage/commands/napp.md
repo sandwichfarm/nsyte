@@ -43,7 +43,7 @@ See the [configuration reference](../configuration.md) for the full schema.
 - `id` — Print the shareable `+` app identifier for this napp.
 - `release` — Publish a kind-39108 changelog for the current app version.
 - `init` — Retrofit a `napp` section onto an existing project's config
-  (interactive).
+  (interactive, or fully scriptable via flags).
 - `validate` — Check napp readiness: required fields, categories, and a NIP-07
   heuristic.
 
@@ -69,7 +69,42 @@ See the [configuration reference](../configuration.md) for the full schema.
 
 ## init Options
 
-`init` is interactive and takes no options beyond the global options.
+`init` retrofits a `napp` section onto an existing project's config. With no
+flags it prompts interactively; flags pre-fill answers (fully-specified flags
+skip prompts entirely), and missing fields are prompted for — or, when
+non-interactive (`--yes` or no TTY), reported as an error and the command exits
+non-zero rather than hanging.
+
+- `--name <name>` — app display name.
+- `--icon <icon>` — app icon: a sha256 hash, a URL, OR a local file path. Local
+  files are uploaded to your configured blossom servers (requiring `--sec` or a
+  stored bunker); the resulting sha256 + MIME are captured.
+- `--icon-mime <mime>` — icon MIME type for hash/URL icon inputs (default
+  `image/png`).
+- `--category <label>` — `napp.<cat>:<sub>` category label (repeatable, max 3; a
+  bare `<cat>:<sub>` is normalized to `napp.<cat>:<sub>`).
+- `--countries <csv>` — comma-separated ISO 3166-1 alpha-2 codes, or `*` for
+  worldwide.
+- `--summary <text>` — short summary.
+- `--description <text>` — long description.
+- `--keyart <keyart>` — key art asset: a sha256 hash, a URL, or a local file
+  path (uploaded like `--icon`).
+- `--screenshot <shot>` — screenshot asset: a sha256 hash, a URL, or a local
+  file path (repeatable; uploaded like `--icon`).
+- `--self <pubkey>` — author pubkey (64-hex).
+- `--tag <tag>` — free-form tag (repeatable).
+- `--indexer-relay <relay>` — indexer relay URL the listing is also published to
+  (repeatable).
+- `--id <id>` — set a named-site identifier. napps need a NAMED site to be
+  discoverable; setting an id republishes the manifest from kind 15128 (root) to
+  kind 35128 (named) and orphans the old root manifest. This is OPT-IN — nsyte
+  never auto-migrates. On a root site with neither `--id` nor an interactive
+  confirmation, the napp section is still written but the id stays unset (and
+  `nsyte napp id` will not work until it is set).
+- `--sec <secret>` — key (nsec/hex, nbunksec, or `bunker://`) used to sign
+  local-file asset uploads. Not needed when all assets are hashes/URLs.
+- `--yes` — non-interactive: never prompt; error and exit non-zero if required
+  fields (`--name`, `--icon`, `--category`) are missing.
 
 ## validate Arguments
 
