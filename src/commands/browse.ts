@@ -13,6 +13,7 @@ import { DEFAULT_IGNORE_PATTERNS, type IgnoreRule, parseIgnorePatterns } from ".
 import { createLogger } from "../lib/logger.ts";
 import { pool } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "../lib/utils.ts";
 import {
   handleAuthInput,
@@ -47,6 +48,10 @@ export function registerBrowseCommand(): void {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-p, --pubkey <npub:string>",
       "The public key to list files for (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
@@ -59,6 +64,9 @@ export function registerBrowseCommand(): void {
       try {
         let useDiscoveryRelays = false;
         let previousPubkey: string | undefined = undefined;
+
+        // Prompt for the secret at runtime if requested
+        await resolvePromptSec(options, readProjectFile(options.config)?.bunkerPubkey);
 
         // Loop to allow identity switching
         while (true) {

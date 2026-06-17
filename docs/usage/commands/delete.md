@@ -27,6 +27,8 @@ nsyte delete [options]
 - `--include-blobs` — Also delete blobs from blossom servers (default: false)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — Site identifier for named sites. If not provided,
   deletes root site
 - `--dry-run` — Preview delete events without publishing or deleting blobs

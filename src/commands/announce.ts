@@ -1,6 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import nsyte from "./root.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { RELAY_DISCOVERY_RELAYS } from "../lib/constants.ts";
 import {
@@ -27,6 +28,10 @@ export function registerAnnounceCommand(): void {
     .option(
       "--sec <secret:string>",
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
+    .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
     )
     .option("--dry-run", "Preview what would be announced without publishing.", {
       default: false,
@@ -84,6 +89,9 @@ export function registerAnnounceCommand(): void {
 
           Deno.exit(0);
         }
+
+        // Prompt for the secret at runtime if requested
+        await resolvePromptSec(options, config.bunkerPubkey);
 
         // Initialize signer
         status.update("Initializing signer...");

@@ -16,6 +16,7 @@ import {
 } from "../lib/manifest.ts";
 import { getUserDisplayName, getUserOutboxes, pool, store } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { formatTimestamp } from "../ui/time-formatter.ts";
 import nsyte from "./root.ts";
 
@@ -39,6 +40,7 @@ interface SitesCommandOptions {
   config?: string;
   relays?: string;
   sec?: string;
+  promptSec?: boolean;
   pubkey?: string;
   useFallbackRelays?: boolean;
   useFallbacks?: boolean;
@@ -59,6 +61,10 @@ export function registerSitesCommand() {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-p, --pubkey <npub:string>",
       "The public key to list sites for (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
@@ -68,6 +74,7 @@ export function registerSitesCommand() {
     )
     .option("--use-fallbacks", "Enable all fallbacks (currently only relays for this command).")
     .action(async (options: SitesCommandOptions) => {
+      await resolvePromptSec(options, readProjectFile(options.config)?.bunkerPubkey);
       const pubkey = await resolvePubkey(options);
       const projectConfig = readProjectFile(options.config);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;

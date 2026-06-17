@@ -26,6 +26,8 @@ nsyte deploy <folder> [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `--sync` — Check all servers and upload missing blobs (default: false)
 - `--use-fallback-relays` — Include default nsyte relays in addition to
   configured relays

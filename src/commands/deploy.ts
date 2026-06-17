@@ -6,6 +6,7 @@ import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/
 import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import {
   defaultConfig,
   type ProjectConfig,
@@ -84,6 +85,8 @@ export interface DeployCommandOptions {
   relays?: string;
   /** Unified secret parameter (auto-detects format: nsec, nbunksec, bunker URL, or hex) */
   sec?: string;
+  /** When true, prompt for the secret at runtime instead of reading it from --sec */
+  promptSec?: boolean;
   concurrency: number;
   fallback?: string;
   publishAppHandler: boolean;
@@ -184,6 +187,10 @@ export function registerDeployCommand(): void {
     .option(
       "--sec <secret:string>",
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
+    )
+    .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
     )
     .option("--sync", "Check all servers and upload missing blobs.", {
       default: false,
@@ -316,6 +323,13 @@ export async function deployCommand(
   const messageCollector = new MessageCollector(displayManager.isInteractive());
 
   try {
+    // Prompt for the secret at runtime if requested, before resolving auth context
+    const promptConfigPath = typeof options.config === "string" ? options.config : undefined;
+    const configuredBunkerPubkey = options.config === false
+      ? null
+      : readProjectFile(promptConfigPath)?.bunkerPubkey;
+    await resolvePromptSec(options, configuredBunkerPubkey);
+
     const currentWorkingDir = Deno.cwd();
     const targetDir = join(currentWorkingDir, fileOrFolder);
     const context = await resolveContext(options);

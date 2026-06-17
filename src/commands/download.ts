@@ -9,6 +9,7 @@ import {
   type ResolverOptions,
   resolveServers,
 } from "../lib/resolver-utils.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { readProjectFile } from "../lib/config.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import { type DownloadResult, DownloadService } from "../lib/download.ts";
@@ -44,6 +45,10 @@ export function registerDownloadCommand(): void {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-p, --pubkey <npub:string>",
       "The public key to download files from (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
@@ -56,6 +61,9 @@ export function registerDownloadCommand(): void {
     .action(async (options) => {
       const displayManager = getDisplayManager();
       displayManager.configureFromOptions(options);
+
+      // Prompt for the secret at runtime if requested
+      await resolvePromptSec(options, readProjectFile(options.config)?.bunkerPubkey);
 
       // Resolve public key
       const pubkey = await resolvePubkey(options, readProjectFile(options.config), false);
