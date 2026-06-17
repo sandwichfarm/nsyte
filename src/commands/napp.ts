@@ -15,15 +15,24 @@ import { Input, Select } from "@cliffy/prompt";
 import { walk } from "@std/fs";
 import type { NostrEvent } from "applesauce-core/helpers";
 import {
-  buildNappConfigFromAnswers,
-  categoryLabel,
+  collectNappListing,
+  type NappAssetResolver,
+  type NappListingPrefill,
   type ProjectConfig,
   readProjectFile,
   writeProjectFile,
 } from "../lib/config.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { NAPP_CATEGORIES } from "../lib/napp/categories.ts";
+import {
+  classifyAssetInput,
+  deriveAssetMime,
+  isRootSite,
+  parseCategoriesInput,
+  parseCountriesInput,
+  rootSiteMigrationNotice,
+  uploadNappAsset,
+} from "../lib/napp/assets.ts";
 import { isNapp, validateNappConfig } from "../lib/napp/detect.ts";
 import { nappIdentifier, resolveIndexerRelays } from "../lib/napp/identifier.ts";
 import { createReleaseNoteEvent, type ReleaseChanges } from "../lib/napp/release.ts";
@@ -303,69 +312,112 @@ async function nappReleaseAction(
 // `napp init` — retrofit a napp section onto an existing project config
 // ---------------------------------------------------------------------------
 
+/** Raw `napp init` flags as they arrive from Cliffy (repeatables are `collect:true`). */
+export interface NappInitFlags {
+  name?: string;
+  icon?: string;
+  iconMime?: string;
+  category?: string[];
+  countries?: string;
+  summary?: string;
+  description?: string;
+  keyart?: string;
+  screenshot?: string[];
+  self?: string;
+  tag?: string[];
+  indexerRelay?: string[];
+  id?: string;
+  yes?: boolean;
+}
+
+/** The result of parsing `napp init` flags into a listing prefill + control bits. */
+export interface NappInitPlan {
+  prefill: NappListingPrefill;
+  id?: string;
+  yes: boolean;
+  missingRequired: string[];
+}
+
 /**
- * Collect napp listing answers via the SAME prompt sequence as the init wizard, then
- * shape them with the SINGLE assembly helper. Interactive (not unit-tested); the pure
- * assembly/validation it feeds is covered by the wizard + init tests.
+ * PURE: parse `napp init` flags into a {@link NappListingPrefill} + control bits. Asset
+ * fields stay as raw input strings (the resolver turns them into NappAssets later).
+ * `missingRequired` is the subset of `name`/`icon`/`category` that flags did not supply.
+ * No prompting, no IO.
  */
-async function collectNappAnswers(): Promise<
-  ReturnType<typeof buildNappConfigFromAnswers>
-> {
-  const name = await Input.prompt({
-    message: "App name:",
-    validate: (v: string) => v.trim().length > 0 || "Name is required",
-  });
-  const iconHash = await Input.prompt({
-    message: "Icon (sha256 hash or URL):",
-    validate: (v: string) => v.trim().length > 0 || "Icon is required",
-  });
-  const iconMime = await Input.prompt({
-    message: "Icon MIME type:",
-    default: "image/png",
-  });
+export function planNappInitFromFlags(flags: NappInitFlags): NappInitPlan {
+  const categories = flags.category && flags.category.length > 0
+    ? parseCategoriesInput(flags.category)
+    : undefined;
+  const countries = flags.countries !== undefined
+    ? parseCountriesInput(flags.countries)
+    : undefined;
 
-  const category = await Select.prompt<string>({
-    message: "Category",
-    options: Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
-  });
-  const subcategory = await Select.prompt<string>({
-    message: "Subcategory",
-    options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
-  });
-  const label = categoryLabel(category, subcategory);
+  const prefill: NappListingPrefill = {};
+  if (flags.name !== undefined) prefill.name = flags.name;
+  if (flags.icon !== undefined) prefill.icon = flags.icon;
+  if (flags.iconMime !== undefined) prefill.iconMime = flags.iconMime;
+  if (categories !== undefined) prefill.categories = categories;
+  if (countries !== undefined) prefill.countries = countries;
+  if (flags.summary !== undefined) prefill.summary = flags.summary;
+  if (flags.description !== undefined) prefill.description = flags.description;
+  if (flags.self !== undefined) prefill.self = flags.self;
+  if (flags.keyart !== undefined) prefill.keyart = flags.keyart;
+  if (flags.screenshot !== undefined) prefill.screenshots = flags.screenshot;
+  if (flags.tag !== undefined) prefill.tags = flags.tag;
+  if (flags.indexerRelay !== undefined) prefill.indexerRelays = flags.indexerRelay;
 
-  const countriesInput = await Input.prompt({
-    message: "Countries (comma-separated ISO codes, or * for worldwide):",
-    default: "*",
-  });
-  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
+  const missingRequired: string[] = [];
+  if (!flags.name || !flags.name.trim()) missingRequired.push("name");
+  if (!flags.icon || !flags.icon.trim()) missingRequired.push("icon");
+  if (!categories || categories.length === 0) missingRequired.push("category");
 
-  const summary = await Input.prompt({ message: "Summary (optional):" });
-  const description = await Input.prompt({
-    message: "Description (optional):",
-  });
+  return { prefill, id: flags.id, yes: flags.yes === true, missingRequired };
+}
 
-  return buildNappConfigFromAnswers({
-    name,
-    iconHash,
-    iconMime,
-    categories: [label],
-    countries: (countries.length === 0 ||
-        (countries.length === 1 && countries[0] === "*"))
-      ? ["*"]
-      : countries,
-    summary,
-    description,
-  });
+/** Inputs to the pure root-site id decision. */
+export interface RootSiteIdInput {
+  isRoot: boolean;
+  idFlag?: string;
+  interactive: boolean;
+  confirmed?: boolean;
+  confirmedValue?: string;
+}
+
+/** Output of the pure root-site id decision. */
+export interface RootSiteIdDecision {
+  setId?: string;
+  printNotice: boolean;
+}
+
+/**
+ * PURE: decide whether to set an id on a root site, never auto-migrating. An id is set
+ * ONLY when `--id` is passed OR (interactive) the user explicitly confirmed and supplied
+ * a value. With neither, the napp section is still written without an id. Non-root sites
+ * get no notice and no id change.
+ */
+export function decideRootSiteId(input: RootSiteIdInput): RootSiteIdDecision {
+  if (!input.isRoot) return { printNotice: false };
+  if (input.idFlag && input.idFlag.trim()) {
+    return { setId: input.idFlag.trim(), printNotice: true };
+  }
+  if (
+    input.interactive && input.confirmed &&
+    input.confirmedValue && input.confirmedValue.trim()
+  ) {
+    return { setId: input.confirmedValue.trim(), printNotice: true };
+  }
+  return { printNotice: true };
 }
 
 /**
  * `napp init` action: read the existing project config, refuse to overwrite an existing
- * napp, collect listing answers, validate, and write `{ ...projectConfig, napp }` back —
- * the spread preserves all unrelated keys (T-24-01).
+ * napp, parse flags, apply root-site guidance, collect listing answers (prompting only for
+ * what flags didn't supply, or erroring non-interactively when required fields are missing),
+ * validate, and write `{ ...projectConfig, napp }` back — the spread preserves all
+ * unrelated keys (T-24-01).
  */
 async function nappInitAction(
-  options: { config?: string | boolean },
+  options: NappInitFlags & { config?: string | boolean; sec?: string },
 ): Promise<void> {
   const configPath = typeof options.config === "string" ? options.config : undefined;
   const projectConfig = readProjectFile(configPath);
@@ -388,7 +440,112 @@ async function nappInitAction(
     return;
   }
 
-  const napp = await collectNappAnswers();
+  const plan = planNappInitFromFlags(options);
+  const interactive = getDisplayManager().isInteractive() && !plan.yes;
+
+  // Root-site guidance: warn + opt-in id (never auto-migrate). With --id, set it directly.
+  // Interactive without --id: print the notice and offer to set an id. Non-interactive
+  // without --id: print the notice and leave id unset.
+  if (isRootSite(projectConfig)) {
+    const flagDecision = decideRootSiteId({
+      isRoot: true,
+      idFlag: plan.id,
+      interactive,
+    });
+    if (flagDecision.printNotice) {
+      console.log(colors.yellow(rootSiteMigrationNotice()));
+    }
+    if (flagDecision.setId !== undefined) {
+      projectConfig.id = flagDecision.setId;
+    } else if (interactive) {
+      const setIdNow = await Select.prompt<string>({
+        message: "Set a site identifier now? (required for `nsyte napp id`)",
+        options: [
+          { name: "No — leave as a root site for now", value: "no" },
+          { name: "Yes — set a named site identifier", value: "yes" },
+        ],
+        default: "no",
+      });
+      let confirmedValue: string | undefined;
+      if (setIdNow === "yes") {
+        confirmedValue = (await Input.prompt({
+          message: "Enter site identifier (lowercase, max 13 chars):",
+          validate: (v: string) => v.trim().length > 0 || "Identifier is required",
+        })).trim();
+      }
+      const decision = decideRootSiteId({
+        isRoot: true,
+        interactive: true,
+        confirmed: setIdNow === "yes",
+        confirmedValue,
+      });
+      if (decision.setId !== undefined) {
+        projectConfig.id = decision.setId;
+      } else {
+        console.log(
+          colors.yellow(
+            "Leaving this as a root site — `nsyte napp id` will not work until you set an id.",
+          ),
+        );
+      }
+    } else {
+      console.log(
+        colors.yellow(
+          "Leaving this as a root site — `nsyte napp id` will not work until you set an id.",
+        ),
+      );
+    }
+  }
+
+  // Non-interactive with missing required fields: error clearly and exit non-zero (never hang).
+  if (!interactive && plan.missingRequired.length > 0) {
+    console.error(
+      colors.red(
+        `Missing required napp fields: ${
+          plan.missingRequired.join(", ")
+        }. Provide --name, --icon, and at least one --category (or run interactively).`,
+      ),
+    );
+    Deno.exit(1);
+  }
+
+  // Asset resolver: hash/URL pass through; a local path is uploaded via a lazily-created
+  // signer + the configured servers/relays. Hash/URL inputs never construct a signer.
+  let cachedSigner: import("applesauce-signers").ISigner | undefined;
+  const resolveAsset: NappAssetResolver = async (value: string) => {
+    if (classifyAssetInput(value) !== "path") {
+      return { hash: value, mime: deriveAssetMime(value) };
+    }
+    if (!projectConfig.servers || projectConfig.servers.length === 0) {
+      throw new Error(
+        `Cannot upload "${value}": configure blossom servers (or paste a sha256 hash / URL).`,
+      );
+    }
+    if (!cachedSigner) {
+      const signerResult = await createSigner({
+        sec: options.sec,
+        bunkerPubkey: projectConfig.bunkerPubkey,
+      });
+      if ("error" in signerResult) {
+        throw new Error(
+          `Cannot upload "${value}": ${signerResult.error} (pass --sec, or paste a sha256 hash / URL).`,
+        );
+      }
+      cachedSigner = signerResult.signer;
+    }
+    return await uploadNappAsset(value, {
+      servers: projectConfig.servers,
+      relays: projectConfig.relays,
+      signer: cachedSigner,
+    });
+  };
+
+  const napp = await collectNappListing({
+    prefill: plan.prefill,
+    interactive,
+    resolveAsset,
+  });
+
   const errors = validateNappConfig(napp);
   if (errors.length > 0) {
     for (const e of errors) {
@@ -639,11 +796,67 @@ export function registerNappCommand(): void {
         },
       );
     })
-    // init subcommand — interactive retrofit; NO `.option` (honors only global -c/--config).
+    // init subcommand — scriptable retrofit. Flags fully specify the listing (skip
+    // prompts) or partially specify it (prompt for the rest, or error non-interactively).
     .reset()
     .command("init", "Retrofit a napp section onto this project's config")
+    .option("--name <name:string>", "App display name")
+    .option(
+      "--icon <icon:string>",
+      "App icon: sha256 hash, URL, or local file path (local files are uploaded)",
+    )
+    .option(
+      "--icon-mime <mime:string>",
+      "Icon MIME type (used for hash/URL icon inputs; default image/png)",
+    )
+    .option(
+      "--category <label:string>",
+      "Category label napp.<cat>:<sub> (repeatable, max 3)",
+      { collect: true },
+    )
+    .option(
+      "--countries <csv:string>",
+      "Comma-separated ISO 3166-1 alpha-2 codes, or * for worldwide",
+    )
+    .option("--summary <text:string>", "Short summary")
+    .option("--description <text:string>", "Long description")
+    .option(
+      "--keyart <keyart:string>",
+      "Key art: sha256 hash, URL, or local file path",
+    )
+    .option(
+      "--screenshot <shot:string>",
+      "Screenshot: sha256 hash, URL, or local file path (repeatable)",
+      { collect: true },
+    )
+    .option("--self <pubkey:string>", "Author pubkey (64-hex)")
+    .option("--tag <tag:string>", "Free-form tag (repeatable)", {
+      collect: true,
+    })
+    .option(
+      "--indexer-relay <relay:string>",
+      "Indexer relay URL the listing is also published to (repeatable)",
+      { collect: true },
+    )
+    .option(
+      "--id <id:string>",
+      "Set a named-site identifier (opt-in root-site migration; never automatic)",
+    )
+    .option(
+      "--sec <secret:string>",
+      "Private key (nsec/hex), nbunksec, or bunker:// URL to sign asset uploads with",
+    )
+    .option(
+      "--yes",
+      "Non-interactive: never prompt; error if required fields are missing",
+    )
     .action(async (options) => {
-      await nappInitAction(options as unknown as { config?: string | boolean });
+      await nappInitAction(
+        options as unknown as NappInitFlags & {
+          config?: string | boolean;
+          sec?: string;
+        },
+      );
     })
     // validate subcommand (LAST — no trailing .reset()). Positional [dir] only, NO `.option`.
     .reset()
