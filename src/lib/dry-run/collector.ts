@@ -8,6 +8,12 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../manifest.ts";
+import { isNapp } from "../napp/detect.ts";
+import {
+  createAppListingTemplate,
+  deriveListingDTag,
+  NSITE_APP_LISTING_KIND,
+} from "../napp/listing.ts";
 import type { DryRunEvent } from "./types.ts";
 
 /** Options that affect which events would be published */
@@ -112,6 +118,23 @@ export function collectDeployEvents(
         filename: "server-list-10063.json",
       });
     }
+  }
+
+  // 6. App Listing (kind 37348) — ONLY for napps. Appended LAST so the non-napp
+  //    template set is byte-for-byte unchanged (NAPP-LST-03 / NAPP-LST-05). The d tag
+  //    is derived from config.id (NOT a manifest event — dry-run has the config in
+  //    hand) so it matches `const siteId = config.id || undefined;` used for the
+  //    manifest template above: named -> config.id, root -> "".
+  if (isNapp(config)) {
+    const listingDTag = deriveListingDTag({ id: config.id });
+    // Pass "" for pubkey — dry-run never signs and `self` is never auto-defaulted.
+    const listingTemplate = createAppListingTemplate("", config.napp, listingDTag);
+    events.push({
+      label: `App Listing (kind ${NSITE_APP_LISTING_KIND})`,
+      kind: NSITE_APP_LISTING_KIND,
+      template: listingTemplate,
+      filename: `app-listing-${NSITE_APP_LISTING_KIND}.json`,
+    });
   }
 
   return events;
