@@ -133,11 +133,11 @@ describe("appEncode / appDecode channels", () => {
     assertEquals(decoded.kind, 35128);
   });
 
-  it("rejects a pubkey TLV value that is not 32 bytes", () => {
-    // Encode a deliberately short pubkey and ensure decode rejects it.
-    assertThrows(
-      () => appEncode({ dTag: "x", pubkey: "abcd", kind: 35128, relays: [] }),
-    );
+  it("rejects a pubkey TLV value that is not 32 bytes on decode", () => {
+    // Encode a deliberately short (2-byte) pubkey; decode must reject the
+    // non-32-byte pubkey TLV value.
+    const entity = appEncode({ dTag: "x", pubkey: "abcd", kind: 35128, relays: [] });
+    assertThrows(() => appDecode(entity), Error, "invalid pubkey length");
   });
 });
 
