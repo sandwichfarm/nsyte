@@ -5,6 +5,8 @@ description: Build and serve local nsite files for development
 
 # `nsyte serve`
 
+> **Alias:** `srv` — `nsyte srv` is equivalent to `nsyte serve`.
+
 Serve a local directory over HTTP for development and testing. Useful for previewing your nsite
 files before deploying them. The server binds to `localhost` only and supports directory listing.
 

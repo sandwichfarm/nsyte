@@ -24,7 +24,7 @@ export function registerConfigCommand(): void {
   nsyte
     .command("config")
     .description("Interactive configuration editor for nsyte project settings")
-    .option("-p, --path <path:string>", "Path to config file (default: ./nsyte.yaml)")
+    .option("-p, --path <path:string>", "Path to config file (default: .nsite/config.json)")
     .action(command);
 }
 

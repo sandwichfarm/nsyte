@@ -9,11 +9,16 @@ Initialize a new nsyte site in the current directory.
 
 ## Description
 
-The `init` command creates a new nsyte site by:
+The `init` command runs an interactive setup wizard that walks you through:
 
-1. Creating the `.nsite` directory
-2. Generating a default configuration file
-3. Setting up initial project structure
+1. Choosing how to manage your nostr key (generate a new key, use an existing
+   `nsec`, or connect/select an NSEC bunker)
+2. Choosing a root or named site (and, for named sites, an identifier)
+3. Entering an optional site title and description
+4. Adding your nostr relay and blossom server URLs
+
+It then writes the resulting `.nsite/config.json`. If an invalid config already
+exists, `init` offers to overwrite it.
 
 ## Usage
 
@@ -35,19 +40,23 @@ nsyte init
 
 ## Configuration
 
-The initialization process creates a `.nsite/config.json` file with default settings:
+The wizard writes a `.nsite/config.json` reflecting your answers, for example:
 
 ```json
 {
-  "bunkerPubkey": "",
-  "relays": [],
-  "servers": [],
-  "profile": {
-    "name": "",
-    "about": ""
-  }
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
+  "bunkerPubkey": "abc123...",
+  "relays": ["wss://relay.damus.io"],
+  "servers": ["https://cdn.hzrd149.com"],
+  "id": "blog",
+  "title": "My Blog",
+  "description": "A blog about decentralized applications"
 }
 ```
+
+A private key is never stored in the config — if you generate or supply an `nsec`,
+it is shown once and you must save it yourself. See the
+[configuration reference](../configuration.md) for all available fields.
 
 ## Project Structure
 

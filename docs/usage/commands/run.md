@@ -5,6 +5,8 @@ description: Run a resolver server that serves nsites via npub subdomains
 
 # `nsyte run`
 
+> **Alias:** `rn` — `nsyte rn` is equivalent to `nsyte run`.
+
 Run a resolver server that serves nsites via npub subdomains. This command starts a local server
 that can resolve and serve nsites using the format `npub1234.localhost` or similar subdomain
 patterns.
@@ -17,11 +19,12 @@ nsyte run [npub] [options]
 
 ## Arguments
 
-- `[npub]` (optional): Site identifier in various formats:
-  - `naddr1...` — NIP-19 naddr format (Kind 15128 or 35128)
-  - `<name>.npub1...` — Subdomain format for named sites (e.g., `blog.npub1...`)
-  - `npub1...` — Regular npub for root site (Kind 15128)
-  - If not provided, uses default demo site
+- `[npub]` (optional): Site identifier in one of these formats:
+  - `npub1...` or hex pubkey — root site (kind 15128)
+  - `naddr1...` — NIP-19 naddr pointing at a root (kind 15128) or named (kind 35128)
+    site
+  - If not provided, uses the site from `.nsite/config.json` (its `bunkerPubkey`)
+    when present, otherwise falls back to a built-in demo site
 
 ## Options
 
@@ -64,8 +67,11 @@ nsyte run naddr1...
 
 ### Launch Named Site
 
+Named sites are addressed with their `naddr1...` pointer (which encodes the kind
+35128 identifier):
+
 ```bash
-nsyte run blog.npub1abc123def456ghi789
+nsyte run naddr1...
 ```
 
 ### Custom Port and Cache

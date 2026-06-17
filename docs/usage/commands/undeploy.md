@@ -110,8 +110,7 @@ The undeploy command requires authentication to:
 Authentication options (in order of precedence):
 
 1. `--sec` command line option
-2. Configured bunker in project
-3. Private key in project configuration
+2. Bunker configured in the project (`bunkerPubkey`)
 
 ## Error Handling
 
