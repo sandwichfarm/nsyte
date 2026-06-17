@@ -4,6 +4,8 @@ import { describe, it } from "@std/testing/bdd";
 import {
   buildNappConfigFromAnswers,
   categoryLabel,
+  collectNappListing,
+  type NappAssetResolver,
   type ProjectConfig,
 } from "../../../src/lib/config.ts";
 import { isNapp, validateNappConfig } from "../../../src/lib/napp/detect.ts";
@@ -114,6 +116,149 @@ describe("buildNappConfigFromAnswers (pure assembly helper)", () => {
       validateNappConfig(result).length > 0,
       "invalid answers should surface errors",
     );
+  });
+});
+
+describe("buildNappConfigFromAnswers full NIP-5B field coverage", () => {
+  const SELF = "a".repeat(64);
+
+  it("assembles every optional field and passes validateNappConfig with 0 errors", () => {
+    const result = buildNappConfigFromAnswers({
+      name: "My App",
+      nameLang: "en",
+      iconHash: "h",
+      iconMime: "image/png",
+      categories: ["napp.games:rpg", "napp.social:network"],
+      countries: ["US", "de"],
+      summary: "Short",
+      summaryLang: "en",
+      description: "Long text",
+      descriptionLang: "de",
+      self: SELF,
+      keyart: { hash: "k", mime: "image/png" },
+      screenshots: [
+        { hash: "s1", mime: "image/png" },
+        { hash: "s2", mime: "image/webp" },
+      ],
+      tags: ["nostr", "social"],
+      indexerRelays: ["wss://indexer"],
+    });
+
+    assertEquals(validateNappConfig(result), []);
+    assertEquals(result.name, { value: "My App", lang: "en" });
+    assertEquals(result.summary, { value: "Short", lang: "en" });
+    assertEquals(result.description, { value: "Long text", lang: "de" });
+    assertEquals(result.self, SELF);
+    assertEquals(result.keyart, { hash: "k", mime: "image/png" });
+    assertEquals(result.screenshots, [
+      { hash: "s1", mime: "image/png" },
+      { hash: "s2", mime: "image/webp" },
+    ]);
+    assertEquals(result.tags, ["nostr", "social"]);
+    assertEquals(result.indexerRelays, ["wss://indexer"]);
+    assertEquals(result.categories, ["napp.games:rpg", "napp.social:network"]);
+    assertEquals(result.countries, ["US", "de"]);
+  });
+
+  it("minimal answers still produce the SAME object as before (regression anchor)", () => {
+    const result = buildNappConfigFromAnswers({
+      name: "My App",
+      iconHash: "abc123",
+      iconMime: "image/png",
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+    });
+    assertEquals(result, {
+      name: { value: "My App" },
+      icon: { hash: "abc123", mime: "image/png" },
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+    });
+  });
+
+  it("omits lang keys when not provided", () => {
+    const result = buildNappConfigFromAnswers({
+      name: "App",
+      iconHash: "h",
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+      summary: "Short",
+      description: "Long",
+    });
+    assert(!("lang" in result.name), "name.lang absent");
+    assertEquals(result.summary, { value: "Short" });
+    assertEquals(result.description, { value: "Long" });
+    assert(!("lang" in (result.summary as object)), "summary.lang absent");
+  });
+
+  it("omits empty optional collections and blank summary/description", () => {
+    const result = buildNappConfigFromAnswers({
+      name: "App",
+      iconHash: "h",
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+      summary: "",
+      description: "   ",
+      self: "",
+      screenshots: [],
+      tags: [],
+      indexerRelays: [],
+    });
+    assert(!("summary" in result), "summary absent");
+    assert(!("description" in result), "description absent");
+    assert(!("self" in result), "self absent");
+    assert(!("keyart" in result), "keyart absent");
+    assert(!("screenshots" in result), "screenshots absent");
+    assert(!("tags" in result), "tags absent");
+    assert(!("indexerRelays" in result), "indexerRelays absent");
+  });
+});
+
+describe("collectNappListing minimal-prefill regression (no upload, non-interactive)", () => {
+  it("preserves the pre-phase minimal single-field shape", async () => {
+    // A no-upload resolver: hash inputs round-trip via the boundary semantics.
+    const noUpload: NappAssetResolver = (value: string) =>
+      Promise.resolve({ hash: value, mime: "image/png" });
+
+    const napp = await collectNappListing({
+      prefill: {
+        name: "My App",
+        icon: "abc123",
+        iconMime: "image/png",
+        categories: ["napp.games:rpg"],
+        countries: ["*"],
+      },
+      interactive: false,
+      resolveAsset: noUpload,
+    });
+
+    assertEquals(napp, {
+      name: { value: "My App" },
+      icon: { hash: "abc123", mime: "image/png" },
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+    });
+    assertEquals(validateNappConfig(napp), []);
+  });
+
+  it("never calls the resolver when no asset inputs are present", async () => {
+    let called = false;
+    const failResolver: NappAssetResolver = (_v: string) => {
+      called = true;
+      return Promise.reject(new Error("should not resolve"));
+    };
+    const napp = await collectNappListing({
+      prefill: {
+        name: "App",
+        categories: ["napp.games:rpg"],
+        countries: ["*"],
+      },
+      interactive: false,
+      resolveAsset: failResolver,
+    });
+    assertEquals(called, false);
+    // icon stays empty (invalid) — validation is the caller's job, not the collector's.
+    assertEquals(napp.icon.hash, "");
   });
 });
 

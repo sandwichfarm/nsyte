@@ -3,16 +3,21 @@ import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
-import {
-  formatValidationErrors,
-  validateConfigWithFeedback,
-} from "./config-validator.ts";
+import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
-import type { NappConfig } from "./napp/types.ts";
-import { NAPP_CATEGORIES } from "./napp/categories.ts";
+import type { LangText, NappAsset, NappConfig } from "./napp/types.ts";
+import { MAX_NAPP_CATEGORIES, NAPP_CATEGORIES } from "./napp/categories.ts";
 import { validateNappConfig } from "./napp/detect.ts";
+import {
+  classifyAssetInput,
+  deriveAssetMime,
+  isRootSite,
+  rootSiteMigrationNotice,
+  uploadNappAsset,
+} from "./napp/assets.ts";
+import { createSigner } from "./auth/signer-factory.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
@@ -113,9 +118,7 @@ export const defaultConfig: ProjectConfig = {
 function resolveConfigPath(customPath?: string): string {
   if (customPath) {
     // If custom path is provided, resolve it relative to CWD
-    return isAbsolute(customPath)
-      ? customPath
-      : resolve(Deno.cwd(), customPath);
+    return isAbsolute(customPath) ? customPath : resolve(Deno.cwd(), customPath);
   }
   // Default: .nsite/config.json in CWD
   return join(Deno.cwd(), configDir, projectFile);
@@ -182,9 +185,7 @@ export function writeProjectFile(
 
   // If a configPath is provided but resolves to the real project .nsite dir, block in tests
   if (isTestEnv && configPath) {
-    const resolved = isAbsolute(configPath)
-      ? configPath
-      : resolve(cwd, configPath);
+    const resolved = isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
     // Block if the resolved path is inside the actual nsyte project directory
     if (
       !resolved.includes("nsyte-test-") && !resolved.startsWith("/tmp/") &&
@@ -458,9 +459,7 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   ) {
     chosenRelays = defaultRelays;
   } else {
-    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) =>
-      r.length > 0
-    );
+    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
   }
 
   if (chosenRelays.length === 0) {
@@ -470,9 +469,7 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
 
   console.log(
     colors.cyan(
-      `Initiating Nostr Connect as '${appName}' on relays: ${
-        chosenRelays.join(", ")
-      }`,
+      `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
     ),
   );
   return initiateNostrConnect(appName, chosenRelays);
@@ -503,9 +500,7 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
   });
 
   try {
-    signer = choice === "qr"
-      ? await connectToBunkerWithQR()
-      : await connectToBunkerWithURI();
+    signer = choice === "qr" ? await connectToBunkerWithQR() : await connectToBunkerWithURI();
 
     if (!signer) {
       throw new Error("Failed to establish signer connection");
@@ -516,9 +511,7 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
     log.error(`Failed to connect to bunker: ${error}`);
     console.error(
       colors.red(
-        `Failed to connect to bunker: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
       ),
     );
     Deno.exit(1);
@@ -666,42 +659,263 @@ export function categoryLabel(category: string, subcategory: string): string {
  * {@link validateNappConfig} on the result before writing, warning (wizard) or
  * refusing to write (`napp init`) on errors.
  *
- * - `name` -> `{ value }`
+ * - `name` -> `{ value, lang? }` (lang only when provided)
  * - `icon.mime` defaults to `"image/png"` when omitted/blank
  * - `countries` defaults to `["*"]` when omitted/empty
- * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`)
+ * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`),
+ *   each carrying `lang` only when provided
+ * - `self`/`keyart`/`screenshots`/`tags`/`indexerRelays` are included ONLY when present
+ *   and non-empty
+ *
+ * All Phase-25 fields are OPTIONAL so every pre-existing call site keeps working unchanged.
  */
 export function buildNappConfigFromAnswers(answers: {
   name: string;
+  nameLang?: string;
   iconHash: string;
   iconMime?: string;
   categories: string[];
   countries?: string[];
   summary?: string;
+  summaryLang?: string;
   description?: string;
+  descriptionLang?: string;
+  self?: string;
+  keyart?: NappAsset;
+  screenshots?: NappAsset[];
+  tags?: string[];
+  indexerRelays?: string[];
 }): NappConfig {
+  const name: LangText = { value: answers.name };
+  if (answers.nameLang && answers.nameLang.trim()) {
+    name.lang = answers.nameLang;
+  }
+
   const napp: NappConfig = {
-    name: { value: answers.name },
+    name,
     icon: {
       hash: answers.iconHash,
-      mime: answers.iconMime && answers.iconMime.trim()
-        ? answers.iconMime
-        : "image/png",
+      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime : "image/png",
     },
     categories: answers.categories,
-    countries: (answers.countries && answers.countries.length)
-      ? answers.countries
-      : ["*"],
+    countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
   };
 
   if (answers.summary && answers.summary.trim()) {
     napp.summary = { value: answers.summary };
+    if (answers.summaryLang && answers.summaryLang.trim()) {
+      napp.summary.lang = answers.summaryLang;
+    }
   }
   if (answers.description && answers.description.trim()) {
     napp.description = { value: answers.description };
+    if (answers.descriptionLang && answers.descriptionLang.trim()) {
+      napp.description.lang = answers.descriptionLang;
+    }
+  }
+
+  if (answers.self && answers.self.trim()) {
+    napp.self = answers.self;
+  }
+  if (answers.keyart) {
+    napp.keyart = answers.keyart;
+  }
+  if (answers.screenshots && answers.screenshots.length > 0) {
+    napp.screenshots = answers.screenshots;
+  }
+  if (answers.tags && answers.tags.length > 0) {
+    napp.tags = answers.tags;
+  }
+  if (answers.indexerRelays && answers.indexerRelays.length > 0) {
+    napp.indexerRelays = answers.indexerRelays;
   }
 
   return napp;
+}
+
+/**
+ * Flag/wizard-provided values fed into {@link collectNappListing}. Asset fields carry the
+ * RAW input string (a sha256 hash, a URL, or a local path); the injected `resolveAsset`
+ * turns each into a {@link NappAsset}. Already-parsed listing fields (categories as labels,
+ * countries as an array) are passed through verbatim.
+ */
+export interface NappListingPrefill {
+  name?: string;
+  nameLang?: string;
+  icon?: string;
+  iconMime?: string;
+  categories?: string[];
+  countries?: string[];
+  summary?: string;
+  summaryLang?: string;
+  description?: string;
+  descriptionLang?: string;
+  self?: string;
+  keyart?: string;
+  screenshots?: string[];
+  tags?: string[];
+  indexerRelays?: string[];
+}
+
+/** A resolver turning a raw asset input (hash/URL/path) into a {@link NappAsset}. */
+export type NappAssetResolver = (value: string) => Promise<NappAsset>;
+
+/**
+ * The SHARED napp-listing collector used by BOTH `nsyte napp init` (prefill = parsed flags,
+ * resolveAsset uploads) and the `nsyte init` wizard napp branch (prefill = {}, interactive,
+ * resolveAsset = hash/URL-or-upload). For each field: use prefill when present; else, when
+ * `interactive`, prompt; else leave unset. Asset strings are turned into {@link NappAsset}
+ * via the injected `resolveAsset`. Returns the assembled config via
+ * {@link buildNappConfigFromAnswers} (PURE assembly; validation is the caller's job).
+ *
+ * Dependency-light by design: `resolveAsset` is injected so this module never imports
+ * upload.ts.
+ */
+export async function collectNappListing(opts: {
+  prefill: NappListingPrefill;
+  interactive: boolean;
+  resolveAsset: NappAssetResolver;
+}): Promise<NappConfig> {
+  const { prefill, interactive, resolveAsset } = opts;
+
+  // --- name ---
+  let name = prefill.name;
+  if (name === undefined && interactive) {
+    name = await Input.prompt({
+      message: "App name:",
+      validate: (v: string) => v.trim().length > 0 || "Name is required",
+    });
+  }
+
+  // --- icon (raw input) ---
+  let iconInput = prefill.icon;
+  let iconMime = prefill.iconMime;
+  if (iconInput === undefined && interactive) {
+    iconInput = await Input.prompt({
+      message: "Icon (sha256 hash, URL, or local file path):",
+      validate: (v: string) => v.trim().length > 0 || "Icon is required",
+    });
+    iconMime = await Input.prompt({
+      message: "Icon MIME type (used for hash/URL inputs):",
+      default: "image/png",
+    });
+  }
+
+  // --- categories (labels) ---
+  let categories = prefill.categories;
+  if ((categories === undefined || categories.length === 0) && interactive) {
+    categories = [];
+    while (categories.length < MAX_NAPP_CATEGORIES) {
+      const category = await Select.prompt<string>({
+        message: categories.length === 0
+          ? "Category"
+          : `Category (${categories.length}/${MAX_NAPP_CATEGORIES}, choose "done" to finish)`,
+        options: [
+          ...Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
+          ...(categories.length > 0 ? [{ name: "done", value: "__done__" }] : []),
+        ],
+      });
+      if (category === "__done__") break;
+      const subcategory = await Select.prompt<string>({
+        message: "Subcategory",
+        options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
+      });
+      categories.push(categoryLabel(category, subcategory));
+    }
+  }
+
+  // --- countries ---
+  let countries = prefill.countries;
+  if ((countries === undefined || countries.length === 0) && interactive) {
+    const countriesInput = await Input.prompt({
+      message: "Countries (comma-separated ISO codes, or * for worldwide):",
+      default: "*",
+    });
+    const parts = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
+    countries = (parts.length === 0 || (parts.length === 1 && parts[0] === "*")) ? ["*"] : parts;
+  }
+
+  // --- summary / description ---
+  let summary = prefill.summary;
+  let description = prefill.description;
+  if (summary === undefined && interactive) {
+    summary = await Input.prompt({ message: "Summary (optional):" });
+  }
+  if (description === undefined && interactive) {
+    description = await Input.prompt({ message: "Description (optional):" });
+  }
+
+  // --- self ---
+  let self = prefill.self;
+  if (self === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Author pubkey (64-hex, optional):",
+    });
+    self = v.trim() || undefined;
+  }
+
+  // --- keyart / screenshots (raw inputs) ---
+  let keyartInput = prefill.keyart;
+  let screenshotInputs = prefill.screenshots;
+  if (keyartInput === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Key art (sha256 hash, URL, or local path; optional):",
+    });
+    keyartInput = v.trim() || undefined;
+  }
+  if (screenshotInputs === undefined && interactive) {
+    const collected: string[] = [];
+    while (true) {
+      const v = await Input.prompt({
+        message: "Screenshot (hash/URL/path; blank to finish):",
+      });
+      if (!v || !v.trim()) break;
+      collected.push(v.trim());
+    }
+    screenshotInputs = collected;
+  }
+
+  // --- tags / indexerRelays ---
+  let tags = prefill.tags;
+  if (tags === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Tags (comma-separated, optional):",
+    });
+    tags = v.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+  }
+  const indexerRelays = prefill.indexerRelays;
+
+  // --- resolve assets via the injected resolver ---
+  let icon: NappAsset | undefined;
+  if (iconInput && iconInput.trim()) {
+    icon = await resolveAsset(iconInput.trim());
+  }
+  let keyart: NappAsset | undefined;
+  if (keyartInput && keyartInput.trim()) {
+    keyart = await resolveAsset(keyartInput.trim());
+  }
+  const screenshots: NappAsset[] = [];
+  for (const s of screenshotInputs ?? []) {
+    if (s && s.trim()) screenshots.push(await resolveAsset(s.trim()));
+  }
+
+  return buildNappConfigFromAnswers({
+    name: name ?? "",
+    nameLang: prefill.nameLang,
+    iconHash: icon?.hash ?? "",
+    iconMime: icon?.mime ?? iconMime,
+    categories: categories ?? [],
+    countries,
+    summary,
+    summaryLang: prefill.summaryLang,
+    description,
+    descriptionLang: prefill.descriptionLang,
+    self,
+    keyart,
+    screenshots: screenshots.length > 0 ? screenshots : undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
+    indexerRelays: indexerRelays && indexerRelays.length > 0 ? indexerRelays : undefined,
+  });
 }
 
 /**
@@ -774,10 +988,9 @@ async function interactiveSetup(): Promise<ProjectContext> {
         const defaultRelays = ["wss://relay.nsec.app"];
 
         const relayInput = await Input.prompt({
-          message:
-            `Enter relays (comma-separated), or press Enter for default (${
-              defaultRelays.join(", ")
-            }):`,
+          message: `Enter relays (comma-separated), or press Enter for default (${
+            defaultRelays.join(", ")
+          }):`,
           default: defaultRelays.join(", "),
         });
 
@@ -802,9 +1015,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
 
         console.log(
           colors.cyan(
-            `Initiating Nostr Connect as '${appName}' on relays: ${
-              chosenRelays.join(", ")
-            }`,
+            `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
           ),
         );
         signer = await initiateNostrConnect(appName, chosenRelays);
@@ -839,9 +1050,7 @@ Generated and stored nbunksec string.`,
       log.error(`Failed to connect to bunker: ${error}`);
       console.error(
         colors.red(
-          `Failed to connect to bunker: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
         ),
       );
       Deno.exit(1);
@@ -893,8 +1102,7 @@ Generated and stored nbunksec string.`,
   let siteId: string | null | undefined;
   if (siteType === "named") {
     const identifier = await Input.prompt({
-      message:
-        "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
+      message: "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
       validate: (input: string) => {
         const trimmed = input.trim();
         if (!trimmed) {
@@ -903,9 +1111,7 @@ Generated and stored nbunksec string.`,
         const result = validateDTag(trimmed);
         if (!result.valid) {
           const suggestion = suggestIdentifier(trimmed);
-          return `${result.error}${
-            suggestion !== trimmed ? `. Try "${suggestion}"` : ""
-          }`;
+          return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
         }
         return true;
       },
@@ -957,70 +1163,103 @@ Generated and stored nbunksec string.`,
   });
 
   if (projectType === "napp") {
-    const name = await Input.prompt({
-      message: "App name:",
-      validate: (v: string) => v.trim().length > 0 || "Name is required",
-    });
-    const iconHash = await Input.prompt({
-      message: "Icon (sha256 hash or URL):",
-      validate: (v: string) => v.trim().length > 0 || "Icon is required",
-    });
-    const iconMime = await Input.prompt({
-      message: "Icon MIME type:",
-      default: "image/png",
-    });
-
-    const category = await Select.prompt<string>({
-      message: "Category",
-      options: Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
-    });
-    const subcategory = await Select.prompt<string>({
-      message: "Subcategory",
-      options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
-    });
-    const label = categoryLabel(category, subcategory);
-
-    const countriesInput = await Input.prompt({
-      message: "Countries (comma-separated ISO codes, or * for worldwide):",
-      default: "*",
-    });
-    const countries = countriesInput
-      .split(",")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-
-    const summary = await Input.prompt({ message: "Summary (optional):" });
-    const description = await Input.prompt({
-      message: "Description (optional):",
-    });
-
-    const napp = buildNappConfigFromAnswers({
-      name,
-      iconHash,
-      iconMime,
-      categories: [label],
-      countries: (countries.length === 0 ||
-          (countries.length === 1 && countries[0] === "*"))
-        ? ["*"]
-        : countries,
-      summary,
-      description,
-    });
-
-    // Validate before writing. On errors, WARN but still attach the scaffold so the
-    // author can fix `.nsite/config.json` by hand rather than losing their answers.
-    const nappErrors = validateNappConfig(napp);
-    if (nappErrors.length > 0) {
-      for (const e of nappErrors) {
-        console.log(colors.yellow(`  ${e.path}: ${e.message}`));
+    // Plan-check #4: the napp branch MUST degrade gracefully. An asset/upload failure
+    // WARNS and still lets `nsyte init` finish (consistent with warn-but-write); it must
+    // NOT throw out of interactiveSetup and abort the whole `nsyte init`.
+    try {
+      // Root-site guidance: a napp needs a NAMED site to be discoverable. We WARN and
+      // (interactive) offer to set an id, but NEVER auto-migrate (no consent => no id).
+      if (isRootSite(config)) {
+        console.log(colors.yellow(rootSiteMigrationNotice()));
+        const setIdNow = await Select.prompt<string>({
+          message: "Set a site identifier now? (required for `nsyte napp id`)",
+          options: [
+            { name: "No — leave as a root site for now", value: "no" },
+            { name: "Yes — set a named site identifier", value: "yes" },
+          ],
+          default: "no",
+        });
+        if (setIdNow === "yes") {
+          const identifier = await Input.prompt({
+            message: "Enter site identifier (lowercase, max 13 chars):",
+            validate: (input: string) => {
+              const trimmed = input.trim();
+              if (!trimmed) return "Site identifier is required";
+              const result = validateDTag(trimmed);
+              if (!result.valid) {
+                const suggestion = suggestIdentifier(trimmed);
+                return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
+              }
+              return true;
+            },
+          });
+          config.id = identifier.trim();
+        } else {
+          console.log(
+            colors.yellow(
+              "Leaving this as a root site — `nsyte napp id` will not work until you set an id.",
+            ),
+          );
+        }
       }
+
+      // Wizard asset resolver: hash/URL pass through ({hash, mime}); a local path is
+      // uploaded via uploadNappAsset when blossom servers + a signer are available, else
+      // a clear error tells the author to configure servers or paste a hash/URL.
+      const resolveAsset: NappAssetResolver = async (value: string) => {
+        if (classifyAssetInput(value) !== "path") {
+          return { hash: value, mime: deriveAssetMime(value) };
+        }
+        if (!config.servers || config.servers.length === 0) {
+          throw new Error(
+            `Cannot upload "${value}": configure blossom servers (or paste a sha256 hash / URL) for assets.`,
+          );
+        }
+        const signerResult = await createSigner({
+          sec: privateKey,
+          bunkerPubkey,
+        });
+        if ("error" in signerResult) {
+          throw new Error(
+            `Cannot upload "${value}": ${signerResult.error} (or paste a sha256 hash / URL).`,
+          );
+        }
+        return await uploadNappAsset(value, {
+          servers: config.servers,
+          relays: config.relays,
+          signer: signerResult.signer,
+        });
+      };
+
+      const napp = await collectNappListing({
+        prefill: {},
+        interactive: true,
+        resolveAsset,
+      });
+
+      // Validate before writing. On errors, WARN but still attach the scaffold so the
+      // author can fix `.nsite/config.json` by hand rather than losing their answers.
+      const nappErrors = validateNappConfig(napp);
+      if (nappErrors.length > 0) {
+        for (const e of nappErrors) {
+          console.log(colors.yellow(`  ${e.path}: ${e.message}`));
+        }
+        console.log(
+          colors.yellow(
+            "The napp section may need manual fixes in .nsite/config.json before deploying.",
+          ),
+        );
+      }
+      config.napp = napp;
+    } catch (e) {
+      // Graceful degradation: warn and still finish `nsyte init`.
+      const msg = e instanceof Error ? e.message : String(e);
       console.log(
         colors.yellow(
-          "The napp section may need manual fixes in .nsite/config.json before deploying.",
+          `Skipped napp section (you can add it later with \`nsyte napp init\`): ${msg}`,
         ),
       );
     }
-    config.napp = napp;
   }
 
   return { config, privateKey };
