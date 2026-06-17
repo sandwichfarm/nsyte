@@ -3,14 +3,11 @@ import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
-import {
-  formatValidationErrors,
-  validateConfigWithFeedback,
-} from "./config-validator.ts";
+import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
-import type { NappConfig } from "./napp/types.ts";
+import type { LangText, NappAsset, NappConfig } from "./napp/types.ts";
 import { NAPP_CATEGORIES } from "./napp/categories.ts";
 import { validateNappConfig } from "./napp/detect.ts";
 import { generateKeyPair } from "./nostr.ts";
@@ -113,9 +110,7 @@ export const defaultConfig: ProjectConfig = {
 function resolveConfigPath(customPath?: string): string {
   if (customPath) {
     // If custom path is provided, resolve it relative to CWD
-    return isAbsolute(customPath)
-      ? customPath
-      : resolve(Deno.cwd(), customPath);
+    return isAbsolute(customPath) ? customPath : resolve(Deno.cwd(), customPath);
   }
   // Default: .nsite/config.json in CWD
   return join(Deno.cwd(), configDir, projectFile);
@@ -182,9 +177,7 @@ export function writeProjectFile(
 
   // If a configPath is provided but resolves to the real project .nsite dir, block in tests
   if (isTestEnv && configPath) {
-    const resolved = isAbsolute(configPath)
-      ? configPath
-      : resolve(cwd, configPath);
+    const resolved = isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
     // Block if the resolved path is inside the actual nsyte project directory
     if (
       !resolved.includes("nsyte-test-") && !resolved.startsWith("/tmp/") &&
@@ -458,9 +451,7 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   ) {
     chosenRelays = defaultRelays;
   } else {
-    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) =>
-      r.length > 0
-    );
+    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
   }
 
   if (chosenRelays.length === 0) {
@@ -470,9 +461,7 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
 
   console.log(
     colors.cyan(
-      `Initiating Nostr Connect as '${appName}' on relays: ${
-        chosenRelays.join(", ")
-      }`,
+      `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
     ),
   );
   return initiateNostrConnect(appName, chosenRelays);
@@ -503,9 +492,7 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
   });
 
   try {
-    signer = choice === "qr"
-      ? await connectToBunkerWithQR()
-      : await connectToBunkerWithURI();
+    signer = choice === "qr" ? await connectToBunkerWithQR() : await connectToBunkerWithURI();
 
     if (!signer) {
       throw new Error("Failed to establish signer connection");
@@ -516,9 +503,7 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
     log.error(`Failed to connect to bunker: ${error}`);
     console.error(
       colors.red(
-        `Failed to connect to bunker: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
       ),
     );
     Deno.exit(1);
@@ -666,39 +651,75 @@ export function categoryLabel(category: string, subcategory: string): string {
  * {@link validateNappConfig} on the result before writing, warning (wizard) or
  * refusing to write (`napp init`) on errors.
  *
- * - `name` -> `{ value }`
+ * - `name` -> `{ value, lang? }` (lang only when provided)
  * - `icon.mime` defaults to `"image/png"` when omitted/blank
  * - `countries` defaults to `["*"]` when omitted/empty
- * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`)
+ * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`),
+ *   each carrying `lang` only when provided
+ * - `self`/`keyart`/`screenshots`/`tags`/`indexerRelays` are included ONLY when present
+ *   and non-empty
+ *
+ * All Phase-25 fields are OPTIONAL so every pre-existing call site keeps working unchanged.
  */
 export function buildNappConfigFromAnswers(answers: {
   name: string;
+  nameLang?: string;
   iconHash: string;
   iconMime?: string;
   categories: string[];
   countries?: string[];
   summary?: string;
+  summaryLang?: string;
   description?: string;
+  descriptionLang?: string;
+  self?: string;
+  keyart?: NappAsset;
+  screenshots?: NappAsset[];
+  tags?: string[];
+  indexerRelays?: string[];
 }): NappConfig {
+  const name: LangText = { value: answers.name };
+  if (answers.nameLang && answers.nameLang.trim()) {
+    name.lang = answers.nameLang;
+  }
+
   const napp: NappConfig = {
-    name: { value: answers.name },
+    name,
     icon: {
       hash: answers.iconHash,
-      mime: answers.iconMime && answers.iconMime.trim()
-        ? answers.iconMime
-        : "image/png",
+      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime : "image/png",
     },
     categories: answers.categories,
-    countries: (answers.countries && answers.countries.length)
-      ? answers.countries
-      : ["*"],
+    countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
   };
 
   if (answers.summary && answers.summary.trim()) {
     napp.summary = { value: answers.summary };
+    if (answers.summaryLang && answers.summaryLang.trim()) {
+      napp.summary.lang = answers.summaryLang;
+    }
   }
   if (answers.description && answers.description.trim()) {
     napp.description = { value: answers.description };
+    if (answers.descriptionLang && answers.descriptionLang.trim()) {
+      napp.description.lang = answers.descriptionLang;
+    }
+  }
+
+  if (answers.self && answers.self.trim()) {
+    napp.self = answers.self;
+  }
+  if (answers.keyart) {
+    napp.keyart = answers.keyart;
+  }
+  if (answers.screenshots && answers.screenshots.length > 0) {
+    napp.screenshots = answers.screenshots;
+  }
+  if (answers.tags && answers.tags.length > 0) {
+    napp.tags = answers.tags;
+  }
+  if (answers.indexerRelays && answers.indexerRelays.length > 0) {
+    napp.indexerRelays = answers.indexerRelays;
   }
 
   return napp;
@@ -774,10 +795,9 @@ async function interactiveSetup(): Promise<ProjectContext> {
         const defaultRelays = ["wss://relay.nsec.app"];
 
         const relayInput = await Input.prompt({
-          message:
-            `Enter relays (comma-separated), or press Enter for default (${
-              defaultRelays.join(", ")
-            }):`,
+          message: `Enter relays (comma-separated), or press Enter for default (${
+            defaultRelays.join(", ")
+          }):`,
           default: defaultRelays.join(", "),
         });
 
@@ -802,9 +822,7 @@ async function interactiveSetup(): Promise<ProjectContext> {
 
         console.log(
           colors.cyan(
-            `Initiating Nostr Connect as '${appName}' on relays: ${
-              chosenRelays.join(", ")
-            }`,
+            `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
           ),
         );
         signer = await initiateNostrConnect(appName, chosenRelays);
@@ -839,9 +857,7 @@ Generated and stored nbunksec string.`,
       log.error(`Failed to connect to bunker: ${error}`);
       console.error(
         colors.red(
-          `Failed to connect to bunker: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
         ),
       );
       Deno.exit(1);
@@ -893,8 +909,7 @@ Generated and stored nbunksec string.`,
   let siteId: string | null | undefined;
   if (siteType === "named") {
     const identifier = await Input.prompt({
-      message:
-        "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
+      message: "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
       validate: (input: string) => {
         const trimmed = input.trim();
         if (!trimmed) {
@@ -903,9 +918,7 @@ Generated and stored nbunksec string.`,
         const result = validateDTag(trimmed);
         if (!result.valid) {
           const suggestion = suggestIdentifier(trimmed);
-          return `${result.error}${
-            suggestion !== trimmed ? `. Try "${suggestion}"` : ""
-          }`;
+          return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
         }
         return true;
       },
