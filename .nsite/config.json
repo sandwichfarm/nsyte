@@ -11,5 +11,7 @@
     "https://blssm.us",
     "https://nostr.download",
     "https://cdn.hzrd149.com"
-  ]
+  ],
+  "title": "nsyte (testing)",
+  "description": "nsyte, but testing nsyte deploy to named site"
 }
