@@ -10,6 +10,7 @@ import { kinds } from "applesauce-core/helpers";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, NSITE_SNAPSHOT_KIND } from "./manifest.ts";
+import { NSITE_APP_LISTING_KIND, NSITE_RELEASE_NOTE_KIND } from "./napp/listing.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
@@ -23,6 +24,8 @@ export const PERMISSIONS = NostrConnectSigner.buildSigningPermissions([
   NSITE_ROOT_SITE_KIND, // NIP-XX root site manifest
   NSITE_NAME_SITE_KIND, // NIP-XX named site manifest
   NSITE_SNAPSHOT_KIND, // NIP-5A manifest snapshot
+  NSITE_APP_LISTING_KIND, // NIP-5B napp app listing (37348)
+  NSITE_RELEASE_NOTE_KIND, // NIP-5B napp release note (39108) — reserved for Phase 23, authorized now
   kinds.EventDeletion, // NIP-09 event deletion
 ]);
 
