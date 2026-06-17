@@ -4,6 +4,8 @@ import { describe, it } from "@std/testing/bdd";
 import {
   buildNappConfigFromAnswers,
   categoryLabel,
+  collectNappListing,
+  type NappAssetResolver,
   type ProjectConfig,
 } from "../../../src/lib/config.ts";
 import { isNapp, validateNappConfig } from "../../../src/lib/napp/detect.ts";
@@ -209,6 +211,54 @@ describe("buildNappConfigFromAnswers full NIP-5B field coverage", () => {
     assert(!("screenshots" in result), "screenshots absent");
     assert(!("tags" in result), "tags absent");
     assert(!("indexerRelays" in result), "indexerRelays absent");
+  });
+});
+
+describe("collectNappListing minimal-prefill regression (no upload, non-interactive)", () => {
+  it("preserves the pre-phase minimal single-field shape", async () => {
+    // A no-upload resolver: hash inputs round-trip via the boundary semantics.
+    const noUpload: NappAssetResolver = (value: string) =>
+      Promise.resolve({ hash: value, mime: "image/png" });
+
+    const napp = await collectNappListing({
+      prefill: {
+        name: "My App",
+        icon: "abc123",
+        iconMime: "image/png",
+        categories: ["napp.games:rpg"],
+        countries: ["*"],
+      },
+      interactive: false,
+      resolveAsset: noUpload,
+    });
+
+    assertEquals(napp, {
+      name: { value: "My App" },
+      icon: { hash: "abc123", mime: "image/png" },
+      categories: ["napp.games:rpg"],
+      countries: ["*"],
+    });
+    assertEquals(validateNappConfig(napp), []);
+  });
+
+  it("never calls the resolver when no asset inputs are present", async () => {
+    let called = false;
+    const failResolver: NappAssetResolver = (_v: string) => {
+      called = true;
+      return Promise.reject(new Error("should not resolve"));
+    };
+    const napp = await collectNappListing({
+      prefill: {
+        name: "App",
+        categories: ["napp.games:rpg"],
+        countries: ["*"],
+      },
+      interactive: false,
+      resolveAsset: failResolver,
+    });
+    assertEquals(called, false);
+    // icon stays empty (invalid) — validation is the caller's job, not the collector's.
+    assertEquals(napp.icon.hash, "");
   });
 });
 
