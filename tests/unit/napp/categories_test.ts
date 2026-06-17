@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.220.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   MAX_NAPP_CATEGORIES,
   NAPP_CATEGORIES,

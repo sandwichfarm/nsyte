@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.220.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { isNapp, validateNappConfig } from "../../../src/lib/napp/detect.ts";
 import type { NappConfig } from "../../../src/lib/napp/types.ts";
 

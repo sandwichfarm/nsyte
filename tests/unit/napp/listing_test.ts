@@ -171,12 +171,13 @@ describe("createAppListingTemplate — createdAt override", () => {
 describe("createAppListingEvent", () => {
   it("returns a signed event with id/pubkey/sig", async () => {
     const stub = {
-      signEvent: async (template: unknown) => ({
-        ...(template as Record<string, unknown>),
-        id: "deadbeef",
-        pubkey: "00".repeat(32),
-        sig: "00".repeat(64),
-      }),
+      signEvent: (template: unknown) =>
+        Promise.resolve({
+          ...(template as Record<string, unknown>),
+          id: "deadbeef",
+          pubkey: "00".repeat(32),
+          sig: "00".repeat(64),
+        }),
     } as unknown as ISigner;
     const ev = await createAppListingEvent(
       stub,

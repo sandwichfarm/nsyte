@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.220.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { validateConfig } from "../../../src/lib/config-validator.ts";
 import { readProjectFile } from "../../../src/lib/config.ts";
@@ -31,8 +31,7 @@ Deno.test("validateConfig - plain config (no napp) is valid (zero regression)", 
 Deno.test("validateConfig - plain full config still valid (zero regression)", () => {
   const result = validateConfig({
     ...plainConfig(),
-    bunkerPubkey:
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    bunkerPubkey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     id: "blog",
     title: "My Blog",
     description: "A blog",
