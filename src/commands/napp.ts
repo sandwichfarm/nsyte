@@ -25,25 +25,12 @@ import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { NAPP_CATEGORIES } from "../lib/napp/categories.ts";
 import { isNapp, validateNappConfig } from "../lib/napp/detect.ts";
-import {
-  nappIdentifier,
-  resolveIndexerRelays,
-} from "../lib/napp/identifier.ts";
-import {
-  createReleaseNoteEvent,
-  type ReleaseChanges,
-} from "../lib/napp/release.ts";
+import { nappIdentifier, resolveIndexerRelays } from "../lib/napp/identifier.ts";
+import { createReleaseNoteEvent, type ReleaseChanges } from "../lib/napp/release.ts";
 import { getManifestIdentifier } from "../lib/manifest.ts";
-import {
-  fetchSiteManifestEvent,
-  publishEventsToRelaysDetailed,
-} from "../lib/nostr.ts";
+import { fetchSiteManifestEvent, publishEventsToRelaysDetailed } from "../lib/nostr.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
-import {
-  resolvePubkey,
-  resolveRelays,
-  type ResolverOptions,
-} from "../lib/resolver-utils.ts";
+import { resolvePubkey, resolveRelays, type ResolverOptions } from "../lib/resolver-utils.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import nsyte from "./root.ts";
 
@@ -88,11 +75,13 @@ export function resolveNappIdentifier(
 
 /** `napp id` action: resolve config + author pubkey (no signing) and print the identifier. */
 async function nappIdAction(
-  options: { config?: string | boolean },
+  options: {
+    config?: string | boolean;
+    sec?: string;
+    pubkey?: string;
+  },
 ): Promise<void> {
-  const configPath = typeof options.config === "string"
-    ? options.config
-    : undefined;
+  const configPath = typeof options.config === "string" ? options.config : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -188,9 +177,7 @@ async function nappReleaseAction(
     sub?: string[];
   },
 ): Promise<void> {
-  const configPath = typeof options.config === "string"
-    ? options.config
-    : undefined;
+  const configPath = typeof options.config === "string" ? options.config : undefined;
   const projectConfig = readProjectFile(configPath);
   if (!projectConfig) {
     console.error(colors.red("No .nsite/config.json found."));
@@ -351,9 +338,7 @@ async function collectNappAnswers(): Promise<
     message: "Countries (comma-separated ISO codes, or * for worldwide):",
     default: "*",
   });
-  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) =>
-    c.length > 0
-  );
+  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
 
   const summary = await Input.prompt({ message: "Summary (optional):" });
   const description = await Input.prompt({
@@ -382,9 +367,7 @@ async function collectNappAnswers(): Promise<
 async function nappInitAction(
   options: { config?: string | boolean },
 ): Promise<void> {
-  const configPath = typeof options.config === "string"
-    ? options.config
-    : undefined;
+  const configPath = typeof options.config === "string" ? options.config : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -500,9 +483,7 @@ async function nappValidateAction(
   dir: string | undefined,
   options: { config?: string | boolean },
 ): Promise<void> {
-  const configPath = typeof options.config === "string"
-    ? options.config
-    : undefined;
+  const configPath = typeof options.config === "string" ? options.config : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -545,10 +526,13 @@ async function nappValidateAction(
   }
 
   // Informational identifier (best-effort; root sites have none).
+  // interactive=false: validate must never prompt for key setup — if no pubkey can be
+  // resolved non-interactively, silently skip the identifier line.
   try {
     const pubkey = await resolvePubkey(
       options as ResolverOptions,
       projectConfig,
+      false,
     );
     const id = resolveNappIdentifier(projectConfig, pubkey);
     console.log(colors.gray(`App identifier: ${id}`));
@@ -571,10 +555,27 @@ export function registerNappCommand(): void {
     // The global `-c/--config` (+ `--created-at`) live on the parent program, so the
     // action's options object carries them at runtime even though this standalone
     // Command's generics don't surface them — read them via a cast. `--sec/--relays/
-    // --pubkey` are NOT globals, so the `release` subcommand declares its own below.
+    // --pubkey` are NOT globals, so each subcommand that needs them declares its own.
+    // `id` is read-only (no signing): `--pubkey` lets a user print the identifier without
+    // a configured signer; `--sec` derives the pubkey from a key without storing it.
+    // (Relay hints come from config.relays inside resolveNappIdentifier.)
     .command("id", "Print the shareable + app identifier for this napp")
+    .option(
+      "--sec <secret:string>",
+      "Private key (nsec/hex), nbunksec, or bunker:// URL to derive the pubkey from",
+    )
+    .option(
+      "--pubkey <pubkey:string>",
+      "Public key (hex/npub) to encode into the identifier",
+    )
     .action(async (options) => {
-      await nappIdAction(options as unknown as { config?: string | boolean });
+      await nappIdAction(
+        options as unknown as {
+          config?: string | boolean;
+          sec?: string;
+          pubkey?: string;
+        },
+      );
     })
     // Future phases append `init`/`validate` here as
     //   .reset().command("...", "...").action(...)
