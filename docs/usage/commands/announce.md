@@ -5,6 +5,8 @@ description: Publish app handler events
 
 # announce
 
+> **Alias:** `annc` — `nsyte annc` is equivalent to `nsyte announce`.
+
 Publish NIP-89 app handler announcements and other metadata events without
 deploying files.
 

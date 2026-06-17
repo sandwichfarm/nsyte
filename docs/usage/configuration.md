@@ -19,9 +19,15 @@ Here's a basic configuration file with all available options:
 
 ```json
 {
+  "$schema": "https://nsyte.run/schemas/config.schema.json",
   "bunkerPubkey": "abc123...",
   "relays": ["wss://relay.damus.io", "wss://nos.lol"],
   "servers": ["https://blossom.server"],
+  "id": "blog",
+  "title": "My Blog",
+  "description": "A blog about decentralized applications",
+  "source": "https://github.com/me/my-blog",
+  "gatewayHostnames": ["nsite.lol"],
   "publishProfile": true,
   "publishRelayList": true,
   "publishServerList": true,
@@ -33,7 +39,8 @@ Here's a basic configuration file with all available options:
     "banner": "https://example.com/banner.jpg",
     "website": "https://mysite.com",
     "nip05": "me@mysite.com",
-    "lud16": "me@getalby.com"
+    "lud16": "me@getalby.com",
+    "lud06": "LNURL..."
   },
   "publishAppHandler": true,
   "appHandler": {
@@ -41,6 +48,7 @@ Here's a basic configuration file with all available options:
     "kinds": [1, 30023],
     "name": "My Event Viewer",
     "description": "Views notes and articles",
+    "icon": "https://example.com/logo.png",
     "platforms": {
       "web": {
         "patterns": [
@@ -54,17 +62,39 @@ Here's a basic configuration file with all available options:
 }
 ```
 
+Only `relays` and `servers` are required. Every other field is optional. Profile,
+relay list, and server list publishing is restricted to **root sites** (see below).
+
 ## Configuration Options
+
+### Schema
+
+- `$schema`: URL of the JSON schema for this file
+  (`https://nsyte.run/schemas/config.schema.json`). Optional; enables editor
+  autocompletion and validation.
 
 ### Authentication
 
-- `bunkerPubkey`: Your nostr bunker public key (if using NIP-46)
-- `privateKey`: Your nostr private key (if not using bunker)
+- `bunkerPubkey`: 64-character hex public key of your NIP-46 bunker. nsyte stores
+  only this reference; the bunker secret is kept in your OS keychain or encrypted
+  storage, never in this file. Private keys (`nsec`/hex) are never written to the
+  config — pass them per-command with `--sec` instead.
+
+### Site Identity
+
+- `id`: Site identifier for named sites (kind 35128). Must match `[a-z0-9-]{1,13}`
+  per NIP-5A. Use an empty string, `null`, or omit it for a root site (kind 15128)
+- `title`: Optional site title for the manifest event
+- `description`: Optional site description for the manifest event
+- `source`: Optional repository URL (`http`/`https`) recorded as the `source` tag
+  on manifest events
 
 ### Relays and Servers
 
-- `relays`: Array of WebSocket URLs for nostr relays
-- `servers`: Array of HTTP(S) URLs for blossom servers
+- `relays`: Array of WebSocket URLs for nostr relays (**required**)
+- `servers`: Array of HTTP(S) URLs for blossom servers (**required**)
+- `gatewayHostnames`: Array of gateway hostnames that can serve this nsite (default:
+  `["nsite.lol"]`)
 - `publishRelayList`: Whether to publish the relay list as kind 10002 (default: false, **root sites
   only**)
 - `publishServerList`: Whether to publish the Blossom server list as kind 10063 (default: false,
@@ -130,6 +160,8 @@ If you try to publish user-level metadata from a named site, you'll get a valida
 
 - `appHandler.name`: Optional display name for your handler
 - `appHandler.description`: Optional description of what your handler does
+- `appHandler.icon`: Optional app icon URL (published as `picture` in the handler
+  metadata)
 - `appHandler.platforms`: Platform-specific handler configurations
   - `platforms.web.patterns`: Array of custom URL patterns for web handling
     - `url`: Full URL pattern with `<bech32>` placeholder

@@ -16,32 +16,27 @@ nsyte config [options]
 
 ## Options
 
-- `-p, --path <path>` — Path to config file (default: `./nsyte.yaml`)
+- `-p, --path <path>` — Path to config file (default: `.nsite/config.json`)
 
 ## Keyboard Shortcuts
 
 ### Navigation
 
-- **Arrow keys** — Navigate between fields
-- **Enter** — Edit selected field
-- **Tab** — Move to next field
+- **↑ / ↓** — Move between fields
+- **Enter** — Edit a value, expand/collapse an object or array, or add a new item
+  (when the `[+]` row is selected)
 
 ### Editing
 
 - **s** — Save changes
 - **r** — Reset to original values
-- **ESC** — Collapse all expanded sections
+- **Delete / Backspace** — Delete the selected array item or object property
+- **ESC** — Collapse expanded sections (quits if nothing is expanded)
 
 ### Help & Exit
 
 - **h** — Show help
 - **q** — Quit (prompts if unsaved changes)
-
-### Array & Object Management
-
-- **+** — Add item to array (when array is selected)
-- **-** — Delete selected array item
-- **Space** — Expand/collapse objects and arrays
 
 ## Features
 
@@ -63,15 +58,13 @@ nsyte config [options]
 
 - **Bunker selection**: Browse and select from stored bunkers with display names
 - **Relay/server management**: Easy add/remove for arrays of URLs
-- **Profile metadata**: Edit profile fields with validation
-- **App handler config**: Configure NIP-89 handlers with visual editor
+- **Nested fields**: Edit profile and other nested values by expanding their objects
 
 ### Safety
 
 - Tracks unsaved changes with visual indicator
 - Confirms before quitting with unsaved changes
 - Validates configuration before saving
-- Creates backup of original file
 
 ## Examples
 
@@ -81,16 +74,10 @@ Edit project configuration:
 nsyte config
 ```
 
-Edit custom configuration file:
+Edit a custom configuration file:
 
 ```bash
-nsyte config -p /path/to/custom/config.yaml
-```
-
-Edit configuration in current directory:
-
-```bash
-nsyte config -p ./nsyte.yaml
+nsyte config -p /path/to/custom/config.json
 ```
 
 ## Workflow
@@ -113,7 +100,7 @@ The editor validates your configuration before saving:
 ## Tips
 
 - Use **bunker selector** to choose from stored bunkers instead of manually entering pubkeys
-- **Expand arrays** with Space to see and edit individual items
+- **Expand arrays and objects** with Enter to see and edit individual items
 - Press **h** for in-editor help and keyboard shortcuts
 - Configuration is only saved when you press **s** (safe to explore without changes)
 

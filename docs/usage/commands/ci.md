@@ -5,7 +5,8 @@ description: Create an nbunksec string for CI/CD use
 
 # ci
 
-Create an nbunksec string for CI/CD use (creates a new bunker connection).
+Create an nbunksec string for CI/CD use. The connection is **ephemeral** — the
+nbunksec is printed to stdout and never written to disk or the project config.
 
 ## Usage
 
@@ -17,8 +18,10 @@ nsyte ci [url]
 
 ## Description
 
-This command creates a new bunker connection and outputs an `nbunksec` string, which can be used as
-a secret in CI/CD pipelines for automated deployments.
+This command creates a bunker connection and outputs an `nbunksec` string, which can be used as
+a secret in CI/CD pipelines for automated deployments. Unlike `nsyte bunker connect`, it never
+persists the credential — it skips the keychain/encrypted store entirely, so the only copy is the
+string it prints.
 
 ## Example
 

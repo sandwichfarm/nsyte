@@ -9,7 +9,7 @@ Selectively delete nsite events from relays and optionally delete blobs from
 blossom servers. This command creates NIP-09 delete events to remove your
 published nsite files.
 
-> **Note**: The `purge` command still works as an alias but is deprecated.
+> **Note**: The `purge` and `prg` aliases still work but are deprecated.
 > Please use `delete` instead.
 
 ## Usage
@@ -123,8 +123,7 @@ The delete command requires authentication to:
 Authentication options (in order of precedence):
 
 1. `--sec` command line option
-2. Configured bunker in project
-3. Private key in project configuration
+2. Bunker configured in the project (`bunkerPubkey`)
 
 ## Safety Features
 
