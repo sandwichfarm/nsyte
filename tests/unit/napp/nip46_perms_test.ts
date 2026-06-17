@@ -11,13 +11,29 @@ import {
 
 describe("NIP-46 PERMISSIONS — napp kinds", () => {
   it("authorizes signing kind 37348 (app listing)", () => {
-    const has = PERMISSIONS.some((p) => p === `sign_event:${NSITE_APP_LISTING_KIND}`);
-    assertEquals(has, true, `missing sign_event:${NSITE_APP_LISTING_KIND} in ${PERMISSIONS.join(",")}`);
+    const has = PERMISSIONS.some((p) =>
+      p === `sign_event:${NSITE_APP_LISTING_KIND}`
+    );
+    assertEquals(
+      has,
+      true,
+      `missing sign_event:${NSITE_APP_LISTING_KIND} in ${
+        PERMISSIONS.join(",")
+      }`,
+    );
   });
 
   it("authorizes signing kind 39108 (release note)", () => {
-    const has = PERMISSIONS.some((p) => p === `sign_event:${NSITE_RELEASE_NOTE_KIND}`);
-    assertEquals(has, true, `missing sign_event:${NSITE_RELEASE_NOTE_KIND} in ${PERMISSIONS.join(",")}`);
+    const has = PERMISSIONS.some((p) =>
+      p === `sign_event:${NSITE_RELEASE_NOTE_KIND}`
+    );
+    assertEquals(
+      has,
+      true,
+      `missing sign_event:${NSITE_RELEASE_NOTE_KIND} in ${
+        PERMISSIONS.join(",")
+      }`,
+    );
   });
 
   it("preserves pre-existing authorized kinds (no regression)", () => {

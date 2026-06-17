@@ -13,7 +13,10 @@ function validNapp(): NappConfig {
 
 Deno.test("isNapp - plain nsite config (no napp) is false", () => {
   assertEquals(
-    isNapp({ relays: ["wss://relay.damus.io"], servers: ["https://cdn.hzrd149.com"] }),
+    isNapp({
+      relays: ["wss://relay.damus.io"],
+      servers: ["https://cdn.hzrd149.com"],
+    }),
     false,
   );
 });
@@ -93,7 +96,10 @@ Deno.test("validateNappConfig - countries ['*'] is valid", () => {
 });
 
 Deno.test("validateNappConfig - countries with codes is valid", () => {
-  assertEquals(validateNappConfig({ ...validNapp(), countries: ["US", "de"] }), []);
+  assertEquals(
+    validateNappConfig({ ...validNapp(), countries: ["US", "de"] }),
+    [],
+  );
 });
 
 Deno.test("validateNappConfig - mixing '*' and a code -> /napp/countries error", () => {
@@ -133,7 +139,10 @@ Deno.test("validateNappConfig - bad screenshots entry -> indexed path", () => {
     ...validNapp(),
     screenshots: [{ hash: "ok", mime: "image/png" }, { hash: "", mime: "" }],
   });
-  assertEquals(errs.some((e) => e.path.startsWith("/napp/screenshots/1")), true);
+  assertEquals(
+    errs.some((e) => e.path.startsWith("/napp/screenshots/1")),
+    true,
+  );
 });
 
 Deno.test("validateNappConfig - keyart same shape as icon", () => {
@@ -145,6 +154,9 @@ Deno.test("validateNappConfig - keyart same shape as icon", () => {
 });
 
 Deno.test("validateNappConfig - tags must be string[]", () => {
-  const errs = validateNappConfig({ ...validNapp(), tags: [1, 2] as unknown as string[] });
+  const errs = validateNappConfig({
+    ...validNapp(),
+    tags: [1, 2] as unknown as string[],
+  });
   assertEquals(errs.some((e) => e.path === "/napp/tags"), true);
 });

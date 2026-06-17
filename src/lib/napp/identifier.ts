@@ -16,7 +16,12 @@
  * so it CANNOT be encoded — the `napp id` command rejects it (see src/commands/napp.ts).
  * Relay hints are optional; decode MUST tolerate zero relays.
  */
-import { bytesToHex, bytesToUtf8, hexToBytes, utf8ToBytes } from "@noble/hashes/utils";
+import {
+  bytesToHex,
+  bytesToUtf8,
+  hexToBytes,
+  utf8ToBytes,
+} from "@noble/hashes/utils";
 
 // ---------------------------------------------------------------------------
 // base62 — verbatim port
@@ -90,7 +95,10 @@ export function base62ToBytes(str: string): Uint8Array {
  * order becomes type 2 (pubkey), type 1 (relays), type 0 (dTag).
  */
 function toTlv(values: Uint8Array[][]): Uint8Array {
-  const pairs: Array<[number, Uint8Array[]]> = values.map((vals, index) => [index, vals]);
+  const pairs: Array<[number, Uint8Array[]]> = values.map((
+    vals,
+    index,
+  ) => [index, vals]);
   pairs.reverse();
 
   const chunks: Uint8Array[] = [];
@@ -131,15 +139,29 @@ function tlvToObj(bytes: Uint8Array): Record<number, Uint8Array[]> {
 // ---------------------------------------------------------------------------
 
 const kindByChannel = { main: 35128, next: 35129, draft: 35130 };
-const prefixByChannel: Record<string, string> = { main: "+", next: "++", draft: "+++" };
-const channelByPrefix: Record<string, string> = { "+": "main", "++": "next", "+++": "draft" };
+const prefixByChannel: Record<string, string> = {
+  main: "+",
+  next: "++",
+  draft: "+++",
+};
+const channelByPrefix: Record<string, string> = {
+  "+": "main",
+  "++": "next",
+  "+++": "draft",
+};
 
 // ---------------------------------------------------------------------------
 // Low-level encode / decode
 // ---------------------------------------------------------------------------
 
 export function appEncode(
-  ref: { dTag: string; pubkey: string; kind: number; relays?: string[]; channel?: string },
+  ref: {
+    dTag: string;
+    pubkey: string;
+    kind: number;
+    relays?: string[];
+    channel?: string;
+  },
 ): string {
   const channel = ref.channel ||
     (Object.entries(kindByChannel).find(([, k]) => k === ref.kind)?.[0]);

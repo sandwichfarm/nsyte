@@ -63,11 +63,15 @@ describe("createAppListingTemplate — required tags (minimal)", () => {
     assertEquals(t.content, "");
     assertEquals(typeof t.created_at, "number");
   });
-  it('name without lang has no 3rd element', () => {
+  it("name without lang has no 3rd element", () => {
     assertEquals(t.tags.find((x) => x[0] === "name"), ["name", "My App"]);
   });
   it("icon without country has no 4th element", () => {
-    assertEquals(t.tags.find((x) => x[0] === "icon"), ["icon", "iconhash", "image/png"]);
+    assertEquals(t.tags.find((x) => x[0] === "icon"), [
+      "icon",
+      "iconhash",
+      "image/png",
+    ]);
   });
   it('exactly one ["c","*"]', () => {
     const c = t.tags.filter((x) => x[0] === "c");
@@ -82,7 +86,11 @@ describe("createAppListingTemplate — required tags (minimal)", () => {
   });
   it("no optional tags when absent", () => {
     for (const k of ["summary", "description", "keyart", "screenshot", "t"]) {
-      assertEquals(t.tags.find((x) => x[0] === k), undefined, `unexpected ${k}`);
+      assertEquals(
+        t.tags.find((x) => x[0] === k),
+        undefined,
+        `unexpected ${k}`,
+      );
     }
   });
   it("client tag present", () => {
@@ -96,24 +104,41 @@ describe("createAppListingTemplate — optionals (full)", () => {
     assertEquals(t.tags.find((x) => x[0] === "name"), ["name", "My App", "en"]);
   });
   it("icon with country", () => {
-    assertEquals(t.tags.find((x) => x[0] === "icon"), ["icon", "iconhash", "image/png", "US"]);
+    assertEquals(t.tags.find((x) => x[0] === "icon"), [
+      "icon",
+      "iconhash",
+      "image/png",
+      "US",
+    ]);
   });
   it('countries ["US","DE"] -> two c tags, no "*"', () => {
     const c = t.tags.filter((x) => x[0] === "c");
     assertEquals(c, [["c", "US"], ["c", "DE"]]);
   });
   it("self emitted with the configured pubkey", () => {
-    assertEquals(t.tags.find((x) => x[0] === "self"), ["self", "ab".repeat(32)]);
+    assertEquals(t.tags.find((x) => x[0] === "self"), [
+      "self",
+      "ab".repeat(32),
+    ]);
   });
   it("summary + description with lang", () => {
-    assertEquals(t.tags.find((x) => x[0] === "summary"), ["summary", "a short summary", "en"]);
+    assertEquals(t.tags.find((x) => x[0] === "summary"), [
+      "summary",
+      "a short summary",
+      "en",
+    ]);
     assertEquals(
       t.tags.find((x) => x[0] === "description"),
       ["description", "a long description", "de"],
     );
   });
   it("keyart with country", () => {
-    assertEquals(t.tags.find((x) => x[0] === "keyart"), ["keyart", "keyhash", "image/jpeg", "GB"]);
+    assertEquals(t.tags.find((x) => x[0] === "keyart"), [
+      "keyart",
+      "keyhash",
+      "image/jpeg",
+      "GB",
+    ]);
   });
   it("two screenshots in order, trailing country dropped", () => {
     const s = t.tags.filter((x) => x[0] === "screenshot");
@@ -129,7 +154,10 @@ describe("createAppListingTemplate — optionals (full)", () => {
     ]);
   });
   it("two t tags", () => {
-    assertEquals(t.tags.filter((x) => x[0] === "t"), [["t", "foo"], ["t", "bar"]]);
+    assertEquals(t.tags.filter((x) => x[0] === "t"), [["t", "foo"], [
+      "t",
+      "bar",
+    ]]);
   });
 });
 
@@ -150,7 +178,13 @@ describe("createAppListingEvent", () => {
         sig: "00".repeat(64),
       }),
     } as unknown as ISigner;
-    const ev = await createAppListingEvent(stub, "pub", minimalNapp, "my-site", 42);
+    const ev = await createAppListingEvent(
+      stub,
+      "pub",
+      minimalNapp,
+      "my-site",
+      42,
+    );
     assertEquals(ev.kind, 37348);
     assertEquals(ev.id, "deadbeef");
     assertEquals(ev.sig, "00".repeat(64));
@@ -170,7 +204,7 @@ describe("deriveListingDTag", () => {
   it('config { id: null } -> ""', () => {
     assertEquals(deriveListingDTag({ id: null }), "");
   });
-  it('named manifest event with d tag -> that d', () => {
+  it("named manifest event with d tag -> that d", () => {
     const manifest = {
       kind: 35128,
       tags: [["d", "my-site"], ["client", "nsyte"]],

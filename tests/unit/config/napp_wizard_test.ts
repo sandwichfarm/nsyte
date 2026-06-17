@@ -59,7 +59,7 @@ describe("buildNappConfigFromAnswers (pure assembly helper)", () => {
     assertEquals(blank.icon.mime, "image/png");
   });
 
-  it("defaults countries to [\"*\"] when omitted or empty", () => {
+  it('defaults countries to ["*"] when omitted or empty', () => {
     const omitted = buildNappConfigFromAnswers({
       name: "App",
       iconHash: "h",
@@ -76,7 +76,7 @@ describe("buildNappConfigFromAnswers (pure assembly helper)", () => {
     assertEquals(empty.countries, ["*"]);
   });
 
-  it("includes summary/description only when non-empty, never { value: \"\" }", () => {
+  it('includes summary/description only when non-empty, never { value: "" }', () => {
     const withOptionals = buildNappConfigFromAnswers({
       name: "App",
       iconHash: "h",
@@ -97,7 +97,10 @@ describe("buildNappConfigFromAnswers (pure assembly helper)", () => {
       description: "   ",
     });
     assert(!("summary" in withoutOptionals), "summary key should be absent");
-    assert(!("description" in withoutOptionals), "description key should be absent");
+    assert(
+      !("description" in withoutOptionals),
+      "description key should be absent",
+    );
   });
 
   it("is a pure shaper: invalid answers produce a config that fails validation (no throw)", () => {
@@ -107,7 +110,10 @@ describe("buildNappConfigFromAnswers (pure assembly helper)", () => {
       categories: ["napp.bogus:nope"],
       countries: ["*"],
     });
-    assert(validateNappConfig(result).length > 0, "invalid answers should surface errors");
+    assert(
+      validateNappConfig(result).length > 0,
+      "invalid answers should surface errors",
+    );
   });
 });
 

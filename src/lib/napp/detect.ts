@@ -53,10 +53,16 @@ function validateAsset(
     return;
   }
   if (!isNonEmptyString(value.hash)) {
-    errors.push({ path: `${path}/hash`, message: "must be a non-empty string" });
+    errors.push({
+      path: `${path}/hash`,
+      message: "must be a non-empty string",
+    });
   }
   if (!isNonEmptyString(value.mime)) {
-    errors.push({ path: `${path}/mime`, message: "must be a non-empty string" });
+    errors.push({
+      path: `${path}/mime`,
+      message: "must be a non-empty string",
+    });
   }
   if (
     value.country !== undefined &&
@@ -101,8 +107,14 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
   // categories (required string[])
   if (napp.categories === undefined) {
     errors.push({ path: "/napp/categories", message: "is required" });
-  } else if (!Array.isArray(napp.categories) || !napp.categories.every((c) => typeof c === "string")) {
-    errors.push({ path: "/napp/categories", message: "must be an array of strings" });
+  } else if (
+    !Array.isArray(napp.categories) ||
+    !napp.categories.every((c) => typeof c === "string")
+  ) {
+    errors.push({
+      path: "/napp/categories",
+      message: "must be an array of strings",
+    });
   } else {
     for (const msg of validateCategories(napp.categories)) {
       errors.push({ path: "/napp/categories", message: msg });
@@ -113,18 +125,25 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
   if (napp.countries === undefined) {
     errors.push({ path: "/napp/countries", message: "is required" });
   } else if (
-    !Array.isArray(napp.countries) || !napp.countries.every((c) => typeof c === "string")
+    !Array.isArray(napp.countries) ||
+    !napp.countries.every((c) => typeof c === "string")
   ) {
-    errors.push({ path: "/napp/countries", message: "must be an array of strings" });
+    errors.push({
+      path: "/napp/countries",
+      message: "must be an array of strings",
+    });
   } else {
     const countries = napp.countries as string[];
     const hasWildcard = countries.includes("*");
     if (countries.length === 0) {
       errors.push({
         path: "/napp/countries",
-        message: 'must be ["*"] (worldwide) or at least one ISO 3166-1 alpha-2 code',
+        message:
+          'must be ["*"] (worldwide) or at least one ISO 3166-1 alpha-2 code',
       });
-    } else if (hasWildcard && !(countries.length === 1 && countries[0] === "*")) {
+    } else if (
+      hasWildcard && !(countries.length === 1 && countries[0] === "*")
+    ) {
       errors.push({
         path: "/napp/countries",
         message: 'cannot mix "*" (worldwide) with specific country codes',
@@ -132,7 +151,8 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
     } else if (!hasWildcard && !countries.every((c) => ALPHA2.test(c))) {
       errors.push({
         path: "/napp/countries",
-        message: "each entry must be a 2-letter ISO 3166-1 alpha-2 code (or use [\"*\"])",
+        message:
+          'each entry must be a 2-letter ISO 3166-1 alpha-2 code (or use ["*"])',
       });
     }
   }
@@ -140,7 +160,10 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
   // self (optional 64-hex)
   if (napp.self !== undefined) {
     if (!(typeof napp.self === "string" && HEX64.test(napp.self))) {
-      errors.push({ path: "/napp/self", message: "must be a 64-character hex pubkey" });
+      errors.push({
+        path: "/napp/self",
+        message: "must be a 64-character hex pubkey",
+      });
     }
   }
 
@@ -170,8 +193,14 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
 
   // tags (optional string[])
   if (napp.tags !== undefined) {
-    if (!Array.isArray(napp.tags) || !napp.tags.every((t) => typeof t === "string")) {
-      errors.push({ path: "/napp/tags", message: "must be an array of strings" });
+    if (
+      !Array.isArray(napp.tags) ||
+      !napp.tags.every((t) => typeof t === "string")
+    ) {
+      errors.push({
+        path: "/napp/tags",
+        message: "must be an array of strings",
+      });
     }
   }
 

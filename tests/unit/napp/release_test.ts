@@ -24,7 +24,9 @@ const MANIFEST_ID = "ev".repeat(32);
  */
 const fakeSigner = {
   // deno-lint-ignore require-await
-  async signEvent(t: { kind: number; created_at: number; tags: string[][]; content: string }) {
+  async signEvent(
+    t: { kind: number; created_at: number; tags: string[][]; content: string },
+  ) {
     return {
       ...t,
       id: "f".repeat(64),

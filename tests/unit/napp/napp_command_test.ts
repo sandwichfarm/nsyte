@@ -15,7 +15,9 @@ const validNapp = {
   countries: ["*"],
 };
 
-function nappProjectConfig(overrides: Partial<ProjectConfig> = {}): ProjectConfig {
+function nappProjectConfig(
+  overrides: Partial<ProjectConfig> = {},
+): ProjectConfig {
   return {
     relays: [],
     servers: [],
@@ -46,19 +48,28 @@ describe("resolveNappIdentifier (pure helper)", () => {
 
   it("throws a clear error for a root site (empty id)", () => {
     const config = nappProjectConfig({ id: "" });
-    const err = assertThrows(() => resolveNappIdentifier(config, TEST_PUBKEY), Error);
+    const err = assertThrows(
+      () => resolveNappIdentifier(config, TEST_PUBKEY),
+      Error,
+    );
     assertStringIncludes(err.message, "named site");
   });
 
   it("throws a clear error for a root site (undefined id)", () => {
     const config = nappProjectConfig({ id: undefined });
-    const err = assertThrows(() => resolveNappIdentifier(config, TEST_PUBKEY), Error);
+    const err = assertThrows(
+      () => resolveNappIdentifier(config, TEST_PUBKEY),
+      Error,
+    );
     assertStringIncludes(err.message, "named site");
   });
 
   it("throws a clear error for a non-napp config", () => {
     const config = { relays: [], servers: [], id: "my-site" } as ProjectConfig;
-    const err = assertThrows(() => resolveNappIdentifier(config, TEST_PUBKEY), Error);
+    const err = assertThrows(
+      () => resolveNappIdentifier(config, TEST_PUBKEY),
+      Error,
+    );
     assertStringIncludes(err.message, "not a napp");
   });
 });

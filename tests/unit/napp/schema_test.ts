@@ -31,7 +31,8 @@ Deno.test("validateConfig - plain config (no napp) is valid (zero regression)", 
 Deno.test("validateConfig - plain full config still valid (zero regression)", () => {
   const result = validateConfig({
     ...plainConfig(),
-    bunkerPubkey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    bunkerPubkey:
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     id: "blog",
     title: "My Blog",
     description: "A blog",
@@ -103,7 +104,10 @@ Deno.test("readProjectFile - round-trips a valid napp config via temp dir", () =
     const nsiteDir = join(tmp, ".nsite");
     Deno.mkdirSync(nsiteDir);
     const configPath = join(nsiteDir, "config.json");
-    Deno.writeTextFileSync(configPath, JSON.stringify(validNappConfig(), null, 2));
+    Deno.writeTextFileSync(
+      configPath,
+      JSON.stringify(validNappConfig(), null, 2),
+    );
 
     const loaded = readProjectFile(configPath);
     assertEquals(loaded !== null, true);

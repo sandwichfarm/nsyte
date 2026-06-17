@@ -66,14 +66,22 @@ describe("deploy listing publish targeting (dedupe union)", () => {
     //   Array.from(new Set([...resolvedRelays, ...indexerRelays]))
     const resolvedRelays = ["wss://a", "wss://b"];
     const indexerRelays = ["wss://b", "wss://relay.44billion.net"];
-    const publishRelays = Array.from(new Set([...resolvedRelays, ...indexerRelays]));
-    assertEquals(publishRelays, ["wss://a", "wss://b", "wss://relay.44billion.net"]);
+    const publishRelays = Array.from(
+      new Set([...resolvedRelays, ...indexerRelays]),
+    );
+    assertEquals(publishRelays, [
+      "wss://a",
+      "wss://b",
+      "wss://relay.44billion.net",
+    ]);
   });
 
   it("keeps every resolved relay even when no indexer overlap", () => {
     const resolvedRelays = ["wss://a", "wss://b", "wss://c"];
     const indexerRelays = DEFAULT_NAPP_INDEXER_RELAYS;
-    const publishRelays = Array.from(new Set([...resolvedRelays, ...indexerRelays]));
+    const publishRelays = Array.from(
+      new Set([...resolvedRelays, ...indexerRelays]),
+    );
     assertEquals(publishRelays, [
       "wss://a",
       "wss://b",

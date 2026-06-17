@@ -13,7 +13,9 @@ import { isNapp, validateNappConfig } from "../../../src/lib/napp/detect.ts";
 describe("detectNip07InText (pure helper)", () => {
   it("detects window.nostr / getPublicKey usage", () => {
     assert(
-      detectNip07InText("if (window.nostr) { await window.nostr.getPublicKey(); }"),
+      detectNip07InText(
+        "if (window.nostr) { await window.nostr.getPublicKey(); }",
+      ),
     );
   });
   it("detects nostr-login import", () => {
@@ -47,7 +49,10 @@ describe("scanDirForNip07Evidence (temp dir)", () => {
   it("returns false when no scanned file contains a token", async () => {
     const dir = await Deno.makeTempDir();
     try {
-      await Deno.writeTextFile(join(dir, "index.html"), "<html><body>hello</body></html>");
+      await Deno.writeTextFile(
+        join(dir, "index.html"),
+        "<html><body>hello</body></html>",
+      );
       assertFalse(await scanDirForNip07Evidence(dir));
     } finally {
       await Deno.remove(dir, { recursive: true });
@@ -81,7 +86,10 @@ describe("assembleValidateReport (pure helper)", () => {
   });
 
   it("NIP-07 never flips ok to false", () => {
-    const r = assembleValidateReport({ structuralErrors: [], nip07Found: false });
+    const r = assembleValidateReport({
+      structuralErrors: [],
+      nip07Found: false,
+    });
     assert(r.ok);
     assertEquals(r.nip07, "warn");
   });
@@ -99,7 +107,10 @@ describe("validate wiring (no action call)", () => {
       countries: ["*"],
     });
     assert(errors.length > 0);
-    assertFalse(assembleValidateReport({ structuralErrors: errors, nip07Found: false }).ok);
+    assertFalse(
+      assembleValidateReport({ structuralErrors: errors, nip07Found: false })
+        .ok,
+    );
   });
 
   it("valid napp -> no structural errors -> ok=true", () => {
@@ -110,7 +121,10 @@ describe("validate wiring (no action call)", () => {
       countries: ["*"],
     });
     assertEquals(errors, []);
-    assert(assembleValidateReport({ structuralErrors: errors, nip07Found: false }).ok);
+    assert(
+      assembleValidateReport({ structuralErrors: errors, nip07Found: false })
+        .ok,
+    );
   });
 });
 

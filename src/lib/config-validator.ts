@@ -93,7 +93,10 @@ export function validateConfig(config: unknown): ValidationResult {
     }
 
     // Custom validation: profile object required when publishProfile is enabled
-    if (cfg.publishProfile && (!cfg.profile || Object.keys(cfg.profile).length === 0)) {
+    if (
+      cfg.publishProfile &&
+      (!cfg.profile || Object.keys(cfg.profile).length === 0)
+    ) {
       errors.push({
         path: "/profile",
         message:
@@ -168,19 +171,27 @@ export function suggestConfigFixes(errors: ValidationError[]): string[] {
       if (field === "relays") {
         suggestions.push("Add at least one relay URL to the 'relays' array");
       } else if (field === "servers") {
-        suggestions.push("Add at least one Blossom server URL to the 'servers' array");
+        suggestions.push(
+          "Add at least one Blossom server URL to the 'servers' array",
+        );
       }
     }
 
     // Platform enum values
-    if (error.path.includes("/platforms/") && error.message.includes("must be equal to one of")) {
-      suggestions.push("Valid platforms are: web, linux, windows, macos, android, ios");
+    if (
+      error.path.includes("/platforms/") &&
+      error.message.includes("must be equal to one of")
+    ) {
+      suggestions.push(
+        "Valid platforms are: web, linux, windows, macos, android, ios",
+      );
     }
 
     // Event kinds range
     if (
       error.path.includes("/kinds/") &&
-      (error.message.includes("must be <=") || error.message.includes("must be >="))
+      (error.message.includes("must be <=") ||
+        error.message.includes("must be >="))
     ) {
       suggestions.push("Event kinds must be between 0 and 65535");
     }

@@ -74,8 +74,17 @@ describe("collectDeployEvents — napp listing (kind 37348)", () => {
     const config = { ...baseConfig, napp };
     const events = collectDeployEvents(config, testFiles);
     const listing = events.find((e) => e.kind === 37348)!;
-    assertEquals(listing.template.tags.find((t) => t[0] === "name"), ["name", "My App"]);
-    assertEquals(listing.template.tags.filter((t) => t[0] === "c"), [["c", "*"]]);
-    assertEquals(listing.template.tags.filter((t) => t[0] === "l"), [["l", "napp.games:rpg"]]);
+    assertEquals(listing.template.tags.find((t) => t[0] === "name"), [
+      "name",
+      "My App",
+    ]);
+    assertEquals(listing.template.tags.filter((t) => t[0] === "c"), [[
+      "c",
+      "*",
+    ]]);
+    assertEquals(listing.template.tags.filter((t) => t[0] === "l"), [[
+      "l",
+      "napp.games:rpg",
+    ]]);
   });
 });

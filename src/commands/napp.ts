@@ -25,12 +25,25 @@ import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { NAPP_CATEGORIES } from "../lib/napp/categories.ts";
 import { isNapp, validateNappConfig } from "../lib/napp/detect.ts";
-import { nappIdentifier, resolveIndexerRelays } from "../lib/napp/identifier.ts";
-import { createReleaseNoteEvent, type ReleaseChanges } from "../lib/napp/release.ts";
+import {
+  nappIdentifier,
+  resolveIndexerRelays,
+} from "../lib/napp/identifier.ts";
+import {
+  createReleaseNoteEvent,
+  type ReleaseChanges,
+} from "../lib/napp/release.ts";
 import { getManifestIdentifier } from "../lib/manifest.ts";
-import { fetchSiteManifestEvent, publishEventsToRelaysDetailed } from "../lib/nostr.ts";
+import {
+  fetchSiteManifestEvent,
+  publishEventsToRelaysDetailed,
+} from "../lib/nostr.ts";
 import { createSigner } from "../lib/auth/signer-factory.ts";
-import { type ResolverOptions, resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import {
+  resolvePubkey,
+  resolveRelays,
+  type ResolverOptions,
+} from "../lib/resolver-utils.ts";
 import { getDisplayManager } from "../lib/display-mode.ts";
 import nsyte from "./root.ts";
 
@@ -48,7 +61,10 @@ const log = createLogger("napp");
  * Relay hints are OPTIONAL: the first up to 2 configured relays become type-1 TLV
  * hints. Decoding tolerates zero relays, so a config with no relays is fine.
  */
-export function resolveNappIdentifier(config: ProjectConfig, pubkey: string): string {
+export function resolveNappIdentifier(
+  config: ProjectConfig,
+  pubkey: string,
+): string {
   if (!isNapp(config)) {
     throw new Error(
       "This project is not a napp — add a `napp` section to .nsite/config.json (see `nsyte napp init`).",
@@ -71,8 +87,12 @@ export function resolveNappIdentifier(config: ProjectConfig, pubkey: string): st
 }
 
 /** `napp id` action: resolve config + author pubkey (no signing) and print the identifier. */
-async function nappIdAction(options: { config?: string | boolean }): Promise<void> {
-  const configPath = typeof options.config === "string" ? options.config : undefined;
+async function nappIdAction(
+  options: { config?: string | boolean },
+): Promise<void> {
+  const configPath = typeof options.config === "string"
+    ? options.config
+    : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -111,7 +131,9 @@ interface ReleaseFlags {
  * Build a {@link ReleaseChanges} object from the repeatable changelog flags, including a
  * category ONLY when its array is present and non-empty. Entries are kept as-is.
  */
-export function buildReleaseChangesFromFlags(flags: ReleaseFlags): ReleaseChanges {
+export function buildReleaseChangesFromFlags(
+  flags: ReleaseFlags,
+): ReleaseChanges {
   const changes: ReleaseChanges = {};
   const categories = ["fix", "add", "try", "cut", "sub"] as const;
   for (const category of categories) {
@@ -166,7 +188,9 @@ async function nappReleaseAction(
     sub?: string[];
   },
 ): Promise<void> {
-  const configPath = typeof options.config === "string" ? options.config : undefined;
+  const configPath = typeof options.config === "string"
+    ? options.config
+    : undefined;
   const projectConfig = readProjectFile(configPath);
   if (!projectConfig) {
     console.error(colors.red("No .nsite/config.json found."));
@@ -185,7 +209,10 @@ async function nappReleaseAction(
 
   // Resolve author pubkey (for the manifest FETCH) and write relays.
   const pubkey = await resolvePubkey(options as ResolverOptions, projectConfig);
-  const resolvedRelays = resolveRelays(options as ResolverOptions, projectConfig);
+  const resolvedRelays = resolveRelays(
+    options as ResolverOptions,
+    projectConfig,
+  );
 
   // Build the signer via the same factory deploy uses (sec > stored bunkerPubkey).
   const signerResult = await createSigner({
@@ -203,7 +230,11 @@ async function nappReleaseAction(
   const identifier = typeof projectConfig.id === "string" && projectConfig.id
     ? projectConfig.id
     : undefined;
-  const manifest = await fetchSiteManifestEvent(resolvedRelays, pubkey, identifier);
+  const manifest = await fetchSiteManifestEvent(
+    resolvedRelays,
+    pubkey,
+    identifier,
+  );
   if (!manifest) {
     console.error(
       colors.red(
@@ -222,7 +253,9 @@ async function nappReleaseAction(
       // fix/add/try/cut. Loop until the author submits a blank line.
       const collected: string[] = [];
       while (true) {
-        const entry = await Input.prompt({ message: "Changelog entry (blank to finish):" });
+        const entry = await Input.prompt({
+          message: "Changelog entry (blank to finish):",
+        });
         if (!entry || entry.trim().length === 0) break;
         collected.push(entry.trim());
       }
@@ -249,9 +282,13 @@ async function nappReleaseAction(
 
   // Publish to the deduped UNION of write relays and indexer relays (mirror deploy).
   const indexerRelays = resolveIndexerRelays(projectConfig);
-  const publishRelays = Array.from(new Set([...resolvedRelays, ...indexerRelays]));
+  const publishRelays = Array.from(
+    new Set([...resolvedRelays, ...indexerRelays]),
+  );
   console.log(colors.gray(`Indexer relays: ${indexerRelays.join(", ")}`));
-  const result = await publishEventsToRelaysDetailed(publishRelays, [releaseEvent]);
+  const result = await publishEventsToRelaysDetailed(publishRelays, [
+    releaseEvent,
+  ]);
 
   const eventResult = result.eventResults[0];
   const relayResults = eventResult?.relayResults ?? [];
@@ -259,12 +296,16 @@ async function nappReleaseAction(
     if (r.ok) {
       console.log(colors.green(`  ✓ ${r.relay}`));
     } else {
-      console.log(colors.red(`  ✗ ${r.relay}${r.message ? ` (${r.message})` : ""}`));
+      console.log(
+        colors.red(`  ✗ ${r.relay}${r.message ? ` (${r.message})` : ""}`),
+      );
     }
   }
 
   if (result.allEventsPublished) {
-    console.log(colors.green(`Release note published (kind 39108): ${releaseEvent.id}`));
+    console.log(
+      colors.green(`Release note published (kind 39108): ${releaseEvent.id}`),
+    );
   } else {
     console.error(colors.red("Failed to publish release note to all relays."));
     Deno.exit(1);
@@ -280,7 +321,9 @@ async function nappReleaseAction(
  * shape them with the SINGLE assembly helper. Interactive (not unit-tested); the pure
  * assembly/validation it feeds is covered by the wizard + init tests.
  */
-async function collectNappAnswers(): Promise<ReturnType<typeof buildNappConfigFromAnswers>> {
+async function collectNappAnswers(): Promise<
+  ReturnType<typeof buildNappConfigFromAnswers>
+> {
   const name = await Input.prompt({
     message: "App name:",
     validate: (v: string) => v.trim().length > 0 || "Name is required",
@@ -289,7 +332,10 @@ async function collectNappAnswers(): Promise<ReturnType<typeof buildNappConfigFr
     message: "Icon (sha256 hash or URL):",
     validate: (v: string) => v.trim().length > 0 || "Icon is required",
   });
-  const iconMime = await Input.prompt({ message: "Icon MIME type:", default: "image/png" });
+  const iconMime = await Input.prompt({
+    message: "Icon MIME type:",
+    default: "image/png",
+  });
 
   const category = await Select.prompt<string>({
     message: "Category",
@@ -305,17 +351,22 @@ async function collectNappAnswers(): Promise<ReturnType<typeof buildNappConfigFr
     message: "Countries (comma-separated ISO codes, or * for worldwide):",
     default: "*",
   });
-  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
+  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) =>
+    c.length > 0
+  );
 
   const summary = await Input.prompt({ message: "Summary (optional):" });
-  const description = await Input.prompt({ message: "Description (optional):" });
+  const description = await Input.prompt({
+    message: "Description (optional):",
+  });
 
   return buildNappConfigFromAnswers({
     name,
     iconHash,
     iconMime,
     categories: [label],
-    countries: (countries.length === 0 || (countries.length === 1 && countries[0] === "*"))
+    countries: (countries.length === 0 ||
+        (countries.length === 1 && countries[0] === "*"))
       ? ["*"]
       : countries,
     summary,
@@ -328,8 +379,12 @@ async function collectNappAnswers(): Promise<ReturnType<typeof buildNappConfigFr
  * napp, collect listing answers, validate, and write `{ ...projectConfig, napp }` back —
  * the spread preserves all unrelated keys (T-24-01).
  */
-async function nappInitAction(options: { config?: string | boolean }): Promise<void> {
-  const configPath = typeof options.config === "string" ? options.config : undefined;
+async function nappInitAction(
+  options: { config?: string | boolean },
+): Promise<void> {
+  const configPath = typeof options.config === "string"
+    ? options.config
+    : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -356,7 +411,11 @@ async function nappInitAction(options: { config?: string | boolean }): Promise<v
     for (const e of errors) {
       console.error(colors.red(`  ${e.path}: ${e.message}`));
     }
-    console.error(colors.red("napp section is invalid; not written. Fix the inputs and re-run."));
+    console.error(
+      colors.red(
+        "napp section is invalid; not written. Fix the inputs and re-run.",
+      ),
+    );
     Deno.exit(1);
   }
 
@@ -374,7 +433,12 @@ async function nappInitAction(options: { config?: string | boolean }): Promise<v
 // ---------------------------------------------------------------------------
 
 /** Evidence tokens (lowercased) that indicate NIP-07 (`window.nostr`) support. */
-const NIP07_TOKENS = ["window.nostr", "nostr-login", "nip07", "getpublickey"] as const;
+const NIP07_TOKENS = [
+  "window.nostr",
+  "nostr-login",
+  "nip07",
+  "getpublickey",
+] as const;
 
 /** True iff `text` contains any NIP-07 evidence token (case-insensitive). */
 export function detectNip07InText(text: string): boolean {
@@ -436,7 +500,9 @@ async function nappValidateAction(
   dir: string | undefined,
   options: { config?: string | boolean },
 ): Promise<void> {
-  const configPath = typeof options.config === "string" ? options.config : undefined;
+  const configPath = typeof options.config === "string"
+    ? options.config
+    : undefined;
   const projectConfig = readProjectFile(configPath);
 
   if (!projectConfig) {
@@ -480,7 +546,10 @@ async function nappValidateAction(
 
   // Informational identifier (best-effort; root sites have none).
   try {
-    const pubkey = await resolvePubkey(options as ResolverOptions, projectConfig);
+    const pubkey = await resolvePubkey(
+      options as ResolverOptions,
+      projectConfig,
+    );
     const id = resolveNappIdentifier(projectConfig, pubkey);
     console.log(colors.gray(`App identifier: ${id}`));
   } catch {
@@ -512,17 +581,47 @@ export function registerNappCommand(): void {
     // chains BEFORE the final subcommand (the last one omits `.reset()`).
     // release subcommand (LAST — no trailing .reset()).
     .reset()
-    .command("release", "Publish a kind-39108 changelog for the current app version")
-    .option("--sec <secret:string>", "Private key (nsec/hex), nbunksec, or bunker:// URL to sign with")
-    .option("--relays <relays:string>", "Comma-separated relay URLs (overrides config)")
-    .option("--pubkey <pubkey:string>", "Public key (hex/npub) to resolve the manifest for")
-    .option("--fix <text:string>", "Bug-fix changelog entry (repeatable)", { collect: true })
-    .option("--add <text:string>", "Added-feature changelog entry (repeatable)", { collect: true })
-    .option("--try <text:string>", "Experimental changelog entry (repeatable)", { collect: true })
-    .option("--cut <text:string>", "Removed-feature changelog entry (repeatable)", { collect: true })
-    .option("--sub <text:string>", "Generic changed/substitute changelog entry (repeatable)", {
+    .command(
+      "release",
+      "Publish a kind-39108 changelog for the current app version",
+    )
+    .option(
+      "--sec <secret:string>",
+      "Private key (nsec/hex), nbunksec, or bunker:// URL to sign with",
+    )
+    .option(
+      "--relays <relays:string>",
+      "Comma-separated relay URLs (overrides config)",
+    )
+    .option(
+      "--pubkey <pubkey:string>",
+      "Public key (hex/npub) to resolve the manifest for",
+    )
+    .option("--fix <text:string>", "Bug-fix changelog entry (repeatable)", {
       collect: true,
     })
+    .option(
+      "--add <text:string>",
+      "Added-feature changelog entry (repeatable)",
+      { collect: true },
+    )
+    .option(
+      "--try <text:string>",
+      "Experimental changelog entry (repeatable)",
+      { collect: true },
+    )
+    .option(
+      "--cut <text:string>",
+      "Removed-feature changelog entry (repeatable)",
+      { collect: true },
+    )
+    .option(
+      "--sub <text:string>",
+      "Generic changed/substitute changelog entry (repeatable)",
+      {
+        collect: true,
+      },
+    )
     .action(async (options) => {
       await nappReleaseAction(
         options as unknown as {
@@ -547,10 +646,16 @@ export function registerNappCommand(): void {
     })
     // validate subcommand (LAST — no trailing .reset()). Positional [dir] only, NO `.option`.
     .reset()
-    .command("validate", "Check napp readiness: required fields, categories, and a NIP-07 heuristic")
+    .command(
+      "validate",
+      "Check napp readiness: required fields, categories, and a NIP-07 heuristic",
+    )
     .arguments("[dir:string]")
     .action(async (options, dir) => {
-      await nappValidateAction(dir, options as unknown as { config?: string | boolean });
+      await nappValidateAction(
+        dir,
+        options as unknown as { config?: string | boolean },
+      );
     });
 
   nsyte.command("napp", napp);

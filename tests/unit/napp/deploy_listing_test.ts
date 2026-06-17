@@ -47,7 +47,11 @@ describe("buildDeployListing", () => {
     const config = { ...baseConfig, napp };
     const t = buildDeployListing(config, "pub", "")!;
     assertEquals(t.tags.find((x) => x[0] === "name"), ["name", "My App"]);
-    assertEquals(t.tags.find((x) => x[0] === "icon"), ["icon", "iconhash", "image/png"]);
+    assertEquals(t.tags.find((x) => x[0] === "icon"), [
+      "icon",
+      "iconhash",
+      "image/png",
+    ]);
     assertEquals(t.tags.filter((x) => x[0] === "c"), [["c", "*"]]);
     assertEquals(t.tags.filter((x) => x[0] === "l"), [["l", "napp.games:rpg"]]);
   });

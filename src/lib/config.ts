@@ -3,7 +3,10 @@ import { Input, Secret, Select } from "@cliffy/prompt";
 import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
-import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
+import {
+  formatValidationErrors,
+  validateConfigWithFeedback,
+} from "./config-validator.ts";
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
@@ -110,7 +113,9 @@ export const defaultConfig: ProjectConfig = {
 function resolveConfigPath(customPath?: string): string {
   if (customPath) {
     // If custom path is provided, resolve it relative to CWD
-    return isAbsolute(customPath) ? customPath : resolve(Deno.cwd(), customPath);
+    return isAbsolute(customPath)
+      ? customPath
+      : resolve(Deno.cwd(), customPath);
   }
   // Default: .nsite/config.json in CWD
   return join(Deno.cwd(), configDir, projectFile);
@@ -137,7 +142,8 @@ function sanitizeBunkerUrl(url: string): string {
 
     // Append relay parameters
     const relays = parsedUrl.searchParams.getAll("relay");
-    const relayParams = relays.map((r) => `relay=${encodeURIComponent(r)}`).join("&");
+    const relayParams = relays.map((r) => `relay=${encodeURIComponent(r)}`)
+      .join("&");
 
     return relayParams ? `${sanitized}?${relayParams}` : sanitized;
   } catch (error) {
@@ -151,7 +157,10 @@ function sanitizeBunkerUrl(url: string): string {
  * @param config - The project configuration to write
  * @param configPath - Optional custom path to config file
  */
-export function writeProjectFile(config: ProjectConfig, configPath?: string): void {
+export function writeProjectFile(
+  config: ProjectConfig,
+  configPath?: string,
+): void {
   const cwd = Deno.cwd();
 
   // Prevent tests from ever writing to the real project config.
@@ -164,7 +173,8 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
     hasDenoTestingEnv = false;
   }
   const isTestEnv = hasDenoTestingEnv ||
-    cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/");
+    cwd.includes("nsyte-test-") || cwd.includes("/tmp/") ||
+    cwd.includes("/var/folders/");
 
   if (isTestEnv && !configPath) {
     return;
@@ -172,7 +182,9 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
 
   // If a configPath is provided but resolves to the real project .nsite dir, block in tests
   if (isTestEnv && configPath) {
-    const resolved = isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
+    const resolved = isAbsolute(configPath)
+      ? configPath
+      : resolve(cwd, configPath);
     // Block if the resolved path is inside the actual nsyte project directory
     if (
       !resolved.includes("nsyte-test-") && !resolved.startsWith("/tmp/") &&
@@ -188,7 +200,9 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
   try {
     // Validate the file extension to prevent accidental YAML file creation
     if (!projectPath.endsWith(".json")) {
-      throw new Error(`Invalid config file path: ${projectPath}. Config must be a .json file.`);
+      throw new Error(
+        `Invalid config file path: ${projectPath}. Config must be a .json file.`,
+      );
     }
 
     ensureDirSync(dirname(projectPath));
@@ -206,7 +220,9 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
 
     // Sanitize bunker URL if present to remove secrets
     if (sanitizedData.bunkerPubkey) {
-      sanitizedData.bunkerPubkey = sanitizeBunkerUrl(sanitizedData.bunkerPubkey);
+      sanitizedData.bunkerPubkey = sanitizeBunkerUrl(
+        sanitizedData.bunkerPubkey,
+      );
     }
 
     // Create backup of existing config if it exists
@@ -233,7 +249,10 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
  * @param validateSchema - Whether to validate the config against the schema (default: true)
  * @returns The project configuration or null if not found
  */
-export function readProjectFile(configPath?: string, validateSchema = true): ProjectConfig | null {
+export function readProjectFile(
+  configPath?: string,
+  validateSchema = true,
+): ProjectConfig | null {
   const projectPath = resolveConfigPath(configPath);
   const cwd = Deno.cwd();
 
@@ -245,11 +264,17 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
     const ymlPath = join(configDirPath, "config.yml");
 
     if (fileExists(yamlPath) || fileExists(ymlPath)) {
-      console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
       console.error(
-        colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."),
+        colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"),
       );
-      console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
+      console.error(
+        colors.yellow(
+          "nsyte uses config.json, not YAML. The YAML file may be from another tool.",
+        ),
+      );
+      console.error(
+        colors.yellow("Please remove the YAML file to avoid confusion.\n"),
+      );
     }
   }
 
@@ -266,8 +291,14 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
       config = JSON.parse(fileContent);
     } catch (e) {
       console.error(colors.red("\nFailed to parse configuration file:"));
-      console.error(colors.red(`  ${e instanceof Error ? e.message : String(e)}`));
-      console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
+      console.error(
+        colors.red(`  ${e instanceof Error ? e.message : String(e)}`),
+      );
+      console.error(
+        colors.yellow(
+          "\nPlease ensure .nsite/config.json contains valid JSON.",
+        ),
+      );
       throw new Error("Invalid JSON in configuration file");
     }
 
@@ -276,7 +307,11 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
       const validation = validateConfigWithFeedback(config);
 
       if (!validation.valid) {
-        console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
+        console.error(
+          colors.red(
+            "\nConfiguration validation failed in .nsite/config.json:",
+          ),
+        );
         console.error(formatValidationErrors(validation.errors));
 
         if (validation.suggestions.length > 0) {
@@ -285,7 +320,9 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
         }
 
         console.log(
-          colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."),
+          colors.dim(
+            "\nYou can run 'nsyte validate' for more detailed validation information.",
+          ),
         );
 
         throw new Error("Invalid configuration format");
@@ -366,11 +403,17 @@ export async function setupProject(
         relays: [],
         servers: [],
       };
-      log.debug("Running in non-interactive mode with no existing configuration");
+      log.debug(
+        "Running in non-interactive mode with no existing configuration",
+      );
       return { config, privateKey: undefined };
     }
 
-    console.log(colors.cyan("No existing project configuration found. Setting up a new one:"));
+    console.log(
+      colors.cyan(
+        "No existing project configuration found. Setting up a new one:",
+      ),
+    );
     const setupResult = await interactiveSetup();
     config = setupResult.config;
     privateKey = setupResult.privateKey;
@@ -410,10 +453,14 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   });
 
   let chosenRelays: string[];
-  if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+  if (
+    relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")
+  ) {
     chosenRelays = defaultRelays;
   } else {
-    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) =>
+      r.length > 0
+    );
   }
 
   if (chosenRelays.length === 0) {
@@ -422,7 +469,11 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   }
 
   console.log(
-    colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`),
+    colors.cyan(
+      `Initiating Nostr Connect as '${appName}' on relays: ${
+        chosenRelays.join(", ")
+      }`,
+    ),
   );
   return initiateNostrConnect(appName, chosenRelays);
 }
@@ -452,7 +503,9 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
   });
 
   try {
-    signer = choice === "qr" ? await connectToBunkerWithQR() : await connectToBunkerWithURI();
+    signer = choice === "qr"
+      ? await connectToBunkerWithQR()
+      : await connectToBunkerWithURI();
 
     if (!signer) {
       throw new Error("Failed to establish signer connection");
@@ -463,7 +516,9 @@ async function newBunker(): Promise<NostrConnectSigner | undefined> {
     log.error(`Failed to connect to bunker: ${error}`);
     console.error(
       colors.red(
-        `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to connect to bunker: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       ),
     );
     Deno.exit(1);
@@ -526,7 +581,9 @@ async function selectKeySource(
   if (keyChoice === "generate") {
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
-    console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+    console.log(
+      colors.green(`Generated new private key: ${keyPair.privateKey}`),
+    );
     console.log(
       colors.yellow(
         "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
@@ -570,7 +627,9 @@ async function selectKeySource(
 
     config.bunkerPubkey = selectedPubkey;
     console.log(
-      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+      colors.green(
+        `Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`,
+      ),
     );
     configChanged = originalBunkerPubkey !== selectedPubkey;
   }
@@ -625,10 +684,14 @@ export function buildNappConfigFromAnswers(answers: {
     name: { value: answers.name },
     icon: {
       hash: answers.iconHash,
-      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime : "image/png",
+      mime: answers.iconMime && answers.iconMime.trim()
+        ? answers.iconMime
+        : "image/png",
     },
     categories: answers.categories,
-    countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
+    countries: (answers.countries && answers.countries.length)
+      ? answers.countries
+      : ["*"],
   };
 
   if (answers.summary && answers.summary.trim()) {
@@ -681,7 +744,9 @@ async function interactiveSetup(): Promise<ProjectContext> {
   if (keyChoice === "generate") {
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
-    console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+    console.log(
+      colors.green(`Generated new private key: ${keyPair.privateKey}`),
+    );
     console.log(
       colors.yellow(
         "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
@@ -709,27 +774,37 @@ async function interactiveSetup(): Promise<ProjectContext> {
         const defaultRelays = ["wss://relay.nsec.app"];
 
         const relayInput = await Input.prompt({
-          message: `Enter relays (comma-separated), or press Enter for default (${
-            defaultRelays.join(", ")
-          }):`,
+          message:
+            `Enter relays (comma-separated), or press Enter for default (${
+              defaultRelays.join(", ")
+            }):`,
           default: defaultRelays.join(", "),
         });
 
         let chosenRelays: string[];
-        if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+        if (
+          relayInput.trim() === "" ||
+          relayInput.trim() === defaultRelays.join(", ")
+        ) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((
+            r,
+          ) => r.length > 0);
         }
 
         if (chosenRelays.length === 0) {
-          console.log(colors.yellow("No relays provided. Using default relays."));
+          console.log(
+            colors.yellow("No relays provided. Using default relays."),
+          );
           chosenRelays = defaultRelays;
         }
 
         console.log(
           colors.cyan(
-            `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+            `Initiating Nostr Connect as '${appName}' on relays: ${
+              chosenRelays.join(", ")
+            }`,
           ),
         );
         signer = await initiateNostrConnect(appName, chosenRelays);
@@ -754,13 +829,19 @@ async function interactiveSetup(): Promise<ProjectContext> {
       const nbunkString = getNbunkString(signer);
       await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
 
-      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
-Generated and stored nbunksec string.`));
+      console.log(
+        colors.green(
+          `Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
+Generated and stored nbunksec string.`,
+        ),
+      );
     } catch (error) {
       log.error(`Failed to connect to bunker: ${error}`);
       console.error(
         colors.red(
-          `Failed to connect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to connect to bunker: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         ),
       );
       Deno.exit(1);
@@ -791,7 +872,9 @@ Generated and stored nbunksec string.`));
 
     bunkerPubkey = selectedPubkey;
     console.log(
-      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+      colors.green(
+        `Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`,
+      ),
     );
   }
 
@@ -800,14 +883,18 @@ Generated and stored nbunksec string.`));
     message: "What type of site are you creating?",
     options: [
       { name: "Root site - e.g., npub1xxxx.nsite.lol", value: "root" },
-      { name: "Named site - e.g., {base36pubkey}blog.nsite.lol", value: "named" },
+      {
+        name: "Named site - e.g., {base36pubkey}blog.nsite.lol",
+        value: "named",
+      },
     ],
   });
 
   let siteId: string | null | undefined;
   if (siteType === "named") {
     const identifier = await Input.prompt({
-      message: "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
+      message:
+        "Enter site identifier (lowercase, max 13 chars, e.g., blog, my-site):",
       validate: (input: string) => {
         const trimmed = input.trim();
         if (!trimmed) {
@@ -816,7 +903,9 @@ Generated and stored nbunksec string.`));
         const result = validateDTag(trimmed);
         if (!result.valid) {
           const suggestion = suggestIdentifier(trimmed);
-          return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
+          return `${result.error}${
+            suggestion !== trimmed ? `. Try "${suggestion}"` : ""
+          }`;
         }
         return true;
       },
@@ -838,8 +927,13 @@ Generated and stored nbunksec string.`));
   console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
   const relays = await promptForUrls("Enter relay URL:", popularRelays);
 
-  console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
-  const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
+  console.log(
+    colors.cyan("\nEnter blossom server URLs (leave empty when done):"),
+  );
+  const servers = await promptForUrls(
+    "Enter blossom server URL:",
+    popularBlossomServers,
+  );
 
   const config: ProjectConfig = {
     "$schema": CONFIG_SCHEMA_URL,
@@ -896,14 +990,17 @@ Generated and stored nbunksec string.`));
       .filter((c) => c.length > 0);
 
     const summary = await Input.prompt({ message: "Summary (optional):" });
-    const description = await Input.prompt({ message: "Description (optional):" });
+    const description = await Input.prompt({
+      message: "Description (optional):",
+    });
 
     const napp = buildNappConfigFromAnswers({
       name,
       iconHash,
       iconMime,
       categories: [label],
-      countries: (countries.length === 0 || (countries.length === 1 && countries[0] === "*"))
+      countries: (countries.length === 0 ||
+          (countries.length === 1 && countries[0] === "*"))
         ? ["*"]
         : countries,
       summary,
@@ -932,7 +1029,10 @@ Generated and stored nbunksec string.`));
 /**
  * Prompt for URLs with suggestions
  */
-async function promptForUrls(message: string, suggestions: string[]): Promise<string[]> {
+async function promptForUrls(
+  message: string,
+  suggestions: string[],
+): Promise<string[]> {
   const urls: string[] = [];
 
   while (true) {

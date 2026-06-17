@@ -205,7 +205,13 @@
                         "description": "Supported entity types for this pattern",
                         "items": {
                           "type": "string",
-                          "enum": ["nevent", "naddr", "nprofile", "note", "npub"]
+                          "enum": [
+                            "nevent",
+                            "naddr",
+                            "nprofile",
+                            "note",
+                            "npub"
+                          ]
                         }
                       }
                     },

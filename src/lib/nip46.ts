@@ -9,8 +9,15 @@ import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { kinds } from "applesauce-core/helpers";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
 import { createLogger } from "./logger.ts";
-import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, NSITE_SNAPSHOT_KIND } from "./manifest.ts";
-import { NSITE_APP_LISTING_KIND, NSITE_RELEASE_NOTE_KIND } from "./napp/listing.ts";
+import {
+  NSITE_NAME_SITE_KIND,
+  NSITE_ROOT_SITE_KIND,
+  NSITE_SNAPSHOT_KIND,
+} from "./manifest.ts";
+import {
+  NSITE_APP_LISTING_KIND,
+  NSITE_RELEASE_NOTE_KIND,
+} from "./napp/listing.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
 const log = createLogger("nip46");
@@ -384,9 +391,13 @@ export async function importFromNbunk(
     const clientKey = hexToBytes(info.local_key);
 
     log.debug(
-      `Creating NostrConnectSigner with remote: ${info.pubkey}, relays: ${info.relays.join(", ")}`,
+      `Creating NostrConnectSigner with remote: ${info.pubkey}, relays: ${
+        info.relays.join(", ")
+      }`,
     );
-    log.debug(`Pool subscription method: ${NostrConnectSigner.subscriptionMethod}`);
+    log.debug(
+      `Pool subscription method: ${NostrConnectSigner.subscriptionMethod}`,
+    );
     log.debug(`Pool publish method: ${NostrConnectSigner.publishMethod}`);
 
     const signer = new NostrConnectSigner({
@@ -401,7 +412,10 @@ export async function importFromNbunk(
       // Add timeout to prevent hanging
       const connectPromise = signer.connect();
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Bunker connection timeout after 30s")), 30000);
+        setTimeout(
+          () => reject(new Error("Bunker connection timeout after 30s")),
+          30000,
+        );
       });
 
       log.debug("Waiting for connection or timeout...");
@@ -419,7 +433,9 @@ export async function importFromNbunk(
     } catch (error: unknown) {
       await signer.close();
 
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
       log.error(
         `Failed to establish session with bunker from nbunksec: ${errorMessage}`,
       );
@@ -532,7 +548,9 @@ export async function initiateNostrConnect(
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
       log.error(
-        `Connection explicitly timed out after ${connectTimeoutMs / 1000} seconds`,
+        `Connection explicitly timed out after ${
+          connectTimeoutMs / 1000
+        } seconds`,
       );
       reject(
         new Error(

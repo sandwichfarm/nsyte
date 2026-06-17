@@ -23,7 +23,12 @@ export const NSITE_APP_LISTING_KIND = 37348;
 export const NSITE_RELEASE_NOTE_KIND = 39108;
 
 /** Build an asset-style tag, dropping the trailing `country` element when undefined. */
-function assetTag(name: string, hash: string, mime: string, country?: string): string[] {
+function assetTag(
+  name: string,
+  hash: string,
+  mime: string,
+  country?: string,
+): string[] {
   return country ? [name, hash, mime, country] : [name, hash, mime];
 }
 
@@ -46,7 +51,9 @@ function langTag(name: string, value: string, lang?: string): string[] {
  *    which yields the d for named sites and "" for root sites.
  *  - a config-shaped object pre-publish (has `id`): returns `source.id ?? ""`.
  */
-export function deriveListingDTag(source: { id?: string | null } | NostrEvent): string {
+export function deriveListingDTag(
+  source: { id?: string | null } | NostrEvent,
+): string {
   // Signed manifest event branch: has a numeric kind and a tags array.
   if (
     typeof (source as NostrEvent).kind === "number" &&
@@ -96,7 +103,9 @@ export function createAppListingTemplate(
   tags.push(langTag("name", napp.name.value, napp.name.lang));
 
   // 3. icon (country optional).
-  tags.push(assetTag("icon", napp.icon.hash, napp.icon.mime, napp.icon.country));
+  tags.push(
+    assetTag("icon", napp.icon.hash, napp.icon.mime, napp.icon.country),
+  );
 
   // 4. one c tag per country ("*" worldwide -> a single ["c","*"]).
   for (const code of napp.countries) {
@@ -115,12 +124,21 @@ export function createAppListingTemplate(
 
   // 7. description.
   if (napp.description) {
-    tags.push(langTag("description", napp.description.value, napp.description.lang));
+    tags.push(
+      langTag("description", napp.description.value, napp.description.lang),
+    );
   }
 
   // 8. keyart.
   if (napp.keyart) {
-    tags.push(assetTag("keyart", napp.keyart.hash, napp.keyart.mime, napp.keyart.country));
+    tags.push(
+      assetTag(
+        "keyart",
+        napp.keyart.hash,
+        napp.keyart.mime,
+        napp.keyart.country,
+      ),
+    );
   }
 
   // 9. one screenshot per entry, in order.

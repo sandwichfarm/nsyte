@@ -4,11 +4,11 @@ import { describe, it } from "@std/testing/bdd";
 import {
   appDecode,
   appEncode,
-  base62ToBytes,
   BASE62_ALPHABET,
+  base62ToBytes,
   bytesToBase62,
-  DEFAULT_NAPP_INDEXER_RELAYS,
   decodeNappIdentifier,
+  DEFAULT_NAPP_INDEXER_RELAYS,
   nappIdentifier,
   resolveIndexerRelays,
 } from "../../../src/lib/napp/identifier.ts";
@@ -136,7 +136,12 @@ describe("appEncode / appDecode channels", () => {
   it("rejects a pubkey TLV value that is not 32 bytes on decode", () => {
     // Encode a deliberately short (2-byte) pubkey; decode must reject the
     // non-32-byte pubkey TLV value.
-    const entity = appEncode({ dTag: "x", pubkey: "abcd", kind: 35128, relays: [] });
+    const entity = appEncode({
+      dTag: "x",
+      pubkey: "abcd",
+      kind: 35128,
+      relays: [],
+    });
     assertThrows(() => appDecode(entity), Error, "invalid pubkey length");
   });
 });
@@ -229,7 +234,10 @@ describe("indexer relays", () => {
   });
 
   it("returns the default when napp present but indexerRelays unset", () => {
-    assertEquals(resolveIndexerRelays({ napp: {} }), DEFAULT_NAPP_INDEXER_RELAYS);
+    assertEquals(
+      resolveIndexerRelays({ napp: {} }),
+      DEFAULT_NAPP_INDEXER_RELAYS,
+    );
   });
 
   it("returns the default for a plain config without a napp section", () => {
