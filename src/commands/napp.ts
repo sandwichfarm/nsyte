@@ -12,6 +12,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Command } from "@cliffy/command";
 import { Input, Select } from "@cliffy/prompt";
+import { walk } from "@std/fs";
 import type { NostrEvent } from "applesauce-core/helpers";
 import {
   buildNappConfigFromAnswers,
@@ -368,6 +369,127 @@ async function nappInitAction(options: { config?: string | boolean }): Promise<v
   );
 }
 
+// ---------------------------------------------------------------------------
+// `napp validate` — structural validation (hard-fail) + NIP-07 heuristic (warn-only)
+// ---------------------------------------------------------------------------
+
+/** Evidence tokens (lowercased) that indicate NIP-07 (`window.nostr`) support. */
+const NIP07_TOKENS = ["window.nostr", "nostr-login", "nip07", "getpublickey"] as const;
+
+/** True iff `text` contains any NIP-07 evidence token (case-insensitive). */
+export function detectNip07InText(text: string): boolean {
+  const lower = text.toLowerCase();
+  return NIP07_TOKENS.some((t) => lower.includes(t));
+}
+
+/**
+ * Recursively scan `dir` for built JS/HTML files containing NIP-07 evidence. Read-only
+ * over a fixed extension allow-list; walks ONLY the given dir (T-24-04). A missing dir
+ * returns false without throwing (T-24-05) — the heuristic is advisory.
+ */
+export async function scanDirForNip07Evidence(dir: string): Promise<boolean> {
+  try {
+    for await (
+      const entry of walk(dir, {
+        exts: ["js", "mjs", "html", "htm"],
+        includeDirs: false,
+      })
+    ) {
+      const text = await Deno.readTextFile(entry.path);
+      if (detectNip07InText(text)) return true;
+    }
+  } catch {
+    // Missing/unreadable dir => no evidence (advisory, never blocks).
+    return false;
+  }
+  return false;
+}
+
+/** Structured result of `napp validate`. Structural errors drive `ok`; NIP-07 is advisory. */
+export interface NappValidateReport {
+  ok: boolean;
+  structuralErrors: { path: string; message: string }[];
+  nip07: "pass" | "warn";
+}
+
+/**
+ * Assemble the validate report. Structural errors are the ONLY hard failure; the NIP-07
+ * signal sets a pass/warn note and NEVER flips `ok` to false.
+ */
+export function assembleValidateReport(input: {
+  structuralErrors: { path: string; message: string }[];
+  nip07Found: boolean;
+}): NappValidateReport {
+  return {
+    ok: input.structuralErrors.length === 0,
+    structuralErrors: input.structuralErrors,
+    nip07: input.nip07Found ? "pass" : "warn",
+  };
+}
+
+/**
+ * `napp validate` action: structural `validateNappConfig` errors (hard-fail) plus a
+ * best-effort NIP-07 heuristic over the optional `[dir]` (warn-only). Surfaces the `+`
+ * identifier informationally (root sites have none — skip silently).
+ */
+async function nappValidateAction(
+  dir: string | undefined,
+  options: { config?: string | boolean },
+): Promise<void> {
+  const configPath = typeof options.config === "string" ? options.config : undefined;
+  const projectConfig = readProjectFile(configPath);
+
+  if (!projectConfig) {
+    console.error(colors.red("No .nsite/config.json found."));
+    Deno.exit(1);
+  }
+
+  if (!isNapp(projectConfig)) {
+    console.error(
+      colors.red(
+        "This project is not a napp — run `nsyte napp init` to add a `napp` section.",
+      ),
+    );
+    Deno.exit(1);
+  }
+
+  const structuralErrors = validateNappConfig(projectConfig.napp);
+
+  const scanDir = dir ?? ".";
+  const nip07Found = await scanDirForNip07Evidence(scanDir);
+
+  const report = assembleValidateReport({ structuralErrors, nip07Found });
+
+  if (report.structuralErrors.length > 0) {
+    for (const e of report.structuralErrors) {
+      console.error(colors.red(`  ${e.path}: ${e.message}`));
+    }
+  } else {
+    console.log(colors.green("✓ napp config is structurally valid."));
+  }
+
+  if (report.nip07 === "pass") {
+    console.log(colors.green(`✓ NIP-07 usage detected in ${scanDir}.`));
+  } else {
+    console.log(
+      colors.yellow(
+        `⚠ NIP-07 support not detected in ${scanDir} — a napp SHOULD support NIP-07 (window.nostr). This is a heuristic; verify manually.`,
+      ),
+    );
+  }
+
+  // Informational identifier (best-effort; root sites have none).
+  try {
+    const pubkey = await resolvePubkey(options as ResolverOptions, projectConfig);
+    const id = resolveNappIdentifier(projectConfig, pubkey);
+    console.log(colors.gray(`App identifier: ${id}`));
+  } catch {
+    // Root sites / unresolvable pubkey — informational only, never a validate failure.
+  }
+
+  if (!report.ok) Deno.exit(1);
+}
+
 /** Register the `napp` command (and its subcommands) on the root program. */
 export function registerNappCommand(): void {
   const napp = new Command()
@@ -422,6 +544,13 @@ export function registerNappCommand(): void {
     .command("init", "Retrofit a napp section onto this project's config")
     .action(async (options) => {
       await nappInitAction(options as unknown as { config?: string | boolean });
+    })
+    // validate subcommand (LAST — no trailing .reset()). Positional [dir] only, NO `.option`.
+    .reset()
+    .command("validate", "Check napp readiness: required fields, categories, and a NIP-07 heuristic")
+    .arguments("[dir:string]")
+    .action(async (options, dir) => {
+      await nappValidateAction(dir, options as unknown as { config?: string | boolean });
     });
 
   nsyte.command("napp", napp);
