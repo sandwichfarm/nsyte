@@ -239,6 +239,168 @@
       },
       "required": ["kinds"],
       "additionalProperties": false
+    },
+    "napp": {
+      "type": "object",
+      "description": "NIP-5B napp (nostr app) listing section. Present => this project is a napp.",
+      "properties": {
+        "name": {
+          "type": "object",
+          "description": "Display name of the app (localizable)",
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "The text value",
+              "minLength": 1
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO 639-1 language code (e.g. 'en')"
+            }
+          },
+          "required": ["value"],
+          "additionalProperties": false
+        },
+        "summary": {
+          "type": "object",
+          "description": "Short summary of the app (localizable)",
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "The text value",
+              "minLength": 1
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO 639-1 language code (e.g. 'en')"
+            }
+          },
+          "required": ["value"],
+          "additionalProperties": false
+        },
+        "description": {
+          "type": "object",
+          "description": "Long description of the app (localizable)",
+          "properties": {
+            "value": {
+              "type": "string",
+              "description": "The text value",
+              "minLength": 1
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO 639-1 language code (e.g. 'en')"
+            }
+          },
+          "required": ["value"],
+          "additionalProperties": false
+        },
+        "icon": {
+          "type": "object",
+          "description": "App icon asset",
+          "properties": {
+            "hash": {
+              "type": "string",
+              "description": "sha256/blossom hash or URL of the asset",
+              "minLength": 1
+            },
+            "mime": {
+              "type": "string",
+              "description": "MIME type of the asset (e.g. 'image/png')",
+              "minLength": 1
+            },
+            "country": {
+              "type": "string",
+              "description": "Optional ISO 3166-1 alpha-2 code for a region-specific asset",
+              "pattern": "^[A-Za-z]{2}$"
+            }
+          },
+          "required": ["hash", "mime"],
+          "additionalProperties": false
+        },
+        "keyart": {
+          "type": "object",
+          "description": "Key art / hero image asset",
+          "properties": {
+            "hash": {
+              "type": "string",
+              "description": "sha256/blossom hash or URL of the asset",
+              "minLength": 1
+            },
+            "mime": {
+              "type": "string",
+              "description": "MIME type of the asset (e.g. 'image/png')",
+              "minLength": 1
+            },
+            "country": {
+              "type": "string",
+              "description": "Optional ISO 3166-1 alpha-2 code for a region-specific asset",
+              "pattern": "^[A-Za-z]{2}$"
+            }
+          },
+          "required": ["hash", "mime"],
+          "additionalProperties": false
+        },
+        "screenshots": {
+          "type": "array",
+          "description": "Screenshot assets",
+          "items": {
+            "type": "object",
+            "properties": {
+              "hash": {
+                "type": "string",
+                "description": "sha256/blossom hash or URL of the asset",
+                "minLength": 1
+              },
+              "mime": {
+                "type": "string",
+                "description": "MIME type of the asset (e.g. 'image/png')",
+                "minLength": 1
+              },
+              "country": {
+                "type": "string",
+                "description": "Optional ISO 3166-1 alpha-2 code for a region-specific asset",
+                "pattern": "^[A-Za-z]{2}$"
+              }
+            },
+            "required": ["hash", "mime"],
+            "additionalProperties": false
+          }
+        },
+        "categories": {
+          "type": "array",
+          "description": "napp.<category>:<subcategory> labels (NIP-5B). Deep table validation is enforced structurally; the schema enforces label shape and count only.",
+          "items": {
+            "type": "string",
+            "pattern": "^napp\\.[^:]+:[^:]+$"
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "countries": {
+          "type": "array",
+          "description": "Availability: ['*'] for worldwide, or a list of ISO 3166-1 alpha-2 codes",
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*|[A-Za-z]{2})$"
+          },
+          "minItems": 1
+        },
+        "self": {
+          "type": "string",
+          "description": "Optional author/self hex pubkey (64 hex chars)",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Optional free-form 't' tags",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["name", "icon", "categories", "countries"],
+      "additionalProperties": false
     }
   },
   "required": ["relays", "servers"],
@@ -279,6 +441,16 @@
         "picture": "https://example.com/avatar.jpg",
         "nip05": "alice@example.com",
         "lud16": "alice@getalby.com"
+      }
+    },
+    {
+      "relays": ["wss://relay.damus.io"],
+      "servers": ["https://cdn.hzrd149.com"],
+      "napp": {
+        "name": { "value": "My Game" },
+        "icon": { "hash": "abc123", "mime": "image/png" },
+        "categories": ["napp.games:rpg"],
+        "countries": ["*"]
       }
     }
   ]

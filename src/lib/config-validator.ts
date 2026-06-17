@@ -1,6 +1,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import configSchema from "../schemas/config.schema.json" with { type: "json" };
+import { validateNappConfig } from "./napp/detect.ts";
 const AjvConstructor = Ajv as unknown as typeof Ajv.default;
 const addFormatsFunction = addFormats as unknown as typeof addFormats.default;
 
@@ -58,6 +59,7 @@ export function validateConfig(config: unknown): ValidationResult {
       publishServerList?: boolean;
       appHandler?: { id?: string };
       profile?: Record<string, unknown>;
+      napp?: unknown;
     };
     const isRootSite = cfg.id === null || cfg.id === "" || cfg.id === undefined;
     const hasAppHandler = cfg.appHandler && cfg.publishAppHandler === true;
@@ -97,6 +99,13 @@ export function validateConfig(config: unknown): ValidationResult {
         message:
           "is required when 'publishProfile' is true. Add a 'profile' object with at least one field (name, about, picture, etc.).",
       });
+    }
+
+    // Custom validation: napp structural validation (deep NIP-5B table + countries rule).
+    // Runs ONLY when a napp section is present, so the non-napp path is byte-for-byte
+    // unchanged (zero-regression foundation for the hybrid napp model).
+    if (cfg.napp !== undefined) {
+      errors.push(...validateNappConfig(cfg.napp));
     }
   }
 
