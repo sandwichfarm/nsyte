@@ -12,6 +12,6 @@
     "https://nostr.download",
     "https://cdn.hzrd149.com"
   ],
-  "title": "nsyte (testing)",
-  "description": "nsyte, but testing nsyte deploy to named site"
+  "title": "nsyte.run",
+  "description": "a cli to deploy nsites."
 }
