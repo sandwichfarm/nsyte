@@ -2,7 +2,13 @@ import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { hexToBytes } from "@noble/hashes/utils";
 import { join } from "@std/path";
-import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
+import {
+  type EventTemplate,
+  getOutboxes,
+  naddrEncode,
+  npubEncode,
+  relaySet,
+} from "applesauce-core/helpers";
 import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
@@ -25,6 +31,13 @@ import {
   NSITE_NAME_SITE_KIND,
 } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
+import { isNapp } from "../lib/napp/detect.ts";
+import {
+  createAppListingEvent,
+  createAppListingTemplate,
+  deriveListingDTag,
+  NSITE_APP_LISTING_KIND,
+} from "../lib/napp/listing.ts";
 import { publishMetadata } from "../lib/metadata/publisher.ts";
 import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
 import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
@@ -532,6 +545,14 @@ export async function deployCommand(
       includedFiles,
     );
     await maybePublishMetadata(state as DeploymentState, publisherPubkey);
+
+    // Napp App Listing (kind 37348) — published AFTER the manifest (NAPP-LST-02).
+    // Gated on isNapp(config): a plain deploy never enters this branch (NAPP-LST-03).
+    await maybePublishAppListing(
+      state as DeploymentState,
+      publisherPubkey,
+      deployResult?.manifestResult ?? null,
+    );
 
     if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0) {
       log.info("No effective operations performed.");
@@ -2067,6 +2088,75 @@ async function uploadFiles(
 /**
  * Publish metadata to relays (app handler, etc.)
  */
+/**
+ * Pure, signer-free core of the napp deploy branch: returns the kind-37348 App Listing
+ * TEMPLATE for a napp config, or null for a non-napp config. Isolating the napp decision
+ * + tag mapping from network/signer code makes the zero-regression boundary (NAPP-LST-03)
+ * directly unit-testable: a non-napp config returns null, so the network branch in
+ * `maybePublishAppListing` is never entered.
+ */
+export function buildDeployListing(
+  config: ProjectConfig,
+  publisherPubkey: string,
+  manifestDTag: string,
+  createdAt?: number,
+): EventTemplate | null {
+  if (!isNapp(config)) return null;
+  return createAppListingTemplate(publisherPubkey, config.napp, manifestDTag, createdAt);
+}
+
+/**
+ * Publish the napp App Listing (kind 37348) AFTER the manifest, gated on isNapp(config).
+ * A plain (non-napp) deploy never enters this function body — the hard zero-regression
+ * boundary (NAPP-LST-03). A listing publish failure is non-fatal (the manifest already
+ * succeeded), mirroring the metadata publishers which swallow per-event errors.
+ */
+async function maybePublishAppListing(
+  state: DeploymentState,
+  publisherPubkey: string,
+  _manifestResult: ManifestPublishResult | null,
+): Promise<void> {
+  const { statusDisplay, signer, config, options, resolvedRelays, messageCollector } = state;
+
+  if (!isNapp(config)) return;
+
+  // Shared d tag — MUST equal the manifest's d tag (d-tag rule, T-21-01). Derived from
+  // config.id here (root -> "", named -> config.id) so it matches the manifest builder.
+  const manifestDTag = deriveListingDTag({ id: config.id });
+
+  console.log(formatSectionHeader("App Listing (napp)"));
+  console.log(colors.cyan("napp detected — publishing app listing (kind 37348)"));
+  statusDisplay.update("Publishing app listing (kind 37348)...");
+
+  try {
+    const listingEvent = await createAppListingEvent(
+      signer,
+      publisherPubkey,
+      config.napp,
+      manifestDTag,
+      options.createdAt,
+    );
+
+    // Publish to the SAME relay set the manifest used (NIP-65 write/resolved relays).
+    // Phase 22: also publish to configured indexer relays.
+    const result = await publishEventsToRelaysDetailed(resolvedRelays, [listingEvent]);
+
+    if (result.allEventsPublished) {
+      statusDisplay.success(`App listing published (kind ${NSITE_APP_LISTING_KIND})`);
+      messageCollector.addEventSuccess("app listing", listingEvent.id);
+    } else {
+      statusDisplay.error("Failed to publish app listing");
+      log.error(
+        `App listing publish failed on ${result.totalFailedEvents} event(s); deploy continues (manifest already published)`,
+      );
+    }
+  } catch (e) {
+    // Non-fatal: the manifest already succeeded; a listing failure must not abort deploy.
+    statusDisplay.error("Failed to publish app listing");
+    log.error(`App listing publish error (non-fatal): ${getErrorMessage(e)}`);
+  }
+}
+
 async function maybePublishMetadata(
   state: DeploymentState,
   publisherPubkey: string,
