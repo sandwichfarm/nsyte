@@ -11,12 +11,19 @@
  */
 import { colors } from "@cliffy/ansi/colors";
 import { Command } from "@cliffy/command";
-import { Input } from "@cliffy/prompt";
+import { Input, Select } from "@cliffy/prompt";
 import type { NostrEvent } from "applesauce-core/helpers";
-import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
+import {
+  buildNappConfigFromAnswers,
+  categoryLabel,
+  type ProjectConfig,
+  readProjectFile,
+  writeProjectFile,
+} from "../lib/config.ts";
 import { getErrorMessage } from "../lib/error-utils.ts";
 import { createLogger } from "../lib/logger.ts";
-import { isNapp } from "../lib/napp/detect.ts";
+import { NAPP_CATEGORIES } from "../lib/napp/categories.ts";
+import { isNapp, validateNappConfig } from "../lib/napp/detect.ts";
 import { nappIdentifier, resolveIndexerRelays } from "../lib/napp/identifier.ts";
 import { createReleaseNoteEvent, type ReleaseChanges } from "../lib/napp/release.ts";
 import { getManifestIdentifier } from "../lib/manifest.ts";
@@ -263,6 +270,104 @@ async function nappReleaseAction(
   }
 }
 
+// ---------------------------------------------------------------------------
+// `napp init` — retrofit a napp section onto an existing project config
+// ---------------------------------------------------------------------------
+
+/**
+ * Collect napp listing answers via the SAME prompt sequence as the init wizard, then
+ * shape them with the SINGLE assembly helper. Interactive (not unit-tested); the pure
+ * assembly/validation it feeds is covered by the wizard + init tests.
+ */
+async function collectNappAnswers(): Promise<ReturnType<typeof buildNappConfigFromAnswers>> {
+  const name = await Input.prompt({
+    message: "App name:",
+    validate: (v: string) => v.trim().length > 0 || "Name is required",
+  });
+  const iconHash = await Input.prompt({
+    message: "Icon (sha256 hash or URL):",
+    validate: (v: string) => v.trim().length > 0 || "Icon is required",
+  });
+  const iconMime = await Input.prompt({ message: "Icon MIME type:", default: "image/png" });
+
+  const category = await Select.prompt<string>({
+    message: "Category",
+    options: Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
+  });
+  const subcategory = await Select.prompt<string>({
+    message: "Subcategory",
+    options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
+  });
+  const label = categoryLabel(category, subcategory);
+
+  const countriesInput = await Input.prompt({
+    message: "Countries (comma-separated ISO codes, or * for worldwide):",
+    default: "*",
+  });
+  const countries = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
+
+  const summary = await Input.prompt({ message: "Summary (optional):" });
+  const description = await Input.prompt({ message: "Description (optional):" });
+
+  return buildNappConfigFromAnswers({
+    name,
+    iconHash,
+    iconMime,
+    categories: [label],
+    countries: (countries.length === 0 || (countries.length === 1 && countries[0] === "*"))
+      ? ["*"]
+      : countries,
+    summary,
+    description,
+  });
+}
+
+/**
+ * `napp init` action: read the existing project config, refuse to overwrite an existing
+ * napp, collect listing answers, validate, and write `{ ...projectConfig, napp }` back —
+ * the spread preserves all unrelated keys (T-24-01).
+ */
+async function nappInitAction(options: { config?: string | boolean }): Promise<void> {
+  const configPath = typeof options.config === "string" ? options.config : undefined;
+  const projectConfig = readProjectFile(configPath);
+
+  if (!projectConfig) {
+    console.error(
+      colors.red(
+        "No .nsite/config.json found — run `nsyte init` first to create a project, then `nsyte napp init` to retrofit a napp section.",
+      ),
+    );
+    Deno.exit(1);
+  }
+
+  if (isNapp(projectConfig)) {
+    console.log(
+      colors.yellow(
+        "This project is already a napp. Edit the `napp` section in .nsite/config.json directly, or remove it and re-run.",
+      ),
+    );
+    return;
+  }
+
+  const napp = await collectNappAnswers();
+  const errors = validateNappConfig(napp);
+  if (errors.length > 0) {
+    for (const e of errors) {
+      console.error(colors.red(`  ${e.path}: ${e.message}`));
+    }
+    console.error(colors.red("napp section is invalid; not written. Fix the inputs and re-run."));
+    Deno.exit(1);
+  }
+
+  const updated: ProjectConfig = { ...projectConfig, napp };
+  writeProjectFile(updated, configPath);
+  console.log(
+    colors.green(
+      "Added `napp` section to .nsite/config.json. Run `nsyte napp validate` to check readiness.",
+    ),
+  );
+}
+
 /** Register the `napp` command (and its subcommands) on the root program. */
 export function registerNappCommand(): void {
   const napp = new Command()
@@ -311,6 +416,12 @@ export function registerNappCommand(): void {
           sub?: string[];
         },
       );
+    })
+    // init subcommand — interactive retrofit; NO `.option` (honors only global -c/--config).
+    .reset()
+    .command("init", "Retrofit a napp section onto this project's config")
+    .action(async (options) => {
+      await nappInitAction(options as unknown as { config?: string | boolean });
     });
 
   nsyte.command("napp", napp);
