@@ -11,5 +11,7 @@
     "https://blssm.us",
     "https://nostr.download",
     "https://cdn.hzrd149.com"
-  ]
+  ],
+  "title": "nsyte.run",
+  "description": "a cli to deploy nsites."
 }
