@@ -23,15 +23,12 @@ import {
  */
 
 // Vector 1: the spec's published entity (strongest assertion).
-const SPEC_ENTITY =
-  "+cA99KnC0UCyqHT5oI8fIkoza0jfB1lrvaWKmuh6h2EhTz2nw4R2a5qVNM";
+const SPEC_ENTITY = "+cA99KnC0UCyqHT5oI8fIkoza0jfB1lrvaWKmuh6h2EhTz2nw4R2a5qVNM";
 const SPEC_DTAG = "0ufiaf2";
-const SPEC_PUBKEY =
-  "5a8bc85694d8fbb4f30208649c1c52509636d1e6fdb1f0f4c84a3f10f9383ec9";
+const SPEC_PUBKEY = "5a8bc85694d8fbb4f30208649c1c52509636d1e6fdb1f0f4c84a3f10f9383ec9";
 
 // Vector 2: golden, no relays.
-const GOLDEN_NO_RELAYS =
-  "+ehjV4kucmWYSCIqa4YfqS08hdZu1kNgHTJT7epcHHWIOJPJvkdc5poyZ2ffrn";
+const GOLDEN_NO_RELAYS = "+ehjV4kucmWYSCIqa4YfqS08hdZu1kNgHTJT7epcHHWIOJPJvkdc5poyZ2ffrn";
 // Vector 3: golden, 1 relay.
 const GOLDEN_ONE_RELAY =
   "+2CQzXAhYFUBwLJDSw4KYzy3JgqAB2351RPc4q2OXt167Cm6gvMCvNlpUELbuDAu5Qqfi8HGwVvL4XRw37s6EXbsfKRu7D37";
@@ -108,6 +105,13 @@ describe("appEncode / appDecode channels", () => {
       Error,
       "Wrong channel",
     );
+  });
+
+  it("throws a clear validation error (not a TypeError) for a malformed identifier missing TLV type 0/2", () => {
+    // A valid prefix with an empty TLV body decodes to {} — type 0 (dTag) is absent.
+    // Without the guard this threw `Cannot read properties of undefined (reading '0')`.
+    const err = assertThrows(() => appDecode("+"), Error, "invalid app identifier");
+    assertEquals(err instanceof TypeError, false);
   });
 
   it("round-trips with zero relays", () => {

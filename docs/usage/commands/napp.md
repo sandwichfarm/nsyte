@@ -53,7 +53,10 @@ See the [configuration reference](../configuration.md) for the full schema.
 
 ## id Options
 
-`id` takes no options beyond the global options.
+- `--sec <secret>` — key (nsec/hex, nbunksec, or `bunker://`) to derive the
+  pubkey from (read-only; nothing is signed or stored).
+- `--pubkey <pubkey>` — public key (hex/npub) to encode into the identifier,
+  without a configured signer.
 
 ## release Options
 

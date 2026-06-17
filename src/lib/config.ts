@@ -686,36 +686,36 @@ export function buildNappConfigFromAnswers(answers: {
   tags?: string[];
   indexerRelays?: string[];
 }): NappConfig {
-  const name: LangText = { value: answers.name };
+  const name: LangText = { value: answers.name.trim() };
   if (answers.nameLang && answers.nameLang.trim()) {
-    name.lang = answers.nameLang;
+    name.lang = answers.nameLang.trim();
   }
 
   const napp: NappConfig = {
     name,
     icon: {
-      hash: answers.iconHash,
-      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime : "image/png",
+      hash: answers.iconHash.trim(),
+      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime.trim() : "image/png",
     },
     categories: answers.categories,
     countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
   };
 
   if (answers.summary && answers.summary.trim()) {
-    napp.summary = { value: answers.summary };
+    napp.summary = { value: answers.summary.trim() };
     if (answers.summaryLang && answers.summaryLang.trim()) {
-      napp.summary.lang = answers.summaryLang;
+      napp.summary.lang = answers.summaryLang.trim();
     }
   }
   if (answers.description && answers.description.trim()) {
-    napp.description = { value: answers.description };
+    napp.description = { value: answers.description.trim() };
     if (answers.descriptionLang && answers.descriptionLang.trim()) {
-      napp.description.lang = answers.descriptionLang;
+      napp.description.lang = answers.descriptionLang.trim();
     }
   }
 
   if (answers.self && answers.self.trim()) {
-    napp.self = answers.self;
+    napp.self = answers.self.trim();
   }
   if (answers.keyart) {
     napp.keyart = answers.keyart;

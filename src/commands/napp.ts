@@ -5,9 +5,10 @@
  * `Command` whose parent shows help and whose subcommands are chained with
  * `.command(...).action(...).reset()` (the LAST subcommand omits `.reset()`).
  *
- * Currently exposes a single `id` subcommand that prints the shareable `+` app
- * identifier for this napp. Future phases append `release`/`init`/`validate` by
- * inserting more `.reset().command(...).action(...)` chains before the final one.
+ * Exposes the subcommands `id` (print the shareable `+` app identifier),
+ * `release` (publish a kind-39108 changelog), `init` (retrofit/convert a project to a
+ * napp), and `validate` (check napp readiness). They are chained in that order;
+ * `validate` is the final subcommand (the only one without a trailing `.reset()`).
  */
 import { colors } from "@cliffy/ansi/colors";
 import { Command } from "@cliffy/command";
@@ -734,10 +735,7 @@ export function registerNappCommand(): void {
         },
       );
     })
-    // Future phases append `init`/`validate` here as
-    //   .reset().command("...", "...").action(...)
-    // chains BEFORE the final subcommand (the last one omits `.reset()`).
-    // release subcommand (LAST — no trailing .reset()).
+    // release subcommand — `.reset()` first so `init`/`validate` can be chained after it.
     .reset()
     .command(
       "release",

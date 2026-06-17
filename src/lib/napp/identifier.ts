@@ -16,19 +16,13 @@
  * so it CANNOT be encoded — the `napp id` command rejects it (see src/commands/napp.ts).
  * Relay hints are optional; decode MUST tolerate zero relays.
  */
-import {
-  bytesToHex,
-  bytesToUtf8,
-  hexToBytes,
-  utf8ToBytes,
-} from "@noble/hashes/utils";
+import { bytesToHex, bytesToUtf8, hexToBytes, utf8ToBytes } from "@noble/hashes/utils";
 
 // ---------------------------------------------------------------------------
 // base62 — verbatim port
 // ---------------------------------------------------------------------------
 
-export const BASE62_ALPHABET =
-  "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export const BASE62_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const BASE = 62n;
 const LEADER = "0";
@@ -190,6 +184,11 @@ export function appDecode(
 
   const base62 = entity.slice(prefix.length);
   const tlv = tlvToObj(base62ToBytes(base62));
+
+  // TLV types 0 (dTag) and 2 (pubkey) are REQUIRED. Guard before indexing so a malformed
+  // identifier yields a clear validation error rather than a raw TypeError on `tlv[t][0]`.
+  if (!tlv[0]?.[0]) throw new Error("invalid app identifier: missing d tag (TLV type 0)");
+  if (!tlv[2]?.[0]) throw new Error("invalid app identifier: missing pubkey (TLV type 2)");
 
   const dTag = bytesToUtf8(tlv[0][0]);
   const pkBytes = tlv[2][0];
