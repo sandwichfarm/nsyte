@@ -43,6 +43,11 @@ in detail on its own page.
   (alias: `annc`)
 - [`nsyte scan`](commands/scan.md) — Scan files for secrets before deploying
 
+### App Publishing
+
+- [`nsyte napp`](commands/napp.md) — Manage napp (NIP-5B) discoverable-app publishing
+  (subcommands: `id`, `release`, `init`, `validate`)
+
 ### Authentication
 
 - [`nsyte bunker`](commands/bunker.md) — Manage NIP-46 bunker connections
