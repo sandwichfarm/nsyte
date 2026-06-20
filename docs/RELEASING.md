@@ -101,8 +101,8 @@ PATs expire. When `RELEASE_TOKEN` expires, the next release silently fails to tr
 4. Verify with `gh secret list -R sandwichfarm/nsyte` or by triggering a test release.
 
 You do not need to rename the secret — updating the value in place is sufficient. Active workflows
-mid-run that reference `${{ secrets.RELEASE_TOKEN }}` will continue to use the old value until their
-run completes; only new runs pick up the new value.
+mid-run that reference <code v-pre>${{ secrets.RELEASE_TOKEN }}</code> will continue to use the old
+value until their run completes; only new runs pick up the new value.
 
 ---
 
@@ -113,8 +113,9 @@ run completes; only new runs pick up the new value.
 Check in this order:
 
 1. **`release.yml` step still uses `GITHUB_TOKEN`** — verify line 446 of
-   `.github/workflows/release.yml` reads `token: ${{ secrets.RELEASE_TOKEN }}`, not
-   `${{ secrets.GITHUB_TOKEN }}`. This is the most common cause.
+   `.github/workflows/release.yml` reads `token:` followed by
+   <code v-pre>${{ secrets.RELEASE_TOKEN }}</code>, not
+   <code v-pre>${{ secrets.GITHUB_TOKEN }}</code>. This is the most common cause.
 2. **`RELEASE_TOKEN` secret not set** — confirm it is present in Settings → Secrets and variables →
    Actions.
 3. **`RELEASE_TOKEN` expired or revoked** — create a new PAT and update the secret.

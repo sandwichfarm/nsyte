@@ -160,3 +160,19 @@ Deno.test("validateNappConfig - tags must be string[]", () => {
   });
   assertEquals(errs.some((e) => e.path === "/napp/tags"), true);
 });
+
+Deno.test("validateNappConfig - indexerRelays must be ws/wss relay URLs", () => {
+  const errs = validateNappConfig({
+    ...validNapp(),
+    indexerRelays: ["nope", "https://relay.example.com"],
+  });
+  assertEquals(errs.some((e) => e.path === "/napp/indexerRelays"), true);
+  assertEquals(
+    isNapp({
+      relays: [],
+      servers: [],
+      napp: { ...validNapp(), indexerRelays: ["nope"] },
+    }),
+    false,
+  );
+});

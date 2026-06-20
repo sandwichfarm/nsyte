@@ -77,6 +77,7 @@ function validateAsset(
 
 const HEX64 = /^[0-9a-fA-F]{64}$/;
 const ALPHA2 = /^[A-Za-z]{2}$/;
+const RELAY_URL = /^wss?:\/\//;
 
 /**
  * Structurally validate a napp section. Returns an array of errors (empty = valid).
@@ -138,8 +139,7 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
     if (countries.length === 0) {
       errors.push({
         path: "/napp/countries",
-        message:
-          'must be ["*"] (worldwide) or at least one ISO 3166-1 alpha-2 code',
+        message: 'must be ["*"] (worldwide) or at least one ISO 3166-1 alpha-2 code',
       });
     } else if (
       hasWildcard && !(countries.length === 1 && countries[0] === "*")
@@ -151,8 +151,7 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
     } else if (!hasWildcard && !countries.every((c) => ALPHA2.test(c))) {
       errors.push({
         path: "/napp/countries",
-        message:
-          'each entry must be a 2-letter ISO 3166-1 alpha-2 code (or use ["*"])',
+        message: 'each entry must be a 2-letter ISO 3166-1 alpha-2 code (or use ["*"])',
       });
     }
   }
@@ -200,6 +199,19 @@ export function validateNappConfig(napp: unknown): ValidationError[] {
       errors.push({
         path: "/napp/tags",
         message: "must be an array of strings",
+      });
+    }
+  }
+
+  // indexerRelays (optional ws/wss relay URL strings)
+  if (napp.indexerRelays !== undefined) {
+    if (
+      !Array.isArray(napp.indexerRelays) ||
+      !napp.indexerRelays.every((relay) => typeof relay === "string" && RELAY_URL.test(relay))
+    ) {
+      errors.push({
+        path: "/napp/indexerRelays",
+        message: "must be an array of ws:// or wss:// relay URLs",
       });
     }
   }

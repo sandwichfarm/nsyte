@@ -90,6 +90,14 @@ Deno.test("validateConfig - napp countries ['*','US'] is rejected (mixed wildcar
   assertEquals(result.errors.some((e) => e.path === "/napp/countries"), true);
 });
 
+Deno.test("validateConfig - napp indexerRelays reject non-relay URLs", () => {
+  const config = validNappConfig();
+  config.napp.indexerRelays = ["https://relay.example.com", "nope"];
+  const result = validateConfig(config);
+  assertEquals(result.valid, false);
+  assertEquals(result.errors.some((e) => e.path === "/napp/indexerRelays"), true);
+});
+
 Deno.test("validateConfig - napp icon missing hash is invalid", () => {
   const config = validNappConfig();
   config.napp.icon = { mime: "image/png" } as { hash: string; mime: string };
