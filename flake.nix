@@ -5,23 +5,23 @@
 
   outputs = { self, nixpkgs }:
     let
-      version = "0.27.1";
+      version = "0.27.2";
 
       # Per-system source URLs and SRI hashes.
       # Phase 26 CI patches these placeholders on release via sed.
       sources = {
         "x86_64-linux" = {
           url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-linux-${version}";
-          hash = "sha256-hD3/xQ1uiDS5gU/oyUInNtIew6YJYp+wMvGyUKRlplM=";
+          hash = "sha256-HG/fmabpMejBYKcJP19nn4PsMCGhwBvMbz6tUZtTl+0=";
         };
         # "aarch64-linux" pending release.yml aarch64 Linux build step - add back when binary is published
         "x86_64-darwin" = {
           url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-macos-x64-${version}";
-          hash = "sha256-qMfz01FDYRldNcCSOsLJxA7S6cfchSKKlNzDb36rgD0=";
+          hash = "sha256-t3gtJYwEeDecZgTsNzqDop3ErMNt1otgPJW387mXOHI=";
         };
         "aarch64-darwin" = {
           url = "https://github.com/sandwichfarm/nsyte/releases/download/v${version}/nsyte-macos-arm64-${version}";
-          hash = "sha256-lbqZkvbD0LDn6XlGTO69Oge3aWQd2e6oJbPg2TwmpKE=";
+          hash = "sha256-A9GRmkhcIUzj5SimbsO5Olq0fW50O5o7ERWw/6KndBs=";
         };
       };
 
