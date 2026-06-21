@@ -64,9 +64,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.extract.outputs.tag }}
           VERSION: ${{ steps.extract.outputs.version }}
+          REPO: ${{ github.repository }}
         run: |
           TAG="${TAG}"
           VERSION="${VERSION}"
+          REPO="${REPO}"
           EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
           TIMEOUT=300
           INTERVAL=15
@@ -74,7 +76,7 @@ jobs:
           ALL_PRESENT=false
 
           while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
-            NAMES=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
+            NAMES=$(gh release view "$TAG" -R "$REPO" --json assets --jq '.assets[].name' 2>/dev/null || echo "")
             ALL_PRESENT=true
             for expected in $EXPECTED; do
               if ! echo "$NAMES" | grep -qF "$expected"; then

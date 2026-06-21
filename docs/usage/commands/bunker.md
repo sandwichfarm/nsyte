@@ -21,7 +21,7 @@ nsyte bunker <subcommand> [options]
 - `export [pubkey]` — Export a bunker as an nbunksec string
 - `use [pubkey]` — Configure current project to use a bunker
 - `remove [pubkey]` — Remove a bunker from storage
-- `migrate [...pubkeys]` — Rebuild index for keychain bunkers (macOS/Windows)
+- `migrate [...pubkeys]` — Rebuild index for keychain bunkers (macOS only)
 - `help` — Show detailed help information
 
 ## Examples
@@ -80,7 +80,7 @@ Remove a bunker from storage:
 nsyte bunker remove <pubkey>
 ```
 
-Rebuild bunker index (macOS/Windows):
+Rebuild bunker index (macOS only):
 
 ```bash
 nsyte bunker migrate
@@ -94,8 +94,8 @@ nsyte bunker migrate <pubkey1> <pubkey2>
 
 ## Bunker Migration
 
-The `migrate` subcommand is used to rebuild the bunker index on platforms that use native keychains
-(macOS and Windows).
+The `migrate` subcommand rebuilds the bunker index on macOS by scanning project `.nsite/config.json`
+files for `bunkerPubkey` values and checking the macOS keychain (via the `security` tool) for each.
 
 ### When to Use
 

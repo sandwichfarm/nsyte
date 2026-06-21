@@ -22,6 +22,8 @@ nsyte undeploy [options]
   (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — Site identifier for named sites. If not provided,
   undeploys root site
 - `--dry-run` — Preview undeploy events without publishing or deleting blobs
@@ -108,8 +110,7 @@ The undeploy command requires authentication to:
 Authentication options (in order of precedence):
 
 1. `--sec` command line option
-2. Configured bunker in project
-3. Private key in project configuration
+2. Bunker configured in the project (`bunkerPubkey`)
 
 ## Error Handling
 

@@ -70,28 +70,23 @@ The debug command performs comprehensive checks on various components of an nsit
 - Uses the discovered relays for subsequent checks
 - Warns if no relay list is found (cannot discover user's preferred relays)
 
-### 3. Blossom Server List (kind 10063)
+### 3. Blossom Servers
 
-- Checks for published blossom server list
-- Compares published servers with config servers
-- Tests server availability using HTTP requests
-- Shows URL normalization mismatches
-
-### 4. Blossom Server Health
-
-- Tests availability of blossom servers from config
-- Checks up to 20 random files for 404 status (using HEAD requests)
-- Downloads one random file to verify hash integrity
+- Tests availability of the blossom servers from config (using HEAD requests)
+- Checks up to the first 20 blobs for `404` status and downloads one random found
+  blob to verify hash integrity
+- Also looks for a published blossom server list (kind 10063) and compares it with
+  the config servers, flagging URL normalization mismatches
 - Reports server response times and error details
 
-### 5. Site Manifest Events (kinds 15128, 35128)
+### 4. Site Manifest Events (kinds 15128, 35128)
 
 - Finds all uploaded file events for the npub
 - Shows total count of uploaded files
 - Lists recent files in verbose mode
 - Uses specialized nsite relay (`relay.nsite.lol`) for better results
 
-### 6. App Handler Events (kinds 31989, 31990)
+### 5. App Handler Events (kinds 31989, 31990)
 
 - Checks for NIP-89 app handler announcements
 - Shows counts of app recommendations and announcements
@@ -102,7 +97,8 @@ The debug command performs comprehensive checks on various components of an nsit
 The debug command uses specialized relays for different event types to get the most comprehensive
 results:
 
-- **Profile & Relay Lists**: `purplepag.es`, `user.kindpag.es`, `relay.nsite.lol`
+- **Profile (kind 0)**: `purplepag.es`, `user.kindpag.es`
+- **Relay List (kind 10002)**: `purplepag.es`, `user.kindpag.es`, `relay.nsite.lol`
 - **nsite Events**: `relay.nsite.lol`
 - **App Handlers**: Uses config relays
 

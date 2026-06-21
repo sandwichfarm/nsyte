@@ -5,6 +5,8 @@ description: Publish app handler events
 
 # announce
 
+> **Alias:** `annc` — `nsyte annc` is equivalent to `nsyte announce`.
+
 Publish NIP-89 app handler announcements and other metadata events without
 deploying files.
 
@@ -21,6 +23,8 @@ nsyte announce [options]
 - `--all` — Publish all available data
 - `--sec <secret>` — Secret for signing (auto-detects format: nsec, nbunksec,
   bunker:// URL, or 64-char hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `--dry-run` — Preview what would be announced without publishing (default:
   false)
 - `--dry-run-output <dir>` — Directory to write dry-run event JSON files

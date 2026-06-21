@@ -1,15 +1,14 @@
 ---
 title: list
-description: List files available on the nostr network
+description: List files from a site manifest, optionally filtered by path
 ---
 
 # list
 
 > **Aliases:** `ls` — `nsyte ls` is equivalent to `nsyte list`.
 
-List files available on the nostr network for a given public key. This command shows which files
-have been published to nostr relays and indicates which files would be ignored based on local
-`.nsyte-ignore` rules.
+List the files recorded in a site's published manifest for a given public key,
+rendered as a tree. Optionally filter by path.
 
 ## Usage
 
@@ -28,6 +27,7 @@ nsyte ls   [path] [options]   # alias
 - `-r, --relays <relays>` — The nostr relays to use (comma-separated). If not specified, uses relays
   from project config or default discovery relays
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of shell history)
 - `-p, --pubkey <npub>` — The public key to list files for (npub, hex, or NIP-05)
 - `-d, --name <name>` — Site identifier for named sites. If not provided, lists root site
 - `--use-fallback-relays` — Include default nsyte relays in addition to configured relays
@@ -78,18 +78,7 @@ The `ls` command supports multiple authentication methods:
 1. **Explicit pubkey** - Use `--pubkey` to list files for any public key (no signing required)
 2. **Unified secret** - Use `--sec` with any supported format (nsec, nbunksec, bunker://, hex)
 3. **Project bunker** - Uses the bunker configured in `.nsite/config.json`
-4. **Interactive mode** - If no key is provided, you'll be prompted to select an authentication
-   method
-
-## Ignore Rules
-
-Files marked in red in the output would be ignored during upload based on:
-
-- Default ignore patterns (`.git/**`, `node_modules/**`, etc.)
-- Custom patterns in `.nsyte-ignore` file
-- Implicit dotfile ignoring (except `.well-known/`)
-
-This helps you understand which remote files would not be re-deployed in a subsequent `nsyte deploy`
-command.
+4. **Project config** - If no pubkey or secret is given, the public key is resolved from the
+   bunker or key configured in `.nsite/config.json`
 
 Inherits global options. See [global options](_global-options.md).

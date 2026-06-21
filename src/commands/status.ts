@@ -11,6 +11,7 @@ import {
   getUserDisplayName,
 } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
+import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { resolveSiteIdentifier } from "../lib/site-identifier.ts";
 import {
   fetchTrustedSiteManifestEvent,
@@ -46,6 +47,7 @@ interface StatusCommandOptions {
   config?: string | false;
   relays?: string;
   sec?: string;
+  promptSec?: boolean;
   pubkey?: string;
   name?: string;
   full?: boolean;
@@ -177,6 +179,10 @@ export function registerStatusCommand() {
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
     )
     .option(
+      "--prompt-sec",
+      "Prompt for the signing secret (nsec/nbunksec) at runtime instead of passing it via --sec (keeps it out of shell history).",
+    )
+    .option(
       "-p, --pubkey <npub:string>",
       "The public key to inspect (npub, hex, or NIP-05 identifier like name@domain.com).",
     )
@@ -197,6 +203,7 @@ export function registerStatusCommand() {
       const configPath = typeof options.config === "string" ? options.config : undefined;
       const projectConfig = options.config === false ? null : readProjectFile(configPath);
       const siteName = resolveSiteIdentifier(options.name, projectConfig);
+      await resolvePromptSec(options, projectConfig?.bunkerPubkey);
       const pubkey = await resolvePubkey(options, projectConfig);
       const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
       const configuredRelays = options.relays !== undefined

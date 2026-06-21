@@ -9,7 +9,7 @@ Selectively delete nsite events from relays and optionally delete blobs from
 blossom servers. This command creates NIP-09 delete events to remove your
 published nsite files.
 
-> **Note**: The `purge` command still works as an alias but is deprecated.
+> **Note**: The `purge` and `prg` aliases still work but are deprecated.
 > Please use `delete` instead.
 
 ## Usage
@@ -27,6 +27,8 @@ nsyte delete [options]
 - `--include-blobs` — Also delete blobs from blossom servers (default: false)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — Site identifier for named sites. If not provided,
   deletes root site
 - `--dry-run` — Preview delete events without publishing or deleting blobs
@@ -123,8 +125,7 @@ The delete command requires authentication to:
 Authentication options (in order of precedence):
 
 1. `--sec` command line option
-2. Configured bunker in project
-3. Private key in project configuration
+2. Bunker configured in the project (`bunkerPubkey`)
 
 ## Safety Features
 

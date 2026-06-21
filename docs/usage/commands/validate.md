@@ -5,6 +5,8 @@ description: Validate nsyte configuration file against the JSON schema
 
 # `nsyte validate`
 
+> **Alias:** `val` — `nsyte val` is equivalent to `nsyte validate`.
+
 Validate the nsyte configuration file against the official JSON schema to ensure it's properly
 formatted and contains valid values.
 
@@ -116,8 +118,8 @@ You can add this to your configuration file for editor support:
   "publishRelayList": true,
   "publishProfile": true,
   "fallback": "/index.html",
+  "publishAppHandler": true,
   "appHandler": {
-    "enabled": true,
     "kinds": [1, 30023, 30311],
     "name": "My Event Viewer",
     "description": "Views notes and articles"

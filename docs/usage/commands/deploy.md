@@ -7,6 +7,9 @@ description: Deploy files from a directory to relays and blossom servers
 
 Deploy files from a directory to configured relays and blossom servers.
 
+> **Aliases:** `upload`, `dpl` — `nsyte upload` and `nsyte dpl` are equivalent to
+> `nsyte deploy`. (`upload` prints a deprecation notice; prefer `deploy`.)
+
 ## Usage
 
 ```bash
@@ -23,6 +26,8 @@ nsyte deploy <folder> [options]
 - `-r, --relays <relays>` — The nostr relays to use (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec,
   bunker://, hex)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of
+  `--sec` (keeps it out of shell history)
 - `--sync` — Check all servers and upload missing blobs (default: false)
 - `--use-fallback-relays` — Include default nsyte relays in addition to
   configured relays
@@ -45,7 +50,7 @@ nsyte deploy <folder> [options]
   mapping with same hash)
 - `-d, --name <name>` — The site identifier for named sites (kind 35128). If not
   provided, deploys root site (kind 15128)
-- `--dry-run` — Preview events and upload changes without uploading or
+- `--dry-run` — Preview what would be deployed without uploading or
   publishing (default: false)
 - `--dry-run-output <dir>` — Output directory for dry-run event previews
   (default: `/tmp/nsyte-dry-run-{timestamp}/`)
@@ -114,7 +119,8 @@ The deploy command:
 1. **Scans** your local directory for files
 2. **Compares** with previously deployed files (using SHA256 hashes)
 3. **Uploads** only changed or new files to Blossom servers
-4. **Publishes** file events (NIP-96) to configured relays
+4. **Publishes** the site manifest event (kind 15128 for root sites, 35128 for
+   named sites) to configured relays
 5. **Optionally publishes** metadata events for discovery
 
 ## Authentication

@@ -1,15 +1,18 @@
 {
-  "bunkerPubkey": "9c08bc9679ca77197f3e6a28876b77c5cc4b7a9dd268d9a3cffd7f1eab667cfb",
+  "bunkerPubkey": "e771af0b05c8e95fcdf6feb3500544d2fb1ccd384788e9f490bb3ee28e8ed66f",
   "relays": [
     "wss://nsite.run",
     "wss://nos.lol",
-    "wss://relay.damus.io"
+    "wss://relay.damus.io",
+    "wss://relay.nosto.re"
   ],
   "servers": [
     "https://blssm.us",
-    "https://cdn.hzrd149.com"
+    "https://cdn.hzrd149.com",
+    "https://nsite.run",
+    "https://nosto.re"
   ],
-  "id": "namednsyte",
-  "title": "nsyte (testing)",
+  "id": "nsyte",
+  "title": "nsyte.run",
   "description": "nsyte, but testing nsyte deploy to named site"
 }
