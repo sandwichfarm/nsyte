@@ -36,4 +36,5 @@ docs/.vitepress/cache/
 # Temporary files
 *.tmp
 *.bak
+*.backup
 SUMMARY.md
