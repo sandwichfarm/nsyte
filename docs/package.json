@@ -2,6 +2,7 @@
   "name": "nsyte-docs-site",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.3.0",
   "scripts": {
     "docs:build": "cd .. && docs/node_modules/.bin/vitepress build docs && node scripts/prepare-vitepress-directory-urls.mjs",
     "docs:dev": "cd .. && docs/node_modules/.bin/vitepress dev docs",
