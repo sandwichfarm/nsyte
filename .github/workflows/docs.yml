@@ -45,18 +45,11 @@ jobs:
           # Remove executable permissions from remaining files
           chmod 644 dist/install.txt dist/get/install.sh dist/get/install.txt || true
       - name: Deploy to Bunny
-        uses: R-J-dev/bunny-deploy@v2.0.3
-        with:
-          access-key: ${{ secrets.BUNNY_ACCESS_KEY }}
-          directory-to-upload: "./dist"
-          storage-endpoint: "https://storage.bunnycdn.com"
-          storage-zone-name: "nsyte"
-          storage-zone-password: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          concurrency: "10"
-          enable-delete-action: true
-          enable-purge-pull-zone: true
-          pull-zone-id: ${{ secrets.BUNNY_PULLZONE_ID }}
-          replication-timeout: "15000"
+        env:
+          BUNNY_STORAGE_ENDPOINT: "https://storage.bunnycdn.com"
+          BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          BUNNY_STORAGE_ZONE: "nsyte"
+        run: ./scripts/deploy-bunny-storage.sh ./dist
 
       # - name: Deploy to Bunny.net CDN
       #   uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
