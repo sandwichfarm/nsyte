@@ -360,7 +360,18 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: deno run --allow-read --allow-write --allow-env scripts/sync-version.ts "${{ env.VERSION }}"
 
+      - name: Check existing JSR version
+        id: jsr_version
+        run: |
+          if curl -fsSL "https://jsr.io/@nsyte/cli/${VERSION}_meta.json" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "JSR version ${VERSION} already exists; skipping publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check JSR publish (dry run)
+        if: ${{ steps.jsr_version.outputs.exists != 'true' }}
         run: |
           echo "Running JSR publish dry run to check for issues..."
           deno publish --dry-run --allow-dirty
@@ -371,12 +382,16 @@ jobs:
           echo "✅ JSR publish dry run successful"
 
       - name: Publish to JSR
+        if: ${{ steps.jsr_version.outputs.exists != 'true' }}
         run: deno publish --allow-dirty
 
   release:
     name: Create Release
     needs: [build-linux, build-macos-intel, build-macos-arm, build-windows, publish-jsr]
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -392,10 +407,20 @@ jobs:
           NORMALIZED_VERSION="${RAW_VERSION#v}"
           echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
+      - name: Validate release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::error::Missing RELEASE_TOKEN repository secret. release.yml uses a PAT so the publish-packages release event fires."
+            echo "::error::Create a PAT with repo scope, store it as RELEASE_TOKEN, then rerun with workflow_dispatch."
+            exit 1
+          fi
+
       - name: Remove existing release if requested
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.replace_release == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             TAG_NAME="v${{ env.VERSION }}"
