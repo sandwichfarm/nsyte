@@ -19,9 +19,16 @@ jobs:
         run: |
           if command -v corepack >/dev/null 2>&1; then
             corepack enable
+            corepack prepare pnpm@11.3.0 --activate
           else
             npm install -g pnpm@11.3.0
           fi
+      - name: Set up pnpm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "docs/pnpm-lock.yaml"
       - name: Install site dependencies
         run: pnpm --dir docs install --frozen-lockfile
       - name: Build Site

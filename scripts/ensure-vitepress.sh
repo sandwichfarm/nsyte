@@ -1,13 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
+PNPM_VERSION="11.3.0"
+
 run_pnpm() {
   if command -v pnpm >/dev/null 2>&1; then
     pnpm "$@"
   elif command -v corepack >/dev/null 2>&1; then
-    corepack pnpm "$@"
+    corepack "pnpm@${PNPM_VERSION}" "$@"
   else
-    echo "pnpm is required to install docs dependencies" >&2
+    echo "pnpm ${PNPM_VERSION} is required to install docs dependencies" >&2
     exit 1
   fi
 }
