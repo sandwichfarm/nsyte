@@ -70,11 +70,19 @@ jobs:
           cp dist/nsyte-linux dist/nsyte-linux-compressed
 
       - name: Compress with UPX
+        id: compress_linux
+        continue-on-error: true
         uses: svenstaro/upx-action@v2
         with:
           files: dist/nsyte-linux-compressed
           args: --best --lzma
           strip: false
+
+      - name: Restore Linux compressed artifact if UPX fails
+        if: ${{ steps.compress_linux.outcome != 'success' }}
+        run: |
+          echo "UPX compression failed on Linux; shipping uncompressed copy as the compressed artifact."
+          cp dist/nsyte-linux dist/nsyte-linux-compressed
 
       - name: Rename binaries
         run: |
