@@ -2,6 +2,7 @@
 set -euo pipefail
 
 directory="${1:-dist}"
+directory="${directory%/}"
 endpoint="${BUNNY_STORAGE_ENDPOINT:-https://storage.bunnycdn.com}"
 zone="${BUNNY_STORAGE_ZONE:-nsyte}"
 
