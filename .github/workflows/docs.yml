@@ -78,6 +78,7 @@ jobs:
       - name: deploy nsite 1
         uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy
+        continue-on-error: true
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET }}
@@ -101,6 +102,7 @@ jobs:
       - name: deploy nsite 2
         uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy2
+        continue-on-error: true
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET_MAINTAINER }}
@@ -121,3 +123,14 @@ jobs:
           publish_server_list: "false"
           publish_relay_list: "false"
           publish_profile: "false"
+
+      - name: Verify nsite deploy
+        if: always() && (steps.nsite_deploy.outcome != 'skipped' || steps.nsite_deploy2.outcome != 'skipped')
+        run: |
+          echo "deploy nsite 1 outcome: ${{ steps.nsite_deploy.outcome }}"
+          echo "deploy nsite 2 outcome: ${{ steps.nsite_deploy2.outcome }}"
+
+          if [[ "${{ steps.nsite_deploy.outcome }}" != "success" && "${{ steps.nsite_deploy2.outcome }}" != "success" ]]; then
+            echo "::error::Both nsite deploy attempts failed."
+            exit 1
+          fi
