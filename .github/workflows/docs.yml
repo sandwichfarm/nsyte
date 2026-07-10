@@ -52,7 +52,7 @@ jobs:
           storage-endpoint: "https://storage.bunnycdn.com"
           storage-zone-name: "nsyte"
           storage-zone-password: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          concurrency: "50"
+          concurrency: "10"
           enable-delete-action: true
           enable-purge-pull-zone: true
           pull-zone-id: ${{ secrets.BUNNY_PULLZONE_ID }}
