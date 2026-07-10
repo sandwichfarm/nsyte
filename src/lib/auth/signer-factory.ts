@@ -71,9 +71,10 @@ export async function createSigner(
           return { signer: privateKeySigner, pubkey };
         }
       }
-    } catch (e: unknown) {
+    } catch {
+      log.debug("Failed to use --sec parameter.");
       return {
-        error: `Failed to use secret from --sec parameter: ${getErrorMessage(e)}`,
+        error: "Failed to use secret from --sec parameter.",
       };
     }
   }

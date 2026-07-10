@@ -8,6 +8,9 @@ on:
       - "src/**"
       - "deno.json"
 
+permissions:
+  contents: read
+
 jobs:
   test-build-linux:
     name: Test Linux Build
