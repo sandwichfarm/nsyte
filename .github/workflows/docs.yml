@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Set up pnpm
         run: |
           if command -v corepack >/dev/null 2>&1; then
@@ -26,7 +26,7 @@ jobs:
       - name: Set up pnpm cache
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: "docs/pnpm-lock.yaml"
       - name: Install site dependencies
