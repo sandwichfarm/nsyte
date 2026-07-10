@@ -287,7 +287,9 @@ describe({
     ): Promise<Response> => {
       const urlStr = url.toString();
       const method = options?.method || "GET";
-      const server = urlStr.startsWith(slowServer) ? slowServer : fastServer;
+      const server = new URL(urlStr).origin === new URL(slowServer).origin
+        ? slowServer
+        : fastServer;
       const hash = urlStr.slice(urlStr.lastIndexOf("/") + 1);
       const serverBlobs = storedBlobs.get(server);
 

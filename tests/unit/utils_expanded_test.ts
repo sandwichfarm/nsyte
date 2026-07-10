@@ -11,6 +11,10 @@ import {
   truncateString,
 } from "../../src/lib/utils.ts";
 
+function relayHosts(relays: readonly string[]): Set<string> {
+  return new Set(relays.map((relay) => new URL(relay).hostname));
+}
+
 function makeEvent(tags: string[][]): NostrEvent {
   return {
     id: "test",
@@ -95,21 +99,23 @@ describe("parseRelayInput", () => {
     // relaySet from applesauce may normalize URLs (e.g. add trailing slash)
     assertEquals(Array.isArray(result), true);
     assertEquals(result.length >= 1, true);
-    assertEquals(result.some((r) => r.includes("relay1.example.com")), true);
+    assertEquals(relayHosts(result).has("relay1.example.com"), true);
   });
 
   it("splits comma-separated relays and trims whitespace", () => {
     const result = parseRelayInput("wss://r1.com, wss://r2.com");
     assertEquals(result.length >= 2, true);
-    assertEquals(result.some((r) => r.includes("r1.com")), true);
-    assertEquals(result.some((r) => r.includes("r2.com")), true);
+    const hosts = relayHosts(result);
+    assertEquals(hosts.has("r1.com"), true);
+    assertEquals(hosts.has("r2.com"), true);
   });
 
   it("filters empty segments from double-comma input", () => {
     const result = parseRelayInput("wss://r1.com,,wss://r2.com");
     assertEquals(result.length >= 2, true);
-    assertEquals(result.some((r) => r.includes("r1.com")), true);
-    assertEquals(result.some((r) => r.includes("r2.com")), true);
+    const hosts = relayHosts(result);
+    assertEquals(hosts.has("r1.com"), true);
+    assertEquals(hosts.has("r2.com"), true);
   });
 });
 
@@ -151,7 +157,7 @@ describe("detectSourceUrl", () => {
   });
 
   it("returns undefined when git command fails", async () => {
-    const commandStub = stub(Deno, "Command" as any, () => ({
+    const commandStub = stub(Deno, "Command", () => ({
       output: () => Promise.resolve({ success: false, stdout: new Uint8Array() }),
     }));
     try {
@@ -164,7 +170,7 @@ describe("detectSourceUrl", () => {
 
   it("returns HTTPS URL from git remote (strips .git suffix)", async () => {
     const encoder = new TextEncoder();
-    const commandStub = stub(Deno, "Command" as any, () => ({
+    const commandStub = stub(Deno, "Command", () => ({
       output: () =>
         Promise.resolve({
           success: true,
@@ -181,7 +187,7 @@ describe("detectSourceUrl", () => {
 
   it("converts SSH remote to HTTPS", async () => {
     const encoder = new TextEncoder();
-    const commandStub = stub(Deno, "Command" as any, () => ({
+    const commandStub = stub(Deno, "Command", () => ({
       output: () =>
         Promise.resolve({
           success: true,
@@ -197,7 +203,7 @@ describe("detectSourceUrl", () => {
   });
 
   it("returns undefined when git remote output is empty", async () => {
-    const commandStub = stub(Deno, "Command" as any, () => ({
+    const commandStub = stub(Deno, "Command", () => ({
       output: () =>
         Promise.resolve({
           success: true,
@@ -213,7 +219,7 @@ describe("detectSourceUrl", () => {
   });
 
   it("returns undefined when Deno.Command throws", async () => {
-    const commandStub = stub(Deno, "Command" as any, () => {
+    const commandStub = stub(Deno, "Command", () => {
       throw new Error("Command not found");
     });
     try {
@@ -231,7 +237,7 @@ describe("truncateString", () => {
   });
 
   it("returns empty string for falsy input (undefined)", () => {
-    assertEquals(truncateString(undefined as any), "");
+    assertEquals(truncateString(undefined as unknown as string), "");
   });
 
   it("returns original string when shorter than prefix+suffix+3", () => {

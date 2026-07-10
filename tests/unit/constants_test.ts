@@ -5,6 +5,13 @@ import {
   RELAY_DISCOVERY_RELAYS,
 } from "../../src/lib/constants.ts";
 
+function hasUrlOrigin(urls: readonly string[], protocol: string, hostname: string): boolean {
+  return urls.some((value) => {
+    const url = new URL(value);
+    return url.protocol === protocol && url.hostname === hostname;
+  });
+}
+
 Deno.test("Constants - NSYTE_BROADCAST_RELAYS", async (t) => {
   await t.step("should have default broadcast relays", () => {
     assertEquals(Array.isArray(NSYTE_BROADCAST_RELAYS), true);
@@ -19,8 +26,8 @@ Deno.test("Constants - NSYTE_BROADCAST_RELAYS", async (t) => {
 
   await t.step("should include expected relays", () => {
     // Check for some expected relays
-    assertEquals(NSYTE_BROADCAST_RELAYS.includes("wss://relay.damus.io"), true);
-    assertEquals(NSYTE_BROADCAST_RELAYS.includes("wss://nos.lol"), true);
+    assertEquals(hasUrlOrigin(NSYTE_BROADCAST_RELAYS, "wss:", "relay.damus.io"), true);
+    assertEquals(hasUrlOrigin(NSYTE_BROADCAST_RELAYS, "wss:", "nos.lol"), true);
   });
 });
 
@@ -56,7 +63,7 @@ Deno.test("Constants - DEFAULT_BLOSSOM_SERVERS", async (t) => {
 
   await t.step("should include expected servers", () => {
     // Check for expected blossom servers
-    assertEquals(DEFAULT_BLOSSOM_SERVERS.includes("https://blossom.primal.net"), true);
+    assertEquals(hasUrlOrigin(DEFAULT_BLOSSOM_SERVERS, "https:", "blossom.primal.net"), true);
   });
 });
 
