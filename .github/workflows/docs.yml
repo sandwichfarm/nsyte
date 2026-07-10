@@ -117,13 +117,21 @@ jobs:
           publish_relay_list: "false"
           publish_profile: "false"
 
-      - name: Verify nsite deploy
-        if: always() && (steps.nsite_deploy.outcome != 'skipped' || steps.nsite_deploy2.outcome != 'skipped')
+      - name: Summarize nsite deploy
+        if: ${{ !cancelled() && (steps.nsite_deploy.outcome != 'skipped' || steps.nsite_deploy2.outcome != 'skipped') }}
         run: |
-          echo "deploy nsite 1 outcome: ${{ steps.nsite_deploy.outcome }}"
-          echo "deploy nsite 2 outcome: ${{ steps.nsite_deploy2.outcome }}"
+          nsite1="${{ steps.nsite_deploy.outcome }}"
+          nsite2="${{ steps.nsite_deploy2.outcome }}"
 
-          if [[ "${{ steps.nsite_deploy.outcome }}" != "success" && "${{ steps.nsite_deploy2.outcome }}" != "success" ]]; then
-            echo "::error::Both nsite deploy attempts failed."
-            exit 1
+          echo "deploy nsite 1 outcome: ${nsite1}"
+          echo "deploy nsite 2 outcome: ${nsite2}"
+
+          {
+            echo "### nsite deploy"
+            echo "- deploy nsite 1: ${nsite1}"
+            echo "- deploy nsite 2: ${nsite2}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${nsite1}" != "success" && "${nsite2}" != "success" ]]; then
+            echo "::warning::Both nsite deploy attempts failed. Bunny deploy already completed; check NBUNK_SECRET and NBUNK_SECRET_MAINTAINER bunker availability."
           fi
