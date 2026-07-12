@@ -7,6 +7,17 @@ import { formatValidationErrors, validateConfigWithFeedback } from "./config-val
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
+import type { LangText, NappAsset, NappConfig } from "./napp/types.ts";
+import { MAX_NAPP_CATEGORIES, NAPP_CATEGORIES } from "./napp/categories.ts";
+import { validateNappConfig } from "./napp/detect.ts";
+import {
+  classifyAssetInput,
+  deriveAssetMime,
+  isRootSite,
+  rootSiteMigrationNotice,
+  uploadNappAsset,
+} from "./napp/assets.ts";
+import { createSigner } from "./auth/signer-factory.ts";
 import { generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
 
@@ -59,6 +70,7 @@ export type ProjectConfig = {
       linux?: string;
     };
   };
+  napp?: NappConfig; // NIP-5B napp listing section (optional). Present => this project is a napp. See src/lib/napp/.
 };
 
 export interface ProjectContext {
@@ -133,7 +145,8 @@ function sanitizeBunkerUrl(url: string): string {
 
     // Append relay parameters
     const relays = parsedUrl.searchParams.getAll("relay");
-    const relayParams = relays.map((r) => `relay=${encodeURIComponent(r)}`).join("&");
+    const relayParams = relays.map((r) => `relay=${encodeURIComponent(r)}`)
+      .join("&");
 
     return relayParams ? `${sanitized}?${relayParams}` : sanitized;
   } catch (error) {
@@ -147,7 +160,10 @@ function sanitizeBunkerUrl(url: string): string {
  * @param config - The project configuration to write
  * @param configPath - Optional custom path to config file
  */
-export function writeProjectFile(config: ProjectConfig, configPath?: string): void {
+export function writeProjectFile(
+  config: ProjectConfig,
+  configPath?: string,
+): void {
   const cwd = Deno.cwd();
 
   // Prevent tests from ever writing to the real project config.
@@ -160,7 +176,8 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
     hasDenoTestingEnv = false;
   }
   const isTestEnv = hasDenoTestingEnv ||
-    cwd.includes("nsyte-test-") || cwd.includes("/tmp/") || cwd.includes("/var/folders/");
+    cwd.includes("nsyte-test-") || cwd.includes("/tmp/") ||
+    cwd.includes("/var/folders/");
 
   if (isTestEnv && !configPath) {
     return;
@@ -184,7 +201,9 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
   try {
     // Validate the file extension to prevent accidental YAML file creation
     if (!projectPath.endsWith(".json")) {
-      throw new Error(`Invalid config file path: ${projectPath}. Config must be a .json file.`);
+      throw new Error(
+        `Invalid config file path: ${projectPath}. Config must be a .json file.`,
+      );
     }
 
     ensureDirSync(dirname(projectPath));
@@ -202,7 +221,9 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
 
     // Sanitize bunker URL if present to remove secrets
     if (sanitizedData.bunkerPubkey) {
-      sanitizedData.bunkerPubkey = sanitizeBunkerUrl(sanitizedData.bunkerPubkey);
+      sanitizedData.bunkerPubkey = sanitizeBunkerUrl(
+        sanitizedData.bunkerPubkey,
+      );
     }
 
     // Create backup of existing config if it exists
@@ -229,7 +250,10 @@ export function writeProjectFile(config: ProjectConfig, configPath?: string): vo
  * @param validateSchema - Whether to validate the config against the schema (default: true)
  * @returns The project configuration or null if not found
  */
-export function readProjectFile(configPath?: string, validateSchema = true): ProjectConfig | null {
+export function readProjectFile(
+  configPath?: string,
+  validateSchema = true,
+): ProjectConfig | null {
   const projectPath = resolveConfigPath(configPath);
   const cwd = Deno.cwd();
 
@@ -241,11 +265,17 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
     const ymlPath = join(configDirPath, "config.yml");
 
     if (fileExists(yamlPath) || fileExists(ymlPath)) {
-      console.error(colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"));
       console.error(
-        colors.yellow("nsyte uses config.json, not YAML. The YAML file may be from another tool."),
+        colors.red("\n⚠️  Found config.yaml/yml file in .nsite directory!"),
       );
-      console.error(colors.yellow("Please remove the YAML file to avoid confusion.\n"));
+      console.error(
+        colors.yellow(
+          "nsyte uses config.json, not YAML. The YAML file may be from another tool.",
+        ),
+      );
+      console.error(
+        colors.yellow("Please remove the YAML file to avoid confusion.\n"),
+      );
     }
   }
 
@@ -262,8 +292,14 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
       config = JSON.parse(fileContent);
     } catch (e) {
       console.error(colors.red("\nFailed to parse configuration file:"));
-      console.error(colors.red(`  ${e instanceof Error ? e.message : String(e)}`));
-      console.error(colors.yellow("\nPlease ensure .nsite/config.json contains valid JSON."));
+      console.error(
+        colors.red(`  ${e instanceof Error ? e.message : String(e)}`),
+      );
+      console.error(
+        colors.yellow(
+          "\nPlease ensure .nsite/config.json contains valid JSON.",
+        ),
+      );
       throw new Error("Invalid JSON in configuration file");
     }
 
@@ -272,7 +308,11 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
       const validation = validateConfigWithFeedback(config);
 
       if (!validation.valid) {
-        console.error(colors.red("\nConfiguration validation failed in .nsite/config.json:"));
+        console.error(
+          colors.red(
+            "\nConfiguration validation failed in .nsite/config.json:",
+          ),
+        );
         console.error(formatValidationErrors(validation.errors));
 
         if (validation.suggestions.length > 0) {
@@ -281,7 +321,9 @@ export function readProjectFile(configPath?: string, validateSchema = true): Pro
         }
 
         console.log(
-          colors.dim("\nYou can run 'nsyte validate' for more detailed validation information."),
+          colors.dim(
+            "\nYou can run 'nsyte validate' for more detailed validation information.",
+          ),
         );
 
         throw new Error("Invalid configuration format");
@@ -362,11 +404,17 @@ export async function setupProject(
         relays: [],
         servers: [],
       };
-      log.debug("Running in non-interactive mode with no existing configuration");
+      log.debug(
+        "Running in non-interactive mode with no existing configuration",
+      );
       return { config, privateKey: undefined };
     }
 
-    console.log(colors.cyan("No existing project configuration found. Setting up a new one:"));
+    console.log(
+      colors.cyan(
+        "No existing project configuration found. Setting up a new one:",
+      ),
+    );
     const setupResult = await interactiveSetup();
     config = setupResult.config;
     privateKey = setupResult.privateKey;
@@ -406,7 +454,9 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   });
 
   let chosenRelays: string[];
-  if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+  if (
+    relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")
+  ) {
     chosenRelays = defaultRelays;
   } else {
     chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
@@ -418,7 +468,9 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
   }
 
   console.log(
-    colors.cyan(`Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`),
+    colors.cyan(
+      `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+    ),
   );
   return initiateNostrConnect(appName, chosenRelays);
 }
@@ -522,7 +574,9 @@ async function selectKeySource(
   if (keyChoice === "generate") {
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
-    console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+    console.log(
+      colors.green(`Generated new private key: ${keyPair.privateKey}`),
+    );
     console.log(
       colors.yellow(
         "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
@@ -566,7 +620,9 @@ async function selectKeySource(
 
     config.bunkerPubkey = selectedPubkey;
     console.log(
-      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+      colors.green(
+        `Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`,
+      ),
     );
     configChanged = originalBunkerPubkey !== selectedPubkey;
   }
@@ -580,6 +636,286 @@ async function selectKeySource(
   }
 
   return { config, privateKey };
+}
+
+/**
+ * Build a `napp.<category>:<subcategory>` label from a category + subcategory.
+ *
+ * PURE string join — no validation here (the caller validates the assembled label or
+ * the whole config via validateCategoryLabel/validateNappConfig). Subcategories are
+ * stored verbatim, including spaces (e.g. `categoryLabel("utilities", "text editor")`
+ * yields `napp.utilities:text editor`).
+ */
+export function categoryLabel(category: string, subcategory: string): string {
+  return `napp.${category}:${subcategory}`;
+}
+
+/**
+ * The SINGLE pure assembly helper that shapes wizard/`napp init` answers into a
+ * {@link NappConfig}. Reused verbatim by the `nsyte init` project-type wizard AND by
+ * `nsyte napp init`.
+ *
+ * This is a PURE shaper: it does NOT validate or throw. Callers run
+ * {@link validateNappConfig} on the result before writing, warning (wizard) or
+ * refusing to write (`napp init`) on errors.
+ *
+ * - `name` -> `{ value, lang? }` (lang only when provided)
+ * - `icon.mime` defaults to `"image/png"` when omitted/blank
+ * - `countries` defaults to `["*"]` when omitted/empty
+ * - `summary`/`description` are included ONLY when non-empty (never `{ value: "" }`),
+ *   each carrying `lang` only when provided
+ * - `self`/`keyart`/`screenshots`/`tags`/`indexerRelays` are included ONLY when present
+ *   and non-empty
+ *
+ * All Phase-25 fields are OPTIONAL so every pre-existing call site keeps working unchanged.
+ */
+export function buildNappConfigFromAnswers(answers: {
+  name: string;
+  nameLang?: string;
+  iconHash: string;
+  iconMime?: string;
+  categories: string[];
+  countries?: string[];
+  summary?: string;
+  summaryLang?: string;
+  description?: string;
+  descriptionLang?: string;
+  self?: string;
+  keyart?: NappAsset;
+  screenshots?: NappAsset[];
+  tags?: string[];
+  indexerRelays?: string[];
+}): NappConfig {
+  const name: LangText = { value: answers.name.trim() };
+  if (answers.nameLang && answers.nameLang.trim()) {
+    name.lang = answers.nameLang.trim();
+  }
+
+  const napp: NappConfig = {
+    name,
+    icon: {
+      hash: answers.iconHash.trim(),
+      mime: answers.iconMime && answers.iconMime.trim() ? answers.iconMime.trim() : "image/png",
+    },
+    categories: answers.categories,
+    countries: (answers.countries && answers.countries.length) ? answers.countries : ["*"],
+  };
+
+  if (answers.summary && answers.summary.trim()) {
+    napp.summary = { value: answers.summary.trim() };
+    if (answers.summaryLang && answers.summaryLang.trim()) {
+      napp.summary.lang = answers.summaryLang.trim();
+    }
+  }
+  if (answers.description && answers.description.trim()) {
+    napp.description = { value: answers.description.trim() };
+    if (answers.descriptionLang && answers.descriptionLang.trim()) {
+      napp.description.lang = answers.descriptionLang.trim();
+    }
+  }
+
+  if (answers.self && answers.self.trim()) {
+    napp.self = answers.self.trim();
+  }
+  if (answers.keyart) {
+    napp.keyart = answers.keyart;
+  }
+  if (answers.screenshots && answers.screenshots.length > 0) {
+    napp.screenshots = answers.screenshots;
+  }
+  if (answers.tags && answers.tags.length > 0) {
+    napp.tags = answers.tags;
+  }
+  if (answers.indexerRelays && answers.indexerRelays.length > 0) {
+    napp.indexerRelays = answers.indexerRelays;
+  }
+
+  return napp;
+}
+
+/**
+ * Flag/wizard-provided values fed into {@link collectNappListing}. Asset fields carry the
+ * RAW input string (a sha256 hash, a URL, or a local path); the injected `resolveAsset`
+ * turns each into a {@link NappAsset}. Already-parsed listing fields (categories as labels,
+ * countries as an array) are passed through verbatim.
+ */
+export interface NappListingPrefill {
+  name?: string;
+  nameLang?: string;
+  icon?: string;
+  iconMime?: string;
+  categories?: string[];
+  countries?: string[];
+  summary?: string;
+  summaryLang?: string;
+  description?: string;
+  descriptionLang?: string;
+  self?: string;
+  keyart?: string;
+  screenshots?: string[];
+  tags?: string[];
+  indexerRelays?: string[];
+}
+
+/** A resolver turning a raw asset input (hash/URL/path) into a {@link NappAsset}. */
+export type NappAssetResolver = (value: string) => Promise<NappAsset>;
+
+/**
+ * The SHARED napp-listing collector used by BOTH `nsyte napp init` (prefill = parsed flags,
+ * resolveAsset uploads) and the `nsyte init` wizard napp branch (prefill = {}, interactive,
+ * resolveAsset = hash/URL-or-upload). For each field: use prefill when present; else, when
+ * `interactive`, prompt; else leave unset. Asset strings are turned into {@link NappAsset}
+ * via the injected `resolveAsset`. Returns the assembled config via
+ * {@link buildNappConfigFromAnswers} (PURE assembly; validation is the caller's job).
+ *
+ * Dependency-light by design: `resolveAsset` is injected so this module never imports
+ * upload.ts.
+ */
+export async function collectNappListing(opts: {
+  prefill: NappListingPrefill;
+  interactive: boolean;
+  resolveAsset: NappAssetResolver;
+}): Promise<NappConfig> {
+  const { prefill, interactive, resolveAsset } = opts;
+
+  // --- name ---
+  let name = prefill.name;
+  if (name === undefined && interactive) {
+    name = await Input.prompt({
+      message: "App name:",
+      validate: (v: string) => v.trim().length > 0 || "Name is required",
+    });
+  }
+
+  // --- icon (raw input) ---
+  let iconInput = prefill.icon;
+  let iconMime = prefill.iconMime;
+  if (iconInput === undefined && interactive) {
+    iconInput = await Input.prompt({
+      message: "Icon (sha256 hash, URL, or local file path):",
+      validate: (v: string) => v.trim().length > 0 || "Icon is required",
+    });
+    iconMime = await Input.prompt({
+      message: "Icon MIME type (used for hash/URL inputs):",
+      default: "image/png",
+    });
+  }
+
+  // --- categories (labels) ---
+  let categories = prefill.categories;
+  if ((categories === undefined || categories.length === 0) && interactive) {
+    categories = [];
+    while (categories.length < MAX_NAPP_CATEGORIES) {
+      const category = await Select.prompt<string>({
+        message: categories.length === 0
+          ? "Category"
+          : `Category (${categories.length}/${MAX_NAPP_CATEGORIES}, choose "done" to finish)`,
+        options: [
+          ...Object.keys(NAPP_CATEGORIES).map((c) => ({ name: c, value: c })),
+          ...(categories.length > 0 ? [{ name: "done", value: "__done__" }] : []),
+        ],
+      });
+      if (category === "__done__") break;
+      const subcategory = await Select.prompt<string>({
+        message: "Subcategory",
+        options: NAPP_CATEGORIES[category].map((s) => ({ name: s, value: s })),
+      });
+      categories.push(categoryLabel(category, subcategory));
+    }
+  }
+
+  // --- countries ---
+  let countries = prefill.countries;
+  if ((countries === undefined || countries.length === 0) && interactive) {
+    const countriesInput = await Input.prompt({
+      message: "Countries (comma-separated ISO codes, or * for worldwide):",
+      default: "*",
+    });
+    const parts = countriesInput.split(",").map((c) => c.trim()).filter((c) => c.length > 0);
+    countries = (parts.length === 0 || (parts.length === 1 && parts[0] === "*")) ? ["*"] : parts;
+  }
+
+  // --- summary / description ---
+  let summary = prefill.summary;
+  let description = prefill.description;
+  if (summary === undefined && interactive) {
+    summary = await Input.prompt({ message: "Summary (optional):" });
+  }
+  if (description === undefined && interactive) {
+    description = await Input.prompt({ message: "Description (optional):" });
+  }
+
+  // --- self ---
+  let self = prefill.self;
+  if (self === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Author pubkey (64-hex, optional):",
+    });
+    self = v.trim() || undefined;
+  }
+
+  // --- keyart / screenshots (raw inputs) ---
+  let keyartInput = prefill.keyart;
+  let screenshotInputs = prefill.screenshots;
+  if (keyartInput === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Key art (sha256 hash, URL, or local path; optional):",
+    });
+    keyartInput = v.trim() || undefined;
+  }
+  if (screenshotInputs === undefined && interactive) {
+    const collected: string[] = [];
+    while (true) {
+      const v = await Input.prompt({
+        message: "Screenshot (hash/URL/path; blank to finish):",
+      });
+      if (!v || !v.trim()) break;
+      collected.push(v.trim());
+    }
+    screenshotInputs = collected;
+  }
+
+  // --- tags / indexerRelays ---
+  let tags = prefill.tags;
+  if (tags === undefined && interactive) {
+    const v = await Input.prompt({
+      message: "Tags (comma-separated, optional):",
+    });
+    tags = v.split(",").map((t) => t.trim()).filter((t) => t.length > 0);
+  }
+  const indexerRelays = prefill.indexerRelays;
+
+  // --- resolve assets via the injected resolver ---
+  let icon: NappAsset | undefined;
+  if (iconInput && iconInput.trim()) {
+    icon = await resolveAsset(iconInput.trim());
+  }
+  let keyart: NappAsset | undefined;
+  if (keyartInput && keyartInput.trim()) {
+    keyart = await resolveAsset(keyartInput.trim());
+  }
+  const screenshots: NappAsset[] = [];
+  for (const s of screenshotInputs ?? []) {
+    if (s && s.trim()) screenshots.push(await resolveAsset(s.trim()));
+  }
+
+  return buildNappConfigFromAnswers({
+    name: name ?? "",
+    nameLang: prefill.nameLang,
+    iconHash: icon?.hash ?? "",
+    iconMime: icon?.mime ?? iconMime,
+    categories: categories ?? [],
+    countries,
+    summary,
+    summaryLang: prefill.summaryLang,
+    description,
+    descriptionLang: prefill.descriptionLang,
+    self,
+    keyart,
+    screenshots: screenshots.length > 0 ? screenshots : undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
+    indexerRelays: indexerRelays && indexerRelays.length > 0 ? indexerRelays : undefined,
+  });
 }
 
 /**
@@ -622,7 +958,9 @@ async function interactiveSetup(): Promise<ProjectContext> {
   if (keyChoice === "generate") {
     const keyPair = generateKeyPair();
     privateKey = keyPair.privateKey;
-    console.log(colors.green(`Generated new private key: ${keyPair.privateKey}`));
+    console.log(
+      colors.green(`Generated new private key: ${keyPair.privateKey}`),
+    );
     console.log(
       colors.yellow(
         "IMPORTANT: Save this key securely. It will not be stored and cannot be recovered!",
@@ -657,14 +995,21 @@ async function interactiveSetup(): Promise<ProjectContext> {
         });
 
         let chosenRelays: string[];
-        if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+        if (
+          relayInput.trim() === "" ||
+          relayInput.trim() === defaultRelays.join(", ")
+        ) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((
+            r,
+          ) => r.length > 0);
         }
 
         if (chosenRelays.length === 0) {
-          console.log(colors.yellow("No relays provided. Using default relays."));
+          console.log(
+            colors.yellow("No relays provided. Using default relays."),
+          );
           chosenRelays = defaultRelays;
         }
 
@@ -695,8 +1040,12 @@ async function interactiveSetup(): Promise<ProjectContext> {
       const nbunkString = getNbunkString(signer);
       await secretsManager.storeNbunk(bunkerPubkey, nbunkString);
 
-      console.log(colors.green(`Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
-Generated and stored nbunksec string.`));
+      console.log(
+        colors.green(
+          `Successfully connected to bunker ${bunkerPubkey.slice(0, 8)}...
+Generated and stored nbunksec string.`,
+        ),
+      );
     } catch (error) {
       log.error(`Failed to connect to bunker: ${error}`);
       console.error(
@@ -732,7 +1081,9 @@ Generated and stored nbunksec string.`));
 
     bunkerPubkey = selectedPubkey;
     console.log(
-      colors.green(`Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`),
+      colors.green(
+        `Using existing bunker with pubkey: ${selectedPubkey.slice(0, 8)}...`,
+      ),
     );
   }
 
@@ -741,7 +1092,10 @@ Generated and stored nbunksec string.`));
     message: "What type of site are you creating?",
     options: [
       { name: "Root site - e.g., npub1xxxx.nsite.lol", value: "root" },
-      { name: "Named site - e.g., {base36pubkey}blog.nsite.lol", value: "named" },
+      {
+        name: "Named site - e.g., {base36pubkey}blog.nsite.lol",
+        value: "named",
+      },
     ],
   });
 
@@ -779,8 +1133,13 @@ Generated and stored nbunksec string.`));
   console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
   const relays = await promptForUrls("Enter relay URL:", popularRelays);
 
-  console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
-  const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
+  console.log(
+    colors.cyan("\nEnter blossom server URLs (leave empty when done):"),
+  );
+  const servers = await promptForUrls(
+    "Enter blossom server URL:",
+    popularBlossomServers,
+  );
 
   const config: ProjectConfig = {
     "$schema": CONFIG_SCHEMA_URL,
@@ -792,13 +1151,127 @@ Generated and stored nbunksec string.`));
     description: siteDescription || undefined,
   };
 
+  // Project-type step (additive, nsite-default). The nsite branch returns the EXACT
+  // pre-phase config above (zero regression); the napp branch only ADDS `config.napp`.
+  const projectType = await Select.prompt<string>({
+    message: "Project type",
+    options: [
+      { name: "nsite (static site)", value: "nsite" },
+      { name: "napp (discoverable app)", value: "napp" },
+    ],
+    default: "nsite",
+  });
+
+  if (projectType === "napp") {
+    // Plan-check #4: the napp branch MUST degrade gracefully. An asset/upload failure
+    // WARNS and still lets `nsyte init` finish (consistent with warn-but-write); it must
+    // NOT throw out of interactiveSetup and abort the whole `nsyte init`.
+    try {
+      // Root-site guidance: a napp needs a NAMED site to be discoverable. We WARN and
+      // (interactive) offer to set an id, but NEVER auto-migrate (no consent => no id).
+      if (isRootSite(config)) {
+        console.log(colors.yellow(rootSiteMigrationNotice()));
+        const setIdNow = await Select.prompt<string>({
+          message: "Set a site identifier now? (required for `nsyte napp id`)",
+          options: [
+            { name: "No — leave as a root site for now", value: "no" },
+            { name: "Yes — set a named site identifier", value: "yes" },
+          ],
+          default: "no",
+        });
+        if (setIdNow === "yes") {
+          const identifier = await Input.prompt({
+            message: "Enter site identifier (lowercase, max 13 chars):",
+            validate: (input: string) => {
+              const trimmed = input.trim();
+              if (!trimmed) return "Site identifier is required";
+              const result = validateDTag(trimmed);
+              if (!result.valid) {
+                const suggestion = suggestIdentifier(trimmed);
+                return `${result.error}${suggestion !== trimmed ? `. Try "${suggestion}"` : ""}`;
+              }
+              return true;
+            },
+          });
+          config.id = identifier.trim();
+        } else {
+          console.log(
+            colors.yellow(
+              "Leaving this as a root site — `nsyte napp id` will not work until you set an id.",
+            ),
+          );
+        }
+      }
+
+      // Wizard asset resolver: hash/URL pass through ({hash, mime}); a local path is
+      // uploaded via uploadNappAsset when blossom servers + a signer are available, else
+      // a clear error tells the author to configure servers or paste a hash/URL.
+      const resolveAsset: NappAssetResolver = async (value: string) => {
+        if (classifyAssetInput(value) !== "path") {
+          return { hash: value, mime: deriveAssetMime(value) };
+        }
+        if (!config.servers || config.servers.length === 0) {
+          throw new Error(
+            `Cannot upload "${value}": configure blossom servers (or paste a sha256 hash / URL) for assets.`,
+          );
+        }
+        const signerResult = await createSigner({
+          sec: privateKey,
+          bunkerPubkey,
+        });
+        if ("error" in signerResult) {
+          throw new Error(
+            `Cannot upload "${value}": ${signerResult.error} (or paste a sha256 hash / URL).`,
+          );
+        }
+        return await uploadNappAsset(value, {
+          servers: config.servers,
+          relays: config.relays,
+          signer: signerResult.signer,
+        });
+      };
+
+      const napp = await collectNappListing({
+        prefill: {},
+        interactive: true,
+        resolveAsset,
+      });
+
+      // Validate before writing. On errors, WARN but still attach the scaffold so the
+      // author can fix `.nsite/config.json` by hand rather than losing their answers.
+      const nappErrors = validateNappConfig(napp);
+      if (nappErrors.length > 0) {
+        for (const e of nappErrors) {
+          console.log(colors.yellow(`  ${e.path}: ${e.message}`));
+        }
+        console.log(
+          colors.yellow(
+            "The napp section may need manual fixes in .nsite/config.json before deploying.",
+          ),
+        );
+      }
+      config.napp = napp;
+    } catch (e) {
+      // Graceful degradation: warn and still finish `nsyte init`.
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log(
+        colors.yellow(
+          `Skipped napp section (you can add it later with \`nsyte napp init\`): ${msg}`,
+        ),
+      );
+    }
+  }
+
   return { config, privateKey };
 }
 
 /**
  * Prompt for URLs with suggestions
  */
-async function promptForUrls(message: string, suggestions: string[]): Promise<string[]> {
+async function promptForUrls(
+  message: string,
+  suggestions: string[],
+): Promise<string[]> {
   const urls: string[] = [];
 
   while (true) {

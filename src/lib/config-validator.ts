@@ -1,6 +1,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import configSchema from "../schemas/config.schema.json" with { type: "json" };
+import { validateNappConfig } from "./napp/detect.ts";
 const AjvConstructor = Ajv as unknown as typeof Ajv.default;
 const addFormatsFunction = addFormats as unknown as typeof addFormats.default;
 
@@ -58,6 +59,7 @@ export function validateConfig(config: unknown): ValidationResult {
       publishServerList?: boolean;
       appHandler?: { id?: string };
       profile?: Record<string, unknown>;
+      napp?: unknown;
     };
     const isRootSite = cfg.id === null || cfg.id === "" || cfg.id === undefined;
     const hasAppHandler = cfg.appHandler && cfg.publishAppHandler === true;
@@ -91,12 +93,22 @@ export function validateConfig(config: unknown): ValidationResult {
     }
 
     // Custom validation: profile object required when publishProfile is enabled
-    if (cfg.publishProfile && (!cfg.profile || Object.keys(cfg.profile).length === 0)) {
+    if (
+      cfg.publishProfile &&
+      (!cfg.profile || Object.keys(cfg.profile).length === 0)
+    ) {
       errors.push({
         path: "/profile",
         message:
           "is required when 'publishProfile' is true. Add a 'profile' object with at least one field (name, about, picture, etc.).",
       });
+    }
+
+    // Custom validation: napp structural validation (deep NIP-5B table + countries rule).
+    // Runs ONLY when a napp section is present, so the non-napp path is byte-for-byte
+    // unchanged (zero-regression foundation for the hybrid napp model).
+    if (cfg.napp !== undefined) {
+      errors.push(...validateNappConfig(cfg.napp));
     }
   }
 
@@ -159,19 +171,27 @@ export function suggestConfigFixes(errors: ValidationError[]): string[] {
       if (field === "relays") {
         suggestions.push("Add at least one relay URL to the 'relays' array");
       } else if (field === "servers") {
-        suggestions.push("Add at least one Blossom server URL to the 'servers' array");
+        suggestions.push(
+          "Add at least one Blossom server URL to the 'servers' array",
+        );
       }
     }
 
     // Platform enum values
-    if (error.path.includes("/platforms/") && error.message.includes("must be equal to one of")) {
-      suggestions.push("Valid platforms are: web, linux, windows, macos, android, ios");
+    if (
+      error.path.includes("/platforms/") &&
+      error.message.includes("must be equal to one of")
+    ) {
+      suggestions.push(
+        "Valid platforms are: web, linux, windows, macos, android, ios",
+      );
     }
 
     // Event kinds range
     if (
       error.path.includes("/kinds/") &&
-      (error.message.includes("must be <=") || error.message.includes("must be >="))
+      (error.message.includes("must be <=") ||
+        error.message.includes("must be >="))
     ) {
       suggestions.push("Event kinds must be between 0 and 65535");
     }
