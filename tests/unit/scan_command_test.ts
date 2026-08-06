@@ -58,7 +58,7 @@ Deno.test("formatSummary", async (t) => {
 });
 
 Deno.test("formatFindings", async (t) => {
-  await t.step("collapses findings by file and orders files by severity score", () => {
+  await t.step("collapses findings into totals and affected-file counts by severity", () => {
     const findings: ScanFinding[] = [
       {
         filePath: ".env",
@@ -84,16 +84,26 @@ Deno.test("formatFindings", async (t) => {
         severity: "medium",
         matchPreview: "TOKEN...",
       },
+      {
+        filePath: "src/config.js",
+        line: 10,
+        patternId: "env-secret",
+        patternName: "Env Secret",
+        severity: "medium",
+        matchPreview: "API_...",
+      },
     ];
 
     const lines = formatFindings(findings);
     const text = lines.join("\n");
 
     assertEquals(lines.length, 2);
-    assertEquals(lines[0].includes(".env"), true);
-    assertEquals(lines[0].includes("M:2"), true);
-    assertEquals(lines[1].includes("test.js"), true);
-    assertEquals(lines[1].includes("H:1"), true);
+    assertEquals(lines[0].includes("HIGH"), true);
+    assertEquals(lines[0].includes("1 finding across 1 file"), true);
+    assertEquals(lines[1].includes("MEDIUM"), true);
+    assertEquals(lines[1].includes("3 findings across 2 files"), true);
+    assertEquals(text.includes(".env"), false);
+    assertEquals(text.includes("test.js"), false);
     assertEquals(text.includes("nsec..."), false);
   });
 

@@ -10,8 +10,8 @@ import {
 
 /**
  * Format scan findings for display.
- * Groups matches by file and orders files by their combined severity score.
- * The default view is collapsed; verbose mode expands each file's findings.
+ * The default view summarizes findings and affected files by severity.
+ * Verbose mode expands the findings, grouped by file and ordered by severity score.
  */
 export function formatFindings(
   findings: ScanFinding[],
@@ -30,6 +30,32 @@ export function formatFindings(
     findingsByFile.set(finding.filePath, fileFindings);
   }
 
+  if (!expanded) {
+    const severityLabels: Array<{
+      severity: ScanFinding["severity"];
+      label: string;
+      color: (text: string) => string;
+    }> = [
+      { severity: "high", label: "HIGH", color: colors.red },
+      { severity: "medium", label: "MEDIUM", color: colors.yellow },
+      { severity: "warning", label: "WARNING", color: colors.yellow },
+      { severity: "low", label: "LOW", color: colors.dim },
+    ];
+
+    return severityLabels.flatMap(({ severity, label, color }) => {
+      const severityFindings = findings.filter((finding) => finding.severity === severity);
+      if (severityFindings.length === 0) return [];
+      const affectedFiles = new Set(severityFindings.map((finding) => finding.filePath)).size;
+      const findingLabel = severityFindings.length === 1 ? "finding" : "findings";
+      const fileLabel = affectedFiles === 1 ? "file" : "files";
+      return [
+        `  ${
+          color(label.padEnd(7))
+        } ${severityFindings.length} ${findingLabel} across ${affectedFiles} ${fileLabel}`,
+      ];
+    });
+  }
+
   const fileScores = new Map<string, number>();
   for (const [filePath, fileFindings] of findingsByFile) {
     fileScores.set(
@@ -42,28 +68,8 @@ export function formatFindings(
     return (fileScores.get(pathB)! - fileScores.get(pathA)!) || pathA.localeCompare(pathB);
   });
 
-  const countTag = (label: string, count: number, color: (text: string) => string) =>
-    count > 0 ? color(`${label}:${count}`) : null;
-
   const lines: string[] = [];
   for (const [filePath, fileFindings] of files) {
-    if (!expanded) {
-      const counts = {
-        high: fileFindings.filter((finding) => finding.severity === "high").length,
-        medium: fileFindings.filter((finding) => finding.severity === "medium").length,
-        warning: fileFindings.filter((finding) => finding.severity === "warning").length,
-        low: fileFindings.filter((finding) => finding.severity === "low").length,
-      };
-      const tags = [
-        countTag("H", counts.high, colors.red),
-        countTag("M", counts.medium, colors.yellow),
-        countTag("W", counts.warning, colors.yellow),
-        countTag("L", counts.low, colors.dim),
-      ].filter((tag): tag is string => tag !== null);
-      lines.push(`  ${filePath} | ${tags.join(" ")}`);
-      continue;
-    }
-
     lines.push(`  ${filePath}`);
     fileFindings.sort((a, b) =>
       severityOrder[b.severity] - severityOrder[a.severity] || a.line - b.line
