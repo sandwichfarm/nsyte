@@ -58,7 +58,7 @@ Deno.test("formatSummary", async (t) => {
 });
 
 Deno.test("formatFindings", async (t) => {
-  await t.step("sorts findings by severity (high first)", () => {
+  await t.step("collapses findings by file and orders files by severity score", () => {
     const findings: ScanFinding[] = [
       {
         filePath: ".env",
@@ -76,19 +76,37 @@ Deno.test("formatFindings", async (t) => {
         severity: "high",
         matchPreview: "nsec...",
       },
+      {
+        filePath: ".env",
+        line: 2,
+        patternId: "env-secret",
+        patternName: "Env Secret",
+        severity: "medium",
+        matchPreview: "TOKEN...",
+      },
     ];
 
     const lines = formatFindings(findings);
     const text = lines.join("\n");
 
-    // High severity should appear before medium
-    const highIdx = text.indexOf("HIGH");
-    const medIdx = text.indexOf("MEDIUM");
-    assertEquals(highIdx < medIdx, true);
+    assertEquals(lines.length, 2);
+    assertEquals(lines[0].includes(".env"), true);
+    assertEquals(lines[0].includes("M:2"), true);
+    assertEquals(lines[1].includes("test.js"), true);
+    assertEquals(lines[1].includes("H:1"), true);
+    assertEquals(text.includes("nsec..."), false);
   });
 
-  await t.step("includes file path and line number", () => {
+  await t.step("expanded view groups details without gaps and sorts by severity", () => {
     const findings: ScanFinding[] = [
+      {
+        filePath: "src/config.js",
+        line: 20,
+        patternId: "env-secret",
+        patternName: "Env Secret",
+        severity: "medium",
+        matchPreview: "TOKEN...",
+      },
       {
         filePath: "src/config.js",
         line: 14,
@@ -99,10 +117,15 @@ Deno.test("formatFindings", async (t) => {
       },
     ];
 
-    const lines = formatFindings(findings);
+    const lines = formatFindings(findings, true);
     const text = lines.join("\n");
 
-    assertEquals(text.includes("src/config.js:14"), true);
+    assertEquals(lines.length, 3);
+    assertEquals(lines.includes(""), false);
+    assertEquals(lines[0].includes("src/config.js"), true);
+    assertEquals(lines[1].includes("line 14"), true);
+    assertEquals(lines[1].includes("HIGH"), true);
+    assertEquals(lines[2].includes("line 20"), true);
     assertEquals(text.includes("nsec..."), true);
   });
 
@@ -118,12 +141,12 @@ Deno.test("formatFindings", async (t) => {
       },
     ];
 
-    const lines = formatFindings(findings);
+    const lines = formatFindings(findings, true);
     const text = lines.join("\n");
 
-    // Line 0 means filename match — should show filename without :0
+    // Line 0 means filename match — should identify it as a file finding.
     assertEquals(text.includes(".env"), true);
-    assertEquals(text.includes(":0"), false);
+    assertEquals(text.includes("- file |"), true);
   });
 
   await t.step("returns empty array for no findings", () => {

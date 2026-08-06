@@ -10,46 +10,70 @@ import {
 
 /**
  * Format scan findings for display.
- * Groups by severity and shows file:line with color-coded pattern name.
+ * Groups matches by file and orders files by their combined severity score.
+ * The default view is collapsed; verbose mode expands each file's findings.
  */
 export function formatFindings(
   findings: ScanFinding[],
-  verbose = false,
+  expanded = false,
 ): string[] {
-  const lines: string[] = [];
-
-  // Sort by severity (high first, then medium, then low), then by file path
-  const severityOrder: Record<string, number> = {
-    high: 0,
-    medium: 1,
-    low: 2,
-    warning: 3,
+  const severityOrder: Record<ScanFinding["severity"], number> = {
+    high: 4,
+    medium: 3,
+    warning: 2,
+    low: 1,
   };
-  const sorted = [...findings].sort((a, b) => {
-    const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
-    if (severityDiff !== 0) return severityDiff;
-    return a.filePath.localeCompare(b.filePath);
+  const findingsByFile = new Map<string, ScanFinding[]>();
+  for (const finding of findings) {
+    const fileFindings = findingsByFile.get(finding.filePath) ?? [];
+    fileFindings.push(finding);
+    findingsByFile.set(finding.filePath, fileFindings);
+  }
+
+  const files = [...findingsByFile.entries()].sort(([pathA, findingsA], [pathB, findingsB]) => {
+    const score = (fileFindings: ScanFinding[]) =>
+      fileFindings.reduce((total, finding) => total + severityOrder[finding.severity], 0);
+    return score(findingsB) - score(findingsA) || pathA.localeCompare(pathB);
   });
 
-  for (const finding of sorted) {
-    const severityColor = finding.severity === "high"
-      ? colors.red
-      : finding.severity === "medium"
-      ? colors.yellow
-      : finding.severity === "warning"
-      ? colors.yellow
-      : colors.dim;
+  const countTag = (label: string, count: number, color: (text: string) => string) =>
+    count > 0 ? color(`${label}:${count}`) : null;
 
-    const locationStr = finding.line > 0 ? `${finding.filePath}:${finding.line}` : finding.filePath;
+  const lines: string[] = [];
+  for (const [filePath, fileFindings] of files) {
+    if (!expanded) {
+      const counts = {
+        high: fileFindings.filter((finding) => finding.severity === "high").length,
+        medium: fileFindings.filter((finding) => finding.severity === "medium").length,
+        warning: fileFindings.filter((finding) => finding.severity === "warning").length,
+        low: fileFindings.filter((finding) => finding.severity === "low").length,
+      };
+      const tags = [
+        countTag("H", counts.high, colors.red),
+        countTag("M", counts.medium, colors.yellow),
+        countTag("W", counts.warning, colors.yellow),
+        countTag("L", counts.low, colors.dim),
+      ].filter((tag): tag is string => tag !== null);
+      lines.push(`  ${filePath} | ${tags.join(" ")}`);
+      continue;
+    }
 
-    const tag = severityColor(`[${finding.severity.toUpperCase()}]`);
-    const patternName = severityColor(finding.patternName);
-    const preview = colors.dim(finding.matchPreview);
-
-    lines.push(`  ${locationStr}  ${tag} ${patternName}`);
-    lines.push(`    ${preview}`);
-    if (verbose) {
-      lines.push(""); // Extra spacing in verbose mode
+    lines.push(`  ${filePath}`);
+    fileFindings.sort((a, b) =>
+      severityOrder[b.severity] - severityOrder[a.severity] || a.line - b.line
+    );
+    for (const finding of fileFindings) {
+      const severityColor = finding.severity === "high"
+        ? colors.red
+        : finding.severity === "low"
+        ? colors.dim
+        : colors.yellow;
+      const location = finding.line > 0 ? `line ${finding.line}` : "file";
+      const tag = severityColor(`[${finding.severity.toUpperCase()}]`);
+      const patternName = severityColor(finding.patternName);
+      lines.push(
+        `    - ${location} | ${patternName} (${colors.dim(finding.matchPreview)}) | ${tag}`,
+      );
     }
   }
 
@@ -158,7 +182,7 @@ export function registerScanCommand(): void {
     .option("-q, --quiet", "Show summary only, no findings detail", {
       default: false,
     })
-    .option("-v, --verbose", "Show verbose output with extra context", {
+    .option("-v, --verbose", "Toggle expanded findings view", {
       default: false,
     })
     .action(
