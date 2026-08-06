@@ -10,46 +10,82 @@ import {
 
 /**
  * Format scan findings for display.
- * Groups by severity and shows file:line with color-coded pattern name.
+ * The default view summarizes findings and affected files by severity.
+ * Verbose mode expands the findings, grouped by file and ordered by severity score.
  */
 export function formatFindings(
   findings: ScanFinding[],
-  verbose = false,
+  expanded = false,
 ): string[] {
-  const lines: string[] = [];
-
-  // Sort by severity (high first, then medium, then low), then by file path
-  const severityOrder: Record<string, number> = {
-    high: 0,
-    medium: 1,
-    low: 2,
-    warning: 3,
+  const severityOrder: Record<ScanFinding["severity"], number> = {
+    high: 4,
+    medium: 3,
+    warning: 2,
+    low: 1,
   };
-  const sorted = [...findings].sort((a, b) => {
-    const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
-    if (severityDiff !== 0) return severityDiff;
-    return a.filePath.localeCompare(b.filePath);
+  const findingsByFile = new Map<string, ScanFinding[]>();
+  for (const finding of findings) {
+    const fileFindings = findingsByFile.get(finding.filePath) ?? [];
+    fileFindings.push(finding);
+    findingsByFile.set(finding.filePath, fileFindings);
+  }
+
+  if (!expanded) {
+    const severityLabels: Array<{
+      severity: ScanFinding["severity"];
+      label: string;
+      color: (text: string) => string;
+    }> = [
+      { severity: "high", label: "HIGH", color: colors.red },
+      { severity: "medium", label: "MEDIUM", color: colors.yellow },
+      { severity: "warning", label: "WARNING", color: colors.yellow },
+      { severity: "low", label: "LOW", color: colors.dim },
+    ];
+
+    return severityLabels.flatMap(({ severity, label, color }) => {
+      const severityFindings = findings.filter((finding) => finding.severity === severity);
+      if (severityFindings.length === 0) return [];
+      const affectedFiles = new Set(severityFindings.map((finding) => finding.filePath)).size;
+      const findingLabel = severityFindings.length === 1 ? "finding" : "findings";
+      const fileLabel = affectedFiles === 1 ? "file" : "files";
+      return [
+        `  ${
+          color(label.padEnd(7))
+        } ${severityFindings.length} ${findingLabel} across ${affectedFiles} ${fileLabel}`,
+      ];
+    });
+  }
+
+  const fileScores = new Map<string, number>();
+  for (const [filePath, fileFindings] of findingsByFile) {
+    fileScores.set(
+      filePath,
+      fileFindings.reduce((total, finding) => total + severityOrder[finding.severity], 0),
+    );
+  }
+
+  const files = [...findingsByFile.entries()].sort(([pathA], [pathB]) => {
+    return (fileScores.get(pathB)! - fileScores.get(pathA)!) || pathA.localeCompare(pathB);
   });
 
-  for (const finding of sorted) {
-    const severityColor = finding.severity === "high"
-      ? colors.red
-      : finding.severity === "medium"
-      ? colors.yellow
-      : finding.severity === "warning"
-      ? colors.yellow
-      : colors.dim;
-
-    const locationStr = finding.line > 0 ? `${finding.filePath}:${finding.line}` : finding.filePath;
-
-    const tag = severityColor(`[${finding.severity.toUpperCase()}]`);
-    const patternName = severityColor(finding.patternName);
-    const preview = colors.dim(finding.matchPreview);
-
-    lines.push(`  ${locationStr}  ${tag} ${patternName}`);
-    lines.push(`    ${preview}`);
-    if (verbose) {
-      lines.push(""); // Extra spacing in verbose mode
+  const lines: string[] = [];
+  for (const [filePath, fileFindings] of files) {
+    lines.push(`  ${filePath}`);
+    fileFindings.sort((a, b) =>
+      severityOrder[b.severity] - severityOrder[a.severity] || a.line - b.line
+    );
+    for (const finding of fileFindings) {
+      const severityColor = finding.severity === "high"
+        ? colors.red
+        : finding.severity === "low"
+        ? colors.dim
+        : colors.yellow;
+      const location = finding.line > 0 ? `line ${finding.line}` : "file";
+      const tag = severityColor(`[${finding.severity.toUpperCase()}]`);
+      const patternName = severityColor(finding.patternName);
+      lines.push(
+        `    - ${location} | ${patternName} (${colors.dim(finding.matchPreview)}) | ${tag}`,
+      );
     }
   }
 
@@ -158,7 +194,7 @@ export function registerScanCommand(): void {
     .option("-q, --quiet", "Show summary only, no findings detail", {
       default: false,
     })
-    .option("-v, --verbose", "Show verbose output with extra context", {
+    .option("-v, --verbose", "Toggle expanded findings view", {
       default: false,
     })
     .action(
