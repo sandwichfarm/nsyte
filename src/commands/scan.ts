@@ -30,10 +30,16 @@ export function formatFindings(
     findingsByFile.set(finding.filePath, fileFindings);
   }
 
-  const files = [...findingsByFile.entries()].sort(([pathA, findingsA], [pathB, findingsB]) => {
-    const score = (fileFindings: ScanFinding[]) =>
-      fileFindings.reduce((total, finding) => total + severityOrder[finding.severity], 0);
-    return score(findingsB) - score(findingsA) || pathA.localeCompare(pathB);
+  const fileScores = new Map<string, number>();
+  for (const [filePath, fileFindings] of findingsByFile) {
+    fileScores.set(
+      filePath,
+      fileFindings.reduce((total, finding) => total + severityOrder[finding.severity], 0),
+    );
+  }
+
+  const files = [...findingsByFile.entries()].sort(([pathA], [pathB]) => {
+    return (fileScores.get(pathB)! - fileScores.get(pathA)!) || pathA.localeCompare(pathB);
   });
 
   const countTag = (label: string, count: number, color: (text: string) => string) =>
