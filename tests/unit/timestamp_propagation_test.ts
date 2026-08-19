@@ -1,7 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { beforeAll, describe, it } from "@std/testing/bdd";
 import { SimpleSigner } from "applesauce-signers";
-import { encodeHex } from "@std/encoding/hex";
 import {
   createAppHandlerEvent,
   createAppRecommendationEvent,
@@ -21,7 +20,7 @@ let pubkey: string;
 beforeAll(async () => {
   const privKeyBytes = new Uint8Array(32);
   crypto.getRandomValues(privKeyBytes);
-  signer = new SimpleSigner(encodeHex(privKeyBytes));
+  signer = new SimpleSigner(privKeyBytes);
   pubkey = await signer.getPublicKey();
 });
 
