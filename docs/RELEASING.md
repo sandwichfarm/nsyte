@@ -1,119 +1,25 @@
 # Releasing nsyte
 
-This document covers the `RELEASE_TOKEN` prerequisite for the package-manager
-publish workflow and explains how to create, configure, rotate, and troubleshoot
-it.
+This document covers the release and package-manager publishing workflow.
 
 ---
 
-## RELEASE_TOKEN prerequisite
+## Release authentication and package dispatch
 
-A Personal Access Token (PAT) named `RELEASE_TOKEN` **must** be configured as a
-repository secret before the publish workflow can fire.
+`release.yml` uses the short-lived repository `GITHUB_TOKEN` to create the
+GitHub Release. The release job has job-scoped `contents: write` permission for
+the release and `actions: write` permission to dispatch
+`publish-packages.yml` after a non-draft release is created.
 
-**Why this is required:** GitHub intentionally suppresses workflow events
-triggered by actions that use `GITHUB_TOKEN`. When `release.yml` creates a
-release using `GITHUB_TOKEN`, the resulting `release: published` event is
-silently invisible to other workflows — including `publish-packages.yml`. A
-user-classed PAT bypasses this suppression. Concretely:
-`.github/workflows/release.yml` line 446 uses `RELEASE_TOKEN` in the
-`softprops/action-gh-release` step; when that step fires, the resulting release
-event propagates and `.github/workflows/publish-packages.yml` starts running.
+GitHub suppresses most workflow events caused by `GITHUB_TOKEN`, including the
+`release: published` event. `workflow_dispatch` is an explicit exception, so
+the release workflow invokes that event directly with the release tag and
+`manager=all`. This avoids a long-lived `RELEASE_TOKEN` PAT and its rotation and
+expiry failure modes.
 
-**Symptom of forgetting the secret:** A tag push (or a `workflow_dispatch` run
-of `release.yml`) produces a GitHub Release normally, but `publish-packages.yml`
-never appears in the Actions tab. No package-manager index gets updated. There
-is no error — the workflow simply does not start.
-
----
-
-## Creating the PAT
-
-Choose one of two options. Fine-grained is preferred because it limits blast
-radius if the token is ever compromised.
-
-**Option A — Classic (simpler)**
-
-1. Navigate to https://github.com/settings/tokens
-2. Click **Generate new token (classic)**.
-3. Set a descriptive note (e.g., `nsyte release publish`).
-4. Set an expiry date — 90 days is a good default. Avoid "No expiration"; an
-   indefinite token is a higher risk if leaked.
-5. Select scope: `repo` (the top-level checkbox — this includes
-   `Contents: write`).
-6. Click **Generate token**. Copy the value immediately — GitHub never shows it
-   again. It starts with `ghp_`.
-
-**Option B — Fine-grained (preferred)**
-
-1. Navigate to https://github.com/settings/personal-access-tokens
-2. Click **Generate new token**.
-3. Set a descriptive name (e.g., `nsyte release publish`).
-4. Set an expiry date (90 days recommended).
-5. Under **Repository access**, select **Only select repositories** → choose
-   `sandwichfarm/nsyte`.
-6. Under **Repository permissions**, set **Contents** to **Read and write**. No
-   other permissions are needed.
-7. Click **Generate token**. Copy the value immediately — it starts with
-   `github_pat_`.
-
----
-
-## Adding the secret to the repository
-
-1. Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions
-2. Click **New repository secret**.
-3. Name: `RELEASE_TOKEN` — exactly this, case-sensitive, no whitespace.
-4. Value: paste the PAT string from above.
-5. Click **Add secret**. The name appears in the list; the value is masked and
-   never shown again.
-
----
-
-## Verifying the setup
-
-**Manual check:**
-
-In the repository Settings → Secrets and variables → Actions, confirm
-`RELEASE_TOKEN` appears in the repository secrets list.
-
-**CLI check (requires an authenticated `gh` session):**
-
-```bash
-gh secret list -R sandwichfarm/nsyte
-```
-
-`RELEASE_TOKEN` should appear in the output. (The value is not shown — this is
-correct.)
-
-**Functional check (optional but thorough):**
-
-Trigger `release.yml` via `workflow_dispatch` and set `draft: true` if the
-workflow supports it, or use a pre-release tag. Convert the resulting draft to a
-published release in the GitHub UI. Within ~30 seconds, `publish-packages.yml`
-should appear in the Actions tab and reach at least the `setup` job.
-
----
-
-## Rotation
-
-PATs expire. When `RELEASE_TOKEN` expires, the next release silently fails to
-trigger `publish-packages.yml` — same symptom as if the secret was never set.
-
-**Process:**
-
-1. Set a calendar reminder for the day before the token's expiry date.
-2. Create a new PAT with the same scope (Option A or B above).
-3. Navigate to https://github.com/sandwichfarm/nsyte/settings/secrets/actions,
-   click **RELEASE_TOKEN**, then **Update secret**, and paste the new token
-   value.
-4. Verify with `gh secret list -R sandwichfarm/nsyte` or by triggering a test
-   release.
-
-You do not need to rename the secret — updating the value in place is
-sufficient. Active workflows mid-run that reference
-<code v-pre>${{ secrets.RELEASE_TOKEN }}</code> will continue to use the old
-value until their run completes; only new runs pick up the new value.
+`publish-packages.yml` keeps its `release: published` trigger for releases
+published by a user and its manual trigger for recovery or a targeted package
+manager update.
 
 ---
 
@@ -124,17 +30,15 @@ release**
 
 Check in this order:
 
-1. **`release.yml` step still uses `GITHUB_TOKEN`** — verify line 446 of
-   `.github/workflows/release.yml` reads
-   <code v-pre>token: ${{ secrets.RELEASE_TOKEN }}</code>, not
-   <code v-pre>${{ secrets.GITHUB_TOKEN }}</code>. This is the most common
-   cause.
-2. **`RELEASE_TOKEN` secret not set** — confirm it is present in Settings →
-   Secrets and variables → Actions.
-3. **`RELEASE_TOKEN` expired or revoked** — create a new PAT and update the
-   secret.
-4. **PAT lacks required scope** — for a classic token, `repo` scope is required.
-   For fine-grained, `Contents: Read and write` on `sandwichfarm/nsyte`.
+1. **The release is a draft** — package publishing is intentionally skipped for
+   draft releases.
+2. **The `Publish packages` step failed** — inspect the `Create Release` job in
+   `release.yml`; it needs job-scoped `actions: write` permission.
+3. **The workflow was renamed or disabled** — verify
+   `.github/workflows/publish-packages.yml` is enabled and its filename still
+   matches the dispatch command in `release.yml`.
+4. **Recovery** — run `publish-packages.yml` manually with the release tag and
+   `manager=all`.
 
 **Symptom: `publish-packages.yml` setup job fails with "Release assets not
 available after 300s"**
@@ -569,14 +473,12 @@ produce and visually inspect the initial YAML files instead.
 
 ## Related files
 
-- `.github/workflows/release.yml` — the release-creation workflow. Line 446 uses
-  `RELEASE_TOKEN` in the `softprops/action-gh-release` step to create the
-  release that fires the downstream event.
+- `.github/workflows/release.yml` — the release-creation workflow. It creates
+  releases with `GITHUB_TOKEN` and dispatches the package workflow after
+  publishing a non-draft release.
 - `.github/workflows/publish-packages.yml` — the publish workflow. Triggered by
-  `release: published` or manual `workflow_dispatch`. Depends on the
-  PAT-initiated release event to start automatically; run it manually with a tag
-  and `manager=all` or a single manager name if `RELEASE_TOKEN` is not
-  configured.
+  the release workflow's `workflow_dispatch`, by user-created
+  `release: published` events, or manually for recovery and targeted updates.
 - `packages/aur/nsyte/PKGBUILD` — source-build AUR template. Contains
   `PLACEHOLDER_VERSION` and `PLACEHOLDER_SHA256_SOURCE`.
 - `packages/aur/nsyte-bin/PKGBUILD` — binary AUR template. Contains
