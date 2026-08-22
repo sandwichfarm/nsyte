@@ -4,7 +4,11 @@ import "../test-setup-global.ts";
 import { assertEquals, assertExists } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
 import nsyte from "../../src/commands/root.ts";
-import { formatSnapshotCreatedAt, registerSnapshotCommand } from "../../src/commands/snapshot.ts";
+import {
+  formatSnapshotCreatedAt,
+  registerSnapshotCommand,
+  resolveTagOverride,
+} from "../../src/commands/snapshot.ts";
 
 describe("snapshot command", () => {
   it("registers the snapshot command", () => {
@@ -20,9 +24,19 @@ describe("snapshot command", () => {
     assertExists(snapshotCommand.getOption("no-config"));
     assertExists(snapshotCommand.getOption("name"));
     assertExists(snapshotCommand.getOption("relays"));
+    assertExists(snapshotCommand.getOption("title"));
+    assertExists(snapshotCommand.getOption("no-title"));
+    assertExists(snapshotCommand.getOption("description"));
+    assertExists(snapshotCommand.getOption("no-description"));
     assertExists(snapshotCommand.getOption("dry-run"));
     assertExists(snapshotCommand.getOption("dry-run-output"));
     assertExists(snapshotCommand.getOption("dry-run-show-kinds"));
+  });
+
+  it("maps descriptive tag flags onto snapshot overrides", () => {
+    assertEquals(resolveTagOverride(undefined), undefined);
+    assertEquals(resolveTagOverride("v1.2.3"), "v1.2.3");
+    assertEquals(resolveTagOverride(false), "");
   });
 
   it("formats snapshot created_at as unix and human-readable text", () => {
