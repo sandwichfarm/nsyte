@@ -14,7 +14,8 @@ automation.
 - `homebrew/` - Homebrew tap formula template, published to `sandwichfarm/homebrew-nsyte`
 - `scoop/` - Scoop bucket manifest template, published to `sandwichfarm/scoop-nsyte`
 - `winget/` - Winget bootstrap manifests, used with `wingetcreate` after the first manual PR
-- `../flake.nix` - Nix flake template at repo root, updated by the Nix publish job
+- `../flake.nix` and `../nix/package.nix` - source-based Nix package using deno2nix, verified by the
+  Nix publish job
 
 ## Preserved templates
 

@@ -44,9 +44,6 @@ jobs:
       sha256_macos_x64: ${{ steps.checksums.outputs.sha256_macos_x64 }}
       sha256_windows: ${{ steps.checksums.outputs.sha256_windows }}
       sha256_source: ${{ steps.checksums.outputs.sha256_source }}
-      sri_linux_x64: ${{ steps.checksums.outputs.sri_linux_x64 }}
-      sri_macos_arm64: ${{ steps.checksums.outputs.sri_macos_arm64 }}
-      sri_macos_x64: ${{ steps.checksums.outputs.sri_macos_x64 }}
     steps:
       - name: Extract version and tag
         id: extract
@@ -66,9 +63,6 @@ jobs:
           VERSION: ${{ steps.extract.outputs.version }}
           REPO: ${{ github.repository }}
         run: |
-          TAG="${TAG}"
-          VERSION="${VERSION}"
-          REPO="${REPO}"
           EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
           TIMEOUT=300
           INTERVAL=15
@@ -112,10 +106,6 @@ jobs:
           curl -fsSL -o nsyte-macos-x64   "${BASE}/nsyte-macos-x64-${VERSION}"
           curl -fsSL -o nsyte-windows.exe "${BASE}/nsyte-windows-${VERSION}.exe"
 
-          to_sri() {
-            printf '%s' "$1" | xxd -r -p | base64 -w0
-          }
-
           SHA256_SOURCE=$(sha256sum nsyte-source.tar.gz | awk '{print $1}')
           SHA256_LINUX_X64=$(sha256sum nsyte-linux | awk '{print $1}')
           SHA256_MACOS_ARM64=$(sha256sum nsyte-macos-arm64 | awk '{print $1}')
@@ -128,9 +118,6 @@ jobs:
             echo "sha256_macos_arm64=${SHA256_MACOS_ARM64}"
             echo "sha256_macos_x64=${SHA256_MACOS_X64}"
             echo "sha256_windows=${SHA256_WINDOWS}"
-            echo "sri_linux_x64=sha256-$(to_sri "${SHA256_LINUX_X64}")"
-            echo "sri_macos_arm64=sha256-$(to_sri "${SHA256_MACOS_ARM64}")"
-            echo "sri_macos_x64=sha256-$(to_sri "${SHA256_MACOS_X64}")"
           } >> "$GITHUB_OUTPUT"
 
   publish-aur:
@@ -392,47 +379,27 @@ jobs:
           Write-Host "Winget manifest PR submitted successfully."
 
   publish-nix:
-    name: Update Nix flake
+    name: Verify Nix flake
     needs: [setup]
     if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'nix')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-      - name: Checkout default branch
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
-      - name: Patch flake hashes
-        env:
-          VERSION: ${{ needs.setup.outputs.version }}
-          SRI_X86_64_LINUX: ${{ needs.setup.outputs.sri_linux_x64 }}
-          SRI_AARCH64_DARWIN: ${{ needs.setup.outputs.sri_macos_arm64 }}
-          SRI_X86_64_DARWIN: ${{ needs.setup.outputs.sri_macos_x64 }}
-        run: |
-          set -euo pipefail
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
 
-          sed -i -E "s|version = \"[^\"]+\";|version = \"${VERSION}\";|" flake.nix
-          sed -i -E '/"x86_64-linux" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_LINUX}"'";|' flake.nix
-          sed -i -E '/"x86_64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_DARWIN}"'";|' flake.nix
-          sed -i -E '/"aarch64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_AARCH64_DARWIN}"'";|' flake.nix
+      - name: Build and check flake
+        run: nix flake check --print-build-logs
 
-          if grep -q "PLACEHOLDER_" flake.nix; then
-            echo "::error::flake.nix still contains PLACEHOLDER_ markers after substitution."
-            grep "PLACEHOLDER_" flake.nix
-            exit 1
-          fi
-
-      - name: Commit and push flake update
+      - name: Smoke test packaged CLI
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          git config user.name "nsyte-bot"
-          git config user.email "nsyte-bot@users.noreply.github.com"
-          git add flake.nix
-          if git diff --cached --quiet; then
-            echo "flake.nix already up to date for v${VERSION}. Skipping push."
-            exit 0
-          fi
-          git commit -m "chore: update Nix flake to v${VERSION}"
-          git push
+          output=$(nix run .# -- --version)
+          echo "$output"
+          grep -F "$VERSION" <<< "$output"
