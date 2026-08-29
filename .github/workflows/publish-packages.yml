@@ -128,7 +128,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for PKGBUILD template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with AUR key
         uses: webfactory/ssh-agent@v0.10.0
@@ -216,7 +216,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for formula template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Homebrew tap deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -275,7 +275,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for manifest template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Scoop bucket deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -332,7 +332,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout nsyte repo (for ManifestVersion sanity check)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify ManifestVersion in templates (informational, resolves WR-02)
         shell: pwsh
@@ -398,7 +398,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
