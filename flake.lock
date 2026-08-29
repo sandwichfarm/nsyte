@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "deno2nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1785930870,
+        "narHash": "sha256-HQ0FPHO24Un5Z3ZXxCUE0t6SLNUU3VyE56jodiv4Uks=",
+        "owner": "hzrd149",
+        "repo": "deno2nix",
+        "rev": "4c06da532c2ff10b5b2ebb3a77e709ae40540261",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hzrd149",
+        "repo": "deno2nix",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1787736819,
+        "narHash": "sha256-cV5xEJJK3BvhU8rEd4mC9UsmDi5qscv/kzGPhBRC5WA=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9fbb54b33e91ee4ca368e35a78e0613c720600b3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "deno2nix": "deno2nix",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
