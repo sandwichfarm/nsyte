@@ -26,6 +26,8 @@ let
     runtimeInputs = [
       pkgs.git
       pkgs.which
+    ]
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
       pkgs.libsecret
       pkgs.xdg-utils
     ];

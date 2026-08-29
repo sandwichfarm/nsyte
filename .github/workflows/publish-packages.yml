@@ -379,10 +379,22 @@ jobs:
           Write-Host "Winget manifest PR submitted successfully."
 
   publish-nix:
-    name: Verify Nix flake
+    name: Verify Nix flake (${{ matrix.system }})
     needs: [setup]
     if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'nix')
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-15-intel
+          - system: aarch64-darwin
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
       - name: Checkout release source
@@ -394,12 +406,14 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Build and check flake
-        run: nix flake check --print-build-logs
+        run: |
+          nix flake check --print-build-logs
+          nix build ".#packages.${{ matrix.system }}.default" --print-build-logs
 
       - name: Smoke test packaged CLI
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          output=$(nix run .# -- --version)
+          output=$(nix run ".#packages.${{ matrix.system }}.default" -- --version)
           echo "$output"
           grep -F "$VERSION" <<< "$output"
