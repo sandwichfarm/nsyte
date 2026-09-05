@@ -134,6 +134,107 @@ describe("manifest snapshot helpers", () => {
     assertEquals(snapshot.tags.filter((tag) => tag[0] === "x").length, 1);
   });
 
+  it("replaces inherited title and description with caller overrides", async () => {
+    const manifest = createManifest({
+      tags: [
+        ["path", "/index.html", "a".repeat(64)],
+        ["title", "My Site"],
+        ["description", "the live site"],
+      ],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, {
+      title: "v1.2.3",
+      description: "release snapshot",
+    });
+
+    assertEquals(snapshot.tags.filter((tag) => tag[0] === "title"), [["title", "v1.2.3"]]);
+    assertEquals(
+      snapshot.tags.filter((tag) => tag[0] === "description"),
+      [["description", "release snapshot"]],
+    );
+  });
+
+  it("adds an overridden title when the source manifest has none", async () => {
+    const manifest = createManifest({
+      tags: [["path", "/index.html", "a".repeat(64)]],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, { title: "v1.2.3" });
+
+    assertEquals(snapshot.tags.filter((tag) => tag[0] === "title"), [["title", "v1.2.3"]]);
+    assertEquals(snapshot.tags.some((tag) => tag[0] === "description"), false);
+  });
+
+  it("drops an inherited tag when the override is an empty string", async () => {
+    const manifest = createManifest({
+      tags: [
+        ["path", "/index.html", "a".repeat(64)],
+        ["title", "My Site"],
+        ["description", "the live site"],
+      ],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, { title: "" });
+
+    assertEquals(snapshot.tags.some((tag) => tag[0] === "title"), false);
+    assertEquals(
+      snapshot.tags.filter((tag) => tag[0] === "description"),
+      [["description", "the live site"]],
+    );
+  });
+
+  it("inherits descriptive tags when no override is given", async () => {
+    const manifest = createManifest({
+      tags: [
+        ["path", "/index.html", "a".repeat(64)],
+        ["title", "My Site"],
+        ["description", "the live site"],
+      ],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, {});
+
+    assertEquals(snapshot.tags.filter((tag) => tag[0] === "title"), [["title", "My Site"]]);
+    assertEquals(
+      snapshot.tags.filter((tag) => tag[0] === "description"),
+      [["description", "the live site"]],
+    );
+  });
+
+  it("keeps verifiable tags untouched when descriptive tags are overridden", async () => {
+    const manifest = createManifest({
+      tags: [
+        ["path", "/index.html", "a".repeat(64)],
+        ["path", "/post.html", "b".repeat(64)],
+        ["x", "1".repeat(64), "aggregate"],
+        ["title", "My Site"],
+      ],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, { title: "v1.2.3" });
+
+    assertEquals(snapshot.tags.filter((tag) => tag[0] === "path").length, 2);
+    assertEquals(
+      snapshot.tags.filter((tag) => tag[0] === "x"),
+      [["x", "1".repeat(64), "aggregate"]],
+    );
+  });
+
+  it("collapses duplicate inherited tags into a single override", async () => {
+    const manifest = createManifest({
+      tags: [
+        ["path", "/index.html", "a".repeat(64)],
+        ["title", "My Site"],
+        ["title", "Stale Title"],
+      ],
+    });
+
+    const snapshot = await createSnapshotTemplate(manifest, undefined, { title: "v1.2.3" });
+
+    assertEquals(snapshot.tags.filter((tag) => tag[0] === "title"), [["title", "v1.2.3"]]);
+  });
+
   it("creates a root-site snapshot and computes aggregate x when absent", async () => {
     const manifest = createManifest({
       kind: 15128,

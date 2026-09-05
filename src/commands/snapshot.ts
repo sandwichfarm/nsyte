@@ -27,6 +27,10 @@ interface SnapshotCommandOptions {
   sec?: string;
   promptSec?: boolean;
   name?: string;
+  /** String sets the tag, `false` (via `--no-title`) omits it, undefined inherits. */
+  title?: string | false;
+  /** String sets the tag, `false` (via `--no-description`) omits it, undefined inherits. */
+  description?: string | false;
   dryRun?: boolean;
   dryRunOutput?: string;
   dryRunShowKinds?: string;
@@ -37,6 +41,19 @@ interface SnapshotCommandOptions {
 
 export function formatSnapshotCreatedAt(createdAt: number): string {
   return `${createdAt} (${formatTimestamp(createdAt)})`;
+}
+
+function findTagValue(template: { tags: string[][] }, name: string): string | undefined {
+  return template.tags.find((tag) => tag[0] === name)?.[1];
+}
+
+/**
+ * Maps a CLI descriptive-tag flag onto a snapshot override: `false` (from
+ * `--no-title`/`--no-description`) becomes the empty string, which drops the tag.
+ */
+export function resolveTagOverride(value: string | false | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  return value === false ? "" : value;
 }
 
 export function registerSnapshotCommand(): void {
@@ -56,6 +73,20 @@ export function registerSnapshotCommand(): void {
       "-d, --name <name:string>",
       "The site identifier for named sites (kind 35128). If not provided, snapshots the root site (kind 15128).",
     )
+    .option(
+      "--title <title:string>",
+      "Title for this snapshot. Defaults to the source manifest's title.",
+    )
+    .option("--no-title", "Omit the title inherited from the source manifest.", {
+      default: undefined,
+    })
+    .option(
+      "--description <description:string>",
+      "Description for this snapshot. Defaults to the source manifest's description.",
+    )
+    .option("--no-description", "Omit the description inherited from the source manifest.", {
+      default: undefined,
+    })
     .option("--dry-run", "Preview the snapshot event without signing or publishing it.")
     .option("--dry-run-output <dir:string>", "Directory to write dry-run event JSON files.")
     .option(
@@ -137,7 +168,10 @@ export async function snapshotCommand(options: SnapshotCommandOptions): Promise<
 
   const sourceManifest = trustedManifest.event;
   const aggregateTag = await getOrComputeManifestAggregateTag(sourceManifest);
-  const snapshotTemplate = await createSnapshotTemplate(sourceManifest, options.createdAt);
+  const snapshotTemplate = await createSnapshotTemplate(sourceManifest, options.createdAt, {
+    title: resolveTagOverride(options.title),
+    description: resolveTagOverride(options.description),
+  });
 
   console.log(
     colors.gray(
@@ -149,6 +183,17 @@ export async function snapshotCommand(options: SnapshotCommandOptions): Promise<
   console.log(
     colors.cyan(`Snapshot created_at: ${formatSnapshotCreatedAt(snapshotTemplate.created_at)}`),
   );
+
+  const snapshotTitle = findTagValue(snapshotTemplate, "title");
+  if (snapshotTitle) {
+    console.log(colors.cyan(`Snapshot title: ${snapshotTitle}`));
+  }
+
+  const snapshotDescription = findTagValue(snapshotTemplate, "description");
+  if (snapshotDescription) {
+    console.log(colors.cyan(`Snapshot description: ${snapshotDescription}`));
+  }
+
   console.log("");
 
   if (options.dryRun) {
