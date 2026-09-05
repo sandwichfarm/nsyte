@@ -30,10 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -75,7 +75,7 @@ jobs:
       - name: Compress with UPX
         id: compress_linux
         continue-on-error: true
-        uses: svenstaro/upx-action@v2
+        uses: svenstaro/upx-action@v3
         with:
           files: dist/nsyte-linux-compressed
           args: --best --lzma
@@ -99,7 +99,7 @@ jobs:
           ls -lh dist/nsyte-linux*
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-binaries
           path: |
@@ -112,10 +112,10 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -170,7 +170,7 @@ jobs:
           ls -lh dist/nsyte-macos-x64*
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-intel-binaries
           path: |
@@ -183,10 +183,10 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -244,7 +244,7 @@ jobs:
           ls -lh dist/nsyte-macos-arm64*
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-arm-binaries
           path: |
@@ -257,10 +257,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -304,7 +304,7 @@ jobs:
         shell: pwsh
 
       - name: Compress with UPX
-        uses: svenstaro/upx-action@v2
+        uses: svenstaro/upx-action@v3
         with:
           files: dist/nsyte-windows-compressed.exe
           args: --best --lzma
@@ -324,7 +324,7 @@ jobs:
         shell: pwsh
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-binaries
           path: |
@@ -340,10 +340,10 @@ jobs:
       id-token: write # Required for OIDC authentication with JSR
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -397,7 +397,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Get version
         id: get_version
@@ -438,7 +438,7 @@ jobs:
           fi
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -473,7 +473,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', env.VERSION) || github.ref_name }}
           name: nsyte v${{ env.VERSION }}

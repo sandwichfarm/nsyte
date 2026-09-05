@@ -128,7 +128,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for PKGBUILD template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with AUR key
         uses: webfactory/ssh-agent@v0.10.0
@@ -216,7 +216,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for formula template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Homebrew tap deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -275,7 +275,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for manifest template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Scoop bucket deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -332,7 +332,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout nsyte repo (for ManifestVersion sanity check)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify ManifestVersion in templates (informational, resolves WR-02)
         shell: pwsh
@@ -379,14 +379,26 @@ jobs:
           Write-Host "Winget manifest PR submitted successfully."
 
   publish-nix:
-    name: Verify Nix flake
+    name: Verify Nix flake (${{ matrix.system }})
     needs: [setup]
     if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'nix')
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-15-intel
+          - system: aarch64-darwin
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
       - name: Checkout release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
@@ -394,12 +406,14 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Build and check flake
-        run: nix flake check --print-build-logs
+        run: |
+          nix flake check --print-build-logs
+          nix build ".#packages.${{ matrix.system }}.default" --print-build-logs
 
       - name: Smoke test packaged CLI
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          output=$(nix run .# -- --version)
+          output=$(nix run ".#packages.${{ matrix.system }}.default" -- --version)
           echo "$output"
           grep -F "$VERSION" <<< "$output"

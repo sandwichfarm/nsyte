@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     deno2nix.url = "github:hzrd149/deno2nix";
     deno2nix.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -11,11 +12,15 @@
     {
       self,
       nixpkgs,
+      nixpkgs-darwin,
       deno2nix,
     }:
     let
       systems = [
         "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
 
       forAllSystems =
@@ -23,7 +28,7 @@
         nixpkgs.lib.genAttrs systems (
           system:
           f system (
-            import nixpkgs {
+            import (if system == "x86_64-darwin" then nixpkgs-darwin else nixpkgs) {
               inherit system;
               overlays = [ deno2nix.overlays.default ];
             }

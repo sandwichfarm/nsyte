@@ -1,0 +1,58 @@
+name: Nix
+
+on:
+  push:
+    paths:
+      - ".github/workflows/nix.yml"
+      - "flake.lock"
+      - "flake.nix"
+      - "nix/**"
+      - "deno.json"
+      - "deno.lock"
+      - "src/**"
+  pull_request:
+    paths:
+      - ".github/workflows/nix.yml"
+      - "flake.lock"
+      - "flake.nix"
+      - "nix/**"
+      - "deno.json"
+      - "deno.lock"
+      - "src/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check (${{ matrix.system }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-15-intel
+          - system: aarch64-darwin
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Check flake
+        run: nix flake check --print-build-logs
+
+      - name: Build package
+        run: nix build ".#packages.${{ matrix.system }}.default" --print-build-logs
+
+      - name: Smoke test packaged CLI
+        run: nix run ".#packages.${{ matrix.system }}.default" -- --version
