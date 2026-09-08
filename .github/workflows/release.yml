@@ -393,8 +393,8 @@ jobs:
     needs: [build-linux, build-macos-intel, build-macos-arm, build-windows, publish-jsr]
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
+      actions: write
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -410,20 +410,10 @@ jobs:
           NORMALIZED_VERSION="${RAW_VERSION#v}"
           echo "VERSION=${NORMALIZED_VERSION}" >> $GITHUB_ENV
 
-      - name: Validate release token
-        env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: |
-          if [ -z "$RELEASE_TOKEN" ]; then
-            echo "::error::Missing RELEASE_TOKEN repository secret. release.yml uses a PAT so the publish-packages release event fires."
-            echo "::error::Create a PAT with repo scope, store it as RELEASE_TOKEN, then rerun with workflow_dispatch."
-            exit 1
-          fi
-
       - name: Remove existing release if requested
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.replace_release == 'true' }}
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             TAG_NAME="v${{ env.VERSION }}"
@@ -479,7 +469,7 @@ jobs:
           name: nsyte v${{ env.VERSION }}
           draft: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.draft == 'true' || false }}
           prerelease: false
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## nsyte v${{ env.VERSION }}
 
@@ -585,3 +575,15 @@ jobs:
             release/nsyte-windows-compressed-${{ env.VERSION }}.exe
             release/size-report.md
           fail_on_unmatched_files: false
+
+      - name: Publish packages
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.draft != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ env.VERSION }}
+        run: |
+          gh workflow run publish-packages.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.event.repository.default_branch }}" \
+            --field tag="$TAG" \
+            --field manager=all

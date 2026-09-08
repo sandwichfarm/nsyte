@@ -1,9 +1,6 @@
-# IMPORTANT: This workflow triggers on "release: published".
-# GitHub suppresses this event when releases are created with GITHUB_TOKEN.
-# release.yml MUST use secrets.RELEASE_TOKEN (a PAT with "repo" scope) in its
-# softprops/action-gh-release step for this workflow to fire. If publish-packages.yml
-# never runs after a release, check that release.yml is not using GITHUB_TOKEN for
-# the "Create GitHub Release" step. See docs/RELEASING.md for the full setup.
+# release.yml uses GITHUB_TOKEN and explicitly dispatches this workflow because
+# its release events do not trigger downstream workflows. Keep the release trigger
+# for user-published releases and workflow_dispatch for targeted recovery.
 
 name: publish packages
 
