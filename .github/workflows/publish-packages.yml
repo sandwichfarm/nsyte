@@ -170,14 +170,14 @@ jobs:
             fi
 
             docker run --rm \
+              -e HOST_UID="$(id -u)" \
               -v "${repo}:/pkg" \
               archlinux:base-devel \
               bash -c '
                 set -euo pipefail
-                useradd -m builder
-                chown -R builder /pkg
+                useradd -m -u "$HOST_UID" builder
                 cd /pkg
-                runuser -u builder -- makepkg --printsrcinfo > .SRCINFO
+                runuser -u builder -- bash -c "makepkg --printsrcinfo > .SRCINFO"
               '
 
             test -s "${repo}/.SRCINFO" || {
