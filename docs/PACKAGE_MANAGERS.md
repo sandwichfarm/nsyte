@@ -30,12 +30,9 @@ Still required:
 
 - `AUR_SSH_PRIVATE_KEY` - an unencrypted CI key whose public key is registered on the AUR account
 - `WINGET_FORK_TOKEN` - classic GitHub PAT with `public_repo` for `wingetcreate --submit`
-- `RELEASE_TOKEN` - GitHub PAT used by `release.yml` to create releases that emit a downstream
-  `release: published` event
 
-Without `RELEASE_TOKEN`, run `publish-packages.yml` manually with `workflow_dispatch`, the release
-tag, and `manager=all` or a single manager name. The package jobs themselves do not need
-`RELEASE_TOKEN`.
+`release.yml` creates releases with the repository's `GITHUB_TOKEN`, then explicitly dispatches
+`publish-packages.yml`. No long-lived release PAT is required.
 
 WinGet bootstrap PR: https://github.com/microsoft/winget-pkgs/pull/386658
 
