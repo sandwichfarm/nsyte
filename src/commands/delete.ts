@@ -20,6 +20,7 @@ import nsyte from "./root.ts";
 
 const log = createLogger("delete");
 
+import type { NostrEvent } from "applesauce-core/helpers";
 import type { ISigner } from "applesauce-signers";
 import { handleError } from "../lib/error-utils.ts";
 
@@ -44,12 +45,12 @@ function collectBlobHashes(pathTags: string[][]): Set<string> {
 
 async function handleDeleteDryRun(
   siteType: string,
-  manifestId: string,
+  manifest: NostrEvent,
   pathTags: string[][],
   options: DeleteDryRunOptions,
   servers: string[],
 ): Promise<void> {
-  const deleteTemplate = await createDeleteEventTemplate([manifestId], options.createdAt);
+  const deleteTemplate = await createDeleteEventTemplate([manifest], options.createdAt);
 
   await handleDryRunOutput(
     [{
@@ -274,7 +275,7 @@ export function registerDeleteCommand() {
             : (config.servers || []);
           await handleDeleteDryRun(
             `named site "${options.name}"`,
-            manifest.id,
+            manifest,
             pathTags,
             options,
             servers,
@@ -300,7 +301,7 @@ export function registerDeleteCommand() {
 
         // Create and publish delete event
         console.log(colors.cyan("\nCreating delete event..."));
-        const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
+        const deleteEvent = await createDeleteEvent(signer, [manifest]);
 
         console.log(colors.cyan("Publishing delete event to relays..."));
         const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);
@@ -489,7 +490,7 @@ export function registerDeleteCommand() {
       }
 
       if (options.dryRun) {
-        await handleDeleteDryRun("root site", manifest.id, pathTags, options, servers);
+        await handleDeleteDryRun("root site", manifest, pathTags, options, servers);
         if ("close" in signer && typeof signer.close === "function") {
           await signer.close();
         }
@@ -511,7 +512,7 @@ export function registerDeleteCommand() {
 
       // Create and publish delete event
       console.log(colors.cyan("\nCreating delete event..."));
-      const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
+      const deleteEvent = await createDeleteEvent(signer, [manifest]);
 
       console.log(colors.cyan("Publishing delete event to relays..."));
       const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);

@@ -231,7 +231,7 @@ export function registerUndeployCommand() {
       if (options.dryRun) {
         const dryRunOptions = options as UndeployDryRunOptions;
         const deleteTemplate = await createDeleteEventTemplate(
-          [manifest.id],
+          [manifest],
           dryRunOptions.createdAt,
         );
         await handleDryRunOutput(
@@ -346,7 +346,7 @@ export function registerUndeployCommand() {
 
       // Publish NIP-09 delete event for the manifest
       console.log(colors.cyan("\nCreating delete event for site manifest..."));
-      const deleteEvent = await createDeleteEvent(signer, [manifest.id]);
+      const deleteEvent = await createDeleteEvent(signer, [manifest]);
 
       console.log(colors.cyan("Publishing delete event to relays..."));
       const success = await publishEventsToRelays(trustedManifest.relays, [deleteEvent]);
