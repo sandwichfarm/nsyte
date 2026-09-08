@@ -570,15 +570,15 @@ export async function createSiteManifestEvent(
   return await signer.signEvent(template);
 }
 
-/** Create a delete event (NIP-09) */
+/** Create a NIP-09 deletion request. Pass full events to also delete replaceable history. */
 export async function createDeleteEventTemplate(
-  eventIds: string[],
+  events: (string | NostrEvent)[],
   createdAt?: number,
 ): Promise<EventTemplate> {
   const draft = await buildEvent(
     { kind: kinds.EventDeletion },
     { client: { name: "nsyte" } },
-    setDeleteEvents(eventIds),
+    setDeleteEvents(events),
   );
 
   if (createdAt !== undefined) {
@@ -590,9 +590,9 @@ export async function createDeleteEventTemplate(
 
 export async function createDeleteEvent(
   signer: ISigner,
-  eventIds: string[],
+  events: (string | NostrEvent)[],
 ): Promise<NostrEvent> {
-  const draft = await createDeleteEventTemplate(eventIds);
+  const draft = await createDeleteEventTemplate(events);
   return await signer.signEvent(draft);
 }
 
