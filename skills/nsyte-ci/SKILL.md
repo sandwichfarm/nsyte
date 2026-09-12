@@ -42,8 +42,10 @@ Then:
 1. Store the printed value as a pipeline secret. Any name works; this skill uses `NBUNK_SECRET`.
 2. Prefer a **dedicated bunker connection for CI** so it can be revoked without touching the user's
    other clients. Revocation happens in the signer app, not in nsyte.
-3. Never use a raw private key (`nsec1…` / hex) in CI. `nsite-action` rejects it outright; the CLI
-   accepts it but it cannot be revoked if leaked.
+3. Never use a raw private key (`nsec1…` / hex) in CI. `nsite-action`'s `nbunksec` input rejects
+   anything that is not `nbunksec1…`, but its compatibility `sec` input and the CLI's `--sec` accept
+   raw keys — the guard is only as good as the input you choose. A raw key cannot be revoked if
+   leaked; an `nbunksec` can be, in the signer app.
 
 The agent must not run `nsyte ci` on the user's behalf and paste the output anywhere — it prints a
 credential. Tell the user to run it and store the value themselves.
@@ -229,12 +231,32 @@ job the user has explicitly asked to be destructive.
 ## Snapshots as release markers
 
 A snapshot (`nsyte snapshot`) publishes an immutable kind 5128 event that pins the **currently
-published** manifest's aggregate hash and file set. It reads that manifest from the relays, so it
-must run after a successful deploy has propagated — never before, and never on a build that did not
-deploy.
+published** manifest's aggregate hash and file set. It reads that manifest from the relays with a
+single query and no retry, and it takes the **newest manifest it finds**. `deploy` succeeds once one
+relay accepts the manifest, so a snapshot run immediately afterwards can either fail with
+`No manifest found` or — worse — silently pin the _previous_ deploy. Always confirm propagation
+first: `deploy` prints `Event ID: <id>` and `snapshot --dry-run` prints
+`Source manifest: <id> (<age>)`, so compare the two before publishing.
 
 ```bash
-nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET"
+set -o pipefail
+
+# Deploy and capture the manifest event id
+deploy_log="$(mktemp)"
+nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET" | tee "$deploy_log"
+manifest_id="$(sed -n 's/.*Event ID: \([0-9a-f]\{64\}\).*/\1/p' "$deploy_log" | tail -n1)"
+[ -n "$manifest_id" ] || { echo "deploy did not print a manifest Event ID"; exit 1; }
+
+# Wait (bounded) until the relays return that manifest as the newest one
+for attempt in 1 2 3 4 5 6; do
+  if nsyte snapshot --dry-run --sec "$NBUNK_SECRET" | grep -q "Source manifest: $manifest_id"; then
+    break
+  fi
+  [ "$attempt" -lt 6 ] || { echo "manifest $manifest_id not visible on relays after 6 tries"; exit 1; }
+  sleep 10
+done
+
+# Create the release marker
 nsyte snapshot --sec "$NBUNK_SECRET" --title "v${TAG}" --description "Release ${TAG}"
 ```
 
@@ -243,7 +265,8 @@ nsyte snapshot --sec "$NBUNK_SECRET" --title "v${TAG}" --description "Release ${
 - `-d <name>` snapshots a named site; without it, the root site.
 - The hash and file set always come from the manifest and cannot be overridden.
 - `snapshot` has no `--non-interactive` flag; with `--sec` it never prompts.
-- Preview with `--dry-run` in the same job first if the pipeline is new.
+- `--dry-run` is also the propagation check above; keep it in the job even once the pipeline is
+  stable.
 - nsyte has no command to list snapshots; they are visible to relay clients that query kind 5128 by
   author.
 - Not available through `nsite-action` — use a pinned-binary step.

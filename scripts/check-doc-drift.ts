@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read
 // scripts/check-doc-drift.ts
 //
-// Drift gate for nsyte's source-vs-docs-vs-skill alignment. Performs four checks:
+// Drift gate for nsyte's source-vs-docs-vs-skill alignment. Performs five checks:
 //   1. Command-page coverage: every src/commands/<name>.ts (except root.ts)
 //      has a corresponding docs/usage/commands/<name>.md, accounting for
 //      naming-mismatch (list↔ls) and alias-doc handling (upload→deploy).
@@ -14,8 +14,10 @@
 //   4. Agent-skill drift: skills/nsyte/SKILL.md must mention every command
 //      (by name or alias), must not reference flags that no command declares,
 //      and skills/nsyte/assets/config.schema.json must be identical to
-//      src/schemas/config.schema.json. Every other skills/*/SKILL.md is a
-//      companion skill (e.g. nsyte-ci): it is only checked for phantom flags.
+//      src/schemas/config.schema.json.
+//   5. Companion-skill drift: every other skills/*/SKILL.md (e.g. nsyte-ci)
+//      must not reference flags that no command declares. Companions are not
+//      required to cover every command or bundle the schema.
 //
 // Exit codes:
 //   0   No drift detected (clean baseline)

@@ -34,17 +34,18 @@ Browse the listing at <https://skills.sh/sandwichfarm/nsyte>.
 
 ### Manual install
 
-Copy `skills/nsyte/` into your agent's skills directory, for example:
+Copy each skill directory you want into your agent's skills directory. `nsyte-ci` is optional — take
+it only if the agent will work on pipelines:
 
 ```bash
 # Claude Code (project)
-mkdir -p .claude/skills && cp -r skills/nsyte .claude/skills/
+mkdir -p .claude/skills && cp -r skills/nsyte skills/nsyte-ci .claude/skills/
 
 # Claude Code (user-wide)
-mkdir -p ~/.claude/skills && cp -r skills/nsyte ~/.claude/skills/
+mkdir -p ~/.claude/skills && cp -r skills/nsyte skills/nsyte-ci ~/.claude/skills/
 
 # Agent-neutral location read by many agents
-mkdir -p .agents/skills && cp -r skills/nsyte .agents/skills/
+mkdir -p .agents/skills && cp -r skills/nsyte skills/nsyte-ci .agents/skills/
 ```
 
 ## Layout
