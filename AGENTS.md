@@ -103,6 +103,11 @@ try {
 
 - **JSDoc comments** for exported functions and complex logic
 - Mark deprecated functions with `@deprecated`
+- Command reference pages live in `docs/usage/commands/<command>.md`; the agent skill lives in
+  `skills/nsyte/SKILL.md` (installable via `npx skills add sandwichfarm/nsyte`)
+- `deno task check-doc-drift` gates source ↔ docs ↔ skill alignment (commands, flags, env vars,
+  bundled config schema). Run it after changing anything in `src/commands/`, `src/schemas/`,
+  `docs/usage/commands/`, or `skills/`
 
 ## Architecture Patterns
 
@@ -117,6 +122,8 @@ src/
 tests/
 ├── unit/          # Unit tests
 └── integration/   # Integration tests
+docs/usage/commands/   # One reference page per command (checked by the drift gate)
+skills/nsyte/          # Agent skill (SKILL.md + references/ + assets/config.schema.json)
 ```
 
 ### Key Patterns

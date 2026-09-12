@@ -11,10 +11,14 @@
 //      auto-negation `--no-X` for boolean defaults).
 //   3. Env-var drift: env vars mentioned in docs (NSYTE_*/NSITE_*) must
 //      correspond to a `Deno.env.get("...")` call somewhere in src/.
+//   4. Agent-skill drift: skills/nsyte/SKILL.md must mention every command
+//      (by name or alias), must not reference flags that no command declares,
+//      and skills/nsyte/assets/config.schema.json must be identical to
+//      src/schemas/config.schema.json.
 //
 // Exit codes:
 //   0   No drift detected (clean baseline)
-//   1   Drift detected (commands/docs/flags/env-vars misaligned)
+//   1   Drift detected (commands/docs/flags/env-vars/skill misaligned)
 //   2   Script error (parse failure, missing input, IO error)
 //
 // Output:
@@ -30,6 +34,7 @@ const SKIP_SOURCE_NAMES = new Set(["root"]);
 const SOURCE_TO_DOC_KEY: Record<string, string> = { list: "ls" };
 const IMPLICIT_FLAGS = new Set(["--help"]);
 const TRACKED_ENV_PREFIXES = ["NSYTE_", "NSITE_"];
+const SKILL_IMPLICIT_FLAGS = new Set(["--help", "--version"]);
 
 // Regexes
 const OPTION_RE = /\.option\(\s*"([^"]+)"/g;
@@ -85,6 +90,14 @@ interface DriftReport {
     doc_mentioned: string[];
     phantom: string[];
   };
+  skill_drift: SkillDrift;
+}
+interface SkillDrift {
+  skill_path: string;
+  missing_commands: Array<{ command: string; accepted_names: string[] }>;
+  phantom_flags: string[];
+  schema_in_sync: boolean;
+  schema_paths: { source: string; skill: string };
 }
 
 // ---------- Helpers ----------
@@ -344,6 +357,70 @@ async function checkEnvVars(srcTree: string, docsRoot: string) {
   };
 }
 
+async function checkSkill(
+  source: SourceFlags,
+  skillDir: string,
+  sourceSchemaPath: string,
+): Promise<SkillDrift> {
+  const skillPath = `${skillDir}/SKILL.md`;
+  const skillSchemaPath = `${skillDir}/assets/config.schema.json`;
+  const text = await Deno.readTextFile(skillPath);
+
+  // 1. Every source command must be mentioned as `nsyte <name>` (or `nsyte <alias>`).
+  const missing: Array<{ command: string; accepted_names: string[] }> = [];
+  for (const [name, spec] of Object.entries(source.commands)) {
+    if (SKIP_SOURCE_NAMES.has(name)) continue;
+    const accepted = [...new Set([name, SOURCE_TO_DOC_KEY[name] || name, ...spec.aliases])];
+    const mentioned = accepted.some((n) =>
+      new RegExp(`\\bnsyte\\s+${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(text)
+    );
+    if (!mentioned) missing.push({ command: name, accepted_names: accepted });
+  }
+
+  // 2. Every `--flag` in the skill must be declared by some command (or be global/implicit).
+  const known = new Set<string>(source.global_flags);
+  for (const spec of Object.values(source.commands)) {
+    for (const raw of spec.flags) {
+      const lf = extractLongFlag(raw);
+      if (lf) known.add(lf);
+    }
+  }
+  const phantomFlags: string[] = [];
+  for (const f of extractAllFlags(text)) {
+    if (known.has(f) || SKILL_IMPLICIT_FLAGS.has(f)) continue;
+    // Cliffy auto-negation: --no-X is real if some command declares --X
+    if (f.startsWith("--no-") && known.has("--" + f.substring(5))) continue;
+    phantomFlags.push(f);
+  }
+  phantomFlags.sort();
+
+  // 3. The bundled schema must match the source schema (compared as parsed JSON).
+  const canon = (v: unknown): string => JSON.stringify(sortKeys(v));
+  const sourceSchema = JSON.parse(await Deno.readTextFile(sourceSchemaPath));
+  const skillSchema = JSON.parse(await Deno.readTextFile(skillSchemaPath));
+  const schemaInSync = canon(sourceSchema) === canon(skillSchema);
+
+  return {
+    skill_path: relPath(skillPath),
+    missing_commands: missing,
+    phantom_flags: phantomFlags,
+    schema_in_sync: schemaInSync,
+    schema_paths: { source: relPath(sourceSchemaPath), skill: relPath(skillSchemaPath) },
+  };
+}
+
+function sortKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(v as Record<string, unknown>).sort()) {
+      out[k] = sortKeys((v as Record<string, unknown>)[k]);
+    }
+    return out;
+  }
+  return v;
+}
+
 // ---------- CLI ----------
 
 function printHelp() {
@@ -357,11 +434,13 @@ Options:
   --docs-dir <path>        Override docs/usage/commands/ (default: docs/usage/commands)
   --src-tree <path>        Override src/ for env-var scanning (default: src)
   --docs-tree <path>       Override docs/ for env-var doc scanning (default: docs)
+  --skill-dir <path>       Override skills/nsyte/ (default: skills/nsyte)
+  --source-schema <path>   Override src/schemas/config.schema.json
   --help                   Show this message and exit codes
 
 Exit codes:
   0   No drift detected (clean baseline)
-  1   Drift detected (commands/docs/flags/env-vars misaligned)
+  1   Drift detected (commands/docs/flags/env-vars/skill misaligned)
   2   Script error (parse failure, missing input, IO error)
 `;
   console.log(help);
@@ -373,6 +452,8 @@ interface CliArgs {
   docsDir: string;
   srcTree: string;
   docsTree: string;
+  skillDir: string;
+  sourceSchema: string;
   help: boolean;
 }
 
@@ -383,6 +464,8 @@ function parseArgs(argv: string[]): CliArgs {
     docsDir: "docs/usage/commands",
     srcTree: "src",
     docsTree: "docs",
+    skillDir: "skills/nsyte",
+    sourceSchema: "src/schemas/config.schema.json",
     help: false,
   };
   // Normalize `--key=value` into `--key value` so both CLI styles work
@@ -424,6 +507,12 @@ function parseArgs(argv: string[]): CliArgs {
         break;
       case "--docs-tree":
         out.docsTree = eat();
+        break;
+      case "--skill-dir":
+        out.skillDir = eat();
+        break;
+      case "--source-schema":
+        out.sourceSchema = eat();
         break;
       default:
         throw new Error(`Unknown argument: ${a}`);
@@ -498,8 +587,38 @@ function printTextReport(report: DriftReport) {
   }
   console.log("");
 
+  // Section 4: Agent-skill drift
+  const sk = report.skill_drift;
+  const skillDrift = sk.missing_commands.length > 0 || sk.phantom_flags.length > 0 ||
+    !sk.schema_in_sync;
+  console.log(`## Agent-skill drift (${sk.skill_path})`);
+  if (!skillDrift) {
+    console.log(
+      "  OK — skill mentions every command, references only real flags, and bundles the current schema.",
+    );
+  } else {
+    if (sk.missing_commands.length > 0) {
+      console.log(`  Commands not mentioned (${sk.missing_commands.length}):`);
+      for (const m of sk.missing_commands) {
+        console.log(
+          `    - ${m.command}  (accepted: ${m.accepted_names.map((n) => `nsyte ${n}`).join(", ")})`,
+        );
+      }
+    }
+    if (sk.phantom_flags.length > 0) {
+      console.log(`  Phantom flags (${sk.phantom_flags.length}): ${sk.phantom_flags.join(", ")}`);
+    }
+    if (!sk.schema_in_sync) {
+      console.log(
+        `  Schema out of sync: ${sk.schema_paths.skill} differs from ${sk.schema_paths.source}` +
+          ` (run: cp ${sk.schema_paths.source} ${sk.schema_paths.skill})`,
+      );
+    }
+  }
+  console.log("");
+
   if (report.exit_code === 0) {
-    console.log("No drift detected — source and docs aligned.");
+    console.log("No drift detected — source, docs, and skill aligned.");
   } else {
     console.log("Drift detected — see above.");
   }
@@ -526,13 +645,16 @@ async function main(argv: string[]): Promise<number> {
   const coverage = checkCoverage(source, docs);
   const flagRows = checkFlags(source, docs);
   const env = await checkEnvVars(args.srcTree, args.docsTree);
+  const skill = await checkSkill(source, args.skillDir, args.sourceSchema);
 
   const aligned = flagRows.filter((r) => r.aligned).length;
   const drift = flagRows.length - aligned;
   const anyCoverageDrift = coverage.missing_docs.length + coverage.phantom_docs.length > 0;
   const anyEnvDrift = env.phantom.length > 0;
+  const anySkillDrift = skill.missing_commands.length > 0 || skill.phantom_flags.length > 0 ||
+    !skill.schema_in_sync;
 
-  const exit_code: 0 | 1 = anyCoverageDrift || drift > 0 || anyEnvDrift ? 1 : 0;
+  const exit_code: 0 | 1 = anyCoverageDrift || drift > 0 || anyEnvDrift || anySkillDrift ? 1 : 0;
 
   const report: DriftReport = {
     generated: new Date().toISOString(),
@@ -541,6 +663,7 @@ async function main(argv: string[]): Promise<number> {
     command_coverage: coverage,
     flag_drift: flagRows,
     env_var_drift: env,
+    skill_drift: skill,
   };
 
   if (args.format === "json") {

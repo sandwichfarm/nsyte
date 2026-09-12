@@ -1,119 +1,140 @@
 # Nostr Concepts Reference
 
-Agent-readable definitions of Nostr protocol, Blossom storage, and authentication concepts used by
-nsyte commands. Written for agents with no prior Nostr knowledge.
+Agent-readable definitions of the Nostr protocol, Blossom storage, and authentication concepts that
+nsyte commands rely on. Written for agents with no prior Nostr knowledge.
 
 ---
 
 ## Relay
 
-A relay is a WebSocket server identified by a `wss://` URL. Relays receive and store signed Nostr
-events and serve them to clients on request.
+A relay is a WebSocket server identified by a `wss://` URL. Relays receive signed Nostr events,
+store them, and serve them to clients on request. Relays are independent — an event published to one
+relay is not automatically available on another, which is why nsyte publishes to several.
 
-nsyte publishes site metadata events to one or more relays so that Nostr clients can discover a
-user's site. Without relays configured, nsyte cannot announce site updates to the network.
+nsyte publishes the site manifest (and optional metadata events) to every relay in the config so
+gateways and clients can discover the site.
 
-**For agents:** Relay URLs are stored in `.nsite/config.json` under the `relays` array. If a user
-has not configured any relays, ask them to add at least one. You may suggest `wss://relay.damus.io`
-and `wss://nos.lol` as widely-available public relays. To add a relay interactively the user runs
-`nsyte config` and follows the prompts. Never hard-code relay URLs from user configurations into
-documentation or instructions — always read from `.nsite/config.json`.
+**For agents:** Relay URLs live in `.nsite/config.json` under `relays`. Read the config before
+suggesting relays; do not invent URLs. If the array is empty, suggest `wss://relay.damus.io`,
+`wss://nos.lol`, and `wss://relay.nsite.lol` (nsyte's own defaults). Commands accept
+`-r, --relays a,b,c` to override for one run and `--use-fallback-relays` to add the built-in
+defaults. A relay list of `NIP-65` kind 10002 lets other clients find the user's preferred relays.
 
-**Example format:** `wss://relay.example.com`
+**Format:** `wss://relay.example.com`
 
 ---
 
-## Pubkey
+## Pubkey / npub
 
-A pubkey (public key) is the primary identifier for a Nostr user. It is a 64-character lowercase
-hexadecimal string derived from the user's private key. It may also be represented in bech32
-encoding as an `npub1...` string.
+A pubkey (public key) identifies a Nostr user. It is a 64-character lowercase hex string derived
+from the user's private key, and can also be written in bech32 as `npub1…`. Public keys are safe to
+share and appear in gateway URLs (`https://<npub>.nsite.lol/`).
 
-nsyte uses the pubkey to identify site ownership. The pubkey is associated with every event the user
-publishes, so Nostr clients know which site belongs to which user.
+nsyte signs every event with the user's key, so the pubkey is what ties a site to its owner. A
+`NIP-05` identifier (`name@domain.com`) can resolve to a pubkey; nsyte accepts it wherever
+`-p, --pubkey` is allowed.
 
-**For agents:** The pubkey is stored in `.nsite/config.json` under the `pubkey` field. Do not
-confuse pubkey (public, safe to share) with nsec/private key (secret, must never be exposed). If the
-config is missing a pubkey, the user must run `nsyte init` or `nsyte bunker connect` to establish an
-identity. Always use the value from config — never ask the user to type their pubkey manually.
+**For agents:** The config does **not** store the user's own pubkey. When a bunker is used, the
+config stores `bunkerPubkey` — the hex pubkey of the remote signer, set by `nsyte bunker use`. To
+find "my pubkey", read it from `nsyte deploy` output, `nsyte sites`, or `nsyte bunker list`. Never
+confuse a pubkey (public) with an nsec/private key (secret).
 
-**Example format:** `a1b2c3d4e5f6...` (64 hex chars) or `npub1abc...` (bech32)
+**Formats:** 64 hex chars, `npub1…`, or `name@domain.com` (NIP-05).
 
 ---
 
 ## nsec / Private Key
 
-An nsec (Nostr secret key) or private key is the cryptographic secret that allows a user to sign
-Nostr events. It is a 64-character hex string or a bech32-encoded string starting with `nsec1`.
-Anyone who has the private key has full control of the associated Nostr identity.
+The private key (`nsec1…` bech32, or 64 hex chars) signs events. Anyone holding it fully controls
+the identity. nsyte never writes private keys to `.nsite/config.json` and does not persist keys
+entered during `nsyte init`; they are only used for the current run.
 
-**For agents:** NEVER log, print, commit to source control, or pass the private key as a visible CLI
-argument. Shell history can capture CLI arguments — advise the user to use `nsyte init` for
-interactive key setup rather than passing the key as a flag. nsyte stores keys securely via the OS
-keychain or an encrypted fallback at `.nsite/.secrets.enc`. If a user needs to authenticate, direct
-them to `nsyte init` (interactive) or NIP-46 bunker auth for non-interactive environments. If you
-see what looks like an nsec or 64-char hex key in any file other than an encrypted store, flag it as
-a security concern.
+**For agents:** NEVER print, log, echo, commit, or paste a private key into a visible command line
+(shell history captures arguments). Pass it from an environment variable — `--sec "$NSEC"` — or use
+`--prompt-sec` so nsyte prompts for it. If you see an `nsec1…` or a bare 64-hex string in a file
+that is not an encrypted store, flag it as a security problem and recommend rotating the key. For
+long-term or automated use, steer the user to NIP-46 bunker auth instead.
 
-**Example format:** `nsec1abc...` (bech32) or a 64-character hex string — never include real values
-in documentation.
+**Formats:** `nsec1…` or 64 hex chars — never include real values in documentation or output.
 
 ---
 
 ## Blossom Server
 
-A Blossom server is an HTTP/HTTPS file storage server that stores arbitrary binary files (blobs)
-addressed by their SHA-256 hash. nsyte uploads all static site files (HTML, CSS, JS, images) to one
-or more Blossom servers. File integrity is guaranteed by the hash — the same content always has the
-same address.
+A Blossom server is an HTTP(S) server that stores arbitrary files ("blobs") addressed by their
+SHA-256 hash. nsyte uploads every site file to each configured Blossom server; because the address
+is the hash, identical content is deduplicated and integrity is verifiable by anyone.
 
-nsyte publishes Nostr events that list the SHA-256 hashes of all uploaded files, creating a
-content-addressed manifest that links site files to the user's Nostr identity.
+The site manifest event lists each file path with its SHA-256 hash, so a gateway can fetch the right
+blob from any server that has it. The optional kind 10063 event publishes the user's preferred
+Blossom servers so clients know where to look.
 
-**For agents:** Blossom server URLs are stored in `.nsite/config.json` under the `servers` array. If
-a user has not configured any Blossom servers, ask them to add at least one. You may suggest
-`https://blossom.primal.net` as a well-known public Blossom server. To add a server interactively
-the user runs `nsyte config`. Never assume default servers exist — always check config first.
-Blossom server URLs use `https://` (not `wss://`).
+**For agents:** Server URLs live in `.nsite/config.json` under `servers` and use `https://` (not
+`wss://`). If empty, suggest `https://blossom.primal.net` and `https://cdn.hzrd149.com`. Servers may
+reject uploads (size limits, allow-lists, payment) — nsyte keeps going as long as at least one
+server accepts, and `nsyte status` shows per-server availability. `--sync` re-checks every server
+and fills in missing blobs. Blob deletion (`delete --include-blobs`, `undeploy`) is best-effort;
+servers are not obliged to honor it.
 
-**Example format:** `https://blossom.example.com`
+**Format:** `https://blossom.example.com`
 
 ---
 
 ## NIP-46 / Bunker Auth
 
-NIP-46 is a Nostr protocol extension for remote signing. Instead of holding a private key locally, a
-client (nsyte) connects to a remote signer via a `bunker://` URI. The signer holds the private key
-and approves each signing request. The private key never touches the machine running nsyte.
+NIP-46 ("Nostr Connect") is remote signing. The private key stays inside a signer app (Amber,
+nsec.app, or another NIP-46 signer); nsyte connects to it over a relay using a `bunker://` URI and
+asks it to sign each event. The key never touches the machine running nsyte.
 
-This is the preferred authentication method for CI/CD pipelines and non-interactive environments
-because it avoids storing private keys in environment variables, files, or shell history.
+nsyte stores the bunker connection (as an `nbunksec1…` credential) in the OS keychain and records
+the signer's pubkey in the config as `bunkerPubkey`. `nsyte ci` produces an `nbunksec1…` for CI
+without storing it locally.
 
-**For agents:** To set up bunker auth the user runs `nsyte bunker connect <connection-string>` where
-the connection string is a `bunker://` URI provided by their Nostr signer app (e.g., Nsec.app,
-Amber, or another NIP-46-compatible signer). Once configured, nsyte uses bunker auth automatically
-for subsequent commands. If a user reports authentication errors in CI, check whether a bunker
-connection is configured before suggesting other approaches. Do not ask the user to paste their
-private key as an alternative — bunker auth is specifically designed to avoid that.
+**For agents:** Setup is `nsyte bunker connect '<bunker://…>'` (or interactive QR) followed by
+`nsyte bunker use <pubkey>`. Always single-quote `bunker://` URIs. If auth fails in CI, check that
+the pipeline passes `--sec "$NBUNK_SECRET"` and that the signer app is online and reachable on the
+relay named in the URI. Do not offer pasting a private key as the "easy" alternative.
 
-**Example bunker URI format:** `bunker://pubkey@relay.example.com?secret=token` (all values are
-placeholders)
+**Example URI (placeholders):**
+`bunker://<signer-pubkey>?relay=wss://relay.example.com&secret=<token>`
 
 ---
 
-## Nostr Event
+## Nostr Event and Kinds
 
-A Nostr event is a signed JSON object — the fundamental unit of data on the Nostr network. Every
-piece of information published to Nostr (messages, site metadata, file references, profile data) is
-an event. Events are signed with the publisher's private key, making them tamper-evident and
-attributable. Once published, events are immutable; updating means publishing a new event.
+An event is a signed JSON object — the unit of data on Nostr. Events carry a `kind` number that says
+what they mean, a `pubkey`, `created_at`, `tags`, `content`, and a signature. Events cannot be
+edited; "updating" means publishing a newer event that clients prefer (replaceable kinds) or a
+delete request (kind 5, NIP-09) that relays may honor.
 
-Events have a `kind` number that categorizes their purpose (e.g., kind 1 for text notes, kind 10063
-for Blossom file references). nsyte publishes events of specific kinds to announce site files and
-metadata.
+Kinds nsyte publishes:
 
-**For agents:** You do not need to construct or parse Nostr events manually — nsyte handles all
-event creation and signing. If a user asks about their "events" or "event history", they are asking
-about data nsyte has published on their behalf. If a deployment appears to have failed silently,
-check whether events were published by looking at relay output or using a Nostr explorer with the
-user's pubkey. Never attempt to modify or re-sign events — republish via `nsyte deploy` instead.
+| Kind    | Meaning                                           | Published by                               |
+| ------- | ------------------------------------------------- | ------------------------------------------ |
+| `15128` | Root site manifest (one per pubkey)               | `deploy`, `put`                            |
+| `35128` | Named site manifest (`d` tag = site `id`, NIP-5A) | `deploy -d`, `put -n`                      |
+| `5128`  | Immutable snapshot of a manifest                  | `snapshot`                                 |
+| `0`     | Profile metadata (root sites only)                | `deploy --publish-profile`                 |
+| `10002` | Relay list, NIP-65 (root sites only)              | `deploy --publish-relay-list`              |
+| `10063` | Blossom server list (root sites only)             | `deploy --publish-server-list`             |
+| `31990` | NIP-89 app handler announcement                   | `deploy --publish-app-handler`, `announce` |
+| `31989` | NIP-89 app recommendation                         | `announce --publish-app-recommendation`    |
+| `5`     | NIP-09 delete request                             | `delete`, `undeploy`                       |
+
+**For agents:** You never construct events by hand — nsyte builds and signs them. To see exactly
+what would be published, use `--dry-run` (writes each event as JSON to a directory) and
+`--dry-run-show-kinds 15128,31990` to print specific kinds. `--created-at` overrides the timestamp
+for reproducible publishes. To check what is live, use `nsyte status`, `nsyte debug --show-events`,
+or `nsyte sites`.
+
+---
+
+## Root vs Named Sites (NIP-5A)
+
+Each pubkey has one **root site** (kind 15128, served at `https://<npub>.<gateway>/`) and any number
+of **named sites** (kind 35128, identified by `id`, served at
+`https://<base36-pubkey><id>.<gateway>/`). The `id` must match `[a-z0-9-]{1,13}`.
+
+**For agents:** `id` is set in `.nsite/config.json`, or per run with `-d, --name <id>` on most
+commands (`-n, --name` on `put`). Profile, relay-list, and server-list publishing are only allowed
+from the root site; `nsyte validate` and `nsyte deploy` reject them on named sites.

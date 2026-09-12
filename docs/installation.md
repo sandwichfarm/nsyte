@@ -61,6 +61,18 @@ yay -S nsyte-bin
 `nsite-git` is prepared for AUR but is not public until the first authenticated AUR push is
 completed.
 
+## AI Agent Skill
+
+If you use an AI coding agent (Claude Code, Codex, Cursor, OpenCode, Copilot, Gemini CLI, …),
+install the nsyte [Agent Skill](https://skills.sh/sandwichfarm/nsyte) so the agent knows how to set
+up, deploy, inspect, and troubleshoot nsites:
+
+```bash
+npx skills add sandwichfarm/nsyte
+```
+
+See the [Agent Skills guide](guides/agent-skills.md) for options and manual installation.
+
 ## Universal Installation
 
 ### Using Deno
