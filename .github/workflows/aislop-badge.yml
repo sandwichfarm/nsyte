@@ -1,0 +1,85 @@
+name: AI Slop Badge
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/badges/aislop-score.json"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only by default; write only granted to the badge-commit job
+permissions:
+  contents: read
+
+concurrency:
+  group: aislop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aislop:
+    name: Scan for AI slop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run aislop and generate badge
+        id: badge
+        uses: sandwichfarm/aislop-badge@21d563e881c80835c1b307a7d598ceca43422193 # v1.1.0
+        with:
+          aislop-version: "0.12.0"
+          badge-file: .github/badges/aislop-score.json
+          # aislop exits 1 whenever it reports findings; the badge is the signal, not a red job
+          fail-on-error: false
+          # Never commit from this job; the commit-badge job below handles main
+          commit-badge: false
+
+      - name: Upload badge artifact
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v7
+        with:
+          name: aislop-badge
+          path: .github/badges/aislop-score.json
+
+  commit-badge:
+    name: Commit Updated Badge
+    needs: aislop
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Download badge artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: aislop-badge
+          path: .github/badges/
+
+      - name: Commit updated badge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/aislop-score.json
+          git diff --staged --quiet || git commit -m "ci: update AI slop badge [skip ci]"
+          git pull --rebase
+          push_stderr="$(mktemp)"
+          if ! git push 2>"$push_stderr"; then
+            if grep -qiE 'GH006|GH013|protected branch|repository rule violations' "$push_stderr"; then
+              echo "Push blocked by branch protection (badge not updated)"
+            else
+              cat "$push_stderr" >&2
+              rm -f "$push_stderr"
+              exit 1
+            fi
+          fi
+          rm -f "$push_stderr"
