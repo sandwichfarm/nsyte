@@ -8,6 +8,7 @@
 [![Doc Drift Gate](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/doc-drift.yml)
 [![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
 [![Tests & Coverage](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml)
+[![AI Slop Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsandwichfarm%2Fnsyte%2Fmain%2F.github%2Fbadges%2Faislop-score.json)](https://github.com/sandwichfarm/nsyte/actions/workflows/aislop-badge.yml)
 
 ![Coverage](./static/coverage-badge.svg)
 ![Line Coverage](./static/coverage-lines-badge.svg)

@@ -1,0 +1,45 @@
+name: AI Slop Badge
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/badges/aislop-score.json"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only by default; write only granted to the scan job so it can commit the badge on main
+permissions:
+  contents: read
+
+concurrency:
+  group: aislop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aislop:
+    name: Scan for AI slop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run aislop and generate badge
+        id: badge
+        uses: sandwichfarm/aislop-badge@v1
+        with:
+          aislop-version: "0.12.0"
+          badge-file: .github/badges/aislop-score.json
+          # aislop exits 1 whenever it reports findings; the badge is the signal, not a red job
+          fail-on-error: false
+          # Only commit the badge from pushes to main, never from PR contexts
+          commit-badge: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          commit-message: "ci: update AI slop badge [skip ci]"
