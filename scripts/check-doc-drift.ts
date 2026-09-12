@@ -14,7 +14,8 @@
 //   4. Agent-skill drift: skills/nsyte/SKILL.md must mention every command
 //      (by name or alias), must not reference flags that no command declares,
 //      and skills/nsyte/assets/config.schema.json must be identical to
-//      src/schemas/config.schema.json.
+//      src/schemas/config.schema.json. Every other skills/*/SKILL.md is a
+//      companion skill (e.g. nsyte-ci): it is only checked for phantom flags.
 //
 // Exit codes:
 //   0   No drift detected (clean baseline)
@@ -91,6 +92,11 @@ interface DriftReport {
     phantom: string[];
   };
   skill_drift: SkillDrift;
+  companion_skills: CompanionSkillDrift[];
+}
+interface CompanionSkillDrift {
+  skill_path: string;
+  phantom_flags: string[];
 }
 interface SkillDrift {
   skill_path: string;
@@ -378,21 +384,7 @@ async function checkSkill(
   }
 
   // 2. Every `--flag` in the skill must be declared by some command (or be global/implicit).
-  const known = new Set<string>(source.global_flags);
-  for (const spec of Object.values(source.commands)) {
-    for (const raw of spec.flags) {
-      const lf = extractLongFlag(raw);
-      if (lf) known.add(lf);
-    }
-  }
-  const phantomFlags: string[] = [];
-  for (const f of extractAllFlags(text)) {
-    if (known.has(f) || SKILL_IMPLICIT_FLAGS.has(f)) continue;
-    // Cliffy auto-negation: --no-X is real if some command declares --X
-    if (f.startsWith("--no-") && known.has("--" + f.substring(5))) continue;
-    phantomFlags.push(f);
-  }
-  phantomFlags.sort();
+  const phantomFlags = skillPhantomFlags(source, text);
 
   // 3. The bundled schema must match the source schema (compared as parsed JSON).
   const canon = (v: unknown): string => JSON.stringify(sortKeys(v));
@@ -407,6 +399,50 @@ async function checkSkill(
     schema_in_sync: schemaInSync,
     schema_paths: { source: relPath(sourceSchemaPath), skill: relPath(skillSchemaPath) },
   };
+}
+
+/** Flags in a skill text that no command declares (nor global/implicit/auto-negated). */
+function skillPhantomFlags(source: SourceFlags, text: string): string[] {
+  const known = new Set<string>(source.global_flags);
+  for (const spec of Object.values(source.commands)) {
+    for (const raw of spec.flags) {
+      const lf = extractLongFlag(raw);
+      if (lf) known.add(lf);
+    }
+  }
+  const phantom: string[] = [];
+  for (const f of extractAllFlags(text)) {
+    if (known.has(f) || SKILL_IMPLICIT_FLAGS.has(f)) continue;
+    // Cliffy auto-negation: --no-X is real if some command declares --X
+    if (f.startsWith("--no-") && known.has("--" + f.substring(5))) continue;
+    phantom.push(f);
+  }
+  return phantom.sort();
+}
+
+/**
+ * Companion skills: every skills/<name>/SKILL.md sibling of the primary skill.
+ * They cover a slice of nsyte (e.g. CI), so only phantom flags are checked.
+ */
+async function checkCompanionSkills(
+  source: SourceFlags,
+  primarySkillDir: string,
+): Promise<CompanionSkillDrift[]> {
+  const parent = primarySkillDir.replace(/\/+$/, "").split("/").slice(0, -1).join("/") || ".";
+  const primaryName = primarySkillDir.replace(/\/+$/, "").split("/").pop();
+  const out: CompanionSkillDrift[] = [];
+  for await (const entry of Deno.readDir(parent)) {
+    if (!entry.isDirectory || entry.name === primaryName) continue;
+    const skillPath = `${parent}/${entry.name}/SKILL.md`;
+    let text: string;
+    try {
+      text = await Deno.readTextFile(skillPath);
+    } catch {
+      continue;
+    }
+    out.push({ skill_path: relPath(skillPath), phantom_flags: skillPhantomFlags(source, text) });
+  }
+  return out.sort((a, b) => a.skill_path.localeCompare(b.skill_path));
 }
 
 function sortKeys(v: unknown): unknown {
@@ -617,6 +653,24 @@ function printTextReport(report: DriftReport) {
   }
   console.log("");
 
+  // Section 5: Companion-skill drift (phantom flags only)
+  if (report.companion_skills.length > 0) {
+    const bad = report.companion_skills.filter((c) => c.phantom_flags.length > 0);
+    console.log(`## Companion-skill drift (${report.companion_skills.length} skill(s))`);
+    if (bad.length === 0) {
+      console.log("  OK — every companion skill references only real flags.");
+    } else {
+      for (const c of bad) {
+        console.log(
+          `  ${c.skill_path}: phantom flags (${c.phantom_flags.length}): ${
+            c.phantom_flags.join(", ")
+          }`,
+        );
+      }
+    }
+    console.log("");
+  }
+
   if (report.exit_code === 0) {
     console.log("No drift detected — source, docs, and skill aligned.");
   } else {
@@ -646,6 +700,7 @@ async function main(argv: string[]): Promise<number> {
   const flagRows = checkFlags(source, docs);
   const env = await checkEnvVars(args.srcTree, args.docsTree);
   const skill = await checkSkill(source, args.skillDir, args.sourceSchema);
+  const companions = await checkCompanionSkills(source, args.skillDir);
 
   const aligned = flagRows.filter((r) => r.aligned).length;
   const drift = flagRows.length - aligned;
@@ -653,8 +708,10 @@ async function main(argv: string[]): Promise<number> {
   const anyEnvDrift = env.phantom.length > 0;
   const anySkillDrift = skill.missing_commands.length > 0 || skill.phantom_flags.length > 0 ||
     !skill.schema_in_sync;
+  const anyCompanionDrift = companions.some((c) => c.phantom_flags.length > 0);
 
-  const exit_code: 0 | 1 = anyCoverageDrift || drift > 0 || anyEnvDrift || anySkillDrift ? 1 : 0;
+  const exit_code: 0 | 1 =
+    anyCoverageDrift || drift > 0 || anyEnvDrift || anySkillDrift || anyCompanionDrift ? 1 : 0;
 
   const report: DriftReport = {
     generated: new Date().toISOString(),
@@ -664,6 +721,7 @@ async function main(argv: string[]): Promise<number> {
     flag_drift: flagRows,
     env_var_drift: env,
     skill_drift: skill,
+    companion_skills: companions,
   };
 
   if (args.format === "json") {
