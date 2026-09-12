@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read
 // scripts/check-doc-drift.ts
 //
-// Drift gate for nsyte's source-vs-docs alignment. Performs three checks:
+// Drift gate for nsyte's source-vs-docs-vs-skill alignment. Performs four checks:
 //   1. Command-page coverage: every src/commands/<name>.ts (except root.ts)
 //      has a corresponding docs/usage/commands/<name>.md, accounting for
 //      naming-mismatch (list↔ls) and alias-doc handling (upload→deploy).

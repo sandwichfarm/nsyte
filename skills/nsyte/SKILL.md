@@ -47,7 +47,7 @@ relays. Sites are censorship-resistant and served by any nsite gateway.
 1. **Never print, log, or commit secrets** (`nsec1…`, `nbunksec1…`, `bunker://…` URLs, 64-char hex
    keys). Pass them via environment variables (`--sec "$VAR"`) or `--prompt-sec`.
 2. **Never hand-edit `bunkerPubkey`** in `.nsite/config.json`. It must be set by `nsyte bunker use`
-   so the matching credential exists in the OS keychain.
+   so the matching credential exists in the secrets backend.
 3. **Single-quote `bunker://` URLs** on the shell — `?` and `&` are shell metacharacters.
 4. **Prefer `--dry-run` first** for `deploy`, `put`, `announce`, `snapshot`, `delete`, and
    `undeploy`. It writes the events that would be signed to a directory without publishing anything.
@@ -123,9 +123,9 @@ nsyte init
 Prompts for: auth method (generate key / existing nsec / NIP-46 bunker), relay URLs (`wss://`), and
 Blossom server URLs (`https://`). Writes `.nsite/config.json`.
 
-Only bunker connections are persisted (`bunkerPubkey` in the config + credential in the keychain). A
-generated or pasted private key is **not stored anywhere** — the user must keep it and pass it with
-`--sec` (or `--prompt-sec`) on every signing command, or switch to a bunker.
+Only bunker connections are persisted (`bunkerPubkey` in the config + credential in the secrets
+backend). A generated or pasted private key is **not stored anywhere** — the user must keep it and
+pass it with `--sec` (or `--prompt-sec`) on every signing command, or switch to a bunker.
 
 ### Non-interactive (agents, scripts, CI)
 
@@ -164,9 +164,9 @@ Config file: `.nsite/config.json` (override with the global `-c, --config <path>
 
 ### Authentication
 
-| Field          | Type     | Description                                                                                                                |
-| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `bunkerPubkey` | `string` | 64-char hex pubkey of a NIP-46 bunker. **Set via `nsyte bunker use`, never by hand.** The secret lives in the OS keychain. |
+| Field          | Type     | Description                                                                                                                                |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bunkerPubkey` | `string` | 64-char hex pubkey of a NIP-46 bunker. **Set via `nsyte bunker use`, never by hand.** The secret lives in the secrets backend (see below). |
 
 ### Site identity
 
@@ -298,7 +298,7 @@ Every command that signs events accepts:
 ### Resolution order
 
 1. `--sec` / `--prompt-sec` (highest priority)
-2. Stored bunker: `bunkerPubkey` in `.nsite/config.json` + credential in the OS keychain
+2. Stored bunker: `bunkerPubkey` in `.nsite/config.json` + credential in the secrets backend
 3. Otherwise nsyte errors (`--non-interactive`) or prompts (interactive)
 
 ### NIP-46 bunker (recommended for humans)
@@ -310,7 +310,8 @@ nsyte bunker connect --pubkey <pubkey> --relay <relay> --secret <secret>
 nsyte bunker use [pubkey]                                      # link this project to a stored bunker
 ```
 
-`bunker use` writes `bunkerPubkey` to the config and stores the `nbunksec` in the keychain.
+`connect` and `import` store the credential (`nbunksec`) in the secrets backend; `use` only looks up
+an already-stored bunker by pubkey and writes its `bunkerPubkey` into the project config.
 
 | Command                             | Purpose                                    |
 | ----------------------------------- | ------------------------------------------ |
@@ -324,9 +325,15 @@ nsyte bunker use [pubkey]                                      # link this proje
 
 ### Secrets storage
 
-Auto-selected backend: macOS Keychain → Linux Secret Service (`secret-tool`) → Windows Credential
-Manager → AES-256-GCM encrypted file (`~/.config/nsyte/secrets.enc` on Linux). Force the encrypted
-file with `NSYTE_FORCE_ENCRYPTED_STORAGE=true`; skip the keychain with
+Bunker credentials go to a platform-selected backend, best available first:
+
+1. Native keychain — macOS Keychain, Linux Secret Service (`secret-tool`), Windows Credential
+   Manager
+2. AES-256-GCM encrypted file (`~/.config/nsyte/secrets.enc` on Linux) when no keychain is usable
+3. **Plain-text JSON fallback** if the encrypted store cannot be initialized — nsyte logs a warning;
+   treat this as unprotected and tell the user
+
+Force the encrypted file with `NSYTE_FORCE_ENCRYPTED_STORAGE=true`; skip the keychain with
 `NSYTE_DISABLE_KEYCHAIN=true`.
 
 ---
@@ -555,9 +562,9 @@ Full per-command reference: `https://nsyte.run/docs/usage/commands`.
 
 - **"No valid signing method" / "No key configuration found and running in non-interactive mode":**
   pass `--sec`, or run `nsyte bunker use <pubkey>` to link a stored bunker.
-- **"No stored credential":** `bunkerPubkey` is set but the keychain entry is missing (different
-  machine, wiped keychain). Fix: `nsyte bunker connect …` then `nsyte bunker use <pubkey>`, or
-  `nsyte bunker import <nbunksec>`.
+- **"No stored credential":** `bunkerPubkey` is set but the secrets-backend entry is missing
+  (different machine, wiped keychain). Fix: `nsyte bunker connect …` then
+  `nsyte bunker use <pubkey>`, or `nsyte bunker import <nbunksec>`.
 - **Bunker URL rejected / truncated:** the shell consumed `?`/`&`. Single-quote the URL.
 - **Bunker never approves:** the signer app (Amber, nsec.app, etc.) must be online and the relay in
   the bunker URL reachable. Try a different relay in the `bunker://` URL.

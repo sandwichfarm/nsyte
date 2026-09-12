@@ -86,9 +86,12 @@ NIP-46 ("Nostr Connect") is remote signing. The private key stays inside a signe
 nsec.app, or another NIP-46 signer); nsyte connects to it over a relay using a `bunker://` URI and
 asks it to sign each event. The key never touches the machine running nsyte.
 
-nsyte stores the bunker connection (as an `nbunksec1…` credential) in the OS keychain and records
-the signer's pubkey in the config as `bunkerPubkey`. `nsyte ci` produces an `nbunksec1…` for CI
-without storing it locally.
+nsyte stores the bunker connection (as an `nbunksec1…` credential) in a platform-selected secrets
+backend — native keychain when available, otherwise an AES-256-GCM encrypted file, and as a last
+resort plain-text JSON with a logged warning — and records the signer's pubkey in the config as
+`bunkerPubkey`. Do not assume the credential is keychain-protected; on a headless Linux box without
+`secret-tool` it is in the encrypted file (or plain text if that failed). `nsyte ci` produces an
+`nbunksec1…` for CI without storing it locally.
 
 **For agents:** Setup is `nsyte bunker connect '<bunker://…>'` (or interactive QR) followed by
 `nsyte bunker use <pubkey>`. Always single-quote `bunker://` URIs. If auth fails in CI, check that
