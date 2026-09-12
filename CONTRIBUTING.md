@@ -99,6 +99,11 @@ deno task compile
 - Documentation is built with VitePress
 - Source files are in the `docs/` directory
 - Build locally with: `deno task docs:dev`
+- The AI agent skill in `skills/nsyte/` is documentation too: when you add or change a command,
+  flag, or config field, update `skills/nsyte/SKILL.md` (and copy `src/schemas/config.schema.json`
+  to `skills/nsyte/assets/config.schema.json` if the schema changed)
+- Run `deno task check-doc-drift` before opening a PR — it fails when command docs or the skill
+  drift from the source
 
 ## Code of Conduct
 

@@ -9,8 +9,8 @@
 [![Deploy Docs](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/docs.yml)
 [![Tests & Coverage](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml/badge.svg)](https://github.com/sandwichfarm/nsyte/actions/workflows/test-coverage.yml)
 
-![Coverage](./static/coverage-badge.svg)
-![Line Coverage](./static/coverage-lines-badge.svg)
+[![skills.sh](https://skills.sh/b/sandwichfarm/nsyte)](https://skills.sh/sandwichfarm/nsyte)
+![Coverage](./static/coverage-badge.svg) ![Line Coverage](./static/coverage-lines-badge.svg)
 ![Branch Coverage](./static/coverage-branches-badge.svg)
 
 ![mirrors:](https://img.shields.io/badge/mirrors:-red?labelColor=red)
@@ -18,6 +18,7 @@
 [![mirror 2](https://img.shields.io/badge/mirror-2-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nwb.tf/)
 [![mirror 3](https://img.shields.io/badge/mirror-3-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.cloud/)
 [![mirror 4](https://img.shields.io/badge/mirror-4-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.nsite.run/)
+
 <!-- [![mirror 5](https://img.shields.io/badge/mirror-5-red?labelColor=black)](http://npub1nsyte9neefm3jle7dg5gw6mhchxyk75a6f5dng70l4l3a2mx0nashqv2jk.shakespear.to/) -->
 
 ![gateways:](https://img.shields.io/badge/gateways:-violet?labelColor=violet)
@@ -29,12 +30,7 @@
 [![nostr](https://img.shields.io/badge/☠️_sov-eng-purple?labelColor=black)](https://sovereignengineering.io)
 [![nostr](https://img.shields.io/badge/🦩-nostr-purple?labelColor=black)](https://nostr.com)
 
-
-
-
 </div>
-
-
 
 ## Key Features
 
@@ -49,13 +45,10 @@
 
 - 🎯 **NIP-89 App Handler** - Announce which event kinds your nsite can handle
 
-
-
 > nsyte is a fork of [nsite-cli](https://github.com/flox1an/nsite-cli) by florian
 > [github](https://github.com/flox1an)
 > [npub](https://njump.me/npub1klr0dy2ul2dx9llk58czvpx73rprcmrvd5dc7ck8esg8f8es06qs427gxc). nsyte
 > has been ported to deno and rewritten in the process.
-
 
 ## Quick Start
 
@@ -73,6 +66,7 @@ nsyte deploy ./dist
 ## Table of Contents
 
 - [Installation](#installation)
+- [AI Agent Skill](#ai-agent-skill)
 - [Core Commands](#core-commands)
 - [Authentication Methods](#authentication-methods)
 - [Security](#security)
@@ -102,6 +96,22 @@ deno task compile
 # All platforms
 deno task compile:all
 ```
+
+## AI Agent Skill
+
+nsyte ships an [Agent Skill](https://skills.sh/sandwichfarm/nsyte) that teaches AI coding agents
+(Claude Code, Codex, Cursor, OpenCode, Copilot, Gemini CLI, and others) how to install, configure,
+deploy, inspect, and troubleshoot nsites correctly. Install it with the
+[skills CLI](https://skills.sh):
+
+```bash
+npx skills add sandwichfarm/nsyte
+```
+
+Add `-g` to install for your user instead of the current project, or `-a claude-code` (etc.) to
+target specific agents. The skill source lives in [`skills/nsyte`](skills/nsyte/SKILL.md); see
+[`skills/README.md`](skills/README.md) for manual installation and how the skill is kept in sync
+with the CLI.
 
 ## Core Commands
 

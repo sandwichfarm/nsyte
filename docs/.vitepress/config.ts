@@ -82,6 +82,7 @@ export default defineConfig({
           { text: "Security Troubleshooting", link: "/guides/security-troubleshooting" },
           { text: "CI/CD", link: "/guides/ci-cd" },
           { text: "Local Setup", link: "/guides/local-setup" },
+          { text: "AI Agent Skills", link: "/guides/agent-skills" },
           { text: "NIP-89 App Handler", link: "/nip89-handler" },
         ],
       },
