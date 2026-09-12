@@ -1,6 +1,6 @@
-import { assertEquals, assertExists, type assertMatch } from "@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { restore, stub } from "@std/testing/mock";
+import { restore, type Stub, stub } from "@std/testing/mock";
 import {
   displayColorfulHeader,
   displayUploadConfigTable,
@@ -15,8 +15,30 @@ import {
   getUploadSections,
 } from "../../src/ui/output-helpers.ts";
 
+function stripAnsiCodes(output: string): string {
+  const escape = String.fromCharCode(27);
+  return output.replace(new RegExp(`${escape}\\[[0-9;]*m`, "g"), "");
+}
+
+function exactHostTokens(output: string): Set<string> {
+  return new Set(stripAnsiCodes(output).split(/[^A-Za-z0-9.-]+/).filter(Boolean));
+}
+
+function urlOrigins(output: string): Set<string> {
+  const origins = new Set<string>();
+  for (const token of stripAnsiCodes(output).split(/\s+/)) {
+    const candidate = token.replace(/^[^\w]+|[^\w./:-]+$/g, "");
+    try {
+      origins.add(new URL(candidate).origin);
+    } catch {
+      // Non-URL token.
+    }
+  }
+  return origins;
+}
+
 describe("Output Helpers - comprehensive branch coverage", () => {
-  let mathRandomStub: any;
+  let mathRandomStub: Stub;
 
   beforeEach(() => {
     // Mock Math.random for consistent testing
@@ -119,8 +141,9 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       const content = result.join(" ");
       assertEquals(content.includes("Upload Configuration"), true);
       assertEquals(content.includes("npub1test123"), true);
-      assertEquals(content.includes("relay1.com"), true);
-      assertEquals(content.includes("server1.com"), true);
+      const origins = urlOrigins(content);
+      assertEquals(origins.has("wss://relay1.com"), true);
+      assertEquals(origins.has("https://server1.com"), true);
     });
 
     it("should handle minimal configuration", () => {
@@ -280,7 +303,7 @@ describe("Output Helpers - comprehensive branch coverage", () => {
       assertExists(result);
       assertEquals(typeof result, "string");
       assertEquals(result.includes("✓"), true);
-      assertEquals(result.includes("server.com"), true);
+      assertEquals(exactHostTokens(result).has("server.com"), true);
       assertEquals(result.includes("5/5"), true);
       assertEquals(result.includes("100%"), true);
     });

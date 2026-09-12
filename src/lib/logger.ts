@@ -64,6 +64,19 @@ export function setProgressMode(enabled: boolean): void {
  * Store logs that occur during progress mode
  */
 const queuedLogs: Array<{ level: string; namespace: string; message: string }> = [];
+const REDACTED_LOG_MESSAGE = "[redacted sensitive log message]";
+const SENSITIVE_LOG_PATTERNS = [
+  /\bnsec1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{20,}\b/i,
+  /\bnbunksec1[a-z0-9]{20,}\b/i,
+  /\bbunker:\/\/\S+/i,
+  /\b[0-9a-f]{64}\b/i,
+];
+
+function redactSensitiveLogMessage(message: string): string {
+  return SENSITIVE_LOG_PATTERNS.some((pattern) => pattern.test(message))
+    ? REDACTED_LOG_MESSAGE
+    : message;
+}
 
 /**
  * Flush queued logs
@@ -140,60 +153,65 @@ export function createLogger(namespace: string) {
   return {
     debug(message: string): void {
       if (shouldLog("debug")) {
+        const safeMessage = redactSensitiveLogMessage(message);
         // Always write debug messages to file if file logging is enabled
-        writeToLogFile("debug", namespace, message);
+        writeToLogFile("debug", namespace, safeMessage);
 
         if (shouldShowLog("debug")) {
-          console.log(formatLogMessage("debug", namespace, message));
+          console.log(formatLogMessage("debug", namespace, safeMessage));
         }
       }
     },
 
     info(message: string): void {
       if (shouldLog("info")) {
+        const safeMessage = redactSensitiveLogMessage(message);
         // Always write to file if file logging is enabled
-        writeToLogFile("info", namespace, message);
+        writeToLogFile("info", namespace, safeMessage);
 
         if (inProgressMode) {
-          queuedLogs.push({ level: "info", namespace, message });
+          queuedLogs.push({ level: "info", namespace, message: safeMessage });
         } else if (shouldShowLog("info")) {
-          console.log(formatLogMessage("info", namespace, message));
+          console.log(formatLogMessage("info", namespace, safeMessage));
         }
       }
     },
 
     warn(message: string): void {
       if (shouldLog("warn")) {
+        const safeMessage = redactSensitiveLogMessage(message);
         // Always write to file if file logging is enabled
-        writeToLogFile("warn", namespace, message);
+        writeToLogFile("warn", namespace, safeMessage);
 
         if (inProgressMode) {
-          queuedLogs.push({ level: "warn", namespace, message });
+          queuedLogs.push({ level: "warn", namespace, message: safeMessage });
         } else if (shouldShowLog("warn")) {
-          console.log(formatLogMessage("warn", namespace, message));
+          console.log(formatLogMessage("warn", namespace, safeMessage));
         }
       }
     },
 
     error(message: string): void {
       if (shouldLog("error")) {
+        const safeMessage = redactSensitiveLogMessage(message);
         // Always write to file if file logging is enabled
-        writeToLogFile("error", namespace, message);
+        writeToLogFile("error", namespace, safeMessage);
 
         if (inProgressMode) {
-          queuedLogs.push({ level: "error", namespace, message });
+          queuedLogs.push({ level: "error", namespace, message: safeMessage });
         } else if (shouldShowLog("error")) {
-          console.error(formatLogMessage("error", namespace, message));
+          console.error(formatLogMessage("error", namespace, safeMessage));
         }
       }
     },
 
     success(message: string): void {
+      const safeMessage = redactSensitiveLogMessage(message);
       // Always write to file if file logging is enabled
-      writeToLogFile("success", namespace, message);
+      writeToLogFile("success", namespace, safeMessage);
 
       if (shouldShowLog("success")) {
-        console.log(formatLogMessage("success", namespace, message));
+        console.log(formatLogMessage("success", namespace, safeMessage));
       }
     },
   };

@@ -428,7 +428,7 @@ export async function deployCommand(
 
     if ("error" in signerResult) {
       statusDisplay.error(`Signer: ${signerResult.error}`);
-      log.error(`Signer initialization failed: ${signerResult.error}`);
+      log.error("Signer initialization failed.");
       return Deno.exit(1);
     }
 

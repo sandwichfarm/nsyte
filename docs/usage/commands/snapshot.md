@@ -27,6 +27,12 @@ nsyte snapshot [options]
   `--sec` (keeps it out of shell history)
 - `-d, --name <name>` — The site identifier for named sites (kind 35128). If not
   provided, snapshots the root site (kind 15128)
+- `--title <title>` — Title for this snapshot. Defaults to the source manifest's
+  title
+- `--no-title` — Omit the title inherited from the source manifest
+- `--description <description>` — Description for this snapshot. Defaults to the
+  source manifest's description
+- `--no-description` — Omit the description inherited from the source manifest
 - `--dry-run` — Preview the snapshot event without signing or publishing it
 - `--dry-run-output <dir>` — Directory to write dry-run event JSON files
 - `--dry-run-show-kinds <kinds>` — Also print events of these kinds to stdout
@@ -57,6 +63,24 @@ Publish a snapshot for a named site, including fallback relays:
 ```bash
 nsyte snapshot -d docs --use-fallback-relays
 ```
+
+Label a snapshot with a release tag, leaving the live site untouched:
+
+```bash
+nsyte snapshot --title "v1.2.3" --description "Release v1.2.3"
+```
+
+## Snapshot Labels
+
+A snapshot inherits its descriptive tags — `title`, `description`, `source`,
+`app`, `server`, `relay` — from the manifest it is taken from. `--title` and
+`--description` set those tags on this snapshot only; the live manifest is never
+rewritten, so there is no need to retitle a site, redeploy, snapshot, and put the
+title back just to label a release. `--no-title` and `--no-description` drop the
+inherited tag instead of replacing it.
+
+The verifiable parts of a snapshot — the aggregate hash and the file set — always
+come from the source manifest and cannot be overridden.
 
 ## See Also
 

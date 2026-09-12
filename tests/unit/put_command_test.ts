@@ -5,6 +5,19 @@ import { assertEquals } from "@std/assert";
 import { describe, it } from "@std/testing/bdd";
 import { formatPutSuccessOutput, resolvePutRemotePath } from "../../src/commands/put.ts";
 
+function urlOrigins(lines: readonly string[]): Set<string> {
+  const origins = new Set<string>();
+  for (const token of lines.join(" ").split(/\s+/)) {
+    const candidate = token.replace(/^[^\w]+|[^\w./:-]+$/g, "");
+    try {
+      origins.add(new URL(candidate).origin);
+    } catch {
+      // Non-URL token.
+    }
+  }
+  return origins;
+}
+
 describe("resolvePutRemotePath", () => {
   it("treats extensionless remote paths as directories", () => {
     assertEquals(resolvePutRemotePath("./assets/logo.svg", "/img"), "/img/logo.svg");
@@ -32,7 +45,8 @@ describe("formatPutSuccessOutput", () => {
 
     assertEquals(lines.some((line) => line.includes("abc123")), true);
     assertEquals(lines.some((line) => line.includes("event123")), true);
-    assertEquals(lines.some((line) => line.includes("https://b1.example")), true);
-    assertEquals(lines.some((line) => line.includes("wss://r1.example")), true);
+    const origins = urlOrigins(lines);
+    assertEquals(origins.has("https://b1.example"), true);
+    assertEquals(origins.has("wss://r1.example"), true);
   });
 });

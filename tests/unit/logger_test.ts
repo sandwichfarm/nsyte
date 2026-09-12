@@ -96,6 +96,32 @@ describe("logger - comprehensive branch coverage", () => {
       assertStringIncludes(logOutput[0], "test");
       assertStringIncludes(logOutput[0], ": test");
     });
+
+    it("should redact secret-like values before logging", () => {
+      const logger = createLogger("test");
+      const privateKey = "a".repeat(64);
+
+      logger.info(`private key: ${privateKey}`);
+
+      assertStringIncludes(logOutput[0], "[redacted sensitive log message]");
+      assertEquals(logOutput[0].includes(privateKey), false);
+    });
+
+    it("should redact queued progress logs before flushing", () => {
+      const logger = createLogger("test");
+      const bunkerSecret = "nbunksec1" + "q".repeat(24);
+
+      setProgressMode(true);
+      logger.warn(`bunker secret: ${bunkerSecret}`);
+
+      assertEquals(logOutput.length, 0);
+
+      setProgressMode(false);
+      flushQueuedLogs();
+
+      assertStringIncludes(logOutput[0], "[redacted sensitive log message]");
+      assertEquals(logOutput[0].includes(bunkerSecret), false);
+    });
   });
 
   describe("shouldShowLog", () => {

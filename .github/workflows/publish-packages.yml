@@ -1,9 +1,6 @@
-# IMPORTANT: This workflow triggers on "release: published".
-# GitHub suppresses this event when releases are created with GITHUB_TOKEN.
-# release.yml MUST use secrets.RELEASE_TOKEN (a PAT with "repo" scope) in its
-# softprops/action-gh-release step for this workflow to fire. If publish-packages.yml
-# never runs after a release, check that release.yml is not using GITHUB_TOKEN for
-# the "Create GitHub Release" step. See docs/RELEASING.md for the full setup.
+# release.yml uses GITHUB_TOKEN and explicitly dispatches this workflow because
+# its release events do not trigger downstream workflows. Keep the release trigger
+# for user-published releases and workflow_dispatch for targeted recovery.
 
 name: publish packages
 
@@ -44,9 +41,6 @@ jobs:
       sha256_macos_x64: ${{ steps.checksums.outputs.sha256_macos_x64 }}
       sha256_windows: ${{ steps.checksums.outputs.sha256_windows }}
       sha256_source: ${{ steps.checksums.outputs.sha256_source }}
-      sri_linux_x64: ${{ steps.checksums.outputs.sri_linux_x64 }}
-      sri_macos_arm64: ${{ steps.checksums.outputs.sri_macos_arm64 }}
-      sri_macos_x64: ${{ steps.checksums.outputs.sri_macos_x64 }}
     steps:
       - name: Extract version and tag
         id: extract
@@ -66,9 +60,6 @@ jobs:
           VERSION: ${{ steps.extract.outputs.version }}
           REPO: ${{ github.repository }}
         run: |
-          TAG="${TAG}"
-          VERSION="${VERSION}"
-          REPO="${REPO}"
           EXPECTED="nsyte-linux-${VERSION} nsyte-macos-arm64-${VERSION} nsyte-macos-x64-${VERSION} nsyte-windows-${VERSION}.exe"
           TIMEOUT=300
           INTERVAL=15
@@ -112,10 +103,6 @@ jobs:
           curl -fsSL -o nsyte-macos-x64   "${BASE}/nsyte-macos-x64-${VERSION}"
           curl -fsSL -o nsyte-windows.exe "${BASE}/nsyte-windows-${VERSION}.exe"
 
-          to_sri() {
-            printf '%s' "$1" | xxd -r -p | base64 -w0
-          }
-
           SHA256_SOURCE=$(sha256sum nsyte-source.tar.gz | awk '{print $1}')
           SHA256_LINUX_X64=$(sha256sum nsyte-linux | awk '{print $1}')
           SHA256_MACOS_ARM64=$(sha256sum nsyte-macos-arm64 | awk '{print $1}')
@@ -128,9 +115,6 @@ jobs:
             echo "sha256_macos_arm64=${SHA256_MACOS_ARM64}"
             echo "sha256_macos_x64=${SHA256_MACOS_X64}"
             echo "sha256_windows=${SHA256_WINDOWS}"
-            echo "sri_linux_x64=sha256-$(to_sri "${SHA256_LINUX_X64}")"
-            echo "sri_macos_arm64=sha256-$(to_sri "${SHA256_MACOS_ARM64}")"
-            echo "sri_macos_x64=sha256-$(to_sri "${SHA256_MACOS_X64}")"
           } >> "$GITHUB_OUTPUT"
 
   publish-aur:
@@ -141,7 +125,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for PKGBUILD template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with AUR key
         uses: webfactory/ssh-agent@v0.10.0
@@ -186,14 +170,14 @@ jobs:
             fi
 
             docker run --rm \
+              -e HOST_UID="$(id -u)" \
               -v "${repo}:/pkg" \
               archlinux:base-devel \
               bash -c '
                 set -euo pipefail
-                useradd -m builder
-                chown -R builder /pkg
+                useradd -m -u "$HOST_UID" builder
                 cd /pkg
-                runuser -u builder -- makepkg --printsrcinfo > .SRCINFO
+                runuser -u builder -- bash -c "makepkg --printsrcinfo > .SRCINFO"
               '
 
             test -s "${repo}/.SRCINFO" || {
@@ -229,7 +213,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for formula template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Homebrew tap deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -288,7 +272,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout nsyte repo (for manifest template)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up SSH agent with Scoop bucket deploy key
         uses: webfactory/ssh-agent@v0.10.0
@@ -345,7 +329,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout nsyte repo (for ManifestVersion sanity check)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Verify ManifestVersion in templates (informational, resolves WR-02)
         shell: pwsh
@@ -392,47 +376,41 @@ jobs:
           Write-Host "Winget manifest PR submitted successfully."
 
   publish-nix:
-    name: Update Nix flake
+    name: Verify Nix flake (${{ matrix.system }})
     needs: [setup]
     if: needs.setup.result == 'success' && (github.event_name == 'release' || github.event.inputs.manager == 'all' || github.event.inputs.manager == 'nix')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-latest
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+          - system: x86_64-darwin
+            runner: macos-15-intel
+          - system: aarch64-darwin
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     steps:
-      - name: Checkout default branch
-        uses: actions/checkout@v4
+      - name: Checkout release source
+        uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
-      - name: Patch flake hashes
-        env:
-          VERSION: ${{ needs.setup.outputs.version }}
-          SRI_X86_64_LINUX: ${{ needs.setup.outputs.sri_linux_x64 }}
-          SRI_AARCH64_DARWIN: ${{ needs.setup.outputs.sri_macos_arm64 }}
-          SRI_X86_64_DARWIN: ${{ needs.setup.outputs.sri_macos_x64 }}
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Build and check flake
         run: |
-          set -euo pipefail
+          nix flake check --print-build-logs
+          nix build ".#packages.${{ matrix.system }}.default" --print-build-logs
 
-          sed -i -E "s|version = \"[^\"]+\";|version = \"${VERSION}\";|" flake.nix
-          sed -i -E '/"x86_64-linux" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_LINUX}"'";|' flake.nix
-          sed -i -E '/"x86_64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_X86_64_DARWIN}"'";|' flake.nix
-          sed -i -E '/"aarch64-darwin" = \{/,/};/ s|hash = "sha256-[^"]+";|hash = "'"${SRI_AARCH64_DARWIN}"'";|' flake.nix
-
-          if grep -q "PLACEHOLDER_" flake.nix; then
-            echo "::error::flake.nix still contains PLACEHOLDER_ markers after substitution."
-            grep "PLACEHOLDER_" flake.nix
-            exit 1
-          fi
-
-      - name: Commit and push flake update
+      - name: Smoke test packaged CLI
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
-          git config user.name "nsyte-bot"
-          git config user.email "nsyte-bot@users.noreply.github.com"
-          git add flake.nix
-          if git diff --cached --quiet; then
-            echo "flake.nix already up to date for v${VERSION}. Skipping push."
-            exit 0
-          fi
-          git commit -m "chore: update Nix flake to v${VERSION}"
-          git push
+          output=$(nix run ".#packages.${{ matrix.system }}.default" -- --version)
+          echo "$output"
+          grep -F "$VERSION" <<< "$output"

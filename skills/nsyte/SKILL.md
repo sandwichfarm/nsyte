@@ -418,6 +418,7 @@ nsyte put ./dist/about.html /about.html   # upload one file and republish the ma
 nsyte put ./logo.svg assets/              # directory-style path → basename appended
 nsyte download -o ./backup     # download the whole site
 nsyte snapshot                 # publish an immutable kind 5128 snapshot of the current manifest
+nsyte snapshot --title "v1.2.3" --description "Release v1.2.3"   # label this snapshot only
 nsyte browse                   # interactive TUI (requires a TTY)
 ```
 

@@ -8,16 +8,19 @@ on:
       - "src/**"
       - "deno.json"
 
+permissions:
+  contents: read
+
 jobs:
   test-build-linux:
     name: Test Linux Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -48,10 +51,10 @@ jobs:
   #   runs-on: macos-13
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v7
 
   #     - name: Set up Deno
-  #       uses: denoland/setup-deno@v1
+  #       uses: denoland/setup-deno@v2
   #       with:
   #         deno-version: v2.x
 
@@ -90,10 +93,10 @@ jobs:
     runs-on: macos-14
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -134,10 +137,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
@@ -167,7 +170,7 @@ jobs:
         shell: pwsh
 
       - name: Test UPX
-        uses: svenstaro/upx-action@v2
+        uses: svenstaro/upx-action@v3
         with:
           files: dist/nsyte-windows-test.exe
           args: --best --lzma

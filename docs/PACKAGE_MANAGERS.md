@@ -15,7 +15,7 @@ handoff.
 | AUR `nsite-git`                   | Prepared, blocked on first authenticated AUR push | Public AUR package page returns 404; local `packages/aur/nsite-git/PKGBUILD` generated `.SRCINFO` for `0.27.1` and passed `namcap`. |
 | Homebrew                          | Live tap created and seeded                       | `https://github.com/sandwichfarm/homebrew-nsyte` exists, has `Formula/nsyte.rb` for `0.27.1`, and has a write deploy key.           |
 | Scoop                             | Live bucket created and seeded                    | `https://github.com/sandwichfarm/scoop-nsyte` exists, has `bucket/nsyte.json` for `0.27.1`, and has a write deploy key.             |
-| Nix                               | Usable flake plus release update job              | `flake.nix` is pinned to `0.27.1` with real SRI hashes; `publish-nix` updates it on future releases.                                |
+| Nix                               | Reproducible source package plus CI verification  | `flake.nix` uses deno2nix to install locked dependencies and run the packaged source with the shared Nix `deno` package.            |
 | WinGet                            | Bootstrap PR opened; update job prepared          | `microsoft/winget-pkgs#386658` adds `sandwichfarm.nsyte` `0.27.1`; future releases need `WINGET_FORK_TOKEN` after that PR merges.   |
 | Chocolatey, Snap, Flatpak, Debian | Local packaging templates refreshed               | `.packaging/*` is updated for `0.27.1`; registry publishing requires external accounts/tokens and package-specific review.          |
 
@@ -30,12 +30,9 @@ Still required:
 
 - `AUR_SSH_PRIVATE_KEY` - an unencrypted CI key whose public key is registered on the AUR account
 - `WINGET_FORK_TOKEN` - classic GitHub PAT with `public_repo` for `wingetcreate --submit`
-- `RELEASE_TOKEN` - GitHub PAT used by `release.yml` to create releases that emit a downstream
-  `release: published` event
 
-Without `RELEASE_TOKEN`, run `publish-packages.yml` manually with `workflow_dispatch`, the release
-tag, and `manager=all` or a single manager name. The package jobs themselves do not need
-`RELEASE_TOKEN`.
+`release.yml` creates releases with the repository's `GITHUB_TOKEN`, then explicitly dispatches
+`publish-packages.yml`. No long-lived release PAT is required.
 
 WinGet bootstrap PR: https://github.com/microsoft/winget-pkgs/pull/386658
 

@@ -4,17 +4,20 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and Deploy Site
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Set up pnpm
         run: |
           if command -v corepack >/dev/null 2>&1; then
@@ -24,9 +27,9 @@ jobs:
             npm install -g pnpm@11.3.0
           fi
       - name: Set up pnpm cache
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: "docs/pnpm-lock.yaml"
       - name: Install site dependencies
@@ -42,18 +45,11 @@ jobs:
           # Remove executable permissions from remaining files
           chmod 644 dist/install.txt dist/get/install.sh dist/get/install.txt || true
       - name: Deploy to Bunny
-        uses: R-J-dev/bunny-deploy@v2.0.3
-        with:
-          access-key: ${{ secrets.BUNNY_ACCESS_KEY }}
-          directory-to-upload: "./dist"
-          storage-endpoint: "https://storage.bunnycdn.com"
-          storage-zone-name: "nsyte"
-          storage-zone-password: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
-          concurrency: "50"
-          enable-delete-action: true
-          enable-purge-pull-zone: true
-          pull-zone-id: ${{ secrets.BUNNY_PULLZONE_ID }}
-          replication-timeout: "15000"
+        env:
+          BUNNY_STORAGE_ENDPOINT: "https://storage.bunnycdn.com"
+          BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+          BUNNY_STORAGE_ZONE: "nsyte"
+        run: ./scripts/deploy-bunny-storage.sh ./dist
 
       # - name: Deploy to Bunny.net CDN
       #   uses: ayeressian/bunnycdn-storage-deploy@v2.2.2
@@ -75,6 +71,7 @@ jobs:
       - name: deploy nsite 1
         uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy
+        continue-on-error: true
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET }}
@@ -98,6 +95,7 @@ jobs:
       - name: deploy nsite 2
         uses: sandwichfarm/nsite-action@v0.5.1
         id: nsite_deploy2
+        continue-on-error: true
         timeout-minutes: 15
         with:
           nbunksec: ${{ secrets.NBUNK_SECRET_MAINTAINER }}
@@ -118,3 +116,22 @@ jobs:
           publish_server_list: "false"
           publish_relay_list: "false"
           publish_profile: "false"
+
+      - name: Summarize nsite deploy
+        if: ${{ !cancelled() && (steps.nsite_deploy.outcome != 'skipped' || steps.nsite_deploy2.outcome != 'skipped') }}
+        run: |
+          nsite1="${{ steps.nsite_deploy.outcome }}"
+          nsite2="${{ steps.nsite_deploy2.outcome }}"
+
+          echo "deploy nsite 1 outcome: ${nsite1}"
+          echo "deploy nsite 2 outcome: ${nsite2}"
+
+          {
+            echo "### nsite deploy"
+            echo "- deploy nsite 1: ${nsite1}"
+            echo "- deploy nsite 2: ${nsite2}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${nsite1}" != "success" && "${nsite2}" != "success" ]]; then
+            echo "::warning::Both nsite deploy attempts failed. Bunny deploy already completed; check NBUNK_SECRET and NBUNK_SECRET_MAINTAINER bunker availability."
+          fi

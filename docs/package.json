@@ -9,6 +9,7 @@
     "docs:preview": "cd .. && docs/node_modules/.bin/vitepress preview docs"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.39"
   }
 }

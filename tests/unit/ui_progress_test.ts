@@ -24,6 +24,10 @@ function stripAnsiCodes(output: string): string {
   return output.replace(new RegExp(`${escape}\\[[0-9;]*m`, "g"), "");
 }
 
+function exactHostTokens(output: string): Set<string> {
+  return new Set(stripAnsiCodes(output).split(/[^A-Za-z0-9.-]+/).filter(Boolean));
+}
+
 function extractFirstBar(output: string): string {
   const match = stripAnsiCodes(output).match(/\[([█░]+)\]/);
   assertExists(match);
@@ -1013,8 +1017,9 @@ Deno.test("UI Progress - ProgressRenderer server bar rendering", async (t) => {
       allOutput += new TextDecoder().decode(call.args[0]);
     }
     // server1 should appear, server2 should not (no data for it)
-    assertStringIncludes(allOutput, "server1.com");
-    assertEquals(allOutput.includes("server2.com"), false);
+    const hosts = exactHostTokens(allOutput);
+    assertEquals(hosts.has("server1.com"), true);
+    assertEquals(hosts.has("server2.com"), false);
 
     consoleSizeStub.restore();
     stdoutStub.restore();

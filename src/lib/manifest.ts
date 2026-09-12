@@ -208,10 +208,27 @@ export async function getOrComputeManifestAggregateTag(
   return ["x", await computeManifestAggregateHash(manifest), "aggregate"];
 }
 
-/** Builds a snapshot event template from an existing root or named site manifest */
+/**
+ * Caller-supplied descriptive tags for a snapshot, replacing the values inherited
+ * from the source manifest. An empty string drops the inherited tag entirely.
+ * Verifiable data (the aggregate hash and the file set) is never overridable.
+ */
+export interface SnapshotTagOverrides {
+  title?: string;
+  description?: string;
+}
+
+const SNAPSHOT_OVERRIDABLE_TAGS = ["title", "description"] as const;
+
+/**
+ * Builds a snapshot event template from an existing root or named site manifest.
+ * Descriptive tags are copied from the source manifest unless `overrides` supplies
+ * its own values.
+ */
 export async function createSnapshotTemplate(
   sourceManifest: NostrEvent,
   createdAt?: number,
+  overrides: SnapshotTagOverrides = {},
 ): Promise<EventTemplate> {
   if (
     sourceManifest.kind !== NSITE_ROOT_SITE_KIND && sourceManifest.kind !== NSITE_NAME_SITE_KIND
@@ -227,6 +244,15 @@ export async function createSnapshotTemplate(
     tags.push([...originTag]);
   }
 
+  const overridden = new Map<string, string>();
+  for (const name of SNAPSHOT_OVERRIDABLE_TAGS) {
+    const value = overrides[name];
+    if (value !== undefined) {
+      overridden.set(name, value);
+    }
+  }
+  const applied = new Set<string>();
+
   for (const tag of sourceManifest.tags) {
     if (!SNAPSHOT_COPYABLE_TAGS.has(tag[0]) || tag[0] === "A") {
       continue;
@@ -236,7 +262,23 @@ export async function createSnapshotTemplate(
       continue;
     }
 
+    const override = overridden.get(tag[0]);
+    if (override !== undefined) {
+      // Replace the inherited tag in place, at most once.
+      if (applied.has(tag[0])) continue;
+      applied.add(tag[0]);
+      if (override !== "") {
+        tags.push([tag[0], override]);
+      }
+      continue;
+    }
+
     tags.push([...tag]);
+  }
+
+  for (const [name, value] of overridden) {
+    if (applied.has(name) || value === "") continue;
+    tags.push([name, value]);
   }
 
   tags.push(await getOrComputeManifestAggregateTag(sourceManifest));
