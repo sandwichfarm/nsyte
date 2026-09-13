@@ -25,22 +25,23 @@ relays. Sites are censorship-resistant and served by any nsite gateway.
 
 ## Agent Quick Reference
 
-| User wants to…                         | Run                                                           |
-| -------------------------------------- | ------------------------------------------------------------- |
-| Check nsyte is installed               | `nsyte --version`                                             |
-| Set up a new project                   | `nsyte init` (interactive) or write `.nsite/config.json`      |
-| Validate config                        | `nsyte validate`                                              |
-| Preview a deploy without publishing    | `nsyte deploy ./dist --dry-run`                               |
-| Deploy a built site                    | `nsyte deploy ./dist`                                         |
-| Deploy in CI                           | `nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET"` |
-| Check for leaked secrets before deploy | `nsyte scan ./dist`                                           |
-| See what is published                  | `nsyte list` (file tree) / `nsyte status` (propagation)       |
-| Fetch one published file               | `nsyte get /index.html`                                       |
-| Replace one published file             | `nsyte put ./dist/index.html /index.html`                     |
-| List all sites for a pubkey            | `nsyte sites`                                                 |
-| Preview locally                        | `nsyte serve -d ./dist` / `nsyte run`                         |
-| Diagnose a broken site                 | `nsyte debug [npub]`                                          |
-| Remove a site                          | `nsyte delete` (manifest) / `nsyte undeploy` (everything)     |
+| User wants to…                         | Run                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| Check nsyte is installed               | `nsyte --version`                                                                    |
+| Set up a new project                   | `nsyte init` (interactive) or write `.nsite/config.json`                             |
+| Validate config                        | `nsyte validate`                                                                     |
+| Preview a deploy without publishing    | `nsyte deploy ./dist --dry-run`                                                      |
+| Deploy a built site                    | `nsyte deploy ./dist`                                                                |
+| Deploy in CI                           | `nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET"` (see `nsyte-ci` skill) |
+| Pin the current deploy as a release    | `nsyte snapshot --title "v1.2.3"`                                                    |
+| Check for leaked secrets before deploy | `nsyte scan ./dist`                                                                  |
+| See what is published                  | `nsyte list` (file tree) / `nsyte status` (propagation)                              |
+| Fetch one published file               | `nsyte get /index.html`                                                              |
+| Replace one published file             | `nsyte put ./dist/index.html /index.html`                                            |
+| List all sites for a pubkey            | `nsyte sites`                                                                        |
+| Preview locally                        | `nsyte serve -d ./dist` / `nsyte run`                                                |
+| Diagnose a broken site                 | `nsyte debug [npub]`                                                                 |
+| Remove a site                          | `nsyte delete` (manifest) / `nsyte undeploy` (everything)                            |
 
 ### Rules for agents
 
@@ -459,14 +460,43 @@ nsyte get assets/logo.svg -o ./logo.svg
 nsyte put ./dist/about.html /about.html   # upload one file and republish the manifest
 nsyte put ./logo.svg assets/              # directory-style path → basename appended
 nsyte download -o ./backup     # download the whole site
-nsyte snapshot                 # publish an immutable kind 5128 snapshot of the current manifest
-nsyte snapshot --title "v1.2.3" --description "Release v1.2.3"   # label this snapshot only
 nsyte browse                   # interactive TUI (requires a TTY)
 ```
 
 Most of these accept `-p, --pubkey <npub|hex|name@domain>` to inspect someone else's site,
 `-d, --name <id>` for named sites (`put` uses `-n, --name`), `-r, --relays`, and
 `--use-fallback-relays`. `put` requires an existing manifest — deploy at least once first.
+
+---
+
+## Snapshots
+
+`nsyte snapshot` publishes an **immutable** kind 5128 event that pins the currently published
+manifest — its aggregate hash and file set — as a historical point (a release marker, an audit
+anchor). Unlike the site manifest it is never replaced; each run adds a new snapshot.
+
+```bash
+nsyte snapshot --dry-run                                  # preview the event, publish nothing
+nsyte snapshot                                            # snapshot the root site
+nsyte snapshot -d blog                                    # snapshot the named site "blog"
+nsyte snapshot --title "v1.2.3" --description "Release"   # label this snapshot only
+nsyte snapshot --no-title --no-description                # drop the inherited labels
+nsyte snapshot --sec "$NBUNK_SECRET" --use-fallback-relays
+```
+
+How it works and what to tell the user:
+
+- **It reads the manifest from the relays**, not from disk. Deploy first and let it propagate; "No
+  manifest found" means the relays queried have no manifest for that pubkey/name yet.
+- **Labels:** `--title` / `--description` apply to this snapshot only — the live manifest is not
+  rewritten. Omitted, they inherit from the manifest; `--no-title` / `--no-description` drop the
+  inherited tag. The hash and file set always come from the manifest and cannot be overridden.
+- **Signing:** same as every publishing command (`--sec`, `--prompt-sec`, or the stored bunker). It
+  never prompts when `--sec` is given, so it needs no `--non-interactive` flag.
+- **Relays:** `-r` overrides the config; `--use-fallback-relays` adds nsyte's defaults.
+- **No list command:** nsyte cannot enumerate snapshots; they are visible to relay clients that
+  query kind 5128 by author. Tell the user this before they expect `nsyte status` to show them.
+- **CI:** the natural place is a tag-triggered job after deploy — see the `nsyte-ci` skill.
 
 ---
 
@@ -517,51 +547,17 @@ manifest. Relays may not honor delete requests; treat deletion as best-effort.
 
 ## CI/CD
 
-### Step 1: Generate a CI credential (one-time, on a dev machine)
+Full coverage — `nsite-action` inputs and traps, GitLab and other runners, release snapshots,
+checklist, troubleshooting — lives in the companion **`nsyte-ci`** skill. The essentials:
 
-```bash
-nsyte ci
-nsyte ci '<bunker-url>'                  # or omit the URL to scan a QR / paste it at the prompt
-```
-
-Prints an `nbunksec1…` string **once** and never stores it. Save it as a CI secret (e.g.
-`NBUNK_SECRET`). Prefer a dedicated bunker connection for CI so it can be revoked independently.
-
-### Step 2: Deploy from the pipeline
-
-```bash
-nsyte scan ./dist --scan-level high --quiet
-nsyte validate
-nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET"
-```
-
-Pass the credential with `--sec` from the pipeline's secret store. There is no `NBUNK_SECRET`-style
-environment variable read by nsyte itself — the name of the secret is up to you. Pin the nsyte
-release in the workflow (as above) rather than installing "latest" so deploys are reproducible.
-
-### GitHub Actions example
-
-```yaml
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci && npm run build
-      - run: |
-          curl -fsSLo /usr/local/bin/nsyte \
-            https://github.com/sandwichfarm/nsyte/releases/download/v0.28.1/nsyte-linux-0.28.1
-          chmod +x /usr/local/bin/nsyte
-      - run: nsyte validate
-      - run: nsyte deploy ./dist --non-interactive --sec "${{ secrets.NBUNK_SECRET }}"
-```
-
-### CI checklist
-
-- [ ] `.nsite/config.json` committed (it holds no secrets) or generated in the job
-- [ ] `NBUNK_SECRET` set to the `nbunksec1…` string from `nsyte ci`
-- [ ] `--non-interactive` on `deploy` (and `--yes` on any `delete`/`undeploy`)
-- [ ] `nsyte scan` and `nsyte validate` run before `deploy`
+1. **Credential:** the user runs `nsyte ci` once on a dev machine; it prints an `nbunksec1…`
+   **once**, never stored. They save it as a pipeline secret (e.g. `NBUNK_SECRET`). Never a raw
+   `nsec`/hex key in CI.
+2. **GitHub Actions:** use `sandwichfarm/nsite-action` with `nbunksec:`, a pinned `version:`, and
+   `skip_secrets_scan: "false"` (its default skips the scan). It only runs `deploy`.
+3. **Any other runner:** download a pinned release binary, then `nsyte scan ./dist`,
+   `nsyte validate`, `nsyte deploy ./dist --non-interactive --sec "$NBUNK_SECRET"`.
+4. `--non-interactive` is mandatory without a TTY; otherwise the job hangs on a prompt.
 
 ---
 
