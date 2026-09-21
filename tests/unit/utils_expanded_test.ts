@@ -156,6 +156,28 @@ describe("detectSourceUrl", () => {
     assertEquals(result, "https://example.com");
   });
 
+  it("skips git without prompting when run permission is not granted", async () => {
+    const permissionStub = stub(
+      Deno.permissions,
+      "query",
+      () => Promise.resolve({ state: "prompt" } as PermissionStatus),
+    );
+    let commandCreated = false;
+    const commandStub = stub(Deno, "Command", () => {
+      commandCreated = true;
+      throw new Error("git should not run");
+    });
+
+    try {
+      const result = await detectSourceUrl();
+      assertEquals(result, undefined);
+      assertEquals(commandCreated, false);
+    } finally {
+      permissionStub.restore();
+      commandStub.restore();
+    }
+  });
+
   it("returns undefined when git command fails", async () => {
     const commandStub = stub(Deno, "Command", () => ({
       output: () => Promise.resolve({ success: false, stdout: new Uint8Array() }),

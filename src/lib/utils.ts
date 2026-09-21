@@ -96,6 +96,13 @@ export async function detectSourceUrl(configSource?: string): Promise<string | u
   if (configSource) return configSource;
 
   try {
+    // Source detection is optional, so do not trigger an interactive permission
+    // prompt when nsyte was started without --allow-run=git. In particular, this
+    // runs after deploy progress output and Deno's prompt can leave the terminal
+    // in raw mode if the process is interrupted.
+    const runPermission = await Deno.permissions.query({ name: "run", command: "git" });
+    if (runPermission.state !== "granted") return undefined;
+
     const command = new Deno.Command("git", {
       args: ["remote", "get-url", "origin"],
       stdout: "piped",
