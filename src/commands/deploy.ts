@@ -1,7 +1,7 @@
 import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { hexToBytes } from "@noble/hashes/utils";
-import { join } from "@std/path";
+import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
 import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
@@ -125,6 +125,94 @@ interface DeploymentState {
   resolvedServers: string[];
   targetDir: string;
   fallbackFileEntry: FileEntry | null;
+}
+
+interface AbsoluteDeploySafetyOptions {
+  config?: string | false;
+  nonInteractive: boolean;
+}
+
+interface AbsoluteDeploySafetyDependencies {
+  cwd?: () => string;
+  realPath?: (path: string) => Promise<string>;
+  readConfig?: (path: string) => ProjectConfig | null;
+  scanFiles?: (path: string) => Promise<{ includedFiles: FileEntry[] }>;
+  confirm?: (message: string) => Promise<boolean>;
+}
+
+export interface DeployTargetResolution {
+  targetDir: string;
+  isAbsolute: boolean;
+  fileCount?: number;
+}
+
+/**
+ * Resolve a deploy target and apply the extra safety ceremony required for
+ * absolute paths. Relative paths deliberately take the established path with
+ * no additional filesystem access or prompts.
+ */
+export async function resolveDeployTarget(
+  fileOrFolder: string,
+  options: AbsoluteDeploySafetyOptions,
+  dependencies: AbsoluteDeploySafetyDependencies = {},
+): Promise<DeployTargetResolution> {
+  const cwd = (dependencies.cwd ?? Deno.cwd)();
+
+  if (!isAbsolute(fileOrFolder)) {
+    return {
+      targetDir: join(cwd, fileOrFolder),
+      isAbsolute: false,
+    };
+  }
+
+  const requestedTarget = resolve(fileOrFolder);
+  if (dirname(requestedTarget) === requestedTarget) {
+    throw new Error("Refusing to deploy the filesystem root directory.");
+  }
+
+  if (typeof options.config !== "string" || options.config.trim().length === 0) {
+    throw new Error(
+      "Absolute deploy paths require an explicit nsite config. Provide one with -c/--config <path>.",
+    );
+  }
+
+  const readConfig = dependencies.readConfig ?? readProjectFile;
+  const config = readConfig(options.config);
+  if (!config) {
+    throw new Error(
+      `No valid nsite config found at ${options.config}. Absolute deploy paths require an existing valid config.`,
+    );
+  }
+
+  const realPath = dependencies.realPath ?? Deno.realPath;
+  const targetDir = await realPath(requestedTarget);
+  if (dirname(targetDir) === targetDir) {
+    throw new Error("Refusing to deploy the filesystem root directory.");
+  }
+
+  const scanFiles = dependencies.scanFiles ?? getLocalFiles;
+  const { includedFiles } = await scanFiles(targetDir);
+  const fileCount = includedFiles.length;
+  const fileLabel = fileCount === 1 ? "file" : "files";
+  const warning =
+    `Absolute deploy target: ${targetDir}\n${fileCount} ${fileLabel} will be considered for public deployment. This may replace the site's published file manifest.`;
+
+  if (options.nonInteractive) {
+    throw new Error(
+      `${warning}\nAbsolute deploy paths require interactive confirmation; remove -i/--non-interactive to continue.`,
+    );
+  }
+
+  const confirm = dependencies.confirm ?? ((message: string) =>
+    Confirm.prompt({
+      message,
+      default: false,
+    }));
+  if (!await confirm(warning)) {
+    throw new Error("Absolute path deploy cancelled.");
+  }
+
+  return { targetDir, isAbsolute: true, fileCount };
 }
 
 export interface FilePreparationResult {
@@ -307,7 +395,7 @@ export function registerDeployCommand(): void {
  * - Publishing metadata
  * - Displaying results
  *
- * @param fileOrFolder - Path to the file or folder to deploy, relative to current working directory
+ * @param fileOrFolder - Absolute or current-working-directory-relative path to deploy
  * @param options - Deploy command options
  */
 export async function deployCommand(
@@ -323,6 +411,8 @@ export async function deployCommand(
   const messageCollector = new MessageCollector(displayManager.isInteractive());
 
   try {
+    const target = await resolveDeployTarget(fileOrFolder, options);
+
     // Prompt for the secret at runtime if requested, before resolving auth context
     const promptConfigPath = typeof options.config === "string" ? options.config : undefined;
     const configuredBunkerPubkey = options.config === false
@@ -330,8 +420,7 @@ export async function deployCommand(
       : readProjectFile(promptConfigPath)?.bunkerPubkey;
     await resolvePromptSec(options, configuredBunkerPubkey);
 
-    const currentWorkingDir = Deno.cwd();
-    const targetDir = join(currentWorkingDir, fileOrFolder);
+    const targetDir = target.targetDir;
     const context = await resolveContext(options);
     const configPath = typeof options.config === "string" ? options.config : undefined;
 
