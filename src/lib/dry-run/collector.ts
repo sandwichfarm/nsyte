@@ -8,6 +8,12 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../manifest.ts";
+import { isNapp } from "../napp/detect.ts";
+import {
+  createAppListingTemplate,
+  deriveListingDTag,
+  NSITE_APP_LISTING_KIND,
+} from "../napp/listing.ts";
 import type { DryRunEvent } from "./types.ts";
 
 /** Options that affect which events would be published */
@@ -34,9 +40,11 @@ export function collectDeployEvents(
 
   // 1. Site manifest (always published)
   const siteId = config.id || undefined;
-  const manifestRelays = options.relays?.split(",").map((r) => r.trim()).filter((r) => r) ||
+  const manifestRelays =
+    options.relays?.split(",").map((r) => r.trim()).filter((r) => r) ||
     config.relays || [];
-  const manifestServers = options.servers?.split(",").map((s) => s.trim()).filter((s) => s) ||
+  const manifestServers =
+    options.servers?.split(",").map((s) => s.trim()).filter((s) => s) ||
     config.servers || [];
 
   const manifestFiles = buildManifestFileMappings(
@@ -62,9 +70,13 @@ export function collectDeployEvents(
   });
 
   // 2. App handler (kind 31990) — if enabled
-  const shouldPublishAppHandler = options.publishAppHandler || config.publishAppHandler;
+  const shouldPublishAppHandler = options.publishAppHandler ||
+    config.publishAppHandler;
   if (shouldPublishAppHandler) {
-    const handlerTemplate = buildAppHandlerTemplate(config, options.handlerKinds);
+    const handlerTemplate = buildAppHandlerTemplate(
+      config,
+      options.handlerKinds,
+    );
     if (handlerTemplate) {
       events.push({
         label: "App Handler (kind 31990)",
@@ -87,7 +99,8 @@ export function collectDeployEvents(
   }
 
   // 4. Relay list (kind 10002) — if enabled
-  const shouldPublishRelayList = options.publishRelayList || config.publishRelayList;
+  const shouldPublishRelayList = options.publishRelayList ||
+    config.publishRelayList;
   if (shouldPublishRelayList) {
     const relays = manifestRelays;
     if (relays.length > 0) {
@@ -101,7 +114,8 @@ export function collectDeployEvents(
   }
 
   // 5. Server list (kind 10063) — if enabled
-  const shouldPublishServerList = options.publishServerList || config.publishServerList;
+  const shouldPublishServerList = options.publishServerList ||
+    config.publishServerList;
   if (shouldPublishServerList) {
     const servers = manifestServers;
     if (servers.length > 0) {
@@ -112,6 +126,27 @@ export function collectDeployEvents(
         filename: "server-list-10063.json",
       });
     }
+  }
+
+  // 6. App Listing (kind 37348) — ONLY for napps. Appended LAST so the non-napp
+  //    template set is byte-for-byte unchanged (NAPP-LST-03 / NAPP-LST-05). The d tag
+  //    is derived from config.id (NOT a manifest event — dry-run has the config in
+  //    hand) so it matches `const siteId = config.id || undefined;` used for the
+  //    manifest template above: named -> config.id, root -> "".
+  if (isNapp(config)) {
+    const listingDTag = deriveListingDTag({ id: config.id });
+    // Pass "" for pubkey — dry-run never signs and `self` is never auto-defaulted.
+    const listingTemplate = createAppListingTemplate(
+      "",
+      config.napp,
+      listingDTag,
+    );
+    events.push({
+      label: `App Listing (kind ${NSITE_APP_LISTING_KIND})`,
+      kind: NSITE_APP_LISTING_KIND,
+      template: listingTemplate,
+      filename: `app-listing-${NSITE_APP_LISTING_KIND}.json`,
+    });
   }
 
   return events;
@@ -149,7 +184,9 @@ function buildAppHandlerTemplate(
 ): EventTemplate | null {
   let kinds: number[] = [];
   if (handlerKindsStr) {
-    kinds = handlerKindsStr.split(",").map((k) => parseInt(k.trim())).filter((k) => !isNaN(k));
+    kinds = handlerKindsStr.split(",").map((k) => parseInt(k.trim())).filter((
+      k,
+    ) => !isNaN(k));
   } else if (config.appHandler?.kinds) {
     kinds = config.appHandler.kinds;
   }
@@ -201,10 +238,15 @@ function buildAppHandlerTemplate(
 
   // NIP-01 style metadata content
   let content = "";
-  if (config.appHandler?.name || config.appHandler?.description || config.appHandler?.icon) {
+  if (
+    config.appHandler?.name || config.appHandler?.description ||
+    config.appHandler?.icon
+  ) {
     const profile: Record<string, string> = {};
     if (config.appHandler.name) profile.name = config.appHandler.name;
-    if (config.appHandler.description) profile.about = config.appHandler.description;
+    if (config.appHandler.description) {
+      profile.about = config.appHandler.description;
+    }
     if (config.appHandler.icon) profile.picture = config.appHandler.icon;
     content = JSON.stringify(profile);
   }

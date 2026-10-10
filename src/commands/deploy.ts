@@ -2,7 +2,13 @@ import { colors } from "@cliffy/ansi/colors";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { hexToBytes } from "@noble/hashes/utils";
 import { join } from "@std/path";
-import { getOutboxes, naddrEncode, npubEncode, relaySet } from "applesauce-core/helpers";
+import {
+  type EventTemplate,
+  getOutboxes,
+  naddrEncode,
+  npubEncode,
+  relaySet,
+} from "applesauce-core/helpers";
 import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
 import { createSigner as createSignerFromFactory } from "../lib/auth/signer-factory.ts";
@@ -19,15 +25,31 @@ import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { type DisplayManager, getDisplayManager } from "../lib/display-mode.ts";
 import { getErrorMessage, handleError } from "../lib/error-utils.ts";
 import { compareFiles, getLocalFiles, loadFileData } from "../lib/files.ts";
-import { createLogger, flushQueuedLogs, setProgressMode } from "../lib/logger.ts";
+import {
+  createLogger,
+  flushQueuedLogs,
+  setProgressMode,
+} from "../lib/logger.ts";
 import {
   buildManifestFileMappings,
   findFallbackFile,
   NSITE_NAME_SITE_KIND,
 } from "../lib/manifest.ts";
 import { MessageCategory, MessageCollector } from "../lib/message-collector.ts";
+import { isNapp } from "../lib/napp/detect.ts";
+import { resolveIndexerRelays } from "../lib/napp/identifier.ts";
+import {
+  createAppListingEvent,
+  createAppListingTemplate,
+  deriveListingDTag,
+  NSITE_APP_LISTING_KIND,
+} from "../lib/napp/listing.ts";
 import { publishMetadata } from "../lib/metadata/publisher.ts";
-import { getNbunkString, importFromNbunk, initiateNostrConnect } from "../lib/nip46.ts";
+import {
+  getNbunkString,
+  importFromNbunk,
+  initiateNostrConnect,
+} from "../lib/nip46.ts";
 import { encodePubkeyBase36, validateDTag } from "../lib/nip5a.ts";
 import {
   createSiteManifestEvent,
@@ -40,10 +62,17 @@ import {
   type RelayPublishResult,
 } from "../lib/nostr.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
-import { normalizeSiteIdentifier, resolveSiteIdentifier } from "../lib/site-identifier.ts";
+import {
+  normalizeSiteIdentifier,
+  resolveSiteIdentifier,
+} from "../lib/site-identifier.ts";
 import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
-import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
+import {
+  detectSourceUrl,
+  parseRelayInput,
+  truncateString,
+} from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -179,11 +208,21 @@ export function registerDeployCommand(): void {
     .alias("dpl")
     .description("Deploy files from a directory")
     .arguments("<folder:string>")
-    .option("-f, --force", "Force re-upload all files, bypassing server preflight checks.", {
-      default: false,
-    })
-    .option("-s, --servers <servers:string>", "The blossom servers to use (comma separated).")
-    .option("-r, --relays <relays:string>", "The nostr relays to use (comma separated).")
+    .option(
+      "-f, --force",
+      "Force re-upload all files, bypassing server preflight checks.",
+      {
+        default: false,
+      },
+    )
+    .option(
+      "-s, --servers <servers:string>",
+      "The blossom servers to use (comma separated).",
+    )
+    .option(
+      "-r, --relays <relays:string>",
+      "The nostr relays to use (comma separated).",
+    )
     .option(
       "--sec <secret:string>",
       "Secret for signing (auto-detects format: nsec, nbunksec, bunker:// URL, or 64-char hex).",
@@ -211,20 +250,36 @@ export function registerDeployCommand(): void {
       { default: false },
     )
     .option("-v, --verbose", "Verbose output.", { default: false })
-    .option("-c, --concurrency <number:number>", "Number of parallel uploads.", { default: 4 })
-    .option("--publish-app-handler", "Publish NIP-89 app handler announcement (Kind 31990).", {
-      default: false,
-    })
+    .option(
+      "-c, --concurrency <number:number>",
+      "Number of parallel uploads.",
+      { default: 4 },
+    )
+    .option(
+      "--publish-app-handler",
+      "Publish NIP-89 app handler announcement (Kind 31990).",
+      {
+        default: false,
+      },
+    )
     .option(
       "--handler-kinds <kinds:string>",
       "Event kinds this nsite can handle (comma separated).",
     )
-    .option("--publish-profile", "Publish profile metadata (Kind 0) - root sites only.", {
-      default: false,
-    })
-    .option("--publish-relay-list", "Publish relay list (Kind 10002) - root sites only.", {
-      default: false,
-    })
+    .option(
+      "--publish-profile",
+      "Publish profile metadata (Kind 0) - root sites only.",
+      {
+        default: false,
+      },
+    )
+    .option(
+      "--publish-relay-list",
+      "Publish relay list (Kind 10002) - root sites only.",
+      {
+        default: false,
+      },
+    )
     .option(
       "--publish-server-list",
       "Publish Blossom server list (Kind 10063) - root sites only.",
@@ -278,7 +333,9 @@ export function registerDeployCommand(): void {
       const cmdName = Deno.args[0];
       if (cmdName === "upload") {
         console.log(
-          colors.yellow("⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n"),
+          colors.yellow(
+            "⚠️  The 'upload' command is deprecated. Please use 'deploy' instead.\n",
+          ),
         );
       }
       await deployCommand(folder, options);
@@ -333,7 +390,9 @@ export async function deployCommand(
     const currentWorkingDir = Deno.cwd();
     const targetDir = join(currentWorkingDir, fileOrFolder);
     const context = await resolveContext(options);
-    const configPath = typeof options.config === "string" ? options.config : undefined;
+    const configPath = typeof options.config === "string"
+      ? options.config
+      : undefined;
 
     if (context.error) {
       statusDisplay.error(context.error);
@@ -344,8 +403,12 @@ export async function deployCommand(
     const { authKeyHex, config } = context;
 
     if (!config) {
-      statusDisplay.error("Critical error: Project data could not be resolved.");
-      log.error("Critical error: Project data is null after context resolution.");
+      statusDisplay.error(
+        "Critical error: Project data could not be resolved.",
+      );
+      log.error(
+        "Critical error: Project data is null after context resolution.",
+      );
       return Deno.exit(1);
     }
 
@@ -393,8 +456,16 @@ export async function deployCommand(
 
       // Assemble manifest file mappings via the same helpers the real deploy
       // path uses — guarantees dry-run and real runs emit identical manifests.
-      const fallbackFileEntry = resolveFallbackFile(options, config, includedFiles);
-      const manifestFiles = buildManifestFileMappings(includedFiles, [], fallbackFileEntry);
+      const fallbackFileEntry = resolveFallbackFile(
+        options,
+        config,
+        includedFiles,
+      );
+      const manifestFiles = buildManifestFileMappings(
+        includedFiles,
+        [],
+        fallbackFileEntry,
+      );
 
       // Collect event templates (no signing)
       const events = collectDeployEvents(config, manifestFiles, {
@@ -409,7 +480,8 @@ export async function deployCommand(
 
       // Parse --dry-run-show-kinds
       const showKinds = options.dryRunShowKinds
-        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim())).filter((k) => !isNaN(k))
+        ? options.dryRunShowKinds.split(",").map((k) => parseInt(k.trim()))
+          .filter((k) => !isNaN(k))
         : undefined;
 
       // Handle output (banner, files, optional stdout)
@@ -424,7 +496,12 @@ export async function deployCommand(
       return Deno.exit(0);
     }
 
-    const signerResult = await initSigner(authKeyHex, config, options, configPath);
+    const signerResult = await initSigner(
+      authKeyHex,
+      config,
+      options,
+      configPath,
+    );
 
     if ("error" in signerResult) {
       statusDisplay.error(`Signer: ${signerResult.error}`);
@@ -436,9 +513,12 @@ export async function deployCommand(
     const publisherPubkey = await signer.getPublicKey();
 
     // Get config values for manifest metadata (these are recommendations for others)
-    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) || config.relays ||
+    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) ||
+      config.relays ||
       [];
-    const manifestServers = options.servers?.split(",").filter((s) => s.trim()) || config.servers ||
+    const manifestServers = options.servers?.split(",").filter((s) =>
+      s.trim()
+    ) || config.servers ||
       [];
 
     // Fetch kind 10002 and 10063 to get user's preferred relays/servers for operations
@@ -468,14 +548,22 @@ export async function deployCommand(
       signer,
       config,
       options,
-      resolvedRelays: resolvedRelays.length > 0 ? resolvedRelays : manifestRelays,
-      resolvedServers: resolvedServers.length > 0 ? resolvedServers : manifestServers,
+      resolvedRelays: resolvedRelays.length > 0
+        ? resolvedRelays
+        : manifestRelays,
+      resolvedServers: resolvedServers.length > 0
+        ? resolvedServers
+        : manifestServers,
       targetDir,
       progressRenderer: new ProgressRenderer(0), // Will be updated later
       fallbackFileEntry: null,
     };
 
-    displayConfig(state as DeploymentState, publisherPubkey, userPreferences.displayName);
+    displayConfig(
+      state as DeploymentState,
+      publisherPubkey,
+      userPreferences.displayName,
+    );
 
     const includedFiles = await scanLocalFiles(state as DeploymentState);
 
@@ -531,9 +619,16 @@ export async function deployCommand(
     // --- End secrets scan pre-check ---
 
     // Find fallback file in scanned files if configured
-    state.fallbackFileEntry = resolveFallbackFile(options, config, includedFiles);
+    state.fallbackFileEntry = resolveFallbackFile(
+      options,
+      config,
+      includedFiles,
+    );
 
-    const remoteFileEntries = await fetchRemoteFiles(state as DeploymentState, publisherPubkey);
+    const remoteFileEntries = await fetchRemoteFiles(
+      state as DeploymentState,
+      publisherPubkey,
+    );
     const { toTransfer, toDelete } = await compareAndPrepareFiles(
       state as DeploymentState,
       includedFiles,
@@ -547,7 +642,18 @@ export async function deployCommand(
     );
     await maybePublishMetadata(state as DeploymentState, publisherPubkey);
 
-    if (includedFiles.length === 0 && toDelete.length === 0 && toTransfer.length === 0) {
+    // Napp App Listing (kind 37348) — published AFTER the manifest (NAPP-LST-02).
+    // Gated on isNapp(config): a plain deploy never enters this branch (NAPP-LST-03).
+    await maybePublishAppListing(
+      state as DeploymentState,
+      publisherPubkey,
+      deployResult?.manifestResult ?? null,
+    );
+
+    if (
+      includedFiles.length === 0 && toDelete.length === 0 &&
+      toTransfer.length === 0
+    ) {
       log.info("No effective operations performed.");
     }
 
@@ -583,7 +689,13 @@ export async function deployCommand(
 function formatServerSummary(
   serverStats: Record<
     string,
-    { success: number; total: number; failed: number; retries: number; errors: Map<string, number> }
+    {
+      success: number;
+      total: number;
+      failed: number;
+      retries: number;
+      errors: Map<string, number>;
+    }
   >,
   serverTimings?: Record<string, number | undefined>,
 ): string {
@@ -596,7 +708,9 @@ function formatServerSummary(
   if (displayManager.isNonInteractive()) {
     return Object.entries(serverStats)
       .map(([server, stats]) => {
-        const pct = stats.total === 0 ? 100 : Math.round((stats.success / stats.total) * 100);
+        const pct = stats.total === 0
+          ? 100
+          : Math.round((stats.success / stats.total) * 100);
         const failStr = stats.failed > 0 ? `, ${stats.failed} failed` : "";
         const retryStr = stats.retries > 0 ? `, ${stats.retries} retries` : "";
         return `${server}: ${stats.success}/${stats.total} (${pct}%)${failStr}${retryStr}`;
@@ -634,15 +748,23 @@ function formatServerSummary(
     // Collect error breakdown lines per row
     const rowErrors: string[] = [];
     if (stats.errors.size > 1) {
-      const sortedErrors = [...stats.errors.entries()].sort((a, b) => b[1] - a[1]);
+      const sortedErrors = [...stats.errors.entries()].sort((a, b) =>
+        b[1] - a[1]
+      );
       for (const [errMsg, count] of sortedErrors) {
-        const truncated = errMsg.length > 60 ? errMsg.substring(0, 57) + "..." : errMsg;
-        rowErrors.push(`     ${colors.yellow(`${count}×`)} ${colors.gray(truncated)}`);
+        const truncated = errMsg.length > 60
+          ? errMsg.substring(0, 57) + "..."
+          : errMsg;
+        rowErrors.push(
+          `     ${colors.yellow(`${count}×`)} ${colors.gray(truncated)}`,
+        );
       }
     } else if (stats.errors.size === 1) {
       const [[errMsg]] = stats.errors;
       if (errMsg !== "unknown error") {
-        const truncated = errMsg.length > 50 ? errMsg.substring(0, 47) + "..." : errMsg;
+        const truncated = errMsg.length > 50
+          ? errMsg.substring(0, 47) + "..."
+          : errMsg;
         rowErrors.push(`     ${colors.gray(truncated)}`);
       }
     }
@@ -672,7 +794,9 @@ function computeExitCode(result: DeployPhaseResult): number {
 
   // Total upload failure: files needed uploading but none succeeded
   if (result.filesRequiringUpload > 0 && result.filesUploaded === 0) {
-    console.log(colors.red("\nDeploy failed: no files were uploaded successfully."));
+    console.log(
+      colors.red("\nDeploy failed: no files were uploaded successfully."),
+    );
     return 1;
   }
 
@@ -694,7 +818,9 @@ function computeExitCode(result: DeployPhaseResult): number {
 
     // Manifest published to zero relays
     if (mr.successCount === 0) {
-      console.log(colors.red("\nDeploy failed: manifest was not accepted by any relay."));
+      console.log(
+        colors.red("\nDeploy failed: manifest was not accepted by any relay."),
+      );
       return 1;
     }
   }
@@ -712,17 +838,28 @@ function computeExitCode(result: DeployPhaseResult): number {
 /**
  * Display gateway URLs where the deployed site is available
  */
-function displayGatewayUrl(config: ProjectConfig, publisherPubkey: string): void {
+function displayGatewayUrl(
+  config: ProjectConfig,
+  publisherPubkey: string,
+): void {
   const npub = npubEncode(publisherPubkey);
   const pubkeyB36 = encodePubkeyBase36(hexToBytes(publisherPubkey));
   const { gatewayHostnames, id } = config;
   const siteId = normalizeSiteIdentifier(id);
   const isNamedSite = !!siteId;
 
-  console.log(colors.green(`\nThe nsite is now available on any nsite gateway, for example:`));
+  console.log(
+    colors.green(
+      `\nThe nsite is now available on any nsite gateway, for example:`,
+    ),
+  );
   for (const gatewayHostname of gatewayHostnames || []) {
     if (isNamedSite) {
-      console.log(colors.blue.underline(`https://${pubkeyB36}${siteId}.${gatewayHostname}/`));
+      console.log(
+        colors.blue.underline(
+          `https://${pubkeyB36}${siteId}.${gatewayHostname}/`,
+        ),
+      );
     } else {
       console.log(colors.blue.underline(`https://${npub}.${gatewayHostname}/`));
     }
@@ -749,16 +886,22 @@ async function resolveContext(
 ): Promise<ProjectContext> {
   let config: ProjectConfig | null = null;
   let authKeyHex: string | null | undefined = options.sec || undefined;
-  const configPath = typeof options.config === "string" ? options.config : undefined;
+  const configPath = typeof options.config === "string"
+    ? options.config
+    : undefined;
 
   // --no-config: ignore config file entirely, build config from CLI args only
   if (options.config === false) {
-    log.debug("Resolving project context with --no-config (ignoring config file).");
+    log.debug(
+      "Resolving project context with --no-config (ignoring config file).",
+    );
     config = {
       servers: options.servers
         ? options.servers.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
-      relays: options.relays ? options.relays.split(",").map((r) => r.trim()).filter(Boolean) : [],
+      relays: options.relays
+        ? options.relays.split(",").map((r) => r.trim()).filter(Boolean)
+        : [],
       fallback: options.fallback,
       gatewayHostnames: ["nsite.lol"],
     };
@@ -767,7 +910,8 @@ async function resolveContext(
       return {
         config,
         authKeyHex,
-        error: "Missing signing key: --no-config requires --sec for authentication.",
+        error:
+          "Missing signing key: --no-config requires --sec for authentication.",
       };
     }
   } else if (options.nonInteractive) {
@@ -778,9 +922,13 @@ async function resolveContext(
       existingProjectData = readProjectFile(configPath);
     } catch {
       // Configuration exists but is invalid
-      console.error(colors.red("\nConfiguration file exists but contains errors."));
       console.error(
-        colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+        colors.red("\nConfiguration file exists but contains errors."),
+      );
+      console.error(
+        colors.yellow(
+          "Please fix the errors above or delete .nsite/config.json to start fresh.\n",
+        ),
       );
       return {
         config: defaultConfig,
@@ -795,21 +943,25 @@ async function resolveContext(
 
     if (
       !options.servers &&
-      (!existingProjectData?.servers || existingProjectData.servers.length === 0)
+      (!existingProjectData?.servers ||
+        existingProjectData.servers.length === 0)
     ) {
       return {
         config: existingProjectData,
         authKeyHex,
-        error: "Missing servers: Provide --servers or configure in .nsite/config.json.",
+        error:
+          "Missing servers: Provide --servers or configure in .nsite/config.json.",
       };
     }
     if (
-      !options.relays && (!existingProjectData?.relays || existingProjectData.relays.length === 0)
+      !options.relays &&
+      (!existingProjectData?.relays || existingProjectData.relays.length === 0)
     ) {
       return {
         config: existingProjectData,
         authKeyHex,
-        error: "Missing relays: Provide --relays or configure in .nsite/config.json.",
+        error:
+          "Missing relays: Provide --relays or configure in .nsite/config.json.",
       };
     }
 
@@ -852,9 +1004,13 @@ async function resolveContext(
       currentProjectData = readProjectFile(configPath);
     } catch {
       // Configuration exists but is invalid
-      console.error(colors.red("\nConfiguration file exists but contains errors."));
       console.error(
-        colors.yellow("Please fix the errors above or delete .nsite/config.json to start fresh.\n"),
+        colors.red("\nConfiguration file exists but contains errors."),
+      );
+      console.error(
+        colors.yellow(
+          "Please fix the errors above or delete .nsite/config.json to start fresh.\n",
+        ),
       );
       return {
         config: defaultConfig,
@@ -900,10 +1056,14 @@ async function resolveContext(
 
     // Apply CLI flag overrides to config (interactive mode)
     if (options.servers) {
-      config.servers = options.servers.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      config.servers = options.servers.split(",").map((s) => s.trim()).filter((
+        s,
+      ) => s.length > 0);
     }
     if (options.relays) {
-      config.relays = options.relays.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+      config.relays = options.relays.split(",").map((r) => r.trim()).filter((
+        r,
+      ) => r.length > 0);
     }
     if (options.fallback) {
       config.fallback = options.fallback;
@@ -917,10 +1077,18 @@ async function resolveContext(
   }
 
   if (!config || !config.servers || config.servers.length === 0) {
-    return { config, authKeyHex, error: "Servers configuration is missing or empty." };
+    return {
+      config,
+      authKeyHex,
+      error: "Servers configuration is missing or empty.",
+    };
   }
   if (!config.relays || config.relays.length === 0) {
-    return { config, authKeyHex, error: "Relays configuration is missing or empty." };
+    return {
+      config,
+      authKeyHex,
+      error: "Relays configuration is missing or empty.",
+    };
   }
 
   return { config, authKeyHex };
@@ -966,11 +1134,17 @@ async function initSigner(
         // Add timeout to getPublicKey as it might hang too
         const getPublicKeyPromise = bunkerSigner.getPublicKey();
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("getPublicKey timeout after 15s")), 15000);
+          setTimeout(
+            () => reject(new Error("getPublicKey timeout after 15s")),
+            15000,
+          );
         });
 
         log.debug("Waiting for getPublicKey or timeout...");
-        const pubkey = await Promise.race([getPublicKeyPromise, timeoutPromise]) as string;
+        const pubkey = await Promise.race([
+          getPublicKeyPromise,
+          timeoutPromise,
+        ]) as string;
         log.debug(`getPublicKey completed: ${truncateString(pubkey)}`);
         return bunkerSigner;
       } catch (e: unknown) {
@@ -990,9 +1164,10 @@ async function initSigner(
         }
       }
     } else {
-      const baseMsg = `No stored secret (nbunksec) found for configured bunker: ${
-        config.bunkerPubkey.substring(0, 8)
-      }...`;
+      const baseMsg =
+        `No stored secret (nbunksec) found for configured bunker: ${
+          config.bunkerPubkey.substring(0, 8)
+        }...`;
 
       if (options.nonInteractive) {
         return {
@@ -1071,7 +1246,10 @@ async function reconnectToBunker(
       });
 
       let chosenRelays: string[];
-      if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
+      if (
+        relayInput.trim() === "" ||
+        relayInput.trim() === defaultRelays.join(", ")
+      ) {
         chosenRelays = defaultRelays;
       } else {
         chosenRelays = parseRelayInput(relayInput);
@@ -1084,7 +1262,9 @@ async function reconnectToBunker(
 
       console.log(
         colors.cyan(
-          `Initiating Nostr Connect as '${appName}' on relays: ${chosenRelays.join(", ")}`,
+          `Initiating Nostr Connect as '${appName}' on relays: ${
+            chosenRelays.join(", ")
+          }`,
         ),
       );
       signer = await initiateNostrConnect(appName, chosenRelays);
@@ -1138,15 +1318,23 @@ async function reconnectToBunker(
     const nbunkString = getNbunkString(signer);
     await secretsManager.storeNbunk(connectedPubkey, nbunkString);
 
-    console.log(colors.green("✓ Successfully reconnected to bunker and saved credentials."));
-    log.info(`Reconnected to bunker with pubkey: ${truncateString(connectedPubkey)}`);
+    console.log(
+      colors.green(
+        "✓ Successfully reconnected to bunker and saved credentials.",
+      ),
+    );
+    log.info(
+      `Reconnected to bunker with pubkey: ${truncateString(connectedPubkey)}`,
+    );
 
     return signer;
   } catch (error) {
     log.error(`Failed to reconnect to bunker: ${error}`);
     console.error(
       colors.red(
-        `Failed to reconnect to bunker: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to reconnect to bunker: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       ),
     );
 
@@ -1170,7 +1358,8 @@ function displayConfig(
   publisherPubkey: string,
   displayName?: string,
 ): void {
-  const { displayManager, config, options, resolvedRelays, resolvedServers } = state;
+  const { displayManager, config, options, resolvedRelays, resolvedServers } =
+    state;
   const userDisplay = displayName || publisherPubkey;
 
   if (displayManager.isInteractive()) {
@@ -1196,9 +1385,19 @@ function displayConfig(
         !options.servers && !config.servers,
       ),
     );
-    console.log(formatConfigValue("Force Upload", options.force, options.force === false));
-    console.log(formatConfigValue("Sync Servers", options.sync, options.sync === false));
-    console.log(formatConfigValue("Concurrency", options.concurrency, options.concurrency === 4));
+    console.log(
+      formatConfigValue("Force Upload", options.force, options.force === false),
+    );
+    console.log(
+      formatConfigValue("Sync Servers", options.sync, options.sync === false),
+    );
+    console.log(
+      formatConfigValue(
+        "Concurrency",
+        options.concurrency,
+        options.concurrency === 4,
+      ),
+    );
     console.log(
       formatConfigValue(
         "404 Fallback",
@@ -1231,7 +1430,9 @@ function displayConfig(
     );
     console.log(
       colors.cyan(
-        `Concurrency: ${options.concurrency}${options.concurrency === 4 ? " (default)" : ""}`,
+        `Concurrency: ${options.concurrency}${
+          options.concurrency === 4 ? " (default)" : ""
+        }`,
       ),
     );
     if (options.force) console.log(colors.yellow("Force Upload: true"));
@@ -1251,7 +1452,9 @@ function displayConfig(
       console.log(
         colors.cyan(
           `Publish App Handler: true${
-            !options.publishAppHandler && !config.publishAppHandler ? " (default)" : ""
+            !options.publishAppHandler && !config.publishAppHandler
+              ? " (default)"
+              : ""
           } (kinds: ${kinds.join(", ") || "none"})`,
         ),
       );
@@ -1321,14 +1524,17 @@ async function scanLocalFiles(state: DeploymentState): Promise<FileEntry[]> {
     if (displayManager.isInteractive()) statusDisplay.success(noFilesMsg);
     else console.log(colors.yellow(noFilesMsg));
     if (shouldPublishAny) {
-      log.info("Proceeding with publish operations as requested despite no files to upload.");
+      log.info(
+        "Proceeding with publish operations as requested despite no files to upload.",
+      );
     } else {
       return Deno.exit(0);
     }
   }
 
   if (includedFiles.length > 0) {
-    const foundFilesMsg = `Found ${includedFiles.length} files to process for upload.`;
+    const foundFilesMsg =
+      `Found ${includedFiles.length} files to process for upload.`;
     if (displayManager.isInteractive()) statusDisplay.update(foundFilesMsg);
     else console.log(colors.green(foundFilesMsg));
   }
@@ -1343,17 +1549,21 @@ async function fetchRemoteFiles(
   state: DeploymentState,
   publisherPubkey: string,
 ): Promise<FileEntry[]> {
-  const { statusDisplay, displayManager, options, resolvedRelays, config } = state;
+  const { statusDisplay, displayManager, options, resolvedRelays, config } =
+    state;
   let remoteFileEntries: FileEntry[] = [];
 
   // Must match publishSiteManifest / createSiteManifestEvent: named sites use kind 35128 + #d.
   // Omitting this always fetched the root (15128) manifest and reused root path hashes on
   // named-site deploys (e.g. /index.html from root on a named site).
-  const manifestSiteId = config.id === null || config.id === "" ? undefined : config.id;
+  const manifestSiteId = config.id === null || config.id === ""
+    ? undefined
+    : config.id;
 
   // We need remote file info for sync mode, and when not forcing uploads
   const shouldFetchRemote = !options.force || options.sync;
-  const allowFallbackRelays = options.useFallbacks || options.useFallbackRelays || false;
+  const allowFallbackRelays = options.useFallbacks ||
+    options.useFallbackRelays || false;
 
   if (shouldFetchRemote) {
     // Prefer configured relays but fall back to broadcast relays for reliability
@@ -1362,8 +1572,12 @@ async function fetchRemoteFiles(
       : (allowFallbackRelays ? NSYTE_BROADCAST_RELAYS : []);
 
     if (primaryRelays.length > 0) {
-      const reason = options.force && options.sync ? " (required for sync)" : "";
-      const remoteLabel = manifestSiteId ? `named site "${manifestSiteId}"` : "root site";
+      const reason = options.force && options.sync
+        ? " (required for sync)"
+        : "";
+      const remoteLabel = manifestSiteId
+        ? `named site "${manifestSiteId}"`
+        : "root site";
       statusDisplay.update(
         `Checking for existing files on remote relays (${remoteLabel})${reason}...`,
       );
@@ -1375,8 +1589,14 @@ async function fetchRemoteFiles(
         );
 
         // If nothing found on the configured relays, retry with a broader relay set
-        if (remoteFileEntries.length === 0 && resolvedRelays.length > 0 && allowFallbackRelays) {
-          const fallbackRelays = relaySet(resolvedRelays, NSYTE_BROADCAST_RELAYS);
+        if (
+          remoteFileEntries.length === 0 && resolvedRelays.length > 0 &&
+          allowFallbackRelays
+        ) {
+          const fallbackRelays = relaySet(
+            resolvedRelays,
+            NSYTE_BROADCAST_RELAYS,
+          );
           statusDisplay.update(
             `No files found on configured relays, retrying with default broadcast relays...`,
           );
@@ -1404,18 +1624,22 @@ async function fetchRemoteFiles(
         const errMsg = `Could not fetch remote file list: ${
           getErrorMessage(e)
         }. Proceeding as if no files exist remotely.`;
-        if (displayManager.isInteractive()) statusDisplay.update(colors.yellow(errMsg));
-        else console.log(colors.yellow(errMsg));
+        if (displayManager.isInteractive()) {
+          statusDisplay.update(colors.yellow(errMsg));
+        } else console.log(colors.yellow(errMsg));
         log.warn(errMsg);
       }
     } else {
       const noRelayWarn =
         "No relays configured. Cannot check for existing remote files. Will upload all local files.";
-      if (displayManager.isInteractive()) statusDisplay.update(colors.yellow(noRelayWarn));
-      else console.log(colors.yellow(noRelayWarn));
+      if (displayManager.isInteractive()) {
+        statusDisplay.update(colors.yellow(noRelayWarn));
+      } else console.log(colors.yellow(noRelayWarn));
     }
   } else {
-    log.debug("Skipping remote file check because --force was provided without --sync");
+    log.debug(
+      "Skipping remote file check because --force was provided without --sync",
+    );
   }
   return remoteFileEntries;
 }
@@ -1441,12 +1665,18 @@ async function compareAndPrepareFiles(
   let unchanged = existing;
 
   if (options.force && existing.length > 0) {
-    log.info(`--force enabled: re-uploading ${existing.length} unchanged files.`);
+    log.info(
+      `--force enabled: re-uploading ${existing.length} unchanged files.`,
+    );
     toTransfer.push(...existing);
     unchanged = [];
   }
 
-  const compareMsg = formatFileSummary(toTransfer.length, unchanged.length, toDelete.length);
+  const compareMsg = formatFileSummary(
+    toTransfer.length,
+    unchanged.length,
+    toDelete.length,
+  );
 
   if (displayManager.isInteractive()) {
     statusDisplay.success(compareMsg);
@@ -1466,7 +1696,9 @@ async function compareAndPrepareFiles(
   // Handle --sync: move existing files to toTransfer so they get uploaded.
   // HEAD preflight stays active, so servers that already have the blob will skip.
   if (options.sync && existing.length > 0) {
-    log.info(`--sync enabled: checking ${existing.length} existing files across all servers.`);
+    log.info(
+      `--sync enabled: checking ${existing.length} existing files across all servers.`,
+    );
     toTransfer.push(...existing);
     unchanged = [];
   }
@@ -1478,7 +1710,10 @@ async function compareAndPrepareFiles(
       const action = await Select.prompt({
         message: "No new files detected. What would you like to do?",
         options: [
-          { name: "Sync to all servers (backfill missing blobs)", value: "sync" },
+          {
+            name: "Sync to all servers (backfill missing blobs)",
+            value: "sync",
+          },
           { name: "Force re-upload everything", value: "force" },
           { name: "Cancel", value: "cancel" },
         ],
@@ -1513,7 +1748,9 @@ async function compareAndPrepareFiles(
         await flushQueuedLogs();
         return Deno.exit(1);
       } else {
-        log.info("Continuing with metadata publishing operations despite no files to upload.");
+        log.info(
+          "Continuing with metadata publishing operations despite no files to upload.",
+        );
       }
     }
   }
@@ -1537,7 +1774,9 @@ async function prepareFilesForUpload(
       preparedFiles.push(fileWithData);
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error);
-      console.error(colors.red(`Failed to load file ${file.path}: ${errorMessage}`));
+      console.error(
+        colors.red(`Failed to load file ${file.path}: ${errorMessage}`),
+      );
       messageCollector.addFileError(file.path, errorMessage);
     }
   }
@@ -1570,8 +1809,12 @@ async function maybeProcessFiles(
         includedFiles,
       );
 
-      filesUploaded = uploadResult.uploadResponses.filter((r) => r.success).length;
-      filesFailed = uploadResult.uploadResponses.filter((r) => !r.success).length;
+      filesUploaded = uploadResult.uploadResponses.filter((r) =>
+        r.success
+      ).length;
+      filesFailed = uploadResult.uploadResponses.filter((r) =>
+        !r.success
+      ).length;
       manifestResult = uploadResult.manifestResult;
     } catch (e: unknown) {
       const errMsg = `Error during upload process: ${getErrorMessage(e)}`;
@@ -1643,9 +1886,12 @@ async function publishSiteManifest(
 
     // Prepare metadata - use config values (these are recommendations for others)
     // Operational relays/servers (from kind 10002/10063) are used for publishing, not in metadata
-    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) || config.relays ||
+    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) ||
+      config.relays ||
       [];
-    const manifestServers = options.servers?.split(",").filter((s) => s.trim()) || config.servers ||
+    const manifestServers = options.servers?.split(",").filter((s) =>
+      s.trim()
+    ) || config.servers ||
       [];
 
     // Detect source URL (config > git remote auto-detect)
@@ -1709,10 +1955,13 @@ async function publishSiteManifest(
 
     // Publish manifest event using discovered relays (from kind 10002) with detailed results
     statusDisplay.update("Publishing site manifest event...");
-    const publishResult = await publishEventsToRelaysDetailed(resolvedRelays, [manifestEvent]);
+    const publishResult = await publishEventsToRelaysDetailed(resolvedRelays, [
+      manifestEvent,
+    ]);
 
     // Extract per-relay results from the first (only) event result
-    const eventResult: EventPublishResult | undefined = publishResult.eventResults[0];
+    const eventResult: EventPublishResult | undefined =
+      publishResult.eventResults[0];
     const relayResults = eventResult?.relayResults ?? [];
     const successCount = eventResult?.successCount ?? 0;
     const failureCount = eventResult?.failureCount ?? 0;
@@ -1725,7 +1974,9 @@ async function publishSiteManifest(
     }
 
     if (publishResult.allEventsPublished) {
-      console.log(colors.green(`✓ Site manifest event successfully published to relays`));
+      console.log(
+        colors.green(`✓ Site manifest event successfully published to relays`),
+      );
       if (siteId) {
         console.log(colors.cyan(`  Site: ${siteId} (named site)`));
       } else {
@@ -1746,12 +1997,18 @@ async function publishSiteManifest(
       };
     } else {
       statusDisplay.error("Failed to publish site manifest event");
-      console.log(colors.red(`✗ Failed to publish site manifest event to relays`));
       console.log(
-        colors.yellow("Files are uploaded but may not be immediately visible in the nsite."),
+        colors.red(`✗ Failed to publish site manifest event to relays`),
       );
       console.log(
-        colors.yellow("Try running the deploy command again to republish the manifest."),
+        colors.yellow(
+          "Files are uploaded but may not be immediately visible in the nsite.",
+        ),
+      );
+      console.log(
+        colors.yellow(
+          "Try running the deploy command again to republish the manifest.",
+        ),
       );
       console.log("");
 
@@ -1841,7 +2098,10 @@ async function uploadFiles(
 
   if (uploadResponses.length > 0) {
     const uploadedCount = uploadResponses.filter((r) => r.success).length;
-    const uploadedSize = uploadResponses.reduce((sum, r) => sum + (r.file.size || 0), 0);
+    const uploadedSize = uploadResponses.reduce(
+      (sum, r) => sum + (r.file.size || 0),
+      0,
+    );
 
     for (const result of uploadResponses) {
       if (result.success) {
@@ -1857,12 +2117,15 @@ async function uploadFiles(
     const allSucceeded = uploadedCount === preparedFiles.length &&
       uploadResponses.length === preparedFiles.length;
     if (allSucceeded) {
-      const msg = `${uploadedCount} files uploaded successfully (${formatFileSize(uploadedSize)})`;
-      progressRenderer.complete(true, msg);
-    } else if (uploadedCount > 0) {
-      const msg = `${uploadedCount}/${preparedFiles.length} files uploaded successfully (${
+      const msg = `${uploadedCount} files uploaded successfully (${
         formatFileSize(uploadedSize)
       })`;
+      progressRenderer.complete(true, msg);
+    } else if (uploadedCount > 0) {
+      const msg =
+        `${uploadedCount}/${preparedFiles.length} files uploaded successfully (${
+          formatFileSize(uploadedSize)
+        })`;
       progressRenderer.complete(false, msg);
     } else {
       const msg = "Failed to upload any files";
@@ -1887,7 +2150,9 @@ async function uploadFiles(
     if (uploadedCount > 0) {
       console.log(formatSectionHeader("Blobs Upload Results (Blossom)"));
       if (allSucceeded) {
-        console.log(colors.green(`✓ All ${uploadedCount} files successfully uploaded`));
+        console.log(
+          colors.green(`✓ All ${uploadedCount} files successfully uploaded`),
+        );
       } else {
         const failedCount = preparedFiles.length - uploadedCount;
         console.log(
@@ -1912,8 +2177,12 @@ async function uploadFiles(
       console.log("");
 
       // Separate uploaded, skipped, and failed responses
-      const uploadedResponses = uploadResponses.filter((r) => r.success && !r.skipped);
-      const skippedResponses = uploadResponses.filter((r) => r.success && r.skipped);
+      const uploadedResponses = uploadResponses.filter((r) =>
+        r.success && !r.skipped
+      );
+      const skippedResponses = uploadResponses.filter((r) =>
+        r.success && r.skipped
+      );
       const failedResponses = uploadResponses.filter((r) => !r.success);
 
       // Print uploaded files with server indicators, type, and size
@@ -1937,7 +2206,9 @@ async function uploadFiles(
 
         const size = formatFileSize(result.file.size);
         console.log(
-          `  ${indicators} ${result.file.path} ${colors.gray(fileType)} ${colors.gray(size)}`,
+          `  ${indicators} ${result.file.path} ${colors.gray(fileType)} ${
+            colors.gray(size)
+          }`,
         );
       }
 
@@ -1950,9 +2221,11 @@ async function uploadFiles(
           : contentType;
         const size = formatFileSize(result.file.size);
         console.log(
-          `  ${indicators} ${colors.red(result.file.path)} ${colors.gray(fileType)} ${
-            colors.gray(size)
-          } ${colors.red("✗ " + (result.error || "failed"))}`,
+          `  ${indicators} ${colors.red(result.file.path)} ${
+            colors.gray(fileType)
+          } ${colors.gray(size)} ${
+            colors.red("✗ " + (result.error || "failed"))
+          }`,
         );
       }
       console.log("");
@@ -1974,9 +2247,9 @@ async function uploadFiles(
             : contentType;
           const size = formatFileSize(result.file.size);
           console.log(
-            `  ${colors.gray("⊘")} ${colors.gray(result.file.path)} ${colors.gray(fileType)} ${
-              colors.gray(size)
-            }`,
+            `  ${colors.gray("⊘")} ${colors.gray(result.file.path)} ${
+              colors.gray(fileType)
+            } ${colors.gray(size)}`,
           );
         }
         console.log("");
@@ -1995,12 +2268,24 @@ async function uploadFiles(
       }
     > = {};
     for (const server of resolvedServers) {
-      serverStats[server] = { success: 0, total: 0, failed: 0, retries: 0, errors: new Map() };
+      serverStats[server] = {
+        success: 0,
+        total: 0,
+        failed: 0,
+        retries: 0,
+        errors: new Map(),
+      };
     }
     for (const result of uploadResponses) {
       for (const [server, status] of Object.entries(result.serverResults)) {
         if (!serverStats[server]) {
-          serverStats[server] = { success: 0, total: 0, failed: 0, retries: 0, errors: new Map() };
+          serverStats[server] = {
+            success: 0,
+            total: 0,
+            failed: 0,
+            retries: 0,
+            errors: new Map(),
+          };
         }
         serverStats[server].total++;
         serverStats[server].retries += status.retries || 0;
@@ -2021,7 +2306,9 @@ async function uploadFiles(
     for (const server of resolvedServers) {
       const sp = lastServerProgress[server];
       if (sp?.finishedAt) {
-        serverTimings[server] = Math.floor((sp.finishedAt - uploadStartTime) / 1000);
+        serverTimings[server] = Math.floor(
+          (sp.finishedAt - uploadStartTime) / 1000,
+        );
       }
     }
     console.log(formatServerSummary(serverStats, serverTimings));
@@ -2030,20 +2317,32 @@ async function uploadFiles(
     const successBlobs = uploadResponses.filter((r) => r.success).length;
     const skippedBlobs = uploadResponses.filter((r) => r.skipped).length;
     const backfilledBlobs = successBlobs - skippedBlobs;
-    const pct = totalBlobs === 0 ? 100 : Math.round((successBlobs / totalBlobs) * 100);
-    const colorFn = pct === 100 ? colors.green : pct > 0 ? colors.yellow : colors.red;
+    const pct = totalBlobs === 0
+      ? 100
+      : Math.round((successBlobs / totalBlobs) * 100);
+    const colorFn = pct === 100
+      ? colors.green
+      : pct > 0
+      ? colors.yellow
+      : colors.red;
     console.log(
-      colorFn(`Overall: ${successBlobs}/${totalBlobs} blobs on at least one server (${pct}%)`),
+      colorFn(
+        `Overall: ${successBlobs}/${totalBlobs} blobs on at least one server (${pct}%)`,
+      ),
     );
 
     // Show sync/force specific summary
     if (options.sync && !options.force) {
       console.log(
-        colors.cyan(`Sync: ${skippedBlobs} already on all servers, ${backfilledBlobs} backfilled`),
+        colors.cyan(
+          `Sync: ${skippedBlobs} already on all servers, ${backfilledBlobs} backfilled`,
+        ),
       );
     } else if (options.force) {
       console.log(
-        colors.cyan(`Force: ${totalBlobs} files re-uploaded to ${resolvedServers.length} servers`),
+        colors.cyan(
+          `Force: ${totalBlobs} files re-uploaded to ${resolvedServers.length} servers`,
+        ),
       );
     }
     console.log("");
@@ -2070,7 +2369,9 @@ async function uploadFiles(
         MessageCategory.SERVER,
       )
     ) {
-      const prefix = type === "error" ? colors.red("Error") : colors.yellow("Warning");
+      const prefix = type === "error"
+        ? colors.red("Error")
+        : colors.yellow("Warning");
       log.info(`${prefix} from ${target}: ${content}`);
     }
   }
@@ -2081,11 +2382,113 @@ async function uploadFiles(
 /**
  * Publish metadata to relays (app handler, etc.)
  */
+/**
+ * Pure, signer-free core of the napp deploy branch: returns the kind-37348 App Listing
+ * TEMPLATE for a napp config, or null for a non-napp config. Isolating the napp decision
+ * + tag mapping from network/signer code makes the zero-regression boundary (NAPP-LST-03)
+ * directly unit-testable: a non-napp config returns null, so the network branch in
+ * `maybePublishAppListing` is never entered.
+ */
+export function buildDeployListing(
+  config: ProjectConfig,
+  publisherPubkey: string,
+  manifestDTag: string,
+  createdAt?: number,
+): EventTemplate | null {
+  if (!isNapp(config)) return null;
+  return createAppListingTemplate(
+    publisherPubkey,
+    config.napp,
+    manifestDTag,
+    createdAt,
+  );
+}
+
+/**
+ * Publish the napp App Listing (kind 37348) AFTER the manifest, gated on isNapp(config).
+ * A plain (non-napp) deploy never enters this function body — the hard zero-regression
+ * boundary (NAPP-LST-03). A listing publish failure is non-fatal (the manifest already
+ * succeeded), mirroring the metadata publishers which swallow per-event errors.
+ */
+async function maybePublishAppListing(
+  state: DeploymentState,
+  publisherPubkey: string,
+  _manifestResult: ManifestPublishResult | null,
+): Promise<void> {
+  const {
+    statusDisplay,
+    signer,
+    config,
+    options,
+    resolvedRelays,
+    messageCollector,
+  } = state;
+
+  if (!isNapp(config)) return;
+
+  // Shared d tag — MUST equal the manifest's d tag (d-tag rule, T-21-01). Derived from
+  // config.id here (root -> "", named -> config.id) so it matches the manifest builder.
+  const manifestDTag = deriveListingDTag({ id: config.id });
+
+  // Indexer relays (NAPP-ID-03): config override or DEFAULT_NAPP_INDEXER_RELAYS.
+  const indexerRelays = resolveIndexerRelays(config);
+
+  console.log(formatSectionHeader("App Listing (napp)"));
+  console.log(
+    colors.cyan("napp detected — publishing app listing (kind 37348)"),
+  );
+  console.log(colors.cyan(`indexer relays: ${indexerRelays.join(", ")}`));
+  statusDisplay.update("Publishing app listing (kind 37348)...");
+
+  try {
+    const listingEvent = await createAppListingEvent(
+      signer,
+      publisherPubkey,
+      config.napp,
+      manifestDTag,
+      options.createdAt,
+    );
+
+    // Publish to the deduped UNION of the manifest's relay set (NIP-65 write/resolved
+    // relays) and the configured indexer relays — so the listing reaches both the
+    // author's normal relays and the NIP-5B indexers. A relay in both appears once.
+    const publishRelays = Array.from(
+      new Set([...resolvedRelays, ...indexerRelays]),
+    );
+    const result = await publishEventsToRelaysDetailed(publishRelays, [
+      listingEvent,
+    ]);
+
+    if (result.allEventsPublished) {
+      statusDisplay.success(
+        `App listing published (kind ${NSITE_APP_LISTING_KIND})`,
+      );
+      messageCollector.addEventSuccess("app listing", listingEvent.id);
+    } else {
+      statusDisplay.error("Failed to publish app listing");
+      log.error(
+        `App listing publish failed on ${result.totalFailedEvents} event(s); deploy continues (manifest already published)`,
+      );
+    }
+  } catch (e) {
+    // Non-fatal: the manifest already succeeded; a listing failure must not abort deploy.
+    statusDisplay.error("Failed to publish app listing");
+    log.error(`App listing publish error (non-fatal): ${getErrorMessage(e)}`);
+  }
+}
+
 async function maybePublishMetadata(
   state: DeploymentState,
   publisherPubkey: string,
 ): Promise<void> {
-  const { statusDisplay, signer, config, options, resolvedRelays, messageCollector } = state;
+  const {
+    statusDisplay,
+    signer,
+    config,
+    options,
+    resolvedRelays,
+    messageCollector,
+  } = state;
 
   log.debug("maybePublishMetadata called");
 
@@ -2115,10 +2518,15 @@ async function maybePublishMetadata(
   // Get relays from the user's 10002 list if present
   let discoveredRelayList: string[] = [];
   try {
-    const relayListEvent = await fetchUserRelayList(usermeta_relays, publisherPubkey);
+    const relayListEvent = await fetchUserRelayList(
+      usermeta_relays,
+      publisherPubkey,
+    );
     if (relayListEvent) {
       discoveredRelayList = getOutboxes(relayListEvent);
-      log.debug(`Discovered ${discoveredRelayList.length} relays from user's relay list`);
+      log.debug(
+        `Discovered ${discoveredRelayList.length} relays from user's relay list`,
+      );
     }
   } catch (e) {
     log.debug(`Failed to fetch relay list: ${getErrorMessage(e)}`);
@@ -2133,8 +2541,10 @@ async function maybePublishMetadata(
   await publishMetadata(config, signer, publishToRelays, statusDisplay, {
     publishAppHandler: shouldPublishAppHandler,
     publishProfile: options.publishProfile || config.publishProfile || false,
-    publishRelayList: options.publishRelayList || config.publishRelayList || false,
-    publishServerList: options.publishServerList || config.publishServerList || false,
+    publishRelayList: options.publishRelayList || config.publishRelayList ||
+      false,
+    publishServerList: options.publishServerList || config.publishServerList ||
+      false,
     handlerKinds: options.handlerKinds,
     createdAt: options.createdAt,
   });
@@ -2143,7 +2553,9 @@ async function maybePublishMetadata(
     log.info(formatSectionHeader("Relay Messages"));
 
     const relayResults: Record<string, { success: number; total: number }> = {};
-    const relayMessages = messageCollector.getMessagesByCategory(MessageCategory.RELAY);
+    const relayMessages = messageCollector.getMessagesByCategory(
+      MessageCategory.RELAY,
+    );
 
     for (const message of relayMessages) {
       const relayUrl = message.target;
@@ -2163,7 +2575,9 @@ async function maybePublishMetadata(
         : result.success === 0
         ? colors.red("✗")
         : colors.yellow("⚠");
-      log.info(`  ${status} ${relay}: ${result.success}/${result.total} events`);
+      log.info(
+        `  ${status} ${relay}: ${result.success}/${result.total} events`,
+      );
     }
   }
 }
