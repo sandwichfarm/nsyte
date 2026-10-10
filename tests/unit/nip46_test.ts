@@ -4,8 +4,11 @@ import {
   type BunkerInfo,
   decodeBunkerInfo,
   encodeBunkerInfo,
+  logoutFromNbunk,
   parseBunkerUrl,
 } from "../../src/lib/nip46.ts";
+import { pool } from "../../src/lib/nostr.ts";
+import { PrivateKeySigner } from "applesauce-signers";
 
 describe("NIP-46 Bunker Functions", () => {
   describe("parseBunkerUrl", () => {
@@ -49,7 +52,7 @@ describe("NIP-46 Bunker Functions", () => {
             "bunker://1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
           ),
         Error,
-        "Bunker URL must include at least one relay parameter",
+        "missing relays",
       );
     });
   });
@@ -112,6 +115,52 @@ describe("NIP-46 Bunker Functions", () => {
       const corrupted = "nbuck" + encoded.slice(5);
 
       assertThrows(() => decodeBunkerInfo(corrupted), Error);
+    });
+  });
+
+  // The remote pubkey must be a real curve point or NIP-44 encryption fails before anything is sent
+  describe("logoutFromNbunk", () => {
+    it("should return false for an invalid nbunksec without throwing", async () => {
+      assertEquals(await logoutFromNbunk("invalid"), false);
+    });
+
+    it("should give up on an unreachable bunker within the timeout", async () => {
+      const nbunk = encodeBunkerInfo({
+        pubkey: await new PrivateKeySigner().getPublicKey(),
+        local_key: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        relays: ["ws://127.0.0.1:1"],
+      });
+
+      const start = Date.now();
+      assertEquals(await logoutFromNbunk(nbunk, 500), false);
+      assertEquals(Date.now() - start < 5000, true);
+    });
+
+    it("should not wait long on a bunker that never responds", async () => {
+      // A relay that accepts the connection but never answers, so only the timeout ends the wait
+      const sockets: WebSocket[] = [];
+      const server = Deno.serve({ port: 0, hostname: "127.0.0.1", onListen: () => {} }, (req) => {
+        const { socket, response } = Deno.upgradeWebSocket(req);
+        sockets.push(socket);
+        return response;
+      });
+      const relay = `ws://127.0.0.1:${server.addr.port}/`;
+      const nbunk = encodeBunkerInfo({
+        pubkey: await new PrivateKeySigner().getPublicKey(),
+        local_key: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        relays: [relay],
+      });
+
+      try {
+        const start = Date.now();
+        assertEquals(await logoutFromNbunk(nbunk), false);
+        const elapsed = Date.now() - start;
+        assertEquals(elapsed >= 1500 && elapsed < 3000, true, `took ${elapsed}ms`);
+      } finally {
+        pool.remove(relay, true);
+        for (const socket of sockets) socket.close();
+        await server.shutdown();
+      }
     });
   });
 });

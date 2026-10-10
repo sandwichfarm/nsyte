@@ -18,6 +18,7 @@ import {
   decodeBunkerInfo,
   getNbunkString,
   initiateNostrConnect,
+  logoutFromNbunk,
   parseBunkerUrl,
 } from "../lib/nip46.ts";
 import { getUserDisplayName } from "../lib/nostr.ts";
@@ -673,6 +674,12 @@ export async function removeBunker(pubkey?: string): Promise<void> {
     if (!confirm) {
       console.log(colors.yellow("Operation cancelled."));
       return;
+    }
+
+    const nbunkString = await secretsManager.getNbunk(pubkey);
+    if (nbunkString) {
+      console.log(colors.dim("Notifying bunker that this session is ending..."));
+      await logoutFromNbunk(nbunkString);
     }
 
     const deleted = await secretsManager.deleteNbunk(pubkey);

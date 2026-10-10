@@ -1,4 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
+import { mergeBlossomServers } from "applesauce-common/helpers";
 import { getSeenRelays, type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { checkBlossomServersForFile } from "../lib/browse-loader.ts";
 import { readProjectFile } from "../lib/config.ts";
@@ -143,13 +144,15 @@ export function categorizeStatusServers(
   manifestServers: string[],
   userServers: string[],
 ): CategorizedStatusServers {
-  const hintServers = relaySet(manifestServers);
-  const userOnlyServers = relaySet(userServers).filter((server) => !hintServers.includes(server));
+  const hintServers = mergeBlossomServers(manifestServers);
+  const userOnlyServers = mergeBlossomServers(userServers).filter((server) =>
+    !hintServers.includes(server)
+  );
 
   return {
     hintServers,
     userOnlyServers,
-    allServers: relaySet(hintServers, userOnlyServers),
+    allServers: mergeBlossomServers(hintServers, userOnlyServers),
   };
 }
 

@@ -4,10 +4,15 @@
  */
 import { qrcode as generateQrCodeForTerminal } from "@libs/qrcode";
 import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
-import { bech32 } from "@scure/base";
 import { BLOSSOM_SERVER_LIST_KIND } from "applesauce-common/helpers";
 import { kinds } from "applesauce-core/helpers";
 import { NostrConnectSigner, PrivateKeySigner } from "applesauce-signers";
+import {
+  type BunkerInfo,
+  decodeNbunksec,
+  encodeNbunksec,
+  parseBunkerURI,
+} from "applesauce-signers/helpers";
 import { createLogger } from "./logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND, NSITE_SNAPSHOT_KIND } from "./manifest.ts";
 import { SecretsManager } from "./secrets/mod.ts";
@@ -137,18 +142,8 @@ export function parseBunkerUrl(url: string): BunkerPointer {
   }
 
   try {
-    const parsedUrl = new URL(url.replace("bunker://", "https://"));
-
-    const pubkey = parsedUrl.hostname;
-
-    const relays = parsedUrl.searchParams.getAll("relay");
-    if (relays.length === 0) {
-      throw new Error("Bunker URL must include at least one relay parameter");
-    }
-
-    const secret = parsedUrl.searchParams.get("secret");
-
-    return { pubkey, relays, secret };
+    const { remote, relays, bunkerSecret } = parseBunkerURI(url);
+    return { pubkey: remote, relays, secret: bunkerSecret ?? null };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse bunker URL: ${errorMessage}`);
@@ -158,60 +153,17 @@ export function parseBunkerUrl(url: string): BunkerPointer {
 /**
  * Bundle of information for bunker connections
  */
-export interface BunkerInfo {
-  pubkey: string;
-  relays: string[];
-  local_key: string;
-  secret?: string;
-}
+export type { BunkerInfo };
 
 /**
- * Generate a TLV encoded string for storing bunker connection info
+ * Generate a TLV encoded nbunksec string for storing bunker connection info
  */
 export function encodeBunkerInfo(info: BunkerInfo): string {
   try {
-    const encodedData: Uint8Array[] = [];
-
-    const pubkeyBytes = new Uint8Array(
-      info.pubkey.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
-    );
-    encodedData.push(new Uint8Array([0, pubkeyBytes.length]));
-    encodedData.push(pubkeyBytes);
-
-    const localKeyBytes = new Uint8Array(
-      info.local_key.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) || [],
-    );
-    encodedData.push(new Uint8Array([1, localKeyBytes.length]));
-    encodedData.push(localKeyBytes);
-
-    for (const relay of info.relays) {
-      const relayBytes = new TextEncoder().encode(relay);
-      encodedData.push(new Uint8Array([2, relayBytes.length]));
-      encodedData.push(relayBytes);
-    }
-
-    if (info.secret) {
-      const secretBytes = new TextEncoder().encode(info.secret);
-      encodedData.push(new Uint8Array([3, secretBytes.length]));
-      encodedData.push(secretBytes);
-    }
-
-    const combinedLength = encodedData.reduce(
-      (sum, part) => sum + part.length,
-      0,
-    );
-    const combinedData = new Uint8Array(combinedLength);
-
-    let offset = 0;
-    for (const part of encodedData) {
-      combinedData.set(part, offset);
-      offset += part.length;
-    }
-
-    return bech32.encode("nbunksec", bech32.toWords(combinedData), 1000);
+    return encodeNbunksec(info);
   } catch (error: unknown) {
     log.error(`Failed to encode bunker info: ${error}`);
-    throw new Error(`Failed to encode bunker info: ${error}`);
+    throw error;
   }
 }
 
@@ -224,45 +176,7 @@ export function decodeBunkerInfo(nbunkString: string): BunkerInfo {
       throw new Error("Not a valid nbunksec string. Must start with nbunksec");
     }
 
-    const decoded = bech32.decodeUnsafe(nbunkString, 1000);
-    if (!decoded || decoded.prefix !== "nbunksec") {
-      throw new Error(
-        `Invalid prefix: ${decoded?.prefix || "none"}, expected nbunksec`,
-      );
-    }
-
-    const data = bech32.fromWords(decoded.words);
-
-    const result: BunkerInfo = {
-      pubkey: "",
-      relays: [],
-      local_key: "",
-    };
-
-    let i = 0;
-    while (i < data.length) {
-      const type = data[i];
-      const length = data[i + 1];
-
-      if (i + 2 + length > data.length) {
-        throw new Error("Invalid data: incomplete TLV record");
-      }
-
-      const value = data.slice(i + 2, i + 2 + length);
-
-      if (type === 0) {
-        result.pubkey = bytesToHex(new Uint8Array(value));
-      } else if (type === 1) {
-        result.local_key = bytesToHex(new Uint8Array(value));
-      } else if (type === 2) {
-        const relay = new TextDecoder().decode(new Uint8Array(value));
-        result.relays.push(relay);
-      } else if (type === 3) {
-        result.secret = new TextDecoder().decode(new Uint8Array(value));
-      }
-
-      i += 2 + length;
-    }
+    const result = decodeNbunksec(nbunkString);
 
     if (!result.pubkey) {
       throw new Error("Invalid nbunksec: missing pubkey");
@@ -426,6 +340,39 @@ export async function importFromNbunk(
     const errorMessage = error instanceof Error ? error.message : String(error);
     log.error(`Failed to import from nbunksec: ${errorMessage}`);
     throw error;
+  }
+}
+
+/**
+ * Best-effort NIP-46 `logout`: tell the remote signer this client session is ending.
+ * Never throws; an unreachable bunker or one that ignores `logout` is not an error.
+ * The request is only a courtesy to the signer, so the timeout is kept short to avoid
+ * holding up the caller.
+ */
+export async function logoutFromNbunk(nbunkString: string, timeoutMs = 2000): Promise<boolean> {
+  await ensurePoolAssigned();
+
+  let signer: NostrConnectSigner | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const info = decodeBunkerInfo(nbunkString);
+    signer = new NostrConnectSigner({
+      remote: info.pubkey,
+      relays: info.relays,
+      signer: new PrivateKeySigner(hexToBytes(info.local_key)),
+    });
+
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+    });
+    await Promise.race([signer.connect().then(() => signer!.logout()), timeout]);
+    return true;
+  } catch (error: unknown) {
+    log.debug(`Bunker logout skipped: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  } finally {
+    clearTimeout(timer);
+    await signer?.close().catch(() => {});
   }
 }
 
