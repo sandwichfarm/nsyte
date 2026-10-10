@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { type NostrEvent, relaySet } from "applesauce-core/helpers";
+import { ensureWebSocketURL, type NostrEvent, relaySet } from "applesauce-core/helpers";
 
 /**
  * Creates a properly grouped subcommand structure
@@ -63,16 +63,48 @@ export function extractServersFromManifestEvents(manifestEvents: NostrEvent[]): 
 }
 
 /**
- * Parse a comma-separated string of relays into an array
- * @param relayInput - Comma-separated string of relay URLs
- * @returns Array of trimmed relay URLs
+ * Normalize a user-entered relay URL, defaulting to wss:// when no protocol is given
+ * (e.g. "relay.damus.io" -> "wss://relay.damus.io/", "https://nos.lol" -> "wss://nos.lol/")
+ * @throws Error if the input is not a valid URL
+ */
+export function normalizeRelayUrl(input: string): string {
+  const trimmed = input.trim();
+  try {
+    // ensureWebSocketURL treats "localhost:4869" as a URL scheme, so add the protocol first
+    const url = ensureWebSocketURL(trimmed.includes("://") ? trimmed : `wss://${trimmed}`);
+    if (!url.startsWith("ws://") && !url.startsWith("wss://")) throw new Error("not a relay URL");
+    return url;
+  } catch {
+    throw new Error(`Invalid relay URL: ${trimmed}`);
+  }
+}
+
+/**
+ * Cliffy prompt validator for comma-separated relay input
+ * @returns true when every entry is a valid relay URL, otherwise the error message to show
+ */
+export function validateRelayInput(relayInput: string): true | string {
+  try {
+    parseRelayInput(relayInput);
+    return true;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/**
+ * Parse a comma-separated string of relays into an array of normalized, de-duplicated relay URLs
+ * @param relayInput - Comma-separated string of relay URLs (protocol optional, defaults to wss://)
+ * @returns Array of normalized relay URLs
+ * @throws Error if any entry is not a valid URL
  */
 export function parseRelayInput(relayInput: string): string[] {
   return relaySet(
     relayInput
       .split(",")
       .map((r) => r.trim())
-      .filter((r) => r.length > 0),
+      .filter((r) => r.length > 0)
+      .map(normalizeRelayUrl),
   );
 }
 

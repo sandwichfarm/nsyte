@@ -163,7 +163,7 @@ describe("collectDeployEvents", () => {
     const relayEvent = events.find((e) => e.kind === 10002);
     assertNotEquals(relayEvent, undefined);
     const rTags = relayEvent!.template.tags.filter((t) => t[0] === "r");
-    assertEquals(rTags[0], ["r", "wss://custom-relay.example.com", "write"]);
+    assertEquals(rTags[0], ["r", "wss://custom-relay.example.com/", "write"]);
   });
 
   it("uses overridden servers from options", () => {

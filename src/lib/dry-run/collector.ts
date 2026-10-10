@@ -9,6 +9,7 @@ import {
   NSITE_ROOT_SITE_KIND,
 } from "../manifest.ts";
 import type { DryRunEvent } from "./types.ts";
+import { parseRelayInput } from "../utils.ts";
 
 /** Options that affect which events would be published */
 interface DeployEventOptions {
@@ -34,7 +35,7 @@ export function collectDeployEvents(
 
   // 1. Site manifest (always published)
   const siteId = config.id || undefined;
-  const manifestRelays = options.relays?.split(",").map((r) => r.trim()).filter((r) => r) ||
+  const manifestRelays = (options.relays ? parseRelayInput(options.relays) : undefined) ||
     config.relays || [];
   const manifestServers = options.servers?.split(",").map((s) => s.trim()).filter((s) => s) ||
     config.servers || [];

@@ -80,7 +80,7 @@ describe("resolver-utils - comprehensive branch coverage", () => {
         servers: [],
         bunkerPubkey: undefined,
       };
-      assertEquals(resolveRelays(options1, config1), ["wss://opt1.com", "wss://opt2.com"]);
+      assertEquals(resolveRelays(options1, config1), ["wss://opt1.com/", "wss://opt2.com/"]);
 
       // Branch 2: Empty string in options (still takes priority)
       const options2: ResolverOptions = { relays: "" };
@@ -102,7 +102,12 @@ describe("resolver-utils - comprehensive branch coverage", () => {
 
     it("should handle whitespace in relay URLs", () => {
       const options: ResolverOptions = { relays: "  wss://relay1.com  ,  wss://relay2.com  " };
-      assertEquals(resolveRelays(options), ["wss://relay1.com", "wss://relay2.com"]);
+      assertEquals(resolveRelays(options), ["wss://relay1.com/", "wss://relay2.com/"]);
+    });
+
+    it("should default relay URLs without a protocol to wss://", () => {
+      const options: ResolverOptions = { relays: "relay1.com,ws://localhost:4869" };
+      assertEquals(resolveRelays(options), ["wss://relay1.com/", "ws://localhost:4869/"]);
     });
   });
 

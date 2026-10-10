@@ -7,6 +7,7 @@ import {
   setupProject,
 } from "../config.ts";
 import { createLogger } from "../logger.ts";
+import { parseRelayInput } from "../utils.ts";
 
 const log = createLogger("config-resolver");
 
@@ -114,9 +115,7 @@ function resolveNonInteractive(
     servers: options.servers
       ? options.servers.split(",").filter((s) => s.trim())
       : existingProjectData?.servers || [],
-    relays: options.relays
-      ? options.relays.split(",").filter((r) => r.trim())
-      : existingProjectData?.relays || [],
+    relays: options.relays ? parseRelayInput(options.relays) : existingProjectData?.relays || [],
     bunkerPubkey: existingProjectData?.bunkerPubkey,
     fallback: options.fallback || existingProjectData?.fallback,
     gatewayHostnames: existingProjectData?.gatewayHostnames || ["nsite.lol"],

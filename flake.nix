@@ -42,6 +42,7 @@
         fileset = nixpkgs.lib.fileset.unions [
           ./deno.json
           ./deno.lock
+          ./package.json
           ./src
         ];
       };

@@ -11,7 +11,7 @@ let
     inherit version src;
 
     entrypoint = "src/cli.ts";
-    denoDepsHash = "sha256-lNkreZhZU+rH2QeXFE8ZfwlXRkykJwuqHzTnyfW43CU=";
+    denoDepsHash = "sha256-pZGb4yeXXX5oPJDBfQxRZSWBuaTysf0v8QaHfxoVomc=";
 
     runFlags = [
       "--vendor=true"

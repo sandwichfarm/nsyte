@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { afterEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import type { NostrEvent } from "applesauce-core/helpers";
@@ -6,9 +6,11 @@ import {
   detectSourceUrl,
   extractServersFromEvent,
   extractServersFromManifestEvents,
+  normalizeRelayUrl,
   parseRelayInput,
   sshToHttpsUrl,
   truncateString,
+  validateRelayInput,
 } from "../../src/lib/utils.ts";
 
 function relayHosts(relays: readonly string[]): Set<string> {
@@ -116,6 +118,50 @@ describe("parseRelayInput", () => {
     const hosts = relayHosts(result);
     assertEquals(hosts.has("r1.com"), true);
     assertEquals(hosts.has("r2.com"), true);
+  });
+});
+
+describe("normalizeRelayUrl", () => {
+  it("defaults to wss:// when no protocol is given", () => {
+    assertEquals(normalizeRelayUrl("relay.damus.io"), "wss://relay.damus.io/");
+    assertEquals(normalizeRelayUrl("  Relay.Damus.io/ "), "wss://relay.damus.io/");
+    assertEquals(normalizeRelayUrl("127.0.0.1:7777"), "wss://127.0.0.1:7777/");
+  });
+
+  it("treats host:port as a host, not a URL scheme", () => {
+    assertEquals(normalizeRelayUrl("localhost:4869"), "wss://localhost:4869/");
+  });
+
+  it("keeps ws:// and wss:// and converts http(s):// to ws(s)://", () => {
+    assertEquals(normalizeRelayUrl("ws://localhost:4869"), "ws://localhost:4869/");
+    assertEquals(normalizeRelayUrl("wss://nos.lol"), "wss://nos.lol/");
+    assertEquals(normalizeRelayUrl("https://nos.lol"), "wss://nos.lol/");
+    assertEquals(normalizeRelayUrl("http://localhost:7777"), "ws://localhost:7777/");
+  });
+
+  it("rejects input that is not a URL", () => {
+    assertThrows(() => normalizeRelayUrl("not a url"), Error, "Invalid relay URL: not a url");
+    assertThrows(() => normalizeRelayUrl(""), Error, "Invalid relay URL");
+  });
+});
+
+describe("parseRelayInput normalization", () => {
+  it("normalizes and de-duplicates entries without a protocol", () => {
+    assertEquals(parseRelayInput("relay.damus.io, wss://relay.damus.io ,nos.lol,"), [
+      "wss://relay.damus.io/",
+      "wss://nos.lol/",
+    ]);
+  });
+
+  it("throws on an invalid entry instead of dropping it", () => {
+    assertThrows(() => parseRelayInput("nos.lol, not a url"), Error, "Invalid relay URL");
+  });
+});
+
+describe("validateRelayInput", () => {
+  it("returns true for valid input and the error message otherwise", () => {
+    assertEquals(validateRelayInput("relay.damus.io, nos.lol"), true);
+    assertEquals(validateRelayInput("nos.lol, not a url"), "Invalid relay URL: not a url");
   });
 });
 

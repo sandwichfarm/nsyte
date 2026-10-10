@@ -9,7 +9,7 @@ import {
   mapEventsToTimeline,
   simpleTimeout,
 } from "applesauce-core";
-import { buildEvent } from "applesauce-core/event-factory";
+import { DeleteFactory } from "applesauce-core/factories";
 import {
   type EventTemplate,
   type Filter,
@@ -22,7 +22,7 @@ import {
   relaySet,
   unixNow,
 } from "applesauce-core/helpers";
-import { setDeleteEvents } from "applesauce-core/operations/delete";
+import { setClient } from "applesauce-core/operations";
 import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { createEventLoaderForStore } from "applesauce-loaders/loaders";
 import { RelayPool } from "applesauce-relay/pool";
@@ -575,11 +575,7 @@ export async function createDeleteEventTemplate(
   events: (string | NostrEvent)[],
   createdAt?: number,
 ): Promise<EventTemplate> {
-  const draft = await buildEvent(
-    { kind: kinds.EventDeletion },
-    { client: { name: "nsyte" } },
-    setDeleteEvents(events),
-  );
+  const draft = await setClient("nsyte")(await DeleteFactory.fromEvents(events));
 
   if (createdAt !== undefined) {
     draft.created_at = createdAt;
