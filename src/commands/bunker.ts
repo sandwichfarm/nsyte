@@ -11,6 +11,7 @@ import { Command } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { join } from "@std/path";
 import { npubEncode } from "applesauce-core/helpers";
+import { decodeNbunksec } from "applesauce-signers/helpers";
 import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
 import { createLogger } from "../lib/logger.ts";
@@ -21,6 +22,7 @@ import {
   logoutFromNbunk,
   parseBunkerUrl,
 } from "../lib/nip46.ts";
+import { normalizePubkeyInput } from "../lib/nip05.ts";
 import { getUserDisplayName } from "../lib/nostr.ts";
 import { EncryptedStorage } from "../lib/secrets/encrypted-storage.ts";
 import { SecretsManager } from "../lib/secrets/mod.ts";
@@ -64,7 +66,10 @@ export function registerBunkerCommand(): void {
     })
     .reset()
     // Export subcommand
-    .command("export [pubkey:string]", "Export a bunker as an nbunksec string")
+    .command(
+      "export [pubkey:string]",
+      "Export a bunker as an nbunksec string (hex, npub, nprofile, or NIP-05)",
+    )
     .action(async (_options, pubkey?: string) => {
       await exportNbunk(pubkey);
     })
@@ -85,19 +90,28 @@ export function registerBunkerCommand(): void {
     })
     .reset()
     // Use subcommand
-    .command("use [pubkey:string]", "Configure current project to use a bunker")
+    .command(
+      "use [pubkey:string]",
+      "Configure current project to use a bunker (hex, npub, nprofile, or NIP-05)",
+    )
     .action(async (_options, pubkey?: string) => {
       await useBunkerForProject(pubkey);
     })
     .reset()
     // Remove subcommand
-    .command("remove [pubkey:string]", "Remove a bunker from storage")
+    .command(
+      "remove [pubkey:string]",
+      "Remove a bunker from storage (hex, npub, nprofile, or NIP-05)",
+    )
     .action(async (_options, pubkey?: string) => {
       await removeBunker(pubkey);
     })
     .reset()
     // Migrate subcommand
-    .command("migrate [...pubkeys:string]", "Rebuild index for existing keychain bunkers")
+    .command(
+      "migrate [...pubkeys:string]",
+      "Rebuild index for existing keychain bunkers (hex, npub, nprofile, or NIP-05)",
+    )
     .action(async (_options, ...pubkeys: string[]) => {
       await migrateBunkers(...pubkeys);
     });
@@ -267,13 +281,40 @@ export async function importNbunk(nbunkString?: string): Promise<void> {
 }
 
 /**
+ * Resolve a user-supplied bunker identifier (hex, npub, nprofile, or NIP-05) to the pubkey it is
+ * stored under. Bunkers are keyed by either the user's pubkey or the remote signer's pubkey
+ * depending on how they were added, so fall back to matching the remote signer pubkey inside
+ * each stored nbunksec. Returns the normalized pubkey unchanged if nothing matches.
+ */
+export async function resolveStoredBunkerPubkey(input: string): Promise<string> {
+  const pubkey = await normalizePubkeyInput(input);
+  const secretsManager = SecretsManager.getInstance();
+  const storedPubkeys = await secretsManager.getAllPubkeys();
+  if (storedPubkeys.includes(pubkey)) return pubkey;
+
+  for (const storedPubkey of storedPubkeys) {
+    const nbunkString = await secretsManager.getNbunk(storedPubkey);
+    if (!nbunkString) continue;
+    try {
+      if (decodeNbunksec(nbunkString).pubkey === pubkey) return storedPubkey;
+    } catch {
+      // Skip unreadable entries; they can't match
+    }
+  }
+
+  return pubkey;
+}
+
+/**
  * Action handler for export subcommand - Cliffy compatible
  */
 export async function exportNbunk(pubkey?: string): Promise<void> {
   try {
     const secretsManager = SecretsManager.getInstance();
 
-    if (!pubkey) {
+    if (pubkey) {
+      pubkey = await resolveStoredBunkerPubkey(pubkey);
+    } else {
       const pubkeys = await secretsManager.getAllPubkeys();
 
       if (pubkeys.length === 0) {
@@ -568,7 +609,9 @@ export async function useBunkerForProject(pubkey?: string): Promise<void> {
   try {
     const secretsManager = SecretsManager.getInstance();
 
-    if (!pubkey) {
+    if (pubkey) {
+      pubkey = await resolveStoredBunkerPubkey(pubkey);
+    } else {
       const pubkeys = await secretsManager.getAllPubkeys();
 
       if (pubkeys.length === 0) {
@@ -634,7 +677,9 @@ export async function removeBunker(pubkey?: string): Promise<void> {
   try {
     const secretsManager = SecretsManager.getInstance();
 
-    if (!pubkey) {
+    if (pubkey) {
+      pubkey = await resolveStoredBunkerPubkey(pubkey);
+    } else {
       const pubkeys = await secretsManager.getAllPubkeys();
 
       if (pubkeys.length === 0) {
@@ -788,8 +833,10 @@ async function findConfigPubkeys(): Promise<string[]> {
  * Action handler for migrate subcommand - Cliffy compatible
  */
 export async function migrateBunkers(...pubkeys: string[]): Promise<void> {
-  // Convert rest params to array or undefined for legacy compatibility
-  const pubkeyArray = pubkeys.length > 0 ? pubkeys : undefined;
+  // Accept npub/nprofile/NIP-05 as well as hex; empty means discover all bunkers
+  const pubkeyArray = pubkeys.length > 0
+    ? await Promise.all(pubkeys.map((pubkey) => normalizePubkeyInput(pubkey)))
+    : undefined;
   return migrateBunkersImpl(pubkeyArray);
 }
 
