@@ -43,7 +43,12 @@ import { SecretsManager } from "../lib/secrets/mod.ts";
 import { normalizeSiteIdentifier, resolveSiteIdentifier } from "../lib/site-identifier.ts";
 import { listTrustedRemoteFiles } from "../lib/site-manifest.ts";
 import { processUploads, type UploadResponse } from "../lib/upload.ts";
-import { detectSourceUrl, parseRelayInput, truncateString } from "../lib/utils.ts";
+import {
+  detectSourceUrl,
+  parseRelayInput,
+  truncateString,
+  validateRelayInput,
+} from "../lib/utils.ts";
 import {
   formatConfigValue,
   formatFilePath,
@@ -436,8 +441,7 @@ export async function deployCommand(
     const publisherPubkey = await signer.getPublicKey();
 
     // Get config values for manifest metadata (these are recommendations for others)
-    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) || config.relays ||
-      [];
+    const manifestRelays = (options.relays ? parseRelayInput(options.relays) : config.relays) || [];
     const manifestServers = options.servers?.split(",").filter((s) => s.trim()) || config.servers ||
       [];
 
@@ -758,7 +762,7 @@ async function resolveContext(
       servers: options.servers
         ? options.servers.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
-      relays: options.relays ? options.relays.split(",").map((r) => r.trim()).filter(Boolean) : [],
+      relays: options.relays ? parseRelayInput(options.relays) : [],
       fallback: options.fallback,
       gatewayHostnames: ["nsite.lol"],
     };
@@ -835,9 +839,8 @@ async function resolveContext(
           s.trim()
         )
         : existingProjectData?.servers) || [],
-      relays: (options.relays
-        ? options.relays.split(",").filter((r) => r.trim())
-        : existingProjectData?.relays) || [],
+      relays: (options.relays ? parseRelayInput(options.relays) : existingProjectData?.relays) ||
+        [],
       bunkerPubkey: existingProjectData?.bunkerPubkey,
       id: existingProjectData?.id,
       fallback: options.fallback || existingProjectData?.fallback,
@@ -903,7 +906,7 @@ async function resolveContext(
       config.servers = options.servers.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     }
     if (options.relays) {
-      config.relays = options.relays.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+      config.relays = parseRelayInput(options.relays);
     }
     if (options.fallback) {
       config.fallback = options.fallback;
@@ -1068,6 +1071,7 @@ async function reconnectToBunker(
           defaultRelays.join(", ")
         }):`,
         default: defaultRelays.join(", "),
+        validate: validateRelayInput,
       });
 
       let chosenRelays: string[];
@@ -1643,8 +1647,7 @@ async function publishSiteManifest(
 
     // Prepare metadata - use config values (these are recommendations for others)
     // Operational relays/servers (from kind 10002/10063) are used for publishing, not in metadata
-    const manifestRelays = options.relays?.split(",").filter((r) => r.trim()) || config.relays ||
-      [];
+    const manifestRelays = (options.relays ? parseRelayInput(options.relays) : config.relays) || [];
     const manifestServers = options.servers?.split(",").filter((s) => s.trim()) || config.servers ||
       [];
 

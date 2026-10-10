@@ -14,6 +14,7 @@ import { npubEncode } from "applesauce-core/helpers";
 import { decodeNbunksec } from "applesauce-signers/helpers";
 import { NostrConnectSigner } from "applesauce-signers";
 import { readProjectFile, writeProjectFile } from "../lib/config.ts";
+import { parseRelayInput, validateRelayInput } from "../lib/utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import {
   decodeBunkerInfo,
@@ -77,7 +78,7 @@ export function registerBunkerCommand(): void {
     // Connect subcommand with complex URL handling
     .command("connect [url:string]", "Connect to a bunker URL and store as nbunksec")
     .option("--pubkey <pubkey:string>", "Bunker public key")
-    .option("--relay <relay:string>", "Relay URL")
+    .option("--relay <relay:string>", "Relay URL(s), comma separated (defaults to wss://)")
     .option("--secret <secret:string>", "Connection secret")
     .option("--persist", "Store the nbunksec (default behavior)", { default: true })
     .option(
@@ -375,7 +376,10 @@ export async function connectBunkerAction(
 
     // If pubkey and relay are provided, construct bunker URL
     if (options.pubkey && options.relay) {
-      url = `bunker://${options.pubkey}?relay=${encodeURIComponent(options.relay)}${
+      const relayParams = parseRelayInput(options.relay)
+        .map((relay) => `relay=${encodeURIComponent(relay)}`)
+        .join("&");
+      url = `bunker://${options.pubkey}?${relayParams}${
         options.secret ? `&secret=${options.secret}` : ""
       }`;
     }
@@ -426,15 +430,14 @@ export async function connectBunker(
             defaultRelays.join(", ")
           }):`,
           default: defaultRelays.join(", "),
+          validate: validateRelayInput,
         });
 
         let chosenRelays: string[];
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r: string) => r.trim()).filter((r: string) =>
-            r.length > 0
-          );
+          chosenRelays = parseRelayInput(relayInput);
         }
 
         if (chosenRelays.length === 0) {
