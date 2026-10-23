@@ -4,6 +4,7 @@ import { ensureDirSync } from "@std/fs/ensure-dir";
 import { dirname, isAbsolute, join, resolve } from "@std/path";
 import { NostrConnectSigner } from "applesauce-signers";
 import { formatValidationErrors, validateConfigWithFeedback } from "./config-validator.ts";
+import { normalizeRelayUrl, parseRelayInput, validateRelayInput } from "./utils.ts";
 import { createLogger } from "./logger.ts";
 import { suggestIdentifier, validateDTag } from "./nip5a.ts";
 import { getNbunkString, initiateNostrConnect } from "./nip46.ts";
@@ -403,13 +404,14 @@ async function connectToBunkerWithQR(): Promise<NostrConnectSigner> {
       defaultRelays.join(", ")
     }):`,
     default: defaultRelays.join(", "),
+    validate: validateRelayInput,
   });
 
   let chosenRelays: string[];
   if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
     chosenRelays = defaultRelays;
   } else {
-    chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+    chosenRelays = parseRelayInput(relayInput);
   }
 
   if (chosenRelays.length === 0) {
@@ -654,13 +656,14 @@ async function interactiveSetup(): Promise<ProjectContext> {
             defaultRelays.join(", ")
           }):`,
           default: defaultRelays.join(", "),
+          validate: validateRelayInput,
         });
 
         let chosenRelays: string[];
         if (relayInput.trim() === "" || relayInput.trim() === defaultRelays.join(", ")) {
           chosenRelays = defaultRelays;
         } else {
-          chosenRelays = relayInput.split(",").map((r) => r.trim()).filter((r) => r.length > 0);
+          chosenRelays = parseRelayInput(relayInput);
         }
 
         if (chosenRelays.length === 0) {
@@ -777,7 +780,7 @@ Generated and stored nbunksec string.`));
   });
 
   console.log(colors.cyan("\nEnter nostr relay URLs (leave empty when done):"));
-  const relays = await promptForUrls("Enter relay URL:", popularRelays);
+  const relays = await promptForUrls("Enter relay URL:", popularRelays, normalizeRelayUrl);
 
   console.log(colors.cyan("\nEnter blossom server URLs (leave empty when done):"));
   const servers = await promptForUrls("Enter blossom server URL:", popularBlossomServers);
@@ -797,8 +800,13 @@ Generated and stored nbunksec string.`));
 
 /**
  * Prompt for URLs with suggestions
+ * @param normalize - Optional normalizer applied to each entry; it may throw to reject the entry
  */
-async function promptForUrls(message: string, suggestions: string[]): Promise<string[]> {
+async function promptForUrls(
+  message: string,
+  suggestions: string[],
+  normalize?: (url: string) => string,
+): Promise<string[]> {
   const urls: string[] = [];
 
   while (true) {
@@ -810,7 +818,13 @@ async function promptForUrls(message: string, suggestions: string[]): Promise<st
 
     if (!url) break;
 
-    if (
+    if (normalize) {
+      try {
+        urls.push(normalize(url));
+      } catch (error) {
+        console.log(colors.yellow(error instanceof Error ? error.message : String(error)));
+      }
+    } else if (
       url.startsWith("http://") || url.startsWith("https://") ||
       url.startsWith("ws://") || url.startsWith("wss://")
     ) {

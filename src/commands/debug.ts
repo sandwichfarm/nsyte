@@ -7,6 +7,7 @@ import { lastValueFrom, timer } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { checkBlossomServers } from "../lib/blossom-checker.ts";
 import { type ProjectConfig, readProjectFile } from "../lib/config.ts";
+import { parseRelayInput } from "../lib/utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import { NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "../lib/manifest.ts";
 import nsyte from "./root.ts";
@@ -239,7 +240,7 @@ export function registerDebugCommand(): void {
         // Determine relays
         let relays: string[] = [];
         if (options.relays) {
-          relays = options.relays.split(",").map((r: string) => r.trim());
+          relays = parseRelayInput(options.relays);
           logger.info("Using relays from command line");
         } else if (config?.relays && config.relays.length > 0) {
           relays = config.relays;

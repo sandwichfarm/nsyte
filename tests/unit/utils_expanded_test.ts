@@ -1,14 +1,16 @@
-import { assertEquals } from "@std/assert";
-import { afterEach, describe, it } from "@std/testing/bdd";
+import { assertEquals, assertThrows } from "@std/assert";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import type { NostrEvent } from "applesauce-core/helpers";
 import {
   detectSourceUrl,
   extractServersFromEvent,
   extractServersFromManifestEvents,
+  normalizeRelayUrl,
   parseRelayInput,
   sshToHttpsUrl,
   truncateString,
+  validateRelayInput,
 } from "../../src/lib/utils.ts";
 
 function relayHosts(relays: readonly string[]): Set<string> {
@@ -119,6 +121,50 @@ describe("parseRelayInput", () => {
   });
 });
 
+describe("normalizeRelayUrl", () => {
+  it("defaults to wss:// when no protocol is given", () => {
+    assertEquals(normalizeRelayUrl("relay.damus.io"), "wss://relay.damus.io/");
+    assertEquals(normalizeRelayUrl("  Relay.Damus.io/ "), "wss://relay.damus.io/");
+    assertEquals(normalizeRelayUrl("127.0.0.1:7777"), "wss://127.0.0.1:7777/");
+  });
+
+  it("treats host:port as a host, not a URL scheme", () => {
+    assertEquals(normalizeRelayUrl("localhost:4869"), "wss://localhost:4869/");
+  });
+
+  it("keeps ws:// and wss:// and converts http(s):// to ws(s)://", () => {
+    assertEquals(normalizeRelayUrl("ws://localhost:4869"), "ws://localhost:4869/");
+    assertEquals(normalizeRelayUrl("wss://nos.lol"), "wss://nos.lol/");
+    assertEquals(normalizeRelayUrl("https://nos.lol"), "wss://nos.lol/");
+    assertEquals(normalizeRelayUrl("http://localhost:7777"), "ws://localhost:7777/");
+  });
+
+  it("rejects input that is not a URL", () => {
+    assertThrows(() => normalizeRelayUrl("not a url"), Error, "Invalid relay URL: not a url");
+    assertThrows(() => normalizeRelayUrl(""), Error, "Invalid relay URL");
+  });
+});
+
+describe("parseRelayInput normalization", () => {
+  it("normalizes and de-duplicates entries without a protocol", () => {
+    assertEquals(parseRelayInput("relay.damus.io, wss://relay.damus.io ,nos.lol,"), [
+      "wss://relay.damus.io/",
+      "wss://nos.lol/",
+    ]);
+  });
+
+  it("throws on an invalid entry instead of dropping it", () => {
+    assertThrows(() => parseRelayInput("nos.lol, not a url"), Error, "Invalid relay URL");
+  });
+});
+
+describe("validateRelayInput", () => {
+  it("returns true for valid input and the error message otherwise", () => {
+    assertEquals(validateRelayInput("relay.damus.io, nos.lol"), true);
+    assertEquals(validateRelayInput("nos.lol, not a url"), "Invalid relay URL: not a url");
+  });
+});
+
 describe("sshToHttpsUrl", () => {
   it("converts git@github.com:user/repo.git to https://github.com/user/repo", () => {
     assertEquals(
@@ -151,17 +197,25 @@ describe("sshToHttpsUrl", () => {
 });
 
 describe("detectSourceUrl", () => {
+  let runPermissionState: PermissionState;
+
+  beforeEach(() => {
+    runPermissionState = "granted";
+    // Command mocks must also pass the permission guard, including when the
+    // coverage task deliberately runs without subprocess permissions.
+    stub(
+      Deno.permissions,
+      "query",
+      () => Promise.resolve({ state: runPermissionState } as PermissionStatus),
+    );
+  });
   it("returns configSource when provided (no git needed)", async () => {
     const result = await detectSourceUrl("https://example.com");
     assertEquals(result, "https://example.com");
   });
 
   it("skips git without prompting when run permission is not granted", async () => {
-    const permissionStub = stub(
-      Deno.permissions,
-      "query",
-      () => Promise.resolve({ state: "prompt" } as PermissionStatus),
-    );
+    runPermissionState = "prompt";
     let commandCreated = false;
     const commandStub = stub(Deno, "Command", () => {
       commandCreated = true;
@@ -173,7 +227,6 @@ describe("detectSourceUrl", () => {
       assertEquals(result, undefined);
       assertEquals(commandCreated, false);
     } finally {
-      permissionStub.restore();
       commandStub.restore();
     }
   });

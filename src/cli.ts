@@ -87,10 +87,12 @@ async function main() {
 
     // Close relays after command execution
     log.debug("Closing relays");
-    await Promise.all(Array.from(pool.relays.values()).map((r) => r.close()));
+    pool.close();
     log.debug("Relays closed");
 
-    // TODO: This should be removed once we figure out what is keeping the process alive
+    // TODO: applesauce no longer holds the process open, but some commands still race promises
+    // against uncleared setTimeout timers (e.g. bunker connect/getPublicKey timeouts), which would
+    // delay exit by up to 30s. Remove once those timers are cleared.
     Deno.exit(0);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);

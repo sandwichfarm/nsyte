@@ -9,6 +9,7 @@ import { importFromNbunk } from "./nip46.ts";
 import { normalizePubkeyInput } from "./nip05.ts";
 import { createNip46ClientFromUrl, generateKeyPair } from "./nostr.ts";
 import { SecretsManager } from "./secrets/mod.ts";
+import { parseRelayInput } from "./utils.ts";
 import { detectSecretFormat } from "./auth/secret-detector.ts";
 
 const log = createLogger("resolver");
@@ -44,7 +45,7 @@ export function resolveRelays(
 ): string[] {
   // Priority: CLI options > config > defaults
   if (options.relays !== undefined) {
-    return parseCommaSeparated(options.relays);
+    return parseRelayInput(options.relays);
   }
 
   const projectConfig = config || readProjectFile();

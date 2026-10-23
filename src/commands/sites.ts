@@ -1,8 +1,5 @@
 import { colors } from "@cliffy/ansi/colors";
-import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { type NostrEvent, relaySet } from "applesauce-core/helpers";
-import { lastValueFrom, timer } from "rxjs";
-import { takeUntil } from "rxjs/operators";
 import { readProjectFile } from "../lib/config.ts";
 import { NSYTE_BROADCAST_RELAYS } from "../lib/constants.ts";
 import { handleError } from "../lib/error-utils.ts";
@@ -14,7 +11,7 @@ import {
   NSITE_NAME_SITE_KIND,
   NSITE_ROOT_SITE_KIND,
 } from "../lib/manifest.ts";
-import { getUserDisplayName, getUserOutboxes, pool, store } from "../lib/nostr.ts";
+import { getUserDisplayName, getUserOutboxes, syncEvents } from "../lib/nostr.ts";
 import { resolvePubkey, resolveRelays } from "../lib/resolver-utils.ts";
 import { resolvePromptSec } from "../lib/auth/prompt-secret.ts";
 import { formatTimestamp } from "../ui/time-formatter.ts";
@@ -116,7 +113,6 @@ export function registerSitesCommand() {
       );
 
       // Fetch all site manifest events (both root and named)
-      const REQUEST_TIMEOUT_MS = 15000;
 
       let events: NostrEvent[] = [];
       try {
@@ -128,17 +124,7 @@ export function registerSitesCommand() {
         log.debug(`Filter: ${JSON.stringify(filter)}`);
         log.debug(`Relays: ${relays.join(" ")}`);
 
-        events = await lastValueFrom(
-          pool
-            .request(relays, filter)
-            .pipe(
-              simpleTimeout(REQUEST_TIMEOUT_MS),
-              mapEventsToStore(store),
-              mapEventsToTimeline(),
-              takeUntil(timer(REQUEST_TIMEOUT_MS)),
-            ),
-          { defaultValue: [] },
-        );
+        events = await syncEvents(relays, filter);
       } catch (error) {
         console.log(
           colors.yellow(
