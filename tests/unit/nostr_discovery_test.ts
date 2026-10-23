@@ -35,7 +35,9 @@ for (const mode of ["outboxes", "manifest", "trusted manifest"]) {
         "request",
         (relays) =>
           from([
-            Array.isArray(relays) && relays.includes("wss://new.example.com/") ? newer : manifest,
+            Array.isArray(relays) && relays.some((relay) => relay === "wss://new.example.com/")
+              ? newer
+              : manifest,
           ]),
       );
       try {
