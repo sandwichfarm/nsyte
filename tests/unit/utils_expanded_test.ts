@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { afterEach, describe, it } from "@std/testing/bdd";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import { restore, stub } from "@std/testing/mock";
 import type { NostrEvent } from "applesauce-core/helpers";
 import {
@@ -197,17 +197,25 @@ describe("sshToHttpsUrl", () => {
 });
 
 describe("detectSourceUrl", () => {
+  let runPermissionState: PermissionState;
+
+  beforeEach(() => {
+    runPermissionState = "granted";
+    // Command mocks must also pass the permission guard, including when the
+    // coverage task deliberately runs without subprocess permissions.
+    stub(
+      Deno.permissions,
+      "query",
+      () => Promise.resolve({ state: runPermissionState } as PermissionStatus),
+    );
+  });
   it("returns configSource when provided (no git needed)", async () => {
     const result = await detectSourceUrl("https://example.com");
     assertEquals(result, "https://example.com");
   });
 
   it("skips git without prompting when run permission is not granted", async () => {
-    const permissionStub = stub(
-      Deno.permissions,
-      "query",
-      () => Promise.resolve({ state: "prompt" } as PermissionStatus),
-    );
+    runPermissionState = "prompt";
     let commandCreated = false;
     const commandStub = stub(Deno, "Command", () => {
       commandCreated = true;
@@ -219,7 +227,6 @@ describe("detectSourceUrl", () => {
       assertEquals(result, undefined);
       assertEquals(commandCreated, false);
     } finally {
-      permissionStub.restore();
       commandStub.restore();
     }
   });
