@@ -1,8 +1,6 @@
-import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
 import { getSeenRelays, type NostrEvent, relaySet } from "applesauce-core/helpers";
-import { lastValueFrom } from "rxjs";
 import { getManifestRelays, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
-import { fetchSiteManifestEvent, getUserOutboxes, pool, store } from "./nostr.ts";
+import { fetchSiteManifestEvent, getUserOutboxes, syncEvents } from "./nostr.ts";
 import type { FileEntry, FileEntryWithSources } from "./nostr.ts";
 
 export interface TrustedManifestFetchResult {
@@ -65,24 +63,13 @@ async function fetchSiteManifestEvents(
   relays: string[],
   pubkey: string,
   identifier?: string,
-  timeout = 15_000,
 ): Promise<NostrEvent[]> {
   try {
-    const events = await lastValueFrom(
-      pool.request(
-        relays,
-        identifier
-          ? {
-            kinds: [NSITE_NAME_SITE_KIND],
-            authors: [pubkey],
-            "#d": [identifier],
-          }
-          : {
-            kinds: [NSITE_ROOT_SITE_KIND],
-            authors: [pubkey],
-          },
-      ).pipe(mapEventsToStore(store), mapEventsToTimeline(), simpleTimeout(timeout)),
-      { defaultValue: [] },
+    const events = await syncEvents(
+      relays,
+      identifier
+        ? { kinds: [NSITE_NAME_SITE_KIND], authors: [pubkey], "#d": [identifier] }
+        : { kinds: [NSITE_ROOT_SITE_KIND], authors: [pubkey] },
     );
 
     return sortManifestEvents(events);

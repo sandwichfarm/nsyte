@@ -148,7 +148,5 @@ skills/nsyte/          # Agent skill (SKILL.md + references/ + assets/config.sch
 - Support latest Deno 2.x
 - Test cross-platform (Linux, macOS, Windows)
 - No `deno.land/x` imports (breaks JSR)
-- `package.json` only exists to override `nostr-tools` to `^2.24.1`: applesauce-core/relay 6.2.x pin
-  `~2.19`, whose NIP-44 caps plaintext at 65535 bytes and breaks bunker signing of large site
-  manifests (guarded by `tests/unit/nip44_large_payload_test.ts`). Overrides do not apply to
-  `jsr:@nsyte/cli` installs. Remove it once applesauce ships `nostr-tools ^2.24`.
+- Applesauce v7 supplies `nostr-tools ^2.24` for large NIP-44 bunker signing payloads. Keep
+  `tests/unit/nip44_large_payload_test.ts` passing when updating dependencies.

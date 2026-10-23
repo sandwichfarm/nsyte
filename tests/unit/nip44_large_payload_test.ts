@@ -37,8 +37,8 @@ Deno.test("NIP-44 round-trips payloads larger than the old 65535-byte cap", () =
   }
 });
 
-// applesauce resolves its own nostr-tools copy (applesauce-core pins `~2.19`, overridden in
-// package.json), so guard the implementation the NIP-46 client key actually encrypts with.
+// Guard the implementation the NIP-46 client key actually encrypts with, as well as the
+// directly imported nostr-tools implementation. Applesauce v7 requires nostr-tools ^2.24.
 Deno.test("applesauce PrivateKeySigner round-trips NIP-44 payloads larger than 65535 bytes", async () => {
   const a = new PrivateKeySigner();
   const b = new PrivateKeySigner();

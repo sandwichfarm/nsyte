@@ -33,6 +33,7 @@ import { truncateHash } from "../ui/browse/renderer.ts";
 import { LOCAL_RELAY_URL, RELAY_DISCOVERY_RELAYS } from "./constants.ts";
 import { getErrorMessage } from "./error-utils.ts";
 import { createLogger } from "./logger.ts";
+import { createEventSync } from "./event-sync.ts";
 import {
   createSiteManifestTemplate,
   type FilePathMapping,
@@ -89,6 +90,9 @@ NostrConnectSigner.pool = pool;
 
 // Create an in-memory event store for managing events
 export const store = new EventStore();
+
+/** Receive all matching events using NIP-77 with paginated REQ fallback. */
+export const syncEvents = createEventSync(store, pool);
 
 // Create a cache request method for loading from the local relay if it exists
 let hasLocalRelay: boolean | null = null;

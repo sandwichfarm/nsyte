@@ -8,6 +8,11 @@ description: Interactive TUI browser for managing files on the nostr network
 Interactive Terminal User Interface (TUI) browser for managing files on the nostr network. Browse,
 select, filter, and delete files with an intuitive keyboard-driven interface.
 
+Site discovery uses NIP-77 sync when a relay supports it, downloading missing events without
+fetching the whole set again during the same session. Relays without NIP-77, or whose sync fails,
+use paginated requests to load beyond a single response limit. A relay that stops making progress
+for 30 seconds times out; other relays can still finish.
+
 ## Usage
 
 ```bash
@@ -18,7 +23,8 @@ nsyte browse [options]
 
 - `-r, --relays <relays>` — Nostr relays to query (comma-separated)
 - `--sec <secret>` — Secret for signing (auto-detects: nsec, nbunksec, bunker://, hex)
-- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of shell history)
+- `--prompt-sec` — Prompt for the signing secret at runtime instead of `--sec` (keeps it out of
+  shell history)
 - `-p, --pubkey <npub>` — Public key to browse (npub, hex, or NIP-05 like name@domain.com)
 - `--use-fallback-relays` — Include default nsyte relays for better discovery
 - `--use-fallbacks` — Enable all fallback options (relays)

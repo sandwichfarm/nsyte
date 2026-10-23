@@ -1,6 +1,0 @@
-{
-  "private": true,
-  "overrides": {
-    "nostr-tools": "^2.24.1"
-  }
-}

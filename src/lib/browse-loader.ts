@@ -1,6 +1,4 @@
-import { mapEventsToStore, mapEventsToTimeline, simpleTimeout } from "applesauce-core";
-import { type Filter, type NostrEvent, relaySet } from "applesauce-core/helpers";
-import { lastValueFrom } from "rxjs";
+import { type Filter, getSeenRelays, type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { renderLoadingScreen } from "../ui/browse/renderer.ts";
 import { createLogger } from "./logger.ts";
 import {
@@ -10,7 +8,7 @@ import {
   NSITE_ROOT_SITE_KIND,
 } from "./manifest.ts";
 import type { FileEntryWithSources } from "./nostr.ts";
-import { fetchServerListEvents, getUserOutboxes, pool, store } from "./nostr.ts";
+import { fetchServerListEvents, getUserOutboxes, syncEvents } from "./nostr.ts";
 import { extractServersFromEvent, extractServersFromManifestEvents } from "./utils.ts";
 
 const log = createLogger("browse-loader");
@@ -60,19 +58,10 @@ export async function fetchAllSites(
   let events: NostrEvent[] = [];
 
   try {
-    events = await lastValueFrom(
-      pool
-        .request(mergedRelays, {
-          kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
-          authors: [pubkey],
-        })
-        .pipe(
-          simpleTimeout(12000),
-          mapEventsToStore(store),
-          mapEventsToTimeline(),
-        ),
-      { defaultValue: [] },
-    );
+    events = await syncEvents(mergedRelays, {
+      kinds: [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND],
+      authors: [pubkey],
+    });
   } catch (error) {
     log.debug(`Error fetching sites: ${error}`);
   }
@@ -141,76 +130,28 @@ export async function listRemoteFilesWithProgress(
   const mergedRelays = relaySet(relays, await getUserOutboxes(pubkey));
 
   const eventMap = new Map<string, { event: NostrEvent; foundOnRelays: Set<string> }>();
-  let completedRelays = 0;
-  let totalEvents = 0;
+  const filter: Filter = { authors: [pubkey] };
+  if (siteIdentifier === null) {
+    filter.kinds = [NSITE_ROOT_SITE_KIND];
+  } else if (siteIdentifier === undefined) {
+    filter.kinds = [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND];
+  } else {
+    filter.kinds = [NSITE_NAME_SITE_KIND];
+    filter["#d"] = [siteIdentifier];
+  }
 
-  renderLoadingScreen("Connecting to relays...", `0 / ${mergedRelays.length} relays`);
-
-  // Subscribe to each relay individually to track sources
-  const promises = mergedRelays.map(async (relay) => {
-    try {
-      log.debug(`Connecting to relay: ${relay}`);
-
-      // Build filter based on site selection
-      const filter: Filter = { authors: [pubkey] };
-
-      if (siteIdentifier === null) {
-        // Fetch only root site
-        filter.kinds = [NSITE_ROOT_SITE_KIND];
-      } else if (siteIdentifier === undefined) {
-        // Fetch all sites (both root and named)
-        filter.kinds = [NSITE_ROOT_SITE_KIND, NSITE_NAME_SITE_KIND];
-      } else {
-        // Fetch specific named site
-        filter.kinds = [NSITE_NAME_SITE_KIND];
-        filter["#d"] = [siteIdentifier];
-      }
-
-      // Add a race condition with manual timeout to handle EOSE issues
-      const requestPromise = lastValueFrom(
-        pool
-          .request([relay], filter)
-          .pipe(
-            simpleTimeout(8000),
-            mapEventsToStore(store),
-            mapEventsToTimeline(),
-          ),
-        { defaultValue: [] },
-      );
-
-      const timeoutPromise = new Promise<NostrEvent[]>((_, reject) => {
-        setTimeout(() => reject(new Error(`Relay ${relay} timeout - no EOSE received`)), 10000);
-      });
-
-      const events = await Promise.race([requestPromise, timeoutPromise]) as NostrEvent[];
-
-      // Track which relay returned each event
-      for (const event of events) {
-        const existing = eventMap.get(event.id);
-        if (existing) {
-          existing.foundOnRelays.add(relay);
-        } else {
-          eventMap.set(event.id, {
-            event,
-            foundOnRelays: new Set([relay]),
-          });
-          totalEvents++;
-        }
-      }
-
-      log.debug(`Found ${events.length} events from relay ${relay}`);
-    } catch (error) {
-      log.debug(`Failed to fetch from relay ${relay}: ${error}`);
-    } finally {
-      completedRelays++;
-      renderLoadingScreen(
-        "Loading files from relays...",
-        `${completedRelays} / ${mergedRelays.length} relays • ${totalEvents} events found`,
-      );
-    }
+  const events = await syncEvents(mergedRelays, filter, (status) => {
+    const completed = Object.values(status.relays).filter((relay) =>
+      ["complete", "error", "skipped"].includes(relay.state)
+    ).length;
+    renderLoadingScreen(
+      "Loading files from relays...",
+      `${completed} / ${mergedRelays.length} relays • ${status.loaded} events loaded`,
+    );
   });
-
-  await Promise.all(promises);
+  for (const event of events) {
+    eventMap.set(event.id, { event, foundOnRelays: new Set(getSeenRelays(event) ?? []) });
+  }
 
   if (eventMap.size === 0) {
     log.warn(`No site manifest events found for user ${pubkey} from any relays`);
