@@ -23,7 +23,6 @@ import {
   unixNow,
 } from "applesauce-core/helpers";
 import { setClient } from "applesauce-core/operations";
-import { loadAsyncMap } from "applesauce-loaders/helpers";
 import { createEventLoaderForStore } from "applesauce-loaders/loaders";
 import { RelayPool } from "applesauce-relay/pool";
 import { type ISigner, NostrConnectSigner } from "applesauce-signers";
@@ -152,11 +151,8 @@ export async function getUserOutboxes(
 ): Promise<string[] | undefined> {
   const user = castUser(pubkey, store);
 
-  // Load outboxes and profile in parallel
-  const { outboxes, name } = await loadAsyncMap({
-    outboxes: user.outboxes$.$first(timeout, undefined),
-    name: getUserDisplayName(pubkey, timeout),
-  }, timeout);
+  const outboxes = await user.outboxes$.$first(timeout, undefined);
+  const name = truncateHash(npubEncode(typeof pubkey === "string" ? pubkey : pubkey.pubkey));
 
   if (outboxes) log.debug(`Found ${outboxes.length} outboxes for ${name}`);
   else log.warn(`No outboxes found for ${name}`);
@@ -313,7 +309,7 @@ export async function createNip46ClientFromUrl(bunkerUrl: string): Promise<{
  * Fetches the latest site manifest event for the given pubkey and identifier
  * @param relays - Relays to query (will be merged with kind 10002 discovered relays)
  * @param pubkey - Public key of the site owner
- * @param identifier - Optional site identifier for named sites. If not provided, fetches root site (kind 15128) and all named sites (kind 35128)
+ * @param identifier - Optional site identifier for named sites (kind 35128). If omitted, fetches the root site (kind 15128)
  * @param timeout - Timeout for the request in milliseconds
  */
 export async function fetchSiteManifestEvent(
@@ -322,19 +318,28 @@ export async function fetchSiteManifestEvent(
   identifier?: string,
   timeout = 12_000,
 ): Promise<NostrEvent | null> {
-  // Load user information in parallel up front
-  const { outboxes, name } = await loadAsyncMap({
-    outboxes: getUserOutboxes(pubkey),
-    name: getUserDisplayName(pubkey, 1000),
-  }, 5000);
+  const outboxes = await getUserOutboxes(pubkey);
+  return await fetchSiteManifestEventFromRelays(
+    relaySet(relays, outboxes),
+    pubkey,
+    identifier,
+    timeout,
+  );
+}
 
-  // First, fetch kind 10002 to get user's preferred relays
-  relays = relaySet(relays, outboxes);
+/** Fetch a manifest from exactly the supplied relays, without further relay discovery. */
+export async function fetchSiteManifestEventFromRelays(
+  relays: string[],
+  pubkey: string,
+  identifier?: string,
+  timeout = 12_000,
+): Promise<NostrEvent | null> {
+  if (relays.length === 0) return null;
 
   log.debug(
-    `Fetching site manifest events for ${name} from ${relays.join(" ")}${
-      identifier ? ` (site: ${identifier})` : ""
-    }`,
+    `Fetching site manifest events for ${truncateHash(npubEncode(pubkey))} from ${
+      relays.join(" ")
+    }${identifier ? ` (site: ${identifier})` : ""}`,
   );
 
   try {

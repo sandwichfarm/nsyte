@@ -1,6 +1,6 @@
 import { getSeenRelays, type NostrEvent, relaySet } from "applesauce-core/helpers";
 import { getManifestRelays, NSITE_NAME_SITE_KIND, NSITE_ROOT_SITE_KIND } from "./manifest.ts";
-import { fetchSiteManifestEvent, getUserOutboxes, syncEvents } from "./nostr.ts";
+import { fetchSiteManifestEventFromRelays, getUserOutboxes, syncEvents } from "./nostr.ts";
 import type { FileEntry, FileEntryWithSources } from "./nostr.ts";
 
 export interface TrustedManifestFetchResult {
@@ -12,6 +12,7 @@ export interface TrustedManifestFetchResult {
 
 export interface TrustedManifestDependencies {
   getOutboxes: (pubkey: string) => Promise<string[] | undefined>;
+  /** Query exactly these relays; relay discovery is owned by the caller. */
   fetchManifest: (
     relays: string[],
     pubkey: string,
@@ -21,12 +22,13 @@ export interface TrustedManifestDependencies {
 
 export interface ManifestHistoryDependencies {
   getOutboxes: (pubkey: string) => Promise<string[] | undefined>;
+  /** Query exactly these relays; relay discovery is owned by the caller. */
   fetchEvents: (relays: string[], pubkey: string, identifier?: string) => Promise<NostrEvent[]>;
 }
 
 const defaultDependencies: TrustedManifestDependencies = {
   getOutboxes: getUserOutboxes,
-  fetchManifest: fetchSiteManifestEvent,
+  fetchManifest: fetchSiteManifestEventFromRelays,
 };
 
 const defaultManifestHistoryDependencies: ManifestHistoryDependencies = {
@@ -99,7 +101,10 @@ export async function fetchTrustedSiteManifestEvent(
   }
 
   const trustedRelays = relaySet(firstPassRelays, manifestRelays);
-  const secondPassManifest = await dependencies.fetchManifest(trustedRelays, pubkey, identifier);
+  const additionalRelays = trustedRelays.filter((relay) => !firstPassRelays.includes(relay));
+  const secondPassManifest = additionalRelays.length > 0
+    ? await dependencies.fetchManifest(additionalRelays, pubkey, identifier)
+    : null;
 
   return {
     event: pickNewerManifest(firstPassManifest, secondPassManifest),
@@ -125,7 +130,10 @@ export async function fetchTrustedSiteManifestHistory(
   }
 
   const trustedRelays = relaySet(firstPassRelays, manifestRelays);
-  const secondPassEvents = await dependencies.fetchEvents(trustedRelays, pubkey, identifier);
+  const additionalRelays = trustedRelays.filter((relay) => !firstPassRelays.includes(relay));
+  const secondPassEvents = additionalRelays.length > 0
+    ? await dependencies.fetchEvents(additionalRelays, pubkey, identifier)
+    : [];
   return sortManifestEvents([...firstPassEvents, ...secondPassEvents]);
 }
 
