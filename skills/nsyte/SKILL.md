@@ -15,6 +15,9 @@ nsyte is a Deno-based CLI that publishes static websites to the Nostr network. F
 Blossom servers (content-addressed by SHA-256) and a signed manifest event is published to Nostr
 relays. Sites are censorship-resistant and served by any nsite gateway.
 
+Site discovery in `sites` and `browse` automatically uses NIP-77 sync with paginated REQ fallback
+for relays without working NIP-77 support. Repeated syncs reuse events loaded in the same session.
+
 **Domain knowledge:** For Nostr/Blossom concepts (relays, pubkeys, nsec, NIP-46, events, kinds), see
 [references/nostr-concepts.md](references/nostr-concepts.md).
 

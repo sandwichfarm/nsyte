@@ -6,6 +6,7 @@ import { describe, it } from "@std/testing/bdd";
 import type { NostrEvent } from "applesauce-core/helpers";
 import {
   fetchTrustedSiteManifestEvent,
+  fetchTrustedSiteManifestHistory,
   listTrustedRemoteFiles,
 } from "../../src/lib/site-manifest.ts";
 
@@ -50,11 +51,7 @@ describe("fetchTrustedSiteManifestEvent", () => {
     assertEquals(result.event.id, "latest");
     assertEquals(fetchCalls.length, 2);
     assertEquals(fetchCalls[0], ["wss://relay-config/", "wss://relay-outbox/"]);
-    assertEquals(fetchCalls[1], [
-      "wss://relay-config/",
-      "wss://relay-outbox/",
-      "wss://relay-manifest/",
-    ]);
+    assertEquals(fetchCalls[1], ["wss://relay-manifest/"]);
     assertEquals(result.relays, [
       "wss://relay-config/",
       "wss://relay-outbox/",
@@ -100,4 +97,103 @@ describe("fetchTrustedSiteManifestEvent", () => {
     assertEquals(files.map((file) => file.sha256), ["hash-app", "hash-index"]);
     assertEquals(files.every((file) => file.event?.id === "manifest"), true);
   });
+});
+
+for (const history of [false, true]) {
+  for (const additional of [false, true]) {
+    Deno.test(`manifest ${history ? "history" : "latest"} queries only new relays (additional: ${additional})`, async () => {
+      const tags = [
+        ["relay", "wss://relay-config/"],
+        ["relay", "wss://relay-outbox"],
+        ...(additional ? [["relay", "wss://relay-new"], ["relay", "wss://relay-new/"]] : []),
+      ];
+      const first = createManifestEvent("first", 100, tags);
+      const newer = createManifestEvent("newer", 200);
+      const calls: string[][] = [];
+      let discoveryCalls = 0;
+      const getOutboxes = () => {
+        discoveryCalls++;
+        return Promise.resolve(["wss://relay-outbox"]);
+      };
+      const fetchEvents = (relays: string[], pubkey: string, identifier?: string) => {
+        calls.push(relays);
+        assertEquals(pubkey, "pubkey");
+        assertEquals(identifier, "named-site");
+        return Promise.resolve(calls.length === 1 ? [first] : [newer, first]);
+      };
+      if (history) {
+        const events = await fetchTrustedSiteManifestHistory(
+          ["wss://relay-config"],
+          "pubkey",
+          "named-site",
+          { getOutboxes, fetchEvents },
+        );
+        assertEquals(events.map((event) => event.id), additional ? ["newer", "first"] : ["first"]);
+      } else {
+        const result = await fetchTrustedSiteManifestEvent(
+          ["wss://relay-config"],
+          "pubkey",
+          "named-site",
+          {
+            getOutboxes,
+            fetchManifest: async (...args) => {
+              const events = await fetchEvents(...args);
+              return events[0];
+            },
+          },
+        );
+        assertEquals(result.event?.id, additional ? "newer" : "first");
+        assertEquals(
+          result.relays,
+          additional
+            ? ["wss://relay-config/", "wss://relay-outbox/", "wss://relay-new/"]
+            : ["wss://relay-config/", "wss://relay-outbox/"],
+        );
+      }
+      assertEquals(discoveryCalls, 1);
+      assertEquals(
+        calls,
+        additional
+          ? [["wss://relay-config/", "wss://relay-outbox/"], ["wss://relay-new/"]]
+          : [["wss://relay-config/", "wss://relay-outbox/"]],
+      );
+    });
+  }
+}
+
+Deno.test("manifest discovery preserves the first result when new relays have no newer event", async () => {
+  const first = createManifestEvent("first", 200, [["relay", "wss://relay-new"]]);
+  for (const second of [null, createManifestEvent("older", 100)]) {
+    let calls = 0;
+    const result = await fetchTrustedSiteManifestEvent(
+      ["wss://relay-config"],
+      "pubkey",
+      undefined,
+      {
+        getOutboxes: () => Promise.resolve(undefined),
+        fetchManifest: () => Promise.resolve(++calls === 1 ? first : second),
+      },
+    );
+    assertEquals(result.event, first);
+    assertEquals(calls, 2);
+    assertEquals(result.relays, ["wss://relay-config/", "wss://relay-new/"]);
+  }
+});
+
+Deno.test("manifest history stops after an empty first pass", async () => {
+  let calls = 0;
+  const result = await fetchTrustedSiteManifestHistory(
+    ["wss://relay-config"],
+    "pubkey",
+    undefined,
+    {
+      getOutboxes: () => Promise.resolve(undefined),
+      fetchEvents: () => {
+        calls++;
+        return Promise.resolve([]);
+      },
+    },
+  );
+  assertEquals(result, []);
+  assertEquals(calls, 1);
 });

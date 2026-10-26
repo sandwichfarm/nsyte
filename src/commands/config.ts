@@ -4,6 +4,7 @@ import { Keypress } from "@cliffy/keypress";
 import { join } from "@std/path";
 import { validateConfigWithFeedback } from "../lib/config-validator.ts";
 import { handleError } from "../lib/error-utils.ts";
+import { normalizeRelayUrl, parseRelayInput, validateRelayInput } from "../lib/utils.ts";
 import { createLogger } from "../lib/logger.ts";
 import {
   clearScreen,
@@ -765,6 +766,20 @@ export async function command(options: { path?: string }): Promise<void> {
             newValue = state.editValue.split(",").map((s) => s.trim()).filter((s) => s);
           }
 
+          // Relay entries may be typed without a protocol; normalize them to ws(s):// URLs
+          if (field.key === "relays" || field.key.startsWith("relays[")) {
+            try {
+              newValue = Array.isArray(newValue)
+                ? parseRelayInput(newValue.join(","))
+                : normalizeRelayUrl(String(newValue));
+            } catch (error) {
+              state.status = error instanceof Error ? error.message : String(error);
+              state.statusColor = colors.red;
+              renderConfigEditor(state);
+              continue;
+            }
+          }
+
           // Handle array item editing differently
           if (field.key.includes("[") && !field.key.endsWith("[+]")) {
             // Parse array index
@@ -851,10 +866,13 @@ export async function command(options: { path?: string }): Promise<void> {
               exitAlternateScreen();
               showCursor();
 
+              const isRelayList = field.key === "relays[+]";
               const { Input } = await import("@cliffy/prompt");
-              const newValue = await Input.prompt({
-                message: "Enter new value:",
+              const input = await Input.prompt({
+                message: isRelayList ? "Enter relay URL:" : "Enter new value:",
+                validate: isRelayList ? validateRelayInput : undefined,
               });
+              const newValue = isRelayList && input ? normalizeRelayUrl(input) : input;
 
               enterAlternateScreen();
               hideCursor();

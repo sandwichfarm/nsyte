@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import * as nip44 from "npm:nostr-tools/nip44";
 import { generateSecretKey, getPublicKey } from "npm:nostr-tools/pure";
+import { PrivateKeySigner } from "applesauce-signers";
 
 /**
  * NIP-46 wraps every request to a remote signer in a NIP-44 payload, so the
@@ -34,4 +35,15 @@ Deno.test("NIP-44 round-trips payloads larger than the old 65535-byte cap", () =
     assertEquals(decrypted.length, size, `NIP-44 failed to round-trip ${size} bytes`);
     assertEquals(decrypted, plaintext);
   }
+});
+
+// Guard the implementation the NIP-46 client key actually encrypts with, as well as the
+// directly imported nostr-tools implementation. Applesauce v7 requires nostr-tools ^2.24.
+Deno.test("applesauce PrivateKeySigner round-trips NIP-44 payloads larger than 65535 bytes", async () => {
+  const a = new PrivateKeySigner();
+  const b = new PrivateKeySigner();
+  const plaintext = "a".repeat(141397);
+
+  const ciphertext = await a.nip44.encrypt(await b.getPublicKey(), plaintext);
+  assertEquals(await b.nip44.decrypt(await a.getPublicKey(), ciphertext), plaintext);
 });

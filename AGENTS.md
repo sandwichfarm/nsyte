@@ -148,3 +148,5 @@ skills/nsyte/          # Agent skill (SKILL.md + references/ + assets/config.sch
 - Support latest Deno 2.x
 - Test cross-platform (Linux, macOS, Windows)
 - No `deno.land/x` imports (breaks JSR)
+- Applesauce v7 supplies `nostr-tools ^2.24` for large NIP-44 bunker signing payloads. Keep
+  `tests/unit/nip44_large_payload_test.ts` passing when updating dependencies.
